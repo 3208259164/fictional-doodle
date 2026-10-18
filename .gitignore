@@ -1,0 +1,32 @@
+# 构建产物
+*.apk
+*.aab
+*.idsig
+app/build/
+app/dist/
+app/mapping-*.txt
+
+# 构建时从 ../site 复制的副本（站点是唯一真源，不要提交）
+app/assets/site/
+
+# 签名与凭据
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+*.pw
+*.password
+
+# 依赖与缓存
+node_modules/
+__pycache__/
+*.pyc
+.cache/
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>离线 · 学通</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  html,body{height:100%;margin:0}
+  body{font-family:-apple-system,"PingFang SC","Noto Serif SC",serif;color:#f2e8d8;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(255,80,60,.22), transparent 45%),
+      radial-gradient(circle at 85% 90%, rgba(200,30,30,.28), transparent 50%),
+      linear-gradient(160deg, #4a0808 0%, #2b0505 55%, #170303 100%);}
+  h1{font-size:40px;color:#f5c518;letter-spacing:3px;margin:0}
+  p{opacity:.75;font-size:15px;margin:14px 0 26px;line-height:1.7}
+  button{font:inherit;color:#f5c518;background:transparent;border:1px solid rgba(245,197,24,.5);
+    padding:10px 24px;border-radius:12px;font-size:14px;cursor:pointer}
+  button:hover{background:rgba(245,197,24,.15)}
+</style>
+</head>
+<body>
+  <h1>暂时离线</h1>
+  <p>当前网络不可用，且这个页面还没有被缓存。<br>连上网络后即可正常浏览已缓存的内容。</p>
+  <button onclick="location.reload()">重新加载</button>
+</body>
+</html>

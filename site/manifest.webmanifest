@@ -1,0 +1,27 @@
+{
+  "id": "/?source=pwa",
+  "name": "学通 · 人物思想组织关系图谱",
+  "short_name": "学通",
+  "description": "以人物·思想·组织关系图谱梳理马克思主义与国际共运史，聚合各类图书馆入口",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#2b0505",
+  "theme_color": "#2b0505",
+  "categories": ["books", "education", "reference"],
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "关系图谱", "short_name": "图谱", "url": "./graph.html" },
+    { "name": "搜索文献", "short_name": "搜索", "url": "./?focus=search" }
+  ]
+}

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">学通</string>
+  <string name="sc_graph">关系图谱</string>
+  <string name="sc_graph_long">查看人物关系图谱</string>
+  <string name="sc_library">本地书库</string>
+  <string name="sc_library_long">打开本地离线书库</string>
+</resources>

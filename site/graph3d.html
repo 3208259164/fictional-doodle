@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000011">
+<title>3D 关系图谱 · 学通</title>
+<style>
+  :root{ --bg:#000011; --fg:#e8e8ea; --accent:#12B7F5; --panel:rgba(12,14,30,.94); }
+  /* ---------- 浅色主题：跟随「设置 → 显示 → 主题」，与站点其它页面（graph.html 等）同一口径 ---------- */
+  body.light{--bg:#f6f2ea;--fg:#2a2320;--panel:rgba(255,252,246,.96);--accent:#b45309}
+  body.light #bar{background:linear-gradient(#f6f2eaff,#f6f2ea00)}
+  body.light #bar .tab,body.light #lbtn,body.light #fbtn,body.light #back,
+  body.light #tools button{background:rgba(0,0,0,.05);color:#3a322c;border-color:rgba(0,0,0,.15)}
+  body.light #bar .tab.on,body.light #lbtn.on,body.light #tools button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  body.light #q3{background:rgba(0,0,0,.05);color:#2a2320;border-color:rgba(0,0,0,.15)}
+  body.light #q3::placeholder{color:#8a7a68}
+  body.light #listPanel,body.light #panel{border-color:rgba(0,0,0,.12);color:#2a2320}
+  body.light #listPanel .x,body.light #panel .close,body.light #panel .collapse{color:#6a5a48;border-color:rgba(0,0,0,.15)}
+  body.light #panel h2{color:#2a2320}
+  body.light #panel .yr,body.light #panel .pts{color:#4a4038}
+  body.light #panel .desc{color:#3d342c}
+  body.light #panel .rel{color:#5a4a3a;border-top-color:rgba(0,0,0,.1)}
+  body.light #panel .rel b{color:#2a2320}
+  body.light #panel img.pf{border-color:rgba(0,0,0,.1)}
+  body.light #llist button{border-color:rgba(0,0,0,.12)}
+  body.light #llist button .ly,body.light #llist button .lr,body.light #listPanel .lcount{color:#6a5a48}
+  body.light #hint,body.light #legend{color:#5a4a3a}
+  body.light #dataMenu{background:var(--panel);box-shadow:0 14px 40px rgba(0,0,0,.2)}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+  /* 3D 画布专用容器：3d-force-graph 挂载时会清空“传入容器”的子节点，
+     因此必须传这个空 div，绝不能传 document.body（否则会抹掉本页 UI 与后续脚本）。 */
+  #stage{position:fixed;inset:0;z-index:1}
+  #bar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;row-gap:6px;
+    padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:linear-gradient(#000011ee,#00001100)}
+  #bar .brand{font-weight:700;font-size:0.9375rem;margin-right:2px;white-space:nowrap}
+  #bar .tab,#lbtn,#fbtn{background:#ffffff14;color:#cfd2e6;border:1px solid #ffffff1f;border-radius:999px;
+    padding:6px 12px;font-size:0.8125rem;cursor:pointer;white-space:nowrap}
+  #bar .tab.on,#lbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #back{margin-left:auto;background:#ffffff14;color:#cfd2e6;border:1px solid #ffffff1f;border-radius:999px;
+    padding:6px 12px;font-size:0.8125rem;cursor:pointer;text-decoration:none;white-space:nowrap}
+  #hint{position:fixed;left:12px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:15;font-size:0.75rem;opacity:.6;pointer-events:none}
+  /* 底部工具条：时间筛选 */
+  #tools{position:fixed;left:50%;bottom:calc(44px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:16;
+    display:flex;align-items:center;gap:8px;padding:5px 9px;border:1px solid #ffffff1f;border-radius:999px;
+    background:var(--panel);font-size:0.75rem;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 14px)}
+  #tools button{background:#ffffff14;color:#cfd2e6;border:1px solid #ffffff1f;border-radius:999px;padding:4px 10px;
+    font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap}
+  #tools button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #tools #ybar{display:none;align-items:center;gap:6px}
+  #tools #ybar input{width:min(30vw,150px)}
+  #tools #yval{color:var(--accent);font-variant-numeric:tabular-nums}
+  #legend .lnt{flex-basis:100%;text-align:right;opacity:.78}
+
+  #legend{position:fixed;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:15;font-size:0.75rem;
+    display:flex;gap:9px;flex-wrap:wrap;max-width:min(92vw,540px);justify-content:flex-end;opacity:.85;pointer-events:none}
+  #legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  /* 搜索 + 列表（与 2D 图谱页一致的操作方式） */
+  #q3{flex:1;min-width:110px;max-width:230px;background:#ffffff14;color:#e8e8ea;border:1px solid #ffffff1f;
+    border-radius:999px;padding:6px 12px;font-size:0.8125rem;outline:none;font-family:inherit}
+  #q3:focus{border-color:var(--accent)}
+  #q3::placeholder{color:#8f93b3}
+  #listPanel{position:fixed;top:0;left:0;height:100%;width:min(340px,88vw);z-index:35;background:var(--panel);
+    border-right:1px solid #2a2a44;padding:calc(14px + env(safe-area-inset-top)) 14px 20px;overflow:auto;
+    transform:translateX(-105%);transition:transform .28s ease,visibility 0s .28s;visibility:hidden}
+  #listPanel.open{transform:none;box-shadow:14px 0 40px rgba(0,0,0,.5);visibility:visible;transition:transform .28s ease,visibility 0s}
+  #listPanel .x{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;background:none;border:1px solid #2a2a44;
+    color:#9aa0c6;border-radius:8px;padding:3px 9px;font-size:0.75rem;cursor:pointer;font-family:inherit}
+  #listPanel .lh0{font-size:0.875rem;color:var(--accent);margin:4px 0 10px;padding-right:64px}
+  #listPanel .lcount{font-size:0.75rem;color:#8f93b3}
+  #llist{list-style:none;margin:0;padding:0}
+  #llist li{margin:0 0 5px}
+  #llist li.lh{font-size:0.75rem;color:var(--accent);opacity:.85;margin:14px 0 6px;letter-spacing:1px}
+  #llist button{width:100%;text-align:left;display:block;padding:8px 10px;border-radius:9px;border:1px solid #ffffff1a;
+    background:transparent;color:inherit;font-family:inherit;font-size:0.8438rem;cursor:pointer;line-height:1.5}
+  #llist button:hover,#llist button:focus{border-color:var(--accent);background:#ffffff10;outline:none}
+  #llist button .ly{color:#9aa0c6;font-size:0.7188rem;margin-left:6px}
+  #llist button .lr{display:block;color:#8f93b3;font-size:0.7188rem;margin-top:2px}
+  @media (max-width:430px){
+    #bar .brand{display:none}
+    #bar .tab,#lbtn,#fbtn,#back{padding:5px 10px;font-size:0.7812rem}
+    #q3{max-width:none}
+    #hint{display:none}
+    #legend{max-width:94vw;gap:7px}
+  }
+  #panel{position:fixed;top:0;right:0;height:100%;width:min(360px,86vw);z-index:30;background:var(--panel);
+    border-left:1px solid #2a2a44;padding:calc(14px + env(safe-area-inset-top)) 16px 20px;overflow:auto;
+    transform:translateX(105%);transition:transform .28s ease,visibility 0s .28s;visibility:hidden}
+  #panel.open{transform:none;visibility:visible;transition:transform .28s ease,visibility 0s}
+  #panel .collapse{position:absolute;top:calc(10px + env(safe-area-inset-top));right:54px;background:none;
+    border:1px solid #2a2a44;color:#9aa0c6;border-radius:8px;padding:4px 10px;font-size:0.75rem;
+    cursor:pointer;font-family:inherit;white-space:nowrap}
+  /* 收起后的「展开介绍」悬浮胶囊：行为与 2D 图谱页（graph.html 的 #ptab）一致 */
+  #ptab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(130px + env(safe-area-inset-bottom,0px));
+    z-index:32;padding:9px 18px;border-radius:22px;background:var(--panel);color:var(--fg);
+    border:1px solid var(--accent);font-size:0.8125rem;font-family:inherit;cursor:pointer;display:none;
+    box-shadow:0 10px 28px rgba(0,0,0,.45);max-width:calc(100vw - 24px);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  #ptab.show{display:block}
+  /* 收起面板就是为了看清连线；此时图例夹在胶囊下面会叠字，先让位 */
+  body.p-collapsed #legend{opacity:0;transition:opacity .2s}
+  @media (max-width:430px){#ptab{bottom:calc(150px + env(safe-area-inset-bottom,0px));padding:8px 15px;font-size:0.7812rem}}
+  #panel h2{margin:0 0 6px;font-size:1.1875rem}
+  #panel .yr{color:#9aa0c6;font-size:0.8125rem;margin-bottom:8px}
+  #panel .role{color:var(--accent);font-size:0.8125rem;margin-bottom:10px}
+  #panel .desc{font-size:0.875rem;line-height:1.7;color:#d6d8ea;margin:10px 0}
+  #panel .pts{margin:8px 0;padding-left:18px;font-size:0.8125rem;line-height:1.7;color:#c3c6dd}
+  #panel img.pf{width:84px;height:84px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 10px;border:2px solid #ffffff22}
+  #panel .rel{font-size:0.7812rem;line-height:1.8;border-top:1px solid #ffffff14;margin-top:12px;padding-top:10px;color:#b9bcd6}
+  #panel .rel b{color:#e8e8ea;font-weight:600}
+  #panel .close{position:absolute;top:calc(10px + env(safe-area-inset-top));right:14px;background:none;border:0;
+    color:#9aa0c6;font-size:1.375rem;cursor:pointer}
+  #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:40;
+    background:var(--bg);color:#7f83a3;font-size:0.8438rem;text-align:left;padding:0 22px;line-height:1.9}
+  #loading .box{max-width:560px;word-break:break-word}
+  #loading b{color:#cfd2e6}
+  #loading code{color:#9aa0c6;font-size:0.75rem}
+  #loading a{color:var(--accent);text-decoration:none}
+.skip{position:absolute;left:-999px;top:0;z-index:200;background:#f5c518;color:#3a0d0d;padding:8px 14px;border-radius:0 0 8px 0;text-decoration:none}
+.skip:focus{left:0}
+:focus-visible{outline:2px solid #f5c518;outline-offset:2px}
+/* 数据菜单：与 2D 关系图谱（graph.html）同一形态 */
+#dataMenu{position:fixed;z-index:39;display:none;flex-direction:column;max-width:calc(100vw - 16px);
+  background:var(--panel);border-radius:12px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.5);
+  border:1px solid #ffffff1f;color:var(--fg)}
+#dataMenu.open{display:flex}
+#dataMenu button{text-align:left;padding:10px 12px;border:0;background:transparent;color:inherit;cursor:pointer;
+  font-family:inherit;font-size:.83rem;border-radius:8px;white-space:normal;word-break:break-word;min-height:40px}
+#dataMenu button:hover,#dataMenu button:focus-visible{background:#ffffff14;outline:none}
+body.clean #dataMenu{display:none !important}
+</style>
+</head>
+<body>
+<a class="skip" href="#hint">跳到操作提示</a>
+<div id="stage"></div>
+<div id="bar">
+  <span class="brand">🧊 3D 关系图谱</span>
+  <button class="tab on" data-ds="nebula">全景星云</button>
+  <button class="tab" data-ds="lineage">思想谱系</button>
+  <button class="tab" data-ds="citations">文献·著作</button>
+  <button class="tab" data-ds="imported" id="tabImported" style="display:none">📥 导入的图谱</button>
+  <input id="q3" type="search" placeholder="找人物 / 思想 / 组织 / 著作…" aria-label="搜索节点" oninput="yz3d.renderList(this.value);if(this.value)yz3d.toggleList(true)">
+  <button class="tbtn" id="lbtn" onclick="yz3d.toggleList()" aria-expanded="false" aria-controls="listPanel">📋 列表</button>
+  <button class="tbtn" id="fbtn" onclick="yz3d.fit()" title="重新取景，让全部节点回到画面内">⤢ 复位</button>
+  <a id="back" href="index.html">返回</a>
+</div>
+<aside id="listPanel" aria-label="节点列表">
+  <button class="x" onclick="yz3d.toggleList(false)">▾ 收起</button>
+  <div class="lh0">📋 节点列表　<span id="lcount" class="lcount"></span></div>
+  <ul id="llist"></ul>
+</aside>
+<aside id="panel"><button class="close" aria-label="关闭">×</button><button class="collapse" onclick="yz3d.collapsePanel()" title="收起面板，方便查看被挡住的连线">▾ 收起</button><div id="pc"></div></aside>
+<button id="ptab" onclick="yz3d.expandPanel()">📖 展开介绍</button>
+<div id="tools">
+  <button id="ybtn" onclick="yz3d.toggleYears()" title="按年代筛选：只保留活跃于该年前后的节点与关系">⏳ 时间</button>
+  <button id="dtb" onclick="yz3d.openDataMenu(event)" title="导出 / 导入图谱数据（JSON · CSV · GraphML）" aria-haspopup="menu" aria-expanded="false">⬇ 数据</button>
+  <span id="ybar"><input id="yr" type="range" aria-label="年份" oninput="yz3d.yearSet(this.value)"><b id="yval">—</b></span>
+</div>
+<div id="hint">拖动旋转 · 双指/滚轮缩放 · 点击节点查看</div>
+<div id="legend"></div>
+<!-- 数据菜单：与 2D 关系图谱（graph.html）**同一个「⬇ 数据」按钮 + 弹出菜单**，用法完全一致 -->
+<div id="dataMenu" role="menu" aria-label="导出数据">
+  <button role="menuitem" onclick="yz3d.exportData3D('json')">JSON（节点 + 关系）</button>
+  <button role="menuitem" onclick="yz3d.exportData3D('csv')">CSV（关系表，Excel 可读）</button>
+  <button role="menuitem" onclick="yz3d.exportData3D('graphml')">GraphML（Gephi / yEd 可读）</button>
+  <button role="menuitem" onclick="yz3d.importData3D()">📥 导入图谱（JSON）</button>
+</div>
+<div id="loading"><div class="box" id="lbox">正在加载 3D 图谱…</div></div>
+
+<script>
+/* 先装好错误捕获：任何脚本「加载失败」或「解析/执行出错」都记录下来，便于准确诊断。 */
+window.__3dErrs = [];
+window.yz3d = window.yz3d || { toggleList:function(){}, renderList:function(){}, pick:function(){}, fit:function(){},
+  toggleYears:function(){}, yearSet:function(){}, exportData3D:function(){}, importData3D:function(){},
+  openDataMenu:function(){}, closeDataMenu:function(){},
+  collapsePanel:function(){}, expandPanel:function(){}, togglePanel:function(){} };
+window.addEventListener('error', function (ev) {
+  try {
+    var t = ev.target;
+    if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+      window.__3dErrs.push('资源加载失败：' + String(t.src || t.href || '').split('/').slice(-1)[0]);
+    } else {
+      window.__3dErrs.push((ev.message || '脚本错误') + (ev.filename ? (' @' + String(ev.filename).split('/').slice(-1)[0] + (ev.lineno ? ':' + ev.lineno : '')) : ''));
+    }
+  } catch (e) {}
+}, true);
+(function () {
+  var box = document.getElementById('lbox');
+  function fail(html) { box.innerHTML = html; }
+
+  function loadScript(src, cb) {
+    var s = document.createElement('script');
+    s.src = src; s.async = false;
+    s.onload = function () { cb(); };
+    s.onerror = function () { window.__3dErrs.push('资源加载失败：' + src.split('/').slice(-1)[0]); cb(); };
+    document.head.appendChild(s);
+  }
+
+  function boot() {
+    var miss = [];
+    if (typeof ForceGraph3D !== 'function') miss.push('渲染引擎 <code>lib/3d-force-graph.min.js</code>');
+    if (!(window.SITE_GRAPH3D && window.SITE_GRAPH3D.datasets)) miss.push('图谱数据 <code>data/graph3d.js</code>');
+    if (miss.length) {
+      fail('<b>3D 关系图谱未能启动</b><br>以下本地资源未加载：<br>' + miss.map(function (m) { return '· ' + m; }).join('<br>') +
+        '<br><br>本站 3D 图谱完全离线、随站点本地分发，不依赖任何 CDN。离线安装包应包含上述文件。' +
+        '<br><br><span style="opacity:.65">诊断信息：' + (window.__3dErrs.length ? window.__3dErrs.join('；') : '（无捕获到具体错误）') +
+        '<br>运行环境：' + navigator.userAgent + '</span>' +
+        '<br><br><a href="graph.html">→ 改用 2D 关系图</a>　<a href="index.html">← 返回主页</a>');
+      return;
+    }
+    if (!webglOK()) {
+      fail('<b>当前环境不支持 WebGL，无法渲染 3D 图谱。</b><br><br><a href="graph.html">→ 打开 2D 关系图</a>　<a href="index.html">← 返回主页</a>');
+      return;
+    }
+    try { start(); }
+    catch (e) {
+      fail('<b>3D 渲染初始化失败：</b>' + (e && e.message ? e.message : e) +
+        '<br><br><span style="opacity:.65">运行环境：' + navigator.userAgent + '</span>' +
+        '<br><br><a href="graph.html">→ 改用 2D 关系图</a>　<a href="index.html">← 返回主页</a>');
+    }
+  }
+
+  function webglOK() {
+    try {
+      var c = document.createElement('canvas');
+      return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl')));
+    } catch (e) { return false; }
+  }
+
+  /* 主题口径与 graph.html 的 isLightMode() 一致：localStorage.theme = light | dark | auto
+     （auto 时先问 App 桥的系统深色，再退到 prefers-color-scheme）。
+     以前 3D 页写死深色背景，导致「设置里选的深色/浅色」在 3D 图谱里不生效。 */
+  var LIGHT = (function () {
+    var t = 'auto';
+    try { t = localStorage.getItem('theme') || 'auto'; } catch (e) {}
+    if (t === 'light') return true;
+    if (t === 'dark') return false;
+    try { if (window.AndroidApp && typeof AndroidApp.systemDark === 'function') return !AndroidApp.systemDark(); } catch (e) {}
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches); } catch (e) {}
+    return false;
+  })();
+  try { if (LIGHT) document.body.classList.add('light'); } catch (e) {}
+
+  function start() {
+    var D = window.SITE_GRAPH3D, CMAP = D.colors || {}, NODES = [], LINKS = [];
+    var G = ForceGraph3D()(document.getElementById('stage'))
+      .backgroundColor(LIGHT ? '#f6f2ea' : '#000011')
+      .nodeColor(nodeColor)
+      .nodeVal(function (n) { return n.val || 1; })
+      .nodeOpacity(0.92)
+      .nodeResolution(12)
+      .nodeVisibility(nodeVisible)
+      .linkColor(linkColor)
+      .linkWidth(linkWidth)
+      .linkVisibility(linkVisible)
+      .linkDirectionalParticles(particles)
+      .linkDirectionalParticleWidth(1.2)
+      /* 省电①：默认 cooldownTicks=Infinity，模拟永不因 tick 数停下；给定有限值让物理确定收敛 */
+      .cooldownTicks(300)
+      /* 省电②：监听「引擎停止＝布局稳定」，稍后暂停渲染循环 */
+      .onEngineStop(function () { engineRunning = false; wake(700); })
+      .nodeLabel(function (n) { return '<div style="background:#0c0e1e;border:1px solid #2a2a44;border-radius:8px;padding:6px 10px;font-size:13px"><b>' + n.name + '</b>' + (n.years ? ' · ' + n.years : '') + '</div>'; })
+      .onNodeClick(function (n) { pickNode(n.id); })
+      .onBackgroundClick(function () { clearSel(); });
+
+    /* ---------- 省电：布局收敛后停止持续渲染 ----------
+       3d-force-graph 内部用 requestAnimationFrame 无限循环（_animationCycle → tickFrame + renderObjs.tick）
+       逐帧重绘；即使力导向已冷却、画面完全静止，也照画不误 → 空闲时仍产生海量 WebGL 调用、耗电发热。
+       做法（不引入依赖、不改视觉结果）：
+         · cooldownTicks(300) 使物理模拟确定收敛；
+         · onEngineStop 收到「引擎已停＝布局稳定」信号后，暂停渲染循环 G.pauseAnimation()；
+         · 任何交互/视觉变更（拖拽、缩放、点击、hover、resize、切数据集、时间滑块、恢复上下文…）
+           调用 wake() → G.resumeAnimation() 短暂恢复渲染，空闲一段时间且引擎已停后再次暂停。
+       这样「停下来」不等于「卡死」：需要时随时会重新渲染。 */
+    var animPaused = false, engineRunning = true, pauseTimer = 0;
+    function pauseLoop() { if (animPaused) return; animPaused = true; try { G.pauseAnimation(); } catch (e) {} }
+    function resumeLoop() { if (!animPaused) return; animPaused = false; try { G.resumeAnimation(); } catch (e) {} }
+    /* 恢复渲染，并计划在「ms 毫秒空闲后」再次暂停；仅在物理引擎已停且页面可见时才真正暂停 */
+    function wake(ms) {
+      resumeLoop();
+      if (pauseTimer) clearTimeout(pauseTimer);
+      pauseTimer = setTimeout(function () {
+        if (!engineRunning && !document.hidden) pauseLoop();
+      }, (ms > 0 ? ms : 1100));
+    }
+    /* 页面隐藏时暂停（省电）；回到前台时恢复 → 若引擎已停，则由 wake 再自动暂停 */
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { if (pauseTimer) clearTimeout(pauseTimer); pauseLoop(); }
+      else wake(1200);
+    });
+
+    var selId = null, selName = '', nbSet = {}, yearOn = false, yVal = null, datasetKey = 'nebula';
+    function yrOf(n) { var m = String((n && n.years) || '').match(/\d{4}/g); return m ? [+m[0], m[1] ? +m[1] : +m[0]] : null; }
+    function passYear(n) { if (!yearOn || yVal === null) return true; var r = yrOf(n); return !r || (yVal >= r[0] - 3 && yVal <= r[1] + 3); }
+    function nodeVisible(n) { return passYear(n); }
+    function linkVisible(l) {
+      var s = (l && typeof l.source === 'object') ? l.source : null, t = (l && typeof l.target === 'object') ? l.target : null;
+      return (!s || passYear(s)) && (!t || passYear(t));
+    }
+    function endId(v) { return (v && typeof v === 'object') ? v.id : v; }
+    function isHot(id) { return !selId || id === selId || !!nbSet[id]; }
+    function linkHot(l) { return selId && (endId(l.source) === selId || endId(l.target) === selId); }
+    function nodeColor(n) { if (selId && !isHot(n.id)) return LIGHT ? '#d8d2c6' : '#2a2d44'; return n.color || CMAP[n.type] || '#9aa0a6'; }
+    function linkColor(l) {
+      if (linkHot(l)) return '#f5c518';
+      if (selId && !(nbSet[endId(l.source)] || nbSet[endId(l.target)])) return LIGHT ? 'rgba(80,70,60,.14)' : 'rgba(90,95,130,.15)';
+      return typeof l.color === 'string' ? l.color : 'rgba(150,150,180,.32)';
+    }
+    function linkWidth(l) { return linkHot(l) ? 1.7 : 0.6; }
+    function particles(l) {
+      if (linkHot(l)) return 4;
+      return /影响|继承|发展|奠基|创立|著作/.test(l.rel || '') ? 2 : 0;
+    }
+    /* 重新评估访问器（force-graph 惯用手法：把访问器再设一次即触发重绘） */
+    function applyA11y() {
+      wake(900); /* 颜色/可见性改变需要重绘一帧才呈现，故先恢复渲染 */
+      try {
+        G.nodeColor(G.nodeColor()).nodeVisibility(G.nodeVisibility())
+         .linkColor(G.linkColor()).linkWidth(G.linkWidth()).linkVisibility(G.linkVisibility())
+         .linkDirectionalParticles(G.linkDirectionalParticles());
+      } catch (e) {}
+    }
+    function flash(msg, ms) {
+      /* 独立提示条：#hint 在窄屏被隐藏，不能再把提示写进去 */
+      var el = document.getElementById('g3toast');
+      if (!el) {
+        el = document.createElement('div'); el.id = 'g3toast';
+        el.style.cssText = 'position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;max-width:92vw;padding:9px 14px;border-radius:10px;background:rgba(10,14,30,.96);color:#e8e8ea;font-size:.8rem;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.55);display:none;pointer-events:none;line-height:1.5';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg; el.style.display = 'block';
+      clearTimeout(el._t); el._t = setTimeout(function () { el.style.display = 'none'; }, ms || 2600);
+    }
+    function copyText(t, label) {
+      try { if (navigator.clipboard && navigator.clipboard.writeText) { var _p = navigator.clipboard.writeText(t); if (_p && _p.catch) _p.catch(function () {}); } } catch (e) {}
+      try { var ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } catch (e) {}
+      flash(label || '已复制');
+    }
+    function hintText() {
+      var el = document.getElementById('hint'); if (!el) return;
+      var t = selId ? ('已选中：亮起的是它的邻居（<b>' + Object.keys(nbSet).length + '</b> 个），点空白处取消')
+                    : '拖动旋转 · 双指/滚轮缩放 · 点击节点看关系网';
+      el.innerHTML = t; el._orig = t;
+    }
+    function clearSel() {
+      selId = null; selName = ''; nbSet = {};
+      var p = document.getElementById('panel'); if (p) p.classList.remove('open');
+      var tb = document.getElementById('ptab'); if (tb) tb.classList.remove('show');
+      try { document.body.classList.remove('p-collapsed'); } catch (e) {}
+      applyA11y(); hintText();
+    }
+    /* ---- 面板「收起 / 展开」：与 2D 图谱页（graph.html 的 collapsePanel/expandPanel）行为一致 ----
+       收起后只留一个底部胶囊，被面板挡住的连线立刻可见；选中状态（高亮邻居）保持不变。 */
+    function collapsePanel() {
+      var p = document.getElementById('panel'); if (p) p.classList.remove('open');
+      var tb = document.getElementById('ptab');
+      if (tb) { tb.textContent = '📖 展开介绍' + (selName ? (' · ' + selName) : ''); tb.classList.add('show'); }
+      try { document.body.classList.add('p-collapsed'); } catch (e) {}
+      try { wake(400); } catch (e) {}
+    }
+    function expandPanel() {
+      if (!selId) return;
+      var p = document.getElementById('panel'); if (p) p.classList.add('open');
+      var tb = document.getElementById('ptab'); if (tb) tb.classList.remove('show');
+      try { document.body.classList.remove('p-collapsed'); } catch (e) {}
+      try { wake(600); } catch (e) {}
+    }
+    function togglePanel() {
+      var p = document.getElementById('panel');
+      if (p && p.classList.contains('open')) collapsePanel(); else expandPanel();
+    }
+    /* ---------- 时间筛选 ---------- */
+    function yearsAvailable() { for (var i = 0; i < NODES.length; i++) { if (yrOf(NODES[i])) return true; } return false; }
+    function yLabel() { var el = document.getElementById('yval'); if (el) el.textContent = (yearOn && yVal !== null) ? (yVal + ' 年') : '—'; }
+    function toggleYears() {
+      if (!yearsAvailable()) { flash('该数据集没有年代信息'); return; }
+      yearOn = !yearOn;
+      var b = document.getElementById('ybtn'); if (b) b.classList.toggle('on', yearOn);
+      var bar = document.getElementById('ybar');
+      if (yearOn) {
+        var ys = []; NODES.forEach(function (n) { var r = yrOf(n); if (r) { ys.push(r[0]); ys.push(r[1]); } });
+        var mn = Math.min.apply(null, ys), mx = Math.max.apply(null, ys);
+        if (yVal === null || yVal < mn || yVal > mx) yVal = mx;
+        var r0 = document.getElementById('yr');
+        if (r0) { r0.min = mn; r0.max = mx; r0.value = yVal; }
+        if (bar) bar.style.display = 'inline-flex';
+        yLabel();
+      } else if (bar) { bar.style.display = 'none'; }
+      applyA11y();
+    }
+    function yearSet(v) { yVal = parseInt(v, 10); yLabel(); applyA11y(); }
+    /* ---------- 「⬇ 数据」按钮：弹出菜单（照搬 2D 关系图谱的交互与定位） ---------- */
+    var _dmEsc = false;
+    function openDataMenu(ev) {
+      var m = document.getElementById('dataMenu'), b = document.getElementById('dtb');
+      if (!m) return;
+      var open = m.classList.contains('open');
+      m.classList.toggle('open', !open);
+      if (b) b.setAttribute('aria-expanded', !open ? 'true' : 'false');
+      if (open) return;
+      /* 定位：贴着按钮但绝不越出屏幕（与 2D 版同一套算法） */
+      m.style.visibility = 'hidden'; m.style.maxHeight = ''; m.style.overflowY = '';
+      var mw = m.offsetWidth, mh = m.offsetHeight;
+      var iw = window.innerWidth || 360, ih = window.innerHeight || 640;
+      var r = b ? b.getBoundingClientRect() : { left: 20, top: ih - 60, bottom: ih - 30, right: 20 };
+      if (mh > ih - 16) { m.style.maxHeight = (ih - 16) + 'px'; m.style.overflowY = 'auto'; mh = ih - 16; }
+      var left = Math.min(Math.max(8, Math.round(r.right - mw)), Math.max(8, iw - mw - 8));
+      var top = Math.round(r.top - mh - 6);
+      if (top < 8) top = Math.round(Math.min(r.bottom + 6, ih - mh - 8));
+      if (top < 8) top = 8;
+      m.style.left = left + 'px'; m.style.top = top + 'px'; m.style.visibility = '';
+      if (!_dmEsc) {
+        _dmEsc = true;
+        document.addEventListener('click', function (e) { if (!m.contains(e.target) && e.target !== b) closeDataMenu(); }, true);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDataMenu(); });
+      }
+    }
+
+    /* ---------- 数据导出（当前数据集 → JSON / CSV / GraphML，与 2D 图谱同一套格式） ---------- */
+    function closeDataMenu() {
+      var dm = document.getElementById('dataMenu'); if (dm) dm.classList.remove('open');
+      var b = document.getElementById('dtb'); if (b) b.setAttribute('aria-expanded', 'false');
+    }
+    function exportData3D(kind) {
+      kind = kind || 'json';
+      closeDataMenu();
+      try {
+        var ds = (window.SITE_GRAPH3D && SITE_GRAPH3D.datasets) ? SITE_GRAPH3D.datasets[datasetKey] : null;
+        if (!ds) { flash('当前数据集不可导出', 3000); return; }
+        var stamp = new Date().toISOString().slice(0, 10);
+        var nodes = ds.nodes || [], links = ds.links || [];
+        var eid = function (v) { return (v && typeof v === 'object') ? v.id : v; };
+        var name, mime, txt;
+        if (kind === 'csv') {
+          var nm = {}; nodes.forEach(function (n) { nm[n.id] = n.name || ''; });
+          var rows = ['source,source_name,rel,target,target_name'];
+          links.forEach(function (l) {
+            rows.push([eid(l.source), nm[eid(l.source)] || '', l.rel || '', eid(l.target), nm[eid(l.target)] || '']
+              .map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(','));
+          });
+          name = '学通-3D图谱-rel-' + datasetKey + '-' + stamp + '.csv';
+          mime = 'text/csv'; txt = '\ufeff' + rows.join('\r\n');
+        } else if (kind === 'graphml') {
+          var xe = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+          var x = ['<?xml version="1.0" encoding="UTF-8"?>', '<graphml xmlns="http://graphml.graphdrawing.org/xmlns">',
+            '<key id="n" for="node" attr.name="name" attr.type="string"/><key id="t" for="node" attr.name="type" attr.type="string"/>',
+            '<key id="r" for="edge" attr.name="rel" attr.type="string"/><graph id="G" edgedefault="directed">'];
+          nodes.forEach(function (n) { x.push('<node id="' + xe(n.id) + '"><data key="n">' + xe(n.name) + '</data><data key="t">' + xe(n.type || '') + '</data></node>'); });
+          links.forEach(function (l, i) { x.push('<edge id="e' + i + '" source="' + xe(eid(l.source)) + '" target="' + xe(eid(l.target)) + '"><data key="r">' + xe(l.rel || '') + '</data></edge>'); });
+          x.push('</graph></graphml>');
+          name = '学通-3D图谱-' + datasetKey + '-' + stamp + '.graphml';
+          mime = 'application/xml'; txt = x.join('\n');
+        } else {
+          var o = { name: datasetKey, source: '学通', date: stamp,
+            /* 与 2D 关系图谱（graph.html）导出保持「同一套字段」，两个页面的 JSON 可互相导入：
+               完整字段都带上（重建后不丢信息），运行期坐标 x/y/z 不导出。 */
+            nodes: nodes.map(function (n) {
+              var m = { id: n.id, name: n.name, type: n.type, years: n.years || '', role: n.role || '' };
+              if (n.desc) m.desc = n.desc;
+              if (typeof n.img === 'string' && n.img) m.img = n.img;
+              if (n.points && n.points.length) m.points = n.points;
+              if (n.works && n.works.length) m.works = n.works;
+              if (n.tags && n.tags.length) m.tags = n.tags;
+              if (n.crit) m.crit = true;
+              if (n.val != null) m.val = n.val;                              /* 3D 专有：节点大小 */
+              if (typeof n.color === 'string' && n.color) m.color = n.color; /* 3D 专有：节点颜色 */
+              return m;
+            }),
+            links: links.map(function (l) { return { source: eid(l.source), target: eid(l.target), rel: l.rel }; }) };
+          name = '学通-3D图谱-' + datasetKey + '-' + stamp + '.json';
+          mime = 'application/json'; txt = JSON.stringify(o, null, 2);
+        }
+        if (window.YZSave && YZSave.text(name, mime, txt)) {
+          var pending = !!(window.YZSave.isApp && YZSave.isApp());
+          if (window.YZSave.preview && YZSave.b64) {
+            YZSave.preview(name, 'data:' + mime + ';base64,' + YZSave.b64(txt),
+              (pending ? '⏳ 正在保存…' : '') + name + ' · ' + txt.length + ' 字符（内容如下，可关闭）');
+          } else { flash(window.YZSave.tip ? YZSave.tip(name) : ('已导出：' + name), 4000); }
+          if (pending) {
+            window.yzOnSaveResult = function (r) {
+              try {
+                var ov = document.getElementById('yzExportOv'); if (!ov) return;
+                var p = ov.querySelector('p'); if (p) p.textContent = r.msg || '';
+                var old = ov.querySelector('button.yzOpenBtn'); if (old) old.remove();
+                if (r.ok && r.uri && window.AndroidApp && AndroidApp.openSaved) {
+                  var b = document.createElement('button');
+                  b.className = 'yzOpenBtn'; b.type = 'button'; b.textContent = '用其他应用打开';
+                  b.style.cssText = 'padding:10px 22px;border-radius:22px;border:0;background:#e23a3a;color:#fff;font-size:.9rem;cursor:pointer';
+                  b.onclick = function () { try { AndroidApp.openSaved(r.uri, r.mime); } catch (e) {} };
+                  var cb = ov.querySelector('button:not(.yzOpenBtn)');
+                  if (cb) ov.insertBefore(b, cb); else ov.appendChild(b);
+                }
+              } catch (e) {}
+            };
+          }
+          return;
+        }
+        /* 网页 / 无桥环境兜底：用 Blob + <a download> 直接下载（不在 App 内也能导出） */
+        try {
+          var blob = new Blob([txt], { type: 'application/json' });
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = name;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { try { URL.revokeObjectURL(a.href); } catch (e2) {} }, 1500);
+          flash('已导出：' + name, 4000);
+          return;
+        } catch (e2) {}
+        flash('导出失败：当前环境不支持保存', 4000);
+      } catch (e) { flash('导出失败：' + (e && e.message ? e.message : e), 4000); }
+    }
+
+    /* ---------- 数据导入（与「导出」成对）：JSON → 作为一张新图谱打开 ----------
+       说明：App 内 WebView 的文件选择器由原生 onShowFileChooser 支持；
+       导入结果同时写入 localStorage，下次打开 3D 图谱仍在。 */
+    function _norm3D(obj) {
+      var nodes = (obj && Array.isArray(obj.nodes) ? obj.nodes : []).filter(function (n) {
+        return n && n.id != null && String(n.id).length > 0;
+      }).map(function (n) {
+        /* 与 2D 导出同一套字段：完整保留业务字段，保证「导出 → 导入 → 再导出」不丢信息 */
+        var o = { id: String(n.id), name: String(n.name == null ? n.id : n.name), type: String(n.type || 'person') };
+        o.years = String(n.years || '');
+        o.role = String(n.role || '');
+        if (n.desc) o.desc = String(n.desc);
+        if (typeof n.img === 'string' && n.img) o.img = n.img;
+        if (Array.isArray(n.points) && n.points.length) o.points = n.points.slice();
+        if (Array.isArray(n.works) && n.works.length) o.works = n.works.slice();
+        if (Array.isArray(n.tags) && n.tags.length) o.tags = n.tags.slice();
+        if (n.crit) o.crit = true;
+        if (n.val != null && isFinite(Number(n.val))) o.val = Number(n.val);
+        if (typeof n.color === 'string' && n.color) o.color = n.color;
+        return o;
+      });
+      var ids = {}; nodes.forEach(function (n) { ids[n.id] = 1; });
+      var links = (obj && Array.isArray(obj.links) ? obj.links : []).filter(function (l) {
+        if (!l) return false;
+        var s = (l.source && typeof l.source === 'object') ? l.source.id : l.source;
+        var t = (l.target && typeof l.target === 'object') ? l.target.id : l.target;
+        return ids[s] && ids[t];
+      }).map(function (l) {
+        var s = (l.source && typeof l.source === 'object') ? l.source.id : l.source;
+        var t = (l.target && typeof l.target === 'object') ? l.target.id : l.target;
+        var o = { source: String(s), target: String(t) };
+        if (l.rel) o.rel = String(l.rel);
+        if (l.kind) o.kind = String(l.kind);
+        if (typeof l.color === 'string' && l.color) o.color = l.color;
+        return o;
+      });
+      return { nodes: nodes, links: links };
+    }
+    function _applyImported(name, norm, remember) {
+      D.datasets.imported = { nodes: norm.nodes, links: norm.links };
+      var tb = document.getElementById('tabImported');
+      if (tb) {
+        tb.style.display = '';
+        tb.textContent = '📥 ' + (name ? String(name).slice(0, 16) : '导入的图谱');
+        Array.prototype.forEach.call(document.querySelectorAll('.tab[data-ds]'), function (x) { x.classList.remove('on'); });
+        tb.classList.add('on');
+      }
+      load('imported');
+      if (remember) { try { localStorage.setItem('yz3dImport', JSON.stringify({ name: name || '', nodes: norm.nodes, links: norm.links })); } catch (e) {} }
+    }
+    function importData3D() {
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = '.json,application/json'; inp.style.display = 'none';
+      inp.onchange = function () {
+        var f = inp.files && inp.files[0]; if (!f) return;
+        var r = new FileReader();
+        r.onload = function () {
+          var obj = null;
+          try { obj = JSON.parse(String(r.result)); }
+          catch (e) { flash('导入失败：文件不是有效的 JSON', 4500); return; }
+          var norm = _norm3D(obj);
+          if (!norm.nodes.length) { flash('导入失败：文件里没有可用的节点（nodes）', 4500); return; }
+          _applyImported(obj && obj.name, norm, true);
+          flash('已导入：' + norm.nodes.length + ' 个节点 / ' + norm.links.length + ' 条关系' +
+                (norm.links.length ? '' : '（文件里没有可用关系）'), 4800);
+        };
+        r.onerror = function () { flash('读取文件失败', 4500); };
+        r.readAsText(f);
+      };
+      document.body.appendChild(inp);
+      inp.click();
+      setTimeout(function () { try { inp.remove(); } catch (e) {} }, 60000);
+    }
+
+    function legend() {
+      var el = document.getElementById('legend'); if (!el) return;
+      var seen = {}, a = [];
+      NODES.forEach(function (n) { if (!seen[n.type]) { seen[n.type] = 1; a.push(n.type); } });
+      var label = { person: '人物', idea: '思想', org: '组织', work: '著作', event: '事件' };
+      el.innerHTML = a.map(function (t) { return '<span><i style="background:' + (CMAP[t] || '#9aa0a6') + '"></i>' + (label[t] || t) + '</span>'; }).join('') +
+        '<span class="lnt">流动粒子＝关系方向　<i style="background:#ff6b6b"></i>红＝批判/对立　<i style="background:#f5c518"></i>金＝选中节点的关系</span>';
+    }
+    /* ---------- 取景：进入/切换数据集后把全部节点放进画面 ---------- */
+    var userMoved = false, fitTimer = 0;
+    function fitView() { wake(1100); try { G.zoomToFit(600, 40); } catch (e) {} }
+    function scheduleFit() {
+      userMoved = false; wake(3200); /* 覆盖 1200ms 等待 + zoomToFit tween，期间保持渲染 */
+      if (fitTimer) clearTimeout(fitTimer);
+      fitTimer = setTimeout(function () { if (!userMoved) fitView(); }, 1200);
+    }
+    /* ---------- 图形上下文丢失（切后台/显存不足）后的恢复 ---------- */
+    function lostOverlay() {
+      var box = document.getElementById('lbox'); if (!box) return;
+      document.getElementById('loading').style.display = 'flex';
+      box.innerHTML = '<b>3D 渲染已中断</b><br>通常是切到后台或显存不足导致图形上下文丢失。<br><br>' +
+        '<a href="javascript:location.reload()">🔄 重新加载 3D 图谱</a>　<a href="graph.html">→ 改用 2D 关系图</a>';
+    }
+    function recoverCtx() {
+      var n = 0; try { n = +(sessionStorage.getItem('yz3dCtx') || 0); } catch (e) {}
+      if (n < 2) { try { sessionStorage.setItem('yz3dCtx', String(n + 1)); } catch (e) {} location.reload(); }
+      else { lostOverlay(); }
+    }
+    /* 连续 10 秒渲染正常 → 重置自动恢复次数，避免无限重载 */
+    setTimeout(function () { try { sessionStorage.removeItem('yz3dCtx'); } catch (e) {} }, 10000);
+
+    function load(k) {
+      var ds = D.datasets[k]; if (!ds) return;
+      datasetKey = k;
+      selId = null; nbSet = {}; engineRunning = true; /* 换数据集会重置倒计时、引擎重新运行 */
+      NODES = ds.nodes; LINKS = ds.links;
+      /* 必须把“同一批对象”交给引擎：引擎会把 x/y/z 写在传入的节点上，
+         若这里传副本，页面里的 NODES 就永远拿不到坐标（曾经导致「列表→跳转」飞到原点）。 */
+      G.graphData({ nodes: ds.nodes, links: ds.links });
+      scheduleFit();
+      legend();
+      try { renderList((document.getElementById('q3') || {}).value || ''); } catch (e) {}
+    }
+    function openPanel(n) {
+      var p = document.getElementById('panel'), c = document.getElementById('pc'), rels = [];
+      LINKS.forEach(function (l) {
+        var s = typeof l.source === 'object' ? l.source.id : l.source, t = typeof l.target === 'object' ? l.target.id : l.target;
+        if (s === n.id) rels.push({ rel: l.rel, to: t, src: l.src }); else if (t === n.id) rels.push({ rel: l.rel, to: s, src: l.src });
+      });
+      var nameOf = function (id) { var f = NODES.filter(function (x) { return x.id === id; })[0]; return f ? f.name : id; };
+      c.innerHTML =
+        (n.img ? '<img class="pf" src="' + esc3(n.img) + '" alt="">' : '') +
+        '<h2>' + esc3(n.name || '（未命名节点）') + '</h2>' +
+        (n.years ? '<div class="yr">' + esc3(n.years) + '</div>' : '') +
+        (n.role ? '<div class="role">' + esc3(n.role) + '</div>' : '') +
+        (n.desc ? '<div class="desc">' + esc3(n.desc) + '</div>' : '') +
+        (rels.length ? '<div class="rel">关系（' + rels.length + '）：<br>' + rels.map(function (r) {
+          return '· <b>' + esc3(r.rel || '关联') + '</b> — ' + esc3(nameOf(r.to)) + (r.src ? '　<span style="opacity:.72">依据：' + esc3(r.src) + '</span>' : ''); }).join('<br>') + '</div>' : '');
+      selName = n.name || '';
+      try { if (p) p.setAttribute('aria-label', '节点详情：' + selName); } catch (e) {}
+      p.classList.add('open');
+      var _tb = document.getElementById('ptab'); if (_tb) _tb.classList.remove('show');
+    }
+    var closeBtn = document.querySelector('#panel .close');
+    if (closeBtn) closeBtn.onclick = function () { clearSel(); };
+    Array.prototype.forEach.call(document.querySelectorAll('.tab[data-ds]'), function (b) {
+      b.onclick = function () {
+        Array.prototype.forEach.call(document.querySelectorAll('.tab[data-ds]'), function (x) { x.classList.remove('on'); });
+        b.classList.add('on'); load(b.getAttribute('data-ds'));
+      };
+    });
+    /* ---------- 搜索 + 节点列表（键盘 / 读屏等价入口） ---------- */
+    var ORDER = ['person', 'idea', 'org', 'work', 'event'];
+    var LABEL = { person:'👤 人物', idea:'💡 思想', org:'🏛 组织', work:'📕 著作', event:'📅 事件' };
+    function esc3(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function renderList(q) {
+      var box = document.getElementById('llist'); if (!box) return;
+      q = String(q || '').trim().toLowerCase();
+      var hit = (NODES || []).filter(function (n) {
+        if (!q) return true;
+        return ((n.name||'')+' '+(n.role||'')+' '+(n.desc||'')+' '+(n.years||'')+' '+(n.type||'')).toLowerCase().indexOf(q) >= 0;
+      });
+      function one(n) { var id = String(n.id).replace(/[^0-9A-Za-z_\-:.]/g, '');
+        return '<li><button type="button" onclick="yz3d.pick(\'' + id + '\')"><b>' + esc3(n.name) + '</b>' +
+          (n.years ? '<span class="ly">' + esc3(n.years) + '</span>' : '') +
+          (n.role ? '<span class="lr">' + esc3(n.role) + '</span>' : '') + '</button></li>'; }
+      var html = '';
+      ORDER.forEach(function (t) { var g = hit.filter(function (n) { return n.type === t; }); if (!g.length) return;
+        html += '<li class="lh">' + (LABEL[t] || t) + ' · ' + g.length + '</li>' + g.map(one).join(''); });
+      var other = hit.filter(function (n) { return ORDER.indexOf(n.type) < 0; });
+      if (other.length) html += '<li class="lh">其他 · ' + other.length + '</li>' + other.map(one).join('');
+      box.innerHTML = html || '<li class="lh">没有匹配的节点</li>';
+      var c = document.getElementById('lcount'); if (c) c.textContent = hit.length + ' / ' + (NODES || []).length;
+    }
+    function toggleList(force) {
+      var pn = document.getElementById('listPanel'), b = document.getElementById('lbtn');
+      if (!pn) return;
+      var open = (force === undefined) ? !pn.classList.contains('open') : !!force;
+      pn.classList.toggle('open', open);
+      if (b) { b.classList.toggle('on', open); b.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+      if (open) renderList((document.getElementById('q3') || {}).value || '');
+    }
+    function pickNode(id) {
+      var n = (NODES || []).filter(function (x) { return x.id === id; })[0]; if (!n) return;
+      /* 高亮一度邻居：选中的与它直接相连的保持原色，其余变暗 */
+      selId = id; nbSet = {};
+      LINKS.forEach(function (l) {
+        var s = typeof l.source === 'object' ? l.source.id : l.source, t = typeof l.target === 'object' ? l.target.id : l.target;
+        if (s === id) nbSet[t] = 1; else if (t === id) nbSet[s] = 1;
+      });
+      applyA11y(); hintText();
+      try { history.replaceState(null, '', '#' + encodeURIComponent(id)); } catch (e) {}
+      openPanel(n);
+      var d = 120, dist = Math.hypot(n.x || 0, n.y || 0, n.z || 0) || 1, r = 1 + d / dist;
+      G.cameraPosition({ x: (n.x || 0) * r, y: (n.y || 0) * r, z: (n.z || 0) * r }, n, 900);
+      wake(1400); /* 相机 tween 约 900ms，飞行结束再等一会才允许暂停 */
+      if ((window.innerWidth || 999) < 720) toggleList(false);
+    }
+    window.yz3d = { toggleList: toggleList, renderList: renderList, pick: pickNode, fit: fitView,
+      toggleYears: toggleYears, yearSet: yearSet, exportData3D: exportData3D, importData3D: importData3D,
+      openDataMenu: openDataMenu, closeDataMenu: closeDataMenu, flash: flash,
+      collapsePanel: collapsePanel, expandPanel: expandPanel, togglePanel: togglePanel };
+    /* Esc 关闭最上层浮层（列表抽屉 → 详情面板），与 2D 图谱页一致 */
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      var lp = document.getElementById("listPanel");
+      if (lp && lp.classList.contains("open")) { toggleList(false); return; }
+      var pn = document.getElementById("panel");
+      if (pn && pn.classList.contains("open")) { clearSel(); return; }
+    });
+
+    (function () {
+      var cv = document.querySelector('#stage canvas') || document.getElementById('stage');
+      if (!cv) return;
+      /* 任何交互都让渲染循环短暂恢复；交互停止、引擎已停后由 wake 自动再次暂停 */
+      cv.addEventListener('pointerdown', function () { userMoved = true; wake(1200); }, { passive: true });
+      cv.addEventListener('pointermove', function () { wake(1200); }, { passive: true });
+      cv.addEventListener('wheel', function () { userMoved = true; wake(1200); }, { passive: true });
+      cv.addEventListener('webglcontextlost', function (e) { e.preventDefault(); lostOverlay(); }, false);
+      cv.addEventListener('webglcontextrestored', function () { wake(1400); recoverCtx(); }, false);
+      window.addEventListener('resize', function () { wake(800); }, { passive: true });
+      window.addEventListener('orientationchange', function () { wake(800); }, { passive: true });
+    })();
+
+    /* ---------- 深链：?ds=<数据集> 与 #<节点 id> ---------- */
+    function initialDS() { try { var m = location.search.match(/[?&]ds=([A-Za-z0-9_]+)/); return (m && D.datasets[m[1]]) ? m[1] : 'nebula'; } catch (e) { return 'nebula'; } }
+    function initialId() { try { var h = decodeURIComponent(String(location.hash || '').replace(/^#/, '')); return h || ''; } catch (e) { return ''; } }
+    /* 恢复上次导入的图谱：存在则注册为 imported 数据集，供顶栏 tab 与 ?ds=imported 深链使用 */
+    try {
+      var _impRaw = localStorage.getItem('yz3dImport');
+      if (_impRaw) {
+        var _impObj = JSON.parse(_impRaw), _impNorm = _norm3D(_impObj);
+        if (_impNorm.nodes.length) {
+          D.datasets.imported = { nodes: _impNorm.nodes, links: _impNorm.links };
+          var _impTab = document.getElementById('tabImported');
+          if (_impTab) { _impTab.style.display = ''; _impTab.textContent = '📥 ' + (_impObj.name ? String(_impObj.name).slice(0, 16) : '导入的图谱'); }
+        }
+      }
+    } catch (e) {}
+    var _ds = initialDS();
+    Array.prototype.forEach.call(document.querySelectorAll('.tab[data-ds]'), function (x) {
+      x.classList.toggle('on', x.getAttribute('data-ds') === _ds);
+    });
+    load(_ds);
+    var _id = initialId();
+    if (_id) setTimeout(function () { pickNode(_id); }, 1600);
+    hintText();
+    document.getElementById('loading').style.display = 'none';
+  }
+
+  /* 引擎先于数据加载（任一失败都能给出“到底缺哪一个 + 具体报错”） */
+  loadScript('lib/3d-force-graph.min.js', function () {
+    loadScript('assets/cite.js', function () {
+      loadScript('data/graph3d.js', function () { boot(); });
+    });
+  });
+})();
+</script>
+</body>
+</html>

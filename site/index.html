@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>学通 · 马列毛主义资料整理</title>
+<meta name="description" content="学通：马列毛主义著作、有声书、研究文献的整理与分享。原著多格式电子书、导读、词典、音频持续更新。">
+<meta name="keywords" content="马列毛,马克思主义,毛泽东选集,共产党宣言,电子书,资料整理,分享">
+<meta property="og:title" content="学通 · 马列毛主义资料整理">
+<meta property="og:description" content="整理与分享马列毛主义文献 · 原著电子书 / 有声书 / 文献">
+<meta property="og:type" content="website">
+<meta property="og:image" content="avatar.svg">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#2b0505">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/extra.css">
+<link rel="stylesheet" href="assets/graph-hub.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到主内容</a>
+<div class="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+
+<!-- ============ 顶部全局导航栏（仿 QQ：左头像 / 右「+」） ============ -->
+<!-- 第一段：头像 + 加号（一组，永远固定在屏幕最上方，不属于任何页面） -->
+<header class="qtop" id="qtop">
+  <button id="qBack" class="qback" onclick="pageBack()" aria-label="返回" hidden>←</button>
+  <button id="qAva" class="qava" onclick="openAccount()" title="我的资料" aria-label="打开我的资料"><img id="qAvaImg" src="avatar.svg" alt="头像"></button>
+  <b class="qtitle" id="qTitle" hidden></b>
+  <span class="qtop-grow"></span>
+  <button id="qPlus" class="qplus" onclick="togglePlus()" title="快捷功能" aria-label="快捷功能">＋</button>
+</header>
+<!-- 第二段：搜索框（跟页面一起滚动，滑上去就被内容带走，回到顶部又出现） -->
+<div class="qsearchbar" id="qSearchBar">
+  <div class="qsearch" id="qSearchWrap"><button class="mg" type="button" onclick="topSearch()" aria-label="搜索">🔍</button><input id="qSearch" type="search" placeholder="搜索书名 / 作者 / 关键词…" aria-label="搜索" onkeydown="if(event.key==='Enter')topSearch()"></div>
+</div>
+<div class="qpanel-scrim" id="qScrim" hidden onclick="closePlus()"></div>
+<div class="qpanel" id="qPanel" hidden role="menu" aria-label="快捷功能">
+  <button class="qitem" onclick="openSection(secIdx('使用指南'));closePlus()"><span class="qi">📘</span>使用指南</button>
+  <button class="qitem" onclick="openSection(secIdx('资源导航'));closePlus()"><span class="qi">🧭</span>资源导航</button>
+  <button class="qitem" onclick="openSection(secIdx('阅读与手册'));closePlus()"><span class="qi">📖</span>阅读与手册</button>
+</div>
+
+<!-- ============ 首页 ============ -->
+<main id="main">
+<section class="view" id="view-home">
+  <p class="bio" id="bio"></p>
+  
+  <p class="daily" id="dailyQuote" onclick="nextQuote()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();nextQuote()}" title="点一下，换一句" role="button" tabindex="0"></p>
+
+  <div class="group" id="homeFriends"></div>
+
+  <div class="toolbar">
+    <div class="quickcats" id="quickcats"></div>
+  </div>
+
+  <div class="group" id="continueBox"></div>
+
+
+</section>
+
+<!-- ============ 结果页（独立视图） ============ -->
+<section class="view" id="view-results" hidden>
+  <div class="res-top">
+    <button class="back" onclick="goHome()" aria-label="返回首页">← 返回</button>
+    <div class="search-big">
+      <button class="mg" type="button" onclick="document.getElementById('search').focus()" aria-label="搜索">🔍</button>
+      <input id="search" type="search" placeholder="搜索书名 / 作者 / 简介关键词…" aria-label="搜索" oninput="render()">
+    </div>
+  </div>
+
+  <div class="catrow" id="catChips"></div>
+  <div class="catrow">
+    <button class="tag" type="button" id="favChip" onclick="toggleFavOnly()">☆ 我的收藏</button>
+    <button class="tag" type="button" id="fileChip" onclick="toggleFileOnly()">📄 仅看有文件</button>
+  </div>
+
+  <div class="filterbox" id="filterbox" hidden>
+    <div class="fb-head"><span>高级筛选</span><button class="sbtn" onclick="clearFilters()">清除筛选</button></div>
+    <div class="tagrow" id="tagrow"></div>
+    <div class="controls">
+      <select id="groupSel" onchange="render()" aria-label="分组方式">
+        <option value="cat">按类型浏览</option>
+        <option value="author">按人物浏览</option>
+      </select>
+      <select id="authorSel" onchange="render()" aria-label="选择作者"></select>
+      <select id="sortSel" onchange="render()" aria-label="排序方式">
+        <option value="default">默认排序</option>
+        <option value="new">最新更新</option>
+        <option value="hot">热门推荐</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="group" id="resultArea">
+    <div class="crumb" id="crumb"></div>
+    <div id="omni" hidden></div>
+    <div class="group-title" id="resTitle" aria-live="polite">📦 资 源 目 录</div>
+    <div id="list"></div>
+    <div class="empty" id="empty">没有找到匹配的资源<br>换个关键词试试，或回首页按分类浏览</div>
+  </div>
+</section>
+
+</main>
+
+
+
+<button id="installBtn" hidden onclick="installPWA()">📲 安装到桌面</button>
+
+<button id="toTop" class="" aria-label="回到顶部" title="回到顶部" onclick="backToTop()">↑</button>
+
+<!-- ============ 底部标签栏（移动端） ============ -->
+<nav class="tabbar" id="tabbar" aria-label="底部导航">
+  <button onclick="tabTo('home')"><span class="ti">🏠</span>首页</button>
+  <button onclick="tabTo('channel')"><span class="ti">📡</span>频道</button>
+  <button onclick="tabTo('history')"><span class="ti">📜</span>史料</button>
+  <button onclick="tabTo('classify')"><span class="ti">🗂️</span>分类</button>
+</nav>
+
+<!-- ============ 分享弹窗 ============ -->
+<div class="leave" id="shareModal" role="dialog" aria-modal="true" aria-label="分享">
+  <div class="leave-card">
+    <b>🔗 分享</b>
+    <div class="qr" id="qrBox"></div>
+    <p class="share-url" id="shareUrl"></p>
+    <div class="leave-ops">
+      <button class="go" onclick="shareSystem()">系统分享</button>
+      <button onclick="shareCopy()">复制链接</button>
+      <button onclick="closeShare()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 外链确认弹窗 ============ -->
+<div class="leave" id="leaveModal" role="dialog" aria-modal="true" aria-label="即将离开本站">
+  <div class="leave-card">
+    <b>⚠️ 即将离开本站</b>
+    <p style="margin:8px 0">你将前往第三方站点：<br><span class="host" id="leaveHost"></span></p>
+    <p class="leave-note" id="leaveName" style="opacity:.7"></p>
+    <p class="leave-note">第三方内容非本站控制，请自行甄别其安全性与合规性。</p>
+    <div class="leave-ops">
+      <button class="go" onclick="leaveGo()">继续前往 ↗</button>
+      <button onclick="leaveNever()">不再提示</button>
+      <button onclick="closeLeave()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 我的数据：导入 / 导出（复制·粘贴，兼容 WebView） ============ -->
+<div class="leave" id="dataModal" role="dialog" aria-modal="true" aria-label="我的数据">
+  <div class="leave-card">
+    <b id="dataTitle">📦 我的数据</b>
+    <p class="leave-note" id="dataHint" style="line-height:1.7"></p>
+    <textarea id="dataText" spellcheck="false" style="width:100%;height:170px;margin:6px 0;padding:8px;border-radius:8px;border:1px solid var(--card-border);background:var(--card);color:var(--text);font-size:.72rem;font-family:ui-monospace,Menlo,Consolas,monospace;resize:vertical"></textarea>
+    <div class="leave-ops" id="dataOps"></div>
+    <p class="leave-note" style="line-height:1.6">数据只在本机处理，不上传任何服务器。</p>
+  </div>
+</div>
+
+<!-- ============ 意见反馈：Netlify Forms 注册用（隐藏；实际由「意见反馈」页内表单提交） ============ -->
+<form id="reqForm" name="意见反馈" method="POST" data-netlify="true" netlify-honeypot="bot-field" style="display:none" aria-hidden="true">
+  <input type="hidden" name="form-name" value="意见反馈">
+  <input name="bot-field">
+  <textarea name="note"></textarea>
+</form>
+
+<div class="modal" id="modal">
+  <div class="modal-bar">
+    <span class="t" id="modalTitle"></span>
+    <a id="modalOpen" href="#" target="_blank" rel="noopener">新窗口打开 ↗</a>
+    <button onclick="closePreview()">✕ 关闭</button>
+  </div>
+  <iframe id="modalFrame" title="资源预览"></iframe>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer" aria-label="面板">
+  <div class="drawer-head">
+    <button id="acctBack" onclick="pageBack()" aria-label="返回上一页" hidden>←</button>
+    <b id="drawerTitle">⚙️ 设置</b>
+    <button onclick="exitToHome()" aria-label="退出到主页">✕</button>
+  </div>
+
+  <div id="pcView" class="panel" style="display:none"></div>
+  <div id="accountView"></div>
+  <div id="settingsView" style="display:none">
+    <div class="set-group">
+      <div class="set-title">显 示</div>
+      <div class="set-row"><span>主题</span>
+        <div class="seg" id="themeSeg">
+          <button data-th="auto" onclick="setTheme('auto')">跟随系统</button>
+          <button data-th="dark" onclick="setTheme('dark')">深色</button>
+          <button data-th="light" onclick="setTheme('light')">浅色</button>
+        </div>
+      </div>
+      <div class="set-row"><span>字号</span>
+        <div class="seg" id="fsSeg">
+          <button data-fs="sm" onclick="setFS('sm')">小</button>
+          <button data-fs="md" onclick="setFS('md')">标准</button>
+          <button data-fs="lg" onclick="setFS('lg')">大</button>
+        </div>
+      </div>
+      <div class="set-row"><span>行距</span>
+        <div class="seg" id="lhSeg">
+          <button data-lh="1.6" onclick="setLH('1.6')">紧</button>
+          <button data-lh="1.9" onclick="setLH('1.9')">中</button>
+          <button data-lh="2.2" onclick="setLH('2.2')">松</button>
+        </div>
+      </div>
+      <div class="set-row"><span>版心</span>
+        <div class="seg" id="wSeg">
+          <button data-w="400" onclick="setW('400')">窄</button>
+          <button data-w="460" onclick="setW('460')">标准</button>
+          <button data-w="560" onclick="setW('560')">宽</button>
+        </div>
+      </div>
+      <div class="set-row"><span>页面动效</span><button class="sbtn" id="motionSw" onclick="toggleMotion()"></button></div>
+    </div>
+
+    <div class="set-group">
+      <div class="set-title">订 阅 与 反 馈</div>
+      <div class="set-row"><span>订阅更新（RSS）</span><a class="sbtn" style="text-decoration:none" href="feed.xml" target="_blank" rel="noopener">打开 feed.xml</a></div>
+      <div class="set-row"><span>意见反馈</span><button class="sbtn" onclick="requestAction()">打开表单</button></div>
+      <p class="set-note">订阅：用任意 RSS 阅读器订阅 feed.xml 跟进更新。反馈：不收集浏览数据、不索取真实身份。</p>
+    </div>
+
+    <div class="set-group">
+      <div class="set-title">导 出 位 置</div>
+      <div class="set-row"><span>导出位置</span>
+        <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="sbtn" onclick="chooseExportDir()">选择文件夹…</button>
+        </span>
+      </div>
+      <p class="set-note" id="expDirNote">当前导出到：系统「下载」（媒体库）。若在文件管理器里找不到，建议点「选择文件夹…」指定一个文件夹——无需任何权限，之后导出都存那里。</p>
+    </div>
+
+    <details class="set-group">
+      <summary class="set-title" style="cursor:pointer;list-style:none">查 看（点开）</summary>
+      <div class="set-row"><span>🕸️ 关系图谱</span><button class="sbtn" onclick="openGraph()">打开</button></div>
+      <div id="viewList"></div>
+    </details>
+
+
+    <div class="set-group">
+      <div class="set-title">诊 断</div>
+      <div class="set-row"><span>导出诊断报告</span><button class="sbtn" onclick="exportDiag()">导出 JSON</button></div>
+      <p class="set-note">导出本机运行状态与错误记录（不含个人信息），便于排查问题、反馈分析。</p>
+    </div>
+
+    <div class="set-group">
+      <div class="set-title">关于与声明</div>
+      <p class="set-note" id="standingBox"></p>
+      <details class="faq" style="background:transparent;border:0;padding:0;margin:6px 0;">
+        <summary style="font-size:0.75rem;color:var(--accent)">声明（免责 / 隐私 / 协议）</summary>
+        <div class="panel" id="legalBox" style="padding-top:6px"></div>
+      </details>
+      <p class="set-note">纯静态 · 无第三方跟踪脚本 · 订阅入口见上方「订阅与反馈」</p>
+    </div>
+    <div class="set-group"><p class="set-note" id="verLine" style="text-align:center;opacity:.75;margin:6px 0"></p></div>
+  </div>
+
+  <div id="contentView" class="panel" style="display:none"></div>
+</aside>
+
+<!-- 关系图谱已独立为 graph.html -->
+
+<script src="data/config.js"></script>
+<script src="data/resources.js"></script>
+<script src="data/intro-short.js"></script>
+<script src="data/content.js"></script>
+<script src="data/mentors.js"></script>
+<script src="data/album.js"></script>
+<script src="data/channel.js"></script>
+<script src="data/knowledge.js"></script>
+<script src="data/libraries.js"></script>
+<script src="data/graph.js"></script>
+<script src="data/graph-wenge.js"></script>
+<script src="assets/vendor/qrcode.min.js"></script>
+<script src="data/avatars.js"></script>
+<script src="data/overrides.js"></script>
+<script src="assets/overlay.js"></script>
+<script src="assets/app.js"></script>
+<script src="assets/books.js"></script>
+<script src="assets/editor.js"></script>
+</body>
+</html>

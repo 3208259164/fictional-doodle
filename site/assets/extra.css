@@ -1,0 +1,488 @@
+/* =====================================================================
+   学通 · 增量样式（在 style.css 之后加载，不影响原有样式）
+   面包屑 / 角标 / 相关推荐 / 详情信息表 / 生平年表 / 笔记 / 可点击阅读条目 /
+   外链确认弹窗 / 底部标签栏 / 安装引导 / 回到顶部 / 无障碍
+   ===================================================================== */
+
+/* ---------- 面包屑 ---------- */
+.crumb { font-size:0.72rem; opacity:.6; margin:2px 0 10px; line-height:1.8; }
+.crumb a { color:var(--text); text-decoration:none; }
+.crumb .sep { opacity:.45; margin:0 5px; }
+
+/* ---------- 「上新」角标 ---------- */
+.badge-new { font-style:normal; font-size:0.6rem; letter-spacing:1px; color:#3a0d0d; background:var(--accent);
+  border-radius:5px; padding:0 5px; margin-left:6px; vertical-align:middle; font-weight:bold; }
+
+/* ---------- 「被批判」角标 ---------- */
+.badge-crit { font-style:normal; font-size:0.6rem; letter-spacing:1px; color:var(--text); background:transparent;
+  border:1px solid var(--card-border); border-radius:5px; padding:0 5px; margin-left:6px; vertical-align:middle; opacity:.7; }
+
+/* ---------- 详情页信息表 ---------- */
+.meta-grid { display:grid; grid-template-columns:68px 1fr; gap:4px 10px; font-size:0.75rem; opacity:.8;
+  margin:12px 0; padding:10px 12px; border:1px dashed var(--card-border); border-radius:10px; line-height:1.7; }
+.meta-grid dt { opacity:.55; }
+.meta-grid dd { margin:0; word-break:break-all; }
+
+/* ---------- 相关推荐 / 专题 ---------- */
+.related { margin-top:16px; }
+.related .rl-title { font-size:0.75rem; color:var(--text); letter-spacing:1px; margin-bottom:6px; }
+
+/* ---------- 搜索建议 ---------- */
+.sugg { margin-top:12px; font-size:0.75rem; opacity:.85; }
+.sugg .tag { margin-left:6px; }
+
+/* ---------- 可点击的阅读条目（统一路线与书单，消除割裂） ---------- */
+/* 推荐书单：已读勾选与进度（只存本机） */
+.rlbar{display:flex;align-items:center;gap:8px;margin:8px 0 10px;font-size:.75rem}
+.rlbar .rlprogwrap{flex:1;max-width:220px;height:7px;background:rgba(128,128,128,.28);border-radius:99px;overflow:hidden;display:inline-block}
+.rlbar .rlprogwrap i{display:block;height:100%;width:0;background:var(--accent,#12B7F5);border-radius:99px;transition:width .25s}
+.rlbar .rlclear{margin-left:auto;background:none;border:1px solid var(--card-border,rgba(128,128,128,.4));color:inherit;border-radius:8px;padding:3px 9px;font-size:.68rem;cursor:pointer;font-family:inherit}
+label.rlck{display:inline-block;margin-right:6px;vertical-align:middle}
+label.rlck input{width:15px;height:15px;vertical-align:-2px;accent-color:var(--accent,#12B7F5)}
+ul li.rl-done{opacity:.55}
+ul li.rl-done::after{content:' ✓';opacity:.7}
+ul li.rlink { cursor:pointer; border-radius:8px; padding-right:6px; }
+ul li.rlink:hover { color:var(--text); }
+ul li.rlink .lk { font-size:0.66rem; opacity:.5; margin-left:6px; border:1px solid var(--card-border);
+  border-radius:6px; padding:0 5px; white-space:nowrap; }
+ul li.rlink:hover .lk { opacity:1; border-color:var(--text); }
+
+/* ---------- 生平年表 ---------- */
+ul.timeline { list-style:none; position:relative; padding-left:16px; margin:6px 0 2px; }
+ul.timeline::before { content:""; position:absolute; left:4px; top:4px; bottom:4px; width:1px; background:var(--card-border); }
+ul.timeline li { position:relative; padding:4px 0 4px 2px; font-size:0.78rem; line-height:1.7; opacity:.88; }
+ul.timeline li::before { content:""; position:absolute; left:-15px; top:11px; width:7px; height:7px; border-radius:50%;
+  background:var(--accent); box-shadow:0 0 0 3px rgba(245,197,24,.16); }
+ul.timeline li b { color:var(--text); font-weight:normal; margin-right:8px; }
+
+/* ---------- 我的笔记 ---------- */
+.notes { margin-top:16px; }
+.notes .rl-title { font-size:0.75rem; color:var(--text); letter-spacing:1px; margin-bottom:6px; }
+.notes textarea { width:100%; min-height:76px; resize:vertical; padding:10px 12px; border-radius:10px;
+  border:1px solid var(--card-border); background:var(--card); color:var(--text); font-size:0.8rem;
+  line-height:1.8; font-family:inherit; outline:none; }
+.notes textarea:focus { border-color:var(--text); }
+
+/* ---------- 更新日志时间线 ---------- */
+.changelog { position:relative; padding-left:16px; }
+.changelog::before { content:""; position:absolute; left:3px; top:4px; bottom:4px; width:1px; background:var(--card-border); }
+.changelog li { position:relative; border-bottom:0; }
+.changelog li::before { content:""; position:absolute; left:-16px; top:11px; width:7px; height:7px; border-radius:50%;
+  background:var(--accent); box-shadow:0 0 0 3px rgba(245,197,24,.16); }
+.changelog li b { display:inline-block; min-width:78px; }
+
+/* ---------- 外链确认弹窗 ---------- */
+.leave { position:fixed; inset:0; z-index:90; display:none; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.6); padding:20px; }
+.leave.open { display:flex; }
+.leave-card { width:min(400px,100%); max-height:88vh; overflow-y:auto; border-radius:16px; padding:22px; line-height:1.9; font-size:0.83rem;
+  background:linear-gradient(160deg,#3a0606,#1c0303); border:0; box-shadow:0 18px 50px rgba(0,0,0,.34); }
+body.light .leave-card { background:linear-gradient(160deg,#fff8f3,#f3e3d8); box-shadow:0 18px 50px rgba(0,0,0,.14); }
+.leave-card b { color:var(--text); }
+.leave-card .host { word-break:break-all; opacity:.85; }
+.leave-ops { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+.leave-ops button { font-size:0.75rem; padding:6px 14px; border-radius:8px; cursor:pointer;
+  background:var(--card); border:1px solid var(--card-border); color:var(--text); }
+.leave-ops button.go { background:var(--accent); color:#3a0d0d; border-color:var(--text); font-weight:bold; }
+.leave-note { font-size:0.7rem; opacity:.6; margin-top:10px; }
+
+/* ---------- 底部标签栏（仅移动端显示） ---------- */
+.tabbar { position:fixed; left:0; right:0; bottom:0; z-index:45; display:none;
+  /* 与主页共用同一套背景：原来用半透明深色 rgba(28,3,3,.86)，深色主题下会缩成一块「黑色」，
+     与正文不符（用户反馈）。改用 inherit + fixed 附着，让底栏和它上方的内容严格同色。 */
+  background:inherit; background-attachment:fixed;
+  border-top:1px solid var(--card-border);
+  padding-bottom:env(safe-area-inset-bottom, 0px); }
+.tabbar button { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 2px 9px;
+  background:transparent; border:0; color:var(--text); font-size:0.62rem; opacity:.7; cursor:pointer; }
+.tabbar button .ti { font-size:1.15rem; line-height:1; }
+.tabbar button:hover, .tabbar button:focus-visible { opacity:1; color:var(--text); }
+
+/* ---------- 可折叠块：详情页「详细介绍」与「章节目录 · 章节内容」 ---------- */
+details.fold > summary.fold-t { cursor:pointer; list-style:none; display:flex; align-items:center; gap:6px;
+  font-size:.9rem; font-weight:700; color:var(--accent); padding:10px 2px; min-height:44px;
+  border-bottom:1px solid var(--card-border); }
+details.fold > summary.fold-t::-webkit-details-marker { display:none; }
+details.fold > summary.fold-t:hover { opacity:.85; }
+details.fold > summary.fold-t::after { content:'▸'; margin-left:auto; opacity:.6; font-size:.8rem; transition:transform .2s; }
+details.fold[open] > summary.fold-t::after { transform:rotate(90deg); }
+details.fold[open] > summary.fold-t { border-bottom-color:transparent; }
+
+.ch-item { border-bottom:1px solid var(--card-border); }
+.ch-item > summary { cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px;
+  padding:11px 2px; min-height:44px; font-size:.86rem; line-height:1.7; }
+.ch-item > summary::-webkit-details-marker { display:none; }
+.ch-item > summary:hover { background:rgba(255,255,255,.04); }
+.ch-item > summary b { flex:1; min-width:0; color:var(--accent); font-weight:600; }
+.ch-item .ch-arrow { flex:none; font-style:normal; font-size:.8rem; opacity:.55; transition:transform .2s; }
+.ch-item[open] .ch-arrow { transform:rotate(90deg); }
+.ch-item .ch-body { font-size:.82rem; line-height:1.85; opacity:.85; padding:2px 2px 12px; white-space:pre-line; }
+.ch-item.ch-static { display:flex; align-items:baseline; gap:8px; padding:11px 2px; }
+.ch-item.ch-static b { color:var(--accent); font-weight:600; }
+.ch-none { flex:none; font-size:.72rem; opacity:.45; }
+
+/* ---------- 本机书籍：内置阅读器 ---------- */
+.reader-bar { display:flex; align-items:center; gap:8px; padding:8px 2px 10px;
+  border-bottom:1px solid var(--card-border); margin-bottom:12px; }
+.reader-bar button { min-width:46px; min-height:38px; border-radius:9px; border:1px solid var(--card-border);
+  background:var(--card); color:var(--text); font-family:inherit; font-size:.86rem; cursor:pointer; }
+.reader-bar button:hover { border-color:var(--text); }
+.reader-bar .rfs { min-width:2.2em; text-align:center; opacity:.7; font-size:.8rem; font-variant-numeric:tabular-nums; }
+.reader-body { line-height:1.98; letter-spacing:.01em; text-align:justify; word-break:break-word; }
+.reader-body p { margin:0 0 1.05em; text-indent:2em; }
+.reader-body p:first-child { margin-top:0; }
+
+/* ---------- 安装到桌面 ---------- */
+#installBtn { position:fixed; left:calc(16px + env(safe-area-inset-left, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); z-index:44; padding:9px 14px; border-radius:22px;
+  background:var(--accent); color:#3a0d0d; border:0; font-size:0.78rem; font-weight:bold; cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,.35); }
+
+/* ---------- 回到顶部 ---------- */
+#toTop { position:fixed; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); z-index:60; width:38px; height:38px; border-radius:50%;
+  border:1px solid var(--card-border); background:var(--card); color:var(--text); font-size:1rem; cursor:pointer;
+  backdrop-filter:blur(10px); opacity:0; pointer-events:none; transform:translateY(6px);
+  transition:opacity .25s, transform .25s; }
+#toTop.show { opacity:.5; pointer-events:auto; transform:translateY(0); }
+#toTop:hover { opacity:.9; }
+
+/* ---------- 无障碍：键盘焦点可见 ---------- */
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline:2px solid var(--accent); outline-offset:2px; }
+
+/* ---------- 移动端 ---------- */
+@media (max-width:560px){
+  .tabbar { display:flex; }
+  /* 底栏（.tabbar）高度含 env(safe-area-inset-bottom)：全面屏上若不把安全区算进来，
+     页面最底部的内容会被底栏压住一截（顶栏早已这么算，底栏漏了）。 */
+  body { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
+  #installBtn { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  #toTop { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ---------- 继续上次阅读 ---------- */
+.continue { display:flex; align-items:center; gap:12px; padding:12px 14px; margin:10px 0 2px; border-radius:12px;
+  border:1px dashed var(--accent); background:rgba(245,197,24,.08); cursor:pointer; }
+.continue:hover { background:rgba(245,197,24,.14); }
+.continue .ci { font-size:1.4rem; }
+.continue .ct { flex:1; }
+.continue .cn { font-size:.66rem; letter-spacing:1px; color:var(--text); }
+
+/* ---------- 分享弹窗（复用 .leave 外观） ---------- */
+#shareModal .qr { display:flex; justify-content:center; margin:12px auto; background:#fff; padding:10px;
+  border-radius:10px; width:fit-content; }
+#shareModal .qr img, #shareModal .qr svg, #shareModal .qr canvas { display:block; }
+#shareModal .share-url { font-size:.72rem; opacity:.7; word-break:break-all; }
+
+/* ---------- 打印样式 ---------- */
+@media print {
+  .stars, #setBtn, #musicBtn, nav.nav, .toolbar, #links, #recent, #continueBox, footer, .tabbar,
+  #installBtn, #toTop, .drawer, .scrim, .modal, .leave, .crumb, .ops, .quickcats, .res-top,
+  #catChips, .filterbox{ display:none !important; }
+  body { background:#fff !important; color:#000 !important; padding:0 !important; }
+  a.card, .lcard, .meta-grid, .timeline li { border-color:#bbb !important; background:#fff !important; color:#000 !important; }
+  a, a:visited { color:#000 !important; }
+  .badge-new, .badge-crit { border:1px solid #999 !important; }
+}
+
+/* ---------- 修正：链接不再出现浏览器默认蓝色；点按式条目不用 <a> ---------- */
+a { color:inherit; text-decoration:none; }
+button.aslink { font:inherit; color:inherit; background:none; border:0; padding:0; margin:0; cursor:pointer; text-align:left; display:inline; width:auto; }
+button.lcard, button.continue { font:inherit; color:inherit; background:none; border:0; padding:0; margin:0; cursor:pointer; text-align:left; width:100%; }
+button.lcard { display:flex; align-items:center; gap:12px; padding:10px; border:1px solid var(--card-border); border-radius:12px; margin:8px 0; background:var(--card); }
+button.lcard:hover { border-color:var(--text); }
+button.continue { display:flex; align-items:center; gap:12px; padding:12px 14px; margin:10px 0 2px; border-radius:12px; border:1px dashed var(--accent); background:rgba(245,197,24,.08); }
+.crumb button.aslink, footer button.aslink{ color:var(--text); }
+.crumb .cur { opacity:.9; }
+
+/* ---------- 跳到主内容 ---------- */
+.skip { position:absolute; left:-999px; top:0; z-index:200; background:var(--accent); color:#3a0d0d; padding:8px 14px; border-radius:0 0 8px 0; }
+.skip:focus { left:0; }
+/* 浅色主题下强调色是深金：用它作底色时，文字必须用白色（否则深红字压深金底看不清） */
+body.light .skip, body.sepia .skip, body.light .tag.active, body.sepia .tag.active { color:#fff; }
+body.light .skip{background:var(--accent);}
+
+/* ---------- 护眼（sepia）主题 ---------- */
+body.sepia { --accent:#7a5400; --card:rgba(120,90,20,.10); --card-border:rgba(120,90,20,.28); --text:#3a2b12;
+  background:linear-gradient(160deg,#f6efdd 0%, #efe4ca 55%, #e6d7b6 100%); }
+body.sepia .drawer { background:linear-gradient(160deg,#f8f1de,#ebdcc0); }
+body.sepia .tabbar { background:rgba(246,239,221,.92); }
+
+/* ---------- FAQ 折叠 ---------- */
+details.q { border-bottom:1px dashed var(--card-border); padding:6px 0; }
+details.q summary { cursor:pointer; color:var(--text); font-size:.82rem; }
+details.q p { opacity:.85; margin:6px 0 2px; }
+
+/* ---------- 来源/校订说明 与 引用 ---------- */
+.note-box { font-size:.78rem; line-height:1.9; opacity:.85; }
+.cite { font-size:.8rem; line-height:1.9; padding:10px 12px; border:1px dashed var(--card-border); border-radius:10px; user-select:all; }
+
+/* ---------- 行距 / 版心（设置里可调） ---------- */
+:root { --lh:1.9; --maxw:460px; }
+body { line-height:var(--lh); }
+.toolbar, .res-top, .filterbox, .group, nav.nav { max-width:var(--maxw); }
+
+/* ---------- 每日一句（首页；无边框、无底色，与背景齐平） ---------- */
+.daily { max-width:var(--maxw); margin:12px auto 2px; padding:4px 2px; font-size:.8rem; line-height:1.85; text-align:left;
+  border:0; background:transparent; cursor:pointer; opacity:.92; touch-action:manipulation; -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+.daily:hover { background:transparent; opacity:1; }
+.daily b { color:var(--text); font-weight:normal; }
+.daily:empty { display:none; }
+
+/* ---------- 本页目录锚点 ---------- */
+.toc { margin:6px 0 8px; padding:9px 12px; border:1px dashed var(--card-border); border-radius:10px; font-size:.72rem; line-height:2; }
+.toc-t { color:var(--text); letter-spacing:1px; margin-bottom:3px; }
+.toc button.aslink { color:var(--text); opacity:.75; margin-right:10px; }
+.toc button.aslink:hover { color:var(--text); opacity:1; }
+
+/* ---------- 经典文献条目：取消边框与底色，融入背景（与背景板齐平） ---------- */
+a.card, .lcard { background:transparent; border:0; border-radius:0; }
+a.card:hover { transform:none; background:transparent; }
+a.card:hover .title, .lcard:hover .pname { color:var(--text); }
+a.card .tags i { border:0; background:transparent; }
+
+/* ---------- 加载更多（结果页分页） ---------- */
+.more-wrap { text-align:center; margin:16px 0 4px; }
+.more-wrap button { font-size:.75rem; padding:7px 18px; border-radius:20px; border:1px solid var(--card-border);
+  background:transparent; color:var(--text); cursor:pointer; }
+.more-wrap button:hover { border-color:var(--text); color:var(--text); }
+
+/* ---------- 未添加的渠道卡 ---------- */
+.card.disabled { opacity:.5; cursor:default; }
+
+
+/* ---------- 本页目录可收起 + 长列表渐进渲染 / 原生懒渲染 ---------- */
+.toc .toc-t { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.toc .tocfold { font-size:.7rem; color:var(--text); }
+.toc-body.hidden { display:none; }
+.morebtn { display:block; width:100%; margin:10px 0; padding:9px; border:1px dashed var(--card-border); border-radius:10px; color:var(--text); background:transparent; cursor:pointer; font-family:inherit; font-size:.8rem; }
+.morebtn:hover { border-style:solid; }
+/* 列表卡片原生懒渲染：浏览器跳过视口外卡片的绘制，长列表滚动更顺 */
+.lcard { content-visibility:auto; contain-intrinsic-size:auto 74px; }
+
+
+
+/* ===================== 顶部全局导航栏（仿 QQ） + 分类页 ===================== */
+body { padding-top: calc(50px + env(safe-area-inset-top, 0px)); }
+.qtop { position:fixed; top:0; left:0; right:0; z-index:95; display:flex; align-items:center; gap:10px;
+  height:calc(50px + env(safe-area-inset-top, 0px)); padding:env(safe-area-inset-top, 0px) 12px 0;
+  /* 顶栏必须与正文「同一片颜色」：这里不再用半透明实色（那会和正文渐变背景形成明显色块分层），
+     而是复用 body 的同一套背景图层，并把背景尺寸显式设为 100vw×100vh、定位到左上角——顶栏固定
+     在视口顶部，于是它呈现的正是正文背景在「视口顶部」的那一段，与紧邻下方的内容区严格同色、
+     无缝衔接。显式 background-size 不依赖 background-attachment:fixed 的行为，兼容性更好；
+     最后一行纯色是不支持多层渐变时的后备。 */
+  background:#2b0505;
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(255,80,60,.25), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(200,30,30,.30), transparent 50%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.018) 0 2px, transparent 2px 26px),
+    linear-gradient(160deg, #4a0808 0%, #2b0505 55%, #170303 100%);
+  background-size:100vw 100vh; background-position:0 0; background-repeat:no-repeat;
+}
+body.light .qtop {
+  background:#f5e9e2;
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(255,150,120,.35), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(200,60,40,.25), transparent 50%),
+    linear-gradient(160deg, #f5e9e2 0%, #edd9cf 55%, #e5ccc2 100%);
+  background-size:100vw 100vh; background-position:0 0; background-repeat:no-repeat;
+}
+.qtop .qava { width:34px; height:34px; border-radius:50%; overflow:hidden; padding:0; flex:none; cursor:pointer;
+  border:1.5px solid rgba(245,197,24,.5); background:rgba(255,255,255,.06); display:flex; align-items:center; justify-content:center; }
+.qtop .qava img { width:100%; height:100%; object-fit:cover; }
+.qtop .qplus { width:34px; height:34px; border-radius:50%; flex:none; cursor:pointer; border:1px solid var(--card-border);
+  background:rgba(255,255,255,.06); color:var(--text); font-size:20px; line-height:1; display:flex; align-items:center; justify-content:center; }
+.qtop .qplus:hover { border-color:var(--text); }
+.qpanel-scrim { position:fixed; inset:0; z-index:67; background:rgba(0,0,0,.28); }
+.qpanel { position:fixed; top:calc(54px + env(safe-area-inset-top, 0px)); right:10px; z-index:68; min-width:180px; max-height:74vh; overflow-y:auto;
+  background:var(--card); border:0; border-radius:14px; padding:6px; box-shadow:0 14px 40px rgba(0,0,0,.32); }
+.qpanel .qitem { display:flex; align-items:center; gap:10px; width:100%; padding:11px 12px; border:0; background:transparent;
+  color:var(--text); font-size:.92rem; text-align:left; border-radius:9px; font-family:inherit; cursor:pointer; }
+.qpanel .qitem:hover, .qpanel .qitem:focus-visible { background:rgba(245,197,24,.14); }
+.qpanel .qi { font-size:1.05rem; }
+/* 分类页：动态流 + 分类入口 */
+.sec-t { font-size:.95rem; font-weight:700; margin:2px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--card-border); }
+.dyn { display:flex; gap:11px; padding:11px 2px; border-bottom:1px solid var(--card-border); }
+.dyn .lface, .dyn .lface-lg { flex:none; }
+.dyn .dyn-b { flex:1; min-width:0; }
+.dyn .dyn-n { font-weight:600; font-size:.9rem; }
+.dyn .dyn-t { font-size:.86rem; line-height:1.65; margin-top:3px; }
+.dyn .dyn-s { font-size:.8rem; line-height:1.6; opacity:.78; margin-top:2px; }
+.dyn .dyn-meta { font-size:.72rem; opacity:.55; margin-top:4px; }
+.citem { display:flex; align-items:center; gap:12px; padding:14px 2px; min-height:44px;
+  border-bottom:1px solid var(--card-border); cursor:pointer; }
+.citem:hover { color:var(--accent); }
+.citem .ci { width:24px; text-align:center; font-size:1.05rem; flex:none; }
+.citem .cn { flex:1; min-width:0; font-size:.92rem; }
+.citem .cc { font-size:.75rem; opacity:.5; }
+.citem .ca { opacity:.4; }
+@media print { .qtop, .qpanel, .qpanel-scrim { display:none !important; } }
+.qqquick { border-top:1px solid var(--card-border); }
+.qqrow { display:flex; align-items:center; gap:12px; min-height:52px; padding:12px 2px; border-bottom:1px solid var(--card-border); cursor:pointer; }
+.qqrow:hover { color:var(--accent); }
+.qqrow .qi { width:26px; text-align:center; font-size:1.1rem; flex:none; }
+.qqrow .qn { flex:1; min-width:0; font-size:.94rem; }
+.qqrow .qs { font-size:.75rem; opacity:.5; }
+.qqrow .qa { opacity:.4; }
+.nf-badge { display:none; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--accent); color:#3a0d0d;
+  font-size:.66rem; line-height:18px; text-align:center; font-weight:700; }
+.qqtabs { display:flex; gap:4px; margin:14px 0 6px; border-bottom:1px solid var(--card-border); overflow-x:auto; }
+.qqtabs .qqt { flex:none; border:0; background:transparent; color:var(--text); opacity:.62; font-family:inherit; font-size:.9rem;
+  padding:9px 10px; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+.qqtabs .qqt.on { opacity:1; font-weight:700; border-bottom-color:var(--accent); color:var(--accent); }
+.qqpanel { display:none; padding-top:4px; }
+.qqpanel.on { display:block; }
+.qqgt { font-size:.85rem; font-weight:700; opacity:.85; margin:6px 0 8px; }
+.nf { display:flex; align-items:flex-start; gap:10px; padding:12px 2px; border-bottom:1px solid var(--card-border); }
+.nf .nf-t { flex:1; min-width:0; font-size:.9rem; line-height:1.6; }
+.nf .nf-d { flex:none; font-size:.72rem; opacity:.5; }
+
+/* 顶栏搜索框（仿 QQ） */
+.qsearch { flex:1; min-width:0; position:relative; display:flex; align-items:center; }
+.qsearch input { width:100%; height:34px; padding:0 12px 0 34px; border-radius:17px;
+  border:1px solid var(--card-border); background:transparent; color:var(--text);
+  font-size:.85rem; font-family:inherit; }
+.qsearch input:focus { border-color:var(--card-border); outline:none; }
+.qsearch .mg { position:absolute; left:11px; opacity:.7; font-size:.9rem; cursor:pointer; }
+
+/* 抽屉两种形态：.drawer.page = 整页推进（底栏三栏/子页）；.drawer:not(.page) = 左侧抽屉（个人中心） */
+.drawer { padding-bottom:calc(90px + env(safe-area-inset-bottom, 0px)); }
+.drawer-head { display:none !important; }
+.tabbar { z-index:55; }
+/* 页模式：整页淡入，底栏常驻；上方留出常驻顶栏 */
+.drawer.page { top:calc(50px + env(safe-area-inset-top, 0px)); left:0; right:0; bottom:0; width:100%; border-right:0; z-index:40;
+  transform:none; opacity:0; visibility:hidden;
+  transition:opacity .16s ease, visibility .16s ease; }
+.drawer.page.open { transform:none; opacity:1; visibility:visible; }
+/* 抽屉模式：从左滑出 */
+.drawer:not(.page){ width:100%; z-index:96; padding:calc(14px + env(safe-area-inset-top, 0px)) 18px calc(18px + env(safe-area-inset-bottom, 0px)); visibility:hidden; transition:transform .25s ease, visibility 0s .25s; }
+.drawer:not(.page).open{ visibility:visible; transition:transform .25s ease, visibility 0s; }
+.scrim { z-index:65; }
+
+/* ---------- 个人中心（仿 QQ「我的」） ---------- */
+.pc-head { display:flex; align-items:center; gap:14px; padding:10px 4px 16px; border-bottom:1px solid var(--card-border); }
+.pc-ava { width:58px; height:58px; border-radius:50%; overflow:hidden; flex:none; padding:0; cursor:pointer;
+  border:1.5px solid rgba(245,197,24,.5); background:rgba(255,255,255,.06); display:flex; align-items:center; justify-content:center; font-size:1.6rem; }
+.pc-ava img { width:100%; height:100%; object-fit:cover; }
+.pc-meta { flex:1; min-width:0; }
+.pc-name { font-size:1.05rem; font-weight:600; }
+.pc-sign { font-size:.76rem; opacity:.6; margin-top:3px; }
+.pc-list { margin:8px 0 0; }
+.pc-row { display:flex; align-items:center; gap:12px; padding:13px 6px; cursor:pointer; border-bottom:1px solid var(--card-border); }
+.pc-row:hover { background:rgba(255,255,255,.04); }
+.pc-ic { font-size:1.15rem; width:24px; text-align:center; flex:none; }
+.pc-tx { flex:1; min-width:0; display:flex; flex-direction:column; }
+.pc-t { font-size:.92rem; }
+.pc-s { font-size:.72rem; opacity:.55; margin-top:2px; }
+.pc-ar { opacity:.35; }
+#pcView { display:flex; flex-direction:column; min-height:calc(100vh - 44px); }
+.pc-bottom { display:flex; gap:8px; margin-top:auto; padding-top:12px; border-top:1px solid var(--card-border); justify-content:flex-start; }
+.pc-bottom .pc-b { flex:0 0 auto; padding:8px 14px; border-radius:10px; border:1px solid var(--card-border); background:rgba(255,255,255,.05); color:var(--text); font:inherit; font-size:.82rem; cursor:pointer; }
+/* 相册 */
+.album-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr)); gap:10px; margin:6px 0 16px; }
+.album-item { margin:0; cursor:pointer; }
+.album-item img { width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:10px; border:1px solid var(--card-border); background:rgba(255,255,255,.04); }
+.album-item figcaption { font-size:.66rem; opacity:.6; text-align:center; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* 每日一句：预留最小高度，避免翻页时下方内容跳动 */
+#dailyQuote { height:6.88rem; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+
+/* ===================== 主页「我的好友」（QQ 式） ===================== */
+#homeFriends .group-title { letter-spacing:2px; }
+.frow { display:flex; align-items:center; gap:12px; padding:9px 4px; cursor:pointer; border-bottom:1px solid var(--card-border); }
+.frow:last-child { border-bottom:0; }
+.frow:hover { background:rgba(255,255,255,.04); }
+.fava { width:40px; height:40px; border-radius:50%; flex:none; overflow:hidden; display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.06); border:1px solid var(--card-border); }
+.fava img { width:100%; height:100%; object-fit:cover; }
+.fava .fico { font-size:1.15rem; }
+.fmeta { flex:1; min-width:0; display:flex; flex-direction:column; }
+.fnm { font-size:.9rem; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fsub { font-size:.72rem; opacity:.6; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fmor { opacity:.35; flex:none; }
+.addhome { display:inline-block; padding:8px 15px; border-radius:10px; font-size:.83rem; cursor:pointer;
+  border:1px solid var(--accent); background:transparent; color:var(--accent); font-family:inherit; }
+.addhome.on { background:rgba(245,197,24,.15); }
+
+/* ===================== 频道（信息流） ===================== */
+.ch-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:2px 0 4px; }
+.ch-top-t { font-size:.9rem; font-weight:600; }
+.ch-post { border:1px solid var(--card-border); border-radius:12px; padding:12px; margin:10px 0; background:var(--card); }
+.ch-post.ch-crit { border-color:rgba(220,80,60,.5); }
+.ch-head { display:flex; gap:10px; align-items:center; }
+.ch-ava { width:36px; height:36px; border-radius:50%; overflow:hidden; flex:none; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.06); border:1px solid var(--card-border); }
+.ch-ava img { width:100%; height:100%; object-fit:cover; }
+.ch-ini { font-weight:700; color:#f5c518; }
+.ch-meta { display:flex; flex-direction:column; min-width:0; }
+.ch-name { font-size:.86rem; font-weight:600; }
+.ch-badge { font-style:normal; font-size:.62rem; color:#e06a56; border:1px solid rgba(224,106,86,.5); border-radius:6px; padding:0 4px; margin-left:6px; }
+.ch-src { font-size:.68rem; opacity:.55; margin-top:2px; }
+.ch-text { font-size:.86rem; line-height:1.75; margin:8px 0 0; }
+.ch-books { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+.ch-book { font-size:.7rem; padding:3px 8px; border-radius:8px; border:1px solid var(--card-border); opacity:.9; }
+/* 相册单张查看 */
+.photo-view { position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.92); display:flex; flex-direction:column; }
+.pv-bar { display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px; color:#fff; }
+.pv-name { flex:1; min-width:0; font-size:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pv-btn { color:#fff; text-decoration:none; border:1px solid rgba(255,255,255,.4); border-radius:8px; padding:5px 10px; font-size:.8rem; background:transparent; cursor:pointer; }
+.pv-stage { flex:1; display:flex; align-items:center; justify-content:center; padding:10px; }
+.pv-stage img { max-width:100%; max-height:100%; }
+
+/* ---------- 常驻顶栏：返回键 / 标题 ---------- */
+.qtop .qback { width:34px; height:34px; border-radius:50%; flex:none; cursor:pointer; border:1px solid var(--card-border);
+  background:rgba(255,255,255,.06); color:var(--text); font-size:18px; line-height:1; display:flex; align-items:center; justify-content:center; }
+.qtop .qtitle { flex:1; min-width:0; font-weight:600; font-size:15px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ---------- 频道（QQ 信息流 / 详情 / 评论） ---------- */
+.ch-post { border-bottom:1px solid var(--card-border); padding:11px 2px; cursor:pointer; }
+.ch-post:active { background:rgba(255,255,255,.05); }
+.ch-detail { cursor:default; }
+.ch-foot { display:flex; align-items:center; justify-content:flex-end; gap:20px; margin-top:7px; }
+.ch-act { display:inline-flex; align-items:center; gap:4px; font-size:.76rem; opacity:.6; background:none; border:0; color:var(--text); cursor:pointer; padding:2px 0; font-family:inherit; }
+.ch-act.on { color:var(--accent); opacity:1; }
+.ch-act i { font-style:normal; }
+.ch-cmts { margin-top:16px; }
+.ch-cmts-t { font-size:.8rem; opacity:.75; margin-bottom:6px; }
+.ch-cmt-item { display:flex; gap:8px; padding:9px 0; border-bottom:1px solid var(--card-border); }
+.ch-cmt-ic { flex:none; opacity:.6; }
+.ch-cmt-tx { font-size:.85rem; line-height:1.7; }
+.ch-input { display:flex; gap:8px; margin-top:14px; align-items:flex-end; }
+.ch-input textarea { flex:1; min-height:44px; padding:9px; border-radius:10px; border:1px solid var(--card-border);
+  background:var(--card); color:var(--text); font:inherit; resize:vertical; }
+.pc-x { margin-left:auto; width:30px; height:30px; border-radius:50%; border:1px solid var(--card-border); background:rgba(255,255,255,.06); color:var(--text); cursor:pointer; flex:none; font-size:.9rem; }
+.ch-cmt-by { color:var(--accent); font-weight:600; margin-right:6px; }
+
+/* ---------- 分类页管理弹层 ---------- */
+.cls-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--card-border); cursor:pointer; }
+.cls-row input { width:18px; height:18px; flex:none; accent-color:var(--accent); }
+.cls-row .ci { font-size:1rem; }
+.cls-row .cn { font-size:.9rem; }
+
+/* ---------- 使用指南条目 ---------- */
+.hp { padding:9px 0; border-bottom:1px dashed var(--card-border); }
+.hp .hp-t { display:block; font-size:.84rem; font-weight:600; margin-bottom:3px; }
+.hp .hp-d { display:block; font-size:.82rem; line-height:1.85; opacity:.85; }
+
+/* ---------- 分类页管理（下拉面板，样式同「＋」） ---------- */
+.cls-tt { font-size:.78rem; font-weight:700; opacity:.85; padding:6px 10px 8px; border-bottom:1px solid var(--card-border); margin-bottom:3px; }
+.qpanel .cls-row { padding:9px 10px; border-radius:8px; border-bottom:0; }
+.qpanel .cls-row:hover { background:rgba(245,197,24,.14); }
+.qpanel .cls-ok { justify-content:center; color:var(--accent); font-weight:700; margin-top:5px; }
+
+/* ===== 抽屉（整页推进 / 左侧个人中心）都与首页共用同一套页面背景 =====
+   原先 .drawer 自带 #3a0606→#1c0303（浅色下是 #f7efe9→#ecd9cf）渐变，与首页 body 背景不是一套，
+   导致置顶栏下方出现颜色断层、且浅色下抽屉与主页不符（用户反馈）。===== */
+.drawer, body.light .drawer, body.sepia .drawer {
+  /* 不透明，但与首页使用完全同一套页面背景（含 fixed 附着：渐变以视口为参照，与 body 的绘制完全对齐）。
+     既消除颜色断层与不符，又不会让底下的首页内容透出来（transparent 会导致"颜色叠加"）。 */
+  background:inherit; background-attachment:fixed; }
+
+/* ---------- 顶栏两段式（照 QQ）：头像+加号固定；搜索框随页面滚动 ---------- */
+.qtop .qtop-grow { flex:1; min-width:0; }
+.qsearchbar {
+  width:100%; box-sizing:border-box;
+  padding: 10px 0 8px;            /* 紧接在固定顶栏之下 */
+  flex:none;
+  transition: opacity .18s ease;
+}
+.qsearchbar[hidden] { display:none !important; }
+/* 页面滚动后搜索条被内容带走时，给它一点透明度过渡，滚回顶部自然浮现 */
+@media (prefers-reduced-motion: reduce) { .qsearchbar { transition:none; } }

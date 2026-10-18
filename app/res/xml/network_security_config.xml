@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 网络安全配置（2026 默认收紧）：禁止明文 HTTP，只信任系统 CA；
+     不启用证书固定（pinning），以免站点证书轮换后应用无法联网。 -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

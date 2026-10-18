@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+    <item name="android:windowBackground">@color/bg</item>
+    <item name="android:statusBarColor">@color/bg</item>
+    <item name="android:navigationBarColor">@color/bg</item>
+    <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    <!-- Android 12+ 系统启动屏（旧系统忽略这些属性） -->
+    <item name="android:windowSplashScreenBackground">@color/bg</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    <item name="android:windowSplashScreenAnimationDuration">300</item>
+    <!-- 深色背景 → 浅色（白色）系统栏图标 -->
+    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:windowLightNavigationBar">false</item>
+    <!-- 刘海屏：窗口不进入挖孔区，避免内容被遮挡（配合代码里的 insets 内边距） -->
+    <item name="android:windowLayoutInDisplayCutoutMode">never</item>
+  </style>
+</resources>

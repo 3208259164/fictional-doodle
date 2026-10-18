@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 长按桌面图标弹出的静态快捷方式（Android 7.1+） -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="graph"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_graph"
+        android:shortcutLongLabel="@string/sc_graph_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.yuanziyuan.app"
+            android:targetClass="com.yuanziyuan.app.MainActivity">
+            <extra android:name="route" android:value="graph" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="library"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_library"
+        android:shortcutLongLabel="@string/sc_library_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.yuanziyuan.app"
+            android:targetClass="com.yuanziyuan.app.MainActivity">
+            <extra android:name="route" android:value="library" />
+        </intent>
+    </shortcut>
+</shortcuts>

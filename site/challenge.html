@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#170303">
+<title>闯关 · 学通</title>
+<style>
+:root{--bg:#170303;--fg:#e8e8ea;--gold:#f5c518;--line:rgba(255,255,255,.10);--card:#2b0505}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  -webkit-user-select:none;user-select:none}
+body.light{--bg:#f6f2ea;--fg:#2a2320;--card:#fffaf2;--line:rgba(0,0,0,.12)}
+#cv{position:fixed;top:0;left:0;right:0;bottom:0;display:block;touch-action:none}
+
+/* 顶栏 */
+#bar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:10px;
+  padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;
+  background:linear-gradient(180deg,rgba(23,3,3,.96),rgba(23,3,3,0))}
+body.light #bar{background:linear-gradient(180deg,rgba(246,242,234,.97),rgba(246,242,234,0))}
+#bar .t{font-size:.95rem;font-weight:700;letter-spacing:.5px}
+#bar .sp{flex:1}
+.btn{background:rgba(255,255,255,.09);border:1px solid var(--line);color:var(--fg);
+  border-radius:999px;padding:7px 13px;font-size:.8rem;font-family:inherit;cursor:pointer;white-space:nowrap}
+body.light .btn{background:rgba(0,0,0,.05)}
+.btn.gold{background:rgba(245,197,24,.16);border-color:rgba(245,197,24,.45);color:var(--gold)}
+/* 「导入包」：把 file input 铺满整个按钮并设为透明，用户点到的就是 input 本身。
+   不能用 display:none + JS .click()——Android WebView 对隐藏的 file input 常常不弹选择器。 */
+.impwrap{position:relative;overflow:hidden;display:inline-flex;align-items:center}
+.impwrap input[type=file]{position:absolute;left:0;top:0;width:100%;height:100%;
+  opacity:0;cursor:pointer;font-size:100px;border:0;padding:0;margin:0}
+body.light .btn.gold{color:#a06a00}
+
+/* 提示 */
+#hint{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:12;
+  font-size:.72rem;opacity:.5;pointer-events:none}
+
+/* 底部详情卡 */
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:18;transform:translateY(110%);
+  transition:transform .26s ease;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(180deg,rgba(23,3,3,.2),var(--bg) 18%);border-top:1px solid var(--line)}
+body.light #sheet{background:linear-gradient(180deg,rgba(246,242,234,.2),var(--bg) 18%)}
+#sheet.open{transform:none}
+#sheet .sn{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+#sheet .sz{font-size:.76rem;color:var(--gold);margin-top:3px}
+#sheet .sp2{font-size:.78rem;opacity:.66;margin-top:6px;line-height:1.7}
+#sheet .tiers{display:flex;gap:8px;margin-top:12px}
+#sheet .tier{flex:1;padding:10px 6px;border-radius:12px;border:1px solid var(--line);
+  background:rgba(255,255,255,.05);font-family:inherit;font-size:.8rem;color:var(--fg);cursor:pointer;
+  display:flex;flex-direction:column;gap:3px;align-items:center}
+body.light #sheet .tier{background:rgba(0,0,0,.04)}
+#sheet .tier b{font-size:.9rem}
+#sheet .tier i{font-style:normal;font-size:.68rem;opacity:.62}
+#sheet .tier.hell{border-color:rgba(200,50,50,.45)}
+#sheet .x{position:absolute;top:10px;right:12px;background:none;border:0;color:var(--fg);
+  opacity:.6;font-size:1.1rem;cursor:pointer}
+
+/* 播放器 */
+#player{position:fixed;top:0;left:0;right:0;bottom:0;z-index:40;background:#0b0202;display:none;
+  flex-direction:column}
+#player.on{display:flex}
+#pbar{display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top,0px)) 12px 6px;
+  background:#0b0202;border-bottom:1px solid rgba(255,255,255,.08);flex:none}
+#pbar .pn{font-size:.82rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.9}
+#game{flex:1;width:100%;border:0;background:#0b0202}
+#loading{position:fixed;top:0;left:0;right:0;bottom:0;z-index:50;display:flex;align-items:center;
+  justify-content:center;background:var(--bg);font-size:.86rem;opacity:.8;
+  /* 兜底：即使脚本出错没能移除，5 秒后也自己消失，绝不把页面盖死 */
+  animation:ldone 0s linear 5s forwards}
+@keyframes ldone{to{opacity:0;visibility:hidden;pointer-events:none}}
+#loading.off{display:none}
+#errbar{position:fixed;left:0;right:0;top:0;z-index:60;background:#5a1010;color:#fff;
+  font-size:.74rem;line-height:1.6;padding:calc(6px + env(safe-area-inset-top,0px)) 12px 6px;
+  display:none;white-space:pre-wrap;word-break:break-all}
+#errbar.on{display:block}
+.emptybox{position:fixed;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;
+  padding:0 28px;z-index:10}
+.emptybox .e1{font-size:2.6rem}
+.emptybox .e2{font-size:.92rem;margin-top:10px;opacity:.85}
+.emptybox .e3{font-size:.78rem;margin-top:8px;opacity:.55;line-height:1.8}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="bar">
+  <button class="btn" onclick="location.href='index.html'">‹ 返回</button>
+  <span class="t">🎮 闯关</span>
+  <span class="sp"></span>
+  <span class="btn gold impwrap">＋ 导入包
+    <input type="file" id="picker" accept=".html,.htm,text/html,application/octet-stream,document/*">
+  </span>
+</div>
+<div id="hint">拖动平移 · 双指缩放 · 点击关卡</div>
+<div id="sheet"></div>
+<div id="player">
+  <div id="pbar">
+    <button class="btn" id="pBack">‹ 退出关卡</button>
+    <span class="pn" id="pName"></span>
+    <button class="btn" id="pReload" title="重新载入">↻</button>
+  </div>
+  <iframe id="game" sandbox="allow-scripts allow-forms allow-modals allow-pointer-lock"
+          referrerpolicy="no-referrer" title="关卡内容"></iframe>
+</div>
+<div id="loading">正在载入…</div>
+<div id="errbar"></div>
+<script src="assets/challenge.js"></script>
+</body>
+</html>

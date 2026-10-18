@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.yuanziyuan.app"
+    android:versionCode="131"
+    android:versionName="0.16.65">
+
+    <!-- 2026 合规：Google Play 自 2026-08-31 起要求 targetSdk >= 36 (Android 16) -->
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />
+
+    <!-- 权限：总共只声明一条可选存储权限。
+         · 无网络权限（内容全部随 APK 分发，外链交由系统浏览器打开），完全离线；
+         · WRITE_EXTERNAL_STORAGE（maxSdkVersion=29）——仅用于「直写系统下载目录」，
+           使导出文件在文件管理器里 100% 可见；只对 Android 10 及以下有效，Android 11+ 系统忽略。
+           未开启「直写」时，文件保存走 MediaStore / SAF / 应用文件夹，不需要这条权限。
+           （更早的版本声明的是 maxSdkVersion=28，在 minSdk 29 上永不生效，故曾被移除。）
+         · 无定位/相机/通讯录等敏感权限；
+         · 无 REQUEST_INSTALL_PACKAGES —— 本应用不含自更新，不在应用内下载或安装任何 APK。 -->
+
+    <!-- 可选：允许「直写系统下载目录」，让文件在文件管理器中 100% 可见。
+         仅在 Android 10 及以下有意义（maxSdkVersion=29）；Android 11+ 上系统会忽略它。 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+
+    <!-- 不强制要求触摸屏：允许平板/可折叠/Chromebook/TV 安装 -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <application
+        android:name=".App"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/AppTheme"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:requestLegacyExternalStorage="true"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:localeConfig="@xml/locales_config"
+        android:debuggable="false"
+        android:hardwareAccelerated="true"
+        android:supportsRtl="true"
+        android:resizeableActivity="true"
+        android:enableOnBackInvokedCallback="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:taskAffinity="com.yuanziyuan.app.main"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode|density"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- 长按图标的静态快捷方式 -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+
+        <!-- 导出文件的 content:// 出口：让「用其他应用打开」在 Android 7+ 也能用
+             （file:// 自 API 24 起禁止经 Intent 外传给其他应用）。只读、不导出、不申请任何权限。 -->
+        <provider
+            android:name=".ExportProvider"
+            android:authorities="com.yuanziyuan.app.files"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

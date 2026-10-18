@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>学通 · 关系图谱</title><meta name="theme-color" content="#0e0c13">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="人物 · 思想 · 组织 关系图谱：点击节点查看详细介绍与关联关系。">
+<style>
+:root{--accent:#f5c518;--text:#f2e8d8;--line:rgba(255,255,255,.18);--card:rgba(255,255,255,.06);--fam:#c792ea}
+*{margin:0;padding:0;box-sizing:border-box}html,body{height:100%}
+body{font-family:-apple-system,"PingFang SC","Noto Serif SC",serif;color:var(--text);overflow:hidden;
+ background:radial-gradient(circle at 20% 0%,rgba(200,30,30,.22),transparent 45%),radial-gradient(circle at 90% 100%,rgba(245,197,24,.10),transparent 45%),linear-gradient(160deg,#261f38,#171226 60%,#100c1b)}
+#cv{position:fixed;inset:0;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.ui{position:fixed;z-index:5}
+#tl{top:12px;left:12px;max-width:min(74vw,440px)}
+.ui h1{font-size:1rem;letter-spacing:3px;color:var(--accent)}
+.sub{font-size:.72rem;opacity:.6;margin-top:3px}
+.back{display:inline-block;margin-top:6px;color:var(--accent);text-decoration:none;font-size:.76rem;opacity:.9}
+.legend{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px;padding:6px 9px;border:1px solid var(--line);border-radius:10px;background:rgba(10,9,14,.6);font-size:.68rem}
+.legend .lg{display:inline-flex;align-items:center;gap:5px}.legend .lg::before{content:"";width:9px;height:9px;border-radius:50%}
+.lg-person::before{background:#8de6a1}.lg-idea::before{background:#7ec8ff}.lg-org::before{background:#ffd166}
+.lg-crit::before{background:#ff8b8b;border:1px solid rgba(255,255,255,.5)}
+.eg{display:inline-block;width:16px;height:0;border-top:2px solid}
+.eg-pos{border-color:rgba(245,197,24,.85)}.eg-neg{border-color:rgba(255,107,107,.95)}.eg-fam{border-color:var(--fam)}
+#tr{top:12px;right:12px;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+#q{padding:8px 12px;border-radius:9px;border:1px solid var(--line);background:rgba(10,9,14,.78);color:var(--text);font-size:.8rem;outline:none;width:210px}
+#q:focus{border-color:var(--accent)}
+#graphSel{padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:rgba(10,9,14,.78);color:var(--accent);font-size:.74rem;outline:none;font-family:inherit;max-width:210px}
+#ops{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+#ops button{padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:rgba(10,9,14,.78);color:var(--text);font-size:.72rem;cursor:pointer;font-family:inherit}
+#ops button:hover,#ops button.on{border-color:var(--accent);color:var(--accent);background:rgba(245,197,24,.10)}
+#filters{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:2px}
+#filters button{padding:5px 11px;border-radius:20px;border:1px solid var(--line);background:rgba(10,9,14,.78);color:var(--text);font-size:.71rem;cursor:pointer;font-family:inherit}
+#filters button.on{background:var(--accent);color:#1a1408;border-color:var(--accent);font-weight:700}
+#kinds{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:2px}
+#kinds button{padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:rgba(10,9,14,.78);color:var(--text);font-size:.68rem;cursor:pointer;font-family:inherit}
+#kinds button.off{opacity:.4}
+#hint{position:fixed;bottom:10px;left:12px;font-size:.68rem;opacity:.6;z-index:5;line-height:1.7}#hint b{color:var(--accent)}
+#hint k{color:var(--accent);font-style:normal}
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(380px,88vw);z-index:9;transform:translateX(103%);transition:transform .28s ease,visibility 0s .28s;overflow-y:auto;padding:20px 20px 60px;background:linear-gradient(160deg,#241018,#120b10);border-left:1px solid var(--line);visibility:hidden}
+#panel.open{transform:none;box-shadow:-14px 0 40px rgba(0,0,0,.55);visibility:visible;transition:transform .28s ease,visibility 0s}
+#panel .x{position:absolute;top:14px;right:16px;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:4px 10px;cursor:pointer;font-family:inherit}
+.phead{display:flex;gap:13px;align-items:center;margin-bottom:10px}
+.pav{width:60px;height:60px;border-radius:50%;flex:none;overflow:hidden;border:2px solid rgba(245,197,24,.6);background:rgba(255,255,255,.06);display:grid;place-items:center;font-size:1.5rem;color:var(--accent);box-shadow:0 0 0 3px rgba(245,197,24,.10)}
+.pav img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+/* ---------- 浅色 / 羊皮纸主题（跟随「设置 → 主题」） ---------- */
+body.light,body.sepia{color:#2a2320}
+body.light{background:radial-gradient(circle at 20% 0%,rgba(200,30,30,.10),transparent 45%),radial-gradient(circle at 90% 100%,rgba(245,197,24,.16),transparent 45%),linear-gradient(160deg,#fffdf8,#f5efe3 60%,#ece3d3)}
+body.sepia{background:radial-gradient(circle at 20% 0%,rgba(170,70,20,.12),transparent 45%),linear-gradient(160deg,#f8efdd,#efe0c4 60%,#e6d5b5)}
+body.light .ui h1,body.sepia .ui h1{color:#a06a00}
+body.light .back,body.sepia .back{color:#9a6b00}
+body.light .legend,body.light #q,body.light #ops button,body.light #filters button{background:rgba(255,255,255,.88);color:#2a2320;border-color:rgba(0,0,0,.16)}
+body.sepia .legend,body.sepia #q,body.sepia #ops button,body.sepia #filters button{background:rgba(255,250,240,.9);color:#3a2c18;border-color:rgba(120,90,40,.28)}
+body.light #filters button.on,body.sepia #filters button.on{background:#e0a800;color:#fff}
+body.light #hint,body.sepia #hint{color:#5a4a3a}
+body.light #panel{background:linear-gradient(160deg,#fffaf2,#f3e9dc);border-left-color:rgba(0,0,0,.12);color:#2a2320}
+body.sepia #panel{background:linear-gradient(160deg,#fdf6e6,#f0e2c6);border-left-color:rgba(120,90,40,.25);color:#3a2c18}
+/* ---------- 节点列表视图（无障碍等价入口） ---------- */
+#listPanel,#rankPanel{position:fixed;top:0;left:0;bottom:0;width:min(360px,90vw);z-index:10;transform:translateX(-103%);transition:transform .28s ease,visibility 0s .28s;overflow-y:auto;padding:18px 16px 60px;background:linear-gradient(200deg,#241018,#120b10);border-right:1px solid var(--line);visibility:hidden}
+#listPanel.open,#rankPanel.open{transform:none;box-shadow:14px 0 40px rgba(0,0,0,.55);visibility:visible;transition:transform .28s ease,visibility 0s}
+#listPanel .x,#rankPanel .x{position:absolute;top:14px;right:14px;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit}
+.lh0{font-size:.84rem;color:var(--accent);letter-spacing:1px;margin:6px 0 10px;padding-right:74px}
+.lcount{font-size:.68rem;opacity:.6;letter-spacing:0}
+#lq{width:100%;box-sizing:border-box;padding:8px 11px;border-radius:9px;border:1px solid var(--line);background:rgba(10,9,14,.78);color:var(--text);font-size:.8rem;outline:none;font-family:inherit}
+#lq:focus{border-color:var(--accent)}
+#llist{list-style:none;margin:12px 0 0;padding:0}
+#llist li{margin:0 0 5px}
+#llist li.lh{font-size:.7rem;color:var(--accent);opacity:.85;margin:14px 0 6px;letter-spacing:1px}
+#llist button{width:100%;text-align:left;display:block;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--text);font-family:inherit;font-size:.8rem;cursor:pointer;line-height:1.5}
+#llist button:hover,#llist button:focus{border-color:var(--accent);background:rgba(245,197,24,.10);outline:none}
+#llist button b{font-weight:600}
+#llist button .ly{opacity:.6;font-size:.68rem;margin-left:6px}
+#llist button .lr{display:block;opacity:.62;font-size:.68rem;margin-top:2px}
+.lnote{font-size:.66rem;opacity:.55;line-height:1.75;margin-top:16px}
+body.light #listPanel,body.light #rankPanel{background:linear-gradient(200deg,#fffaf2,#f3e9dc);border-right-color:rgba(0,0,0,.12);color:#2a2320}
+body.sepia #listPanel,body.sepia #rankPanel{background:linear-gradient(200deg,#fdf6e6,#f0e2c6);border-right-color:rgba(120,90,40,.25);color:#3a2c18}
+body.light #listPanel .x,body.light #rankPanel .x,body.light #lq{background:rgba(0,0,0,.03);color:#2a2320;border-color:rgba(0,0,0,.14)}
+body.sepia #listPanel .x,body.sepia #rankPanel .x,body.sepia #lq{background:rgba(255,250,240,.75);color:#3a2c18;border-color:rgba(120,90,40,.28)}
+body.light #llist button{background:rgba(0,0,0,.02);color:#2a2320;border-color:rgba(0,0,0,.12)}
+body.light #panel .x,body.light .rbtn,body.light .wrap button{background:rgba(0,0,0,.03);color:#2a2320;border-color:rgba(0,0,0,.14)}
+body.sepia #panel .x,body.sepia .rbtn,body.sepia .wrap button{background:rgba(120,90,40,.06);color:#3a2c18;border-color:rgba(120,90,40,.25)}
+body.light .chip{color:#a06a00;border-color:rgba(0,0,0,.2)}body.sepia .chip{color:#9a6b00;border-color:rgba(120,90,40,.35)}
+body.light .sub2,body.sepia .sub2{color:#a06a00}
+#panel h2{font-size:1.14rem;line-height:1.35;margin-bottom:3px}
+#panel .meta{font-size:.74rem;opacity:.62}
+.chip{display:inline-block;font-size:.68rem;padding:2px 10px;border-radius:14px;border:1px solid var(--line);color:var(--accent);margin-bottom:8px}
+.chip.crit{color:#ff9a9a;border-color:rgba(255,139,139,.5)}
+#panel .desc{font-size:.84rem;line-height:1.95;opacity:.93;margin-top:12px}
+.sub2{font-size:.72rem;color:var(--accent);letter-spacing:2px;margin:18px 0 8px}
+ul.pts{list-style:none;display:flex;flex-direction:column;gap:7px;font-size:.8rem;line-height:1.7}
+ul.pts li{padding-left:16px;position:relative;opacity:.92}
+ul.pts li::before{content:"▸";position:absolute;left:0;color:var(--accent);opacity:.8}
+.wrap{display:flex;flex-wrap:wrap;gap:7px}
+.wrap button{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:6px 11px;font-size:.74rem;cursor:pointer;font-family:inherit;text-align:left}
+.wrap button:hover{border-color:var(--accent)}.wrap button i{font-style:normal;opacity:.55;margin-left:6px;font-size:.68rem}
+.rlist{display:flex;flex-direction:column;gap:7px}
+.rbtn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:11px;padding:7px 10px;cursor:pointer;font-family:inherit;font-size:.82rem}
+.rbtn:hover{border-color:var(--accent)}
+.rbtn.rk-neg{border-color:rgba(255,107,107,.5)}
+.rbtn.rk-fam{border-color:rgba(199,146,234,.6)}
+.rbtn .rav{width:30px;height:30px;border-radius:50%;flex:none;object-fit:cover;background:rgba(255,255,255,.08);display:grid;place-items:center;font-size:.8rem;color:var(--accent);border:1px solid var(--line)}
+.rbtn .rtx{flex:1;min-width:0}
+.rbtn .rtx b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rbtn .rtx em{font-style:normal;font-size:.68rem;opacity:.6}
+.rbtn i{margin-left:auto;font-style:normal;font-size:.7rem;opacity:.55;flex:none}
+.rbtn.rk-neg i{color:#ff9a9a;opacity:1}.rbtn.rk-fam i{color:#d7aef2;opacity:1}
+#panel .exitbtn{width:100%;margin-top:16px;padding:10px;border-radius:10px;border:1px solid var(--line);background:rgba(245,197,24,.10);color:var(--accent);cursor:pointer;font-family:inherit;font-size:.8rem}
+@media(max-width:620px){
+ #tr{top:auto;bottom:46px;left:12px;right:12px;align-items:stretch}#q,#graphSel{width:100%}#ops,#filters{justify-content:center}
+ #panel{top:auto;height:66%;width:100%;transform:translateY(103%);border-left:none;border-top:1px solid var(--line)}
+ #panel.open{transform:none}
+ #hint{display:none}
+}
+.njump{position:fixed;top:12px;right:12px;z-index:12;width:50px;height:50px;border-radius:50%;
+ display:flex;align-items:center;justify-content:center;font-size:.78rem;letter-spacing:1px;
+ background:rgba(10,9,14,.55);border:1px solid rgba(245,197,24,.45);color:rgba(245,197,24,.95);
+ text-decoration:none;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+ box-shadow:0 2px 10px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .22s,transform .12s}
+.njump.on{opacity:.9;pointer-events:auto}
+.njump:hover{opacity:1;background:rgba(245,197,24,.16)}
+.njump:active{transform:scale(.92)}
+@media(max-width:620px){.njump{top:calc(12px + env(safe-area-inset-top));width:46px;height:46px;font-size:.74rem}}
+/* 清屏：隐藏所有覆盖在图上的界面控件（保留图谱与名字） */
+body.clean #tl,body.clean #tr,body.clean #hint,body.clean #nodeJump{display:none !important}
+#cleanExit{display:none;position:fixed;top:12px;right:12px;z-index:13;padding:8px 14px;border-radius:20px;
+ background:rgba(10,9,14,.6);border:1px solid rgba(245,197,24,.45);color:var(--accent);font-size:.76rem;
+ cursor:pointer;font-family:inherit;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+body.clean #cleanExit{display:block}
+/* 面板收起后的小标签 */
+#ptab{position:fixed;left:50%;transform:translateX(-50%);bottom:6px;z-index:10;padding:9px 18px;border-radius:22px;
+ background:rgba(10,9,14,.85);border:1px solid rgba(245,197,24,.45);color:var(--accent);font-size:.78rem;
+ cursor:pointer;font-family:inherit;display:none;box-shadow:0 3px 14px rgba(0,0,0,.45);max-width:88vw;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ptab.show{display:block}
+@media(min-width:621px){#ptab{bottom:18px}}
+/* 底部控件面板：可收起，避免遮挡图谱 */
+#tr .foldbar{display:flex;justify-content:flex-end;width:100%}
+#tr .foldbar button{padding:5px 12px;border-radius:20px;border:1px solid var(--line);background:rgba(10,9,14,.72);color:var(--accent);font-size:.7rem;cursor:pointer;font-family:inherit}
+#tr.folded > *:not(.foldbar){display:none}
+#tr.folded{gap:0;padding:0}
+body.light #tr .foldbar button,body.sepia #tr .foldbar button{background:rgba(255,255,255,.86)}
+/* ===== 紧凑化：顶部上移缩小 · 底部下移 · 整体框框缩小 ===== */
+#tl{top:calc(6px + env(safe-area-inset-top,0px));left:10px;max-width:min(70vw,380px)}
+.ui h1{font-size:.9rem;letter-spacing:2px}
+#tl .sub{font-size:.64rem;margin-top:2px}
+#tl .back{font-size:.7rem;margin-top:4px}
+#tl .legend{gap:7px;margin-top:6px;padding:4px 7px;font-size:.6rem;border-radius:8px}
+.njump{top:calc(8px + env(safe-area-inset-top,0px));width:44px;height:44px}
+#cleanExit{top:calc(8px + env(safe-area-inset-top,0px));padding:6px 12px;font-size:.72rem}
+#ptab{bottom:calc(3px + env(safe-area-inset-bottom,0px));padding:7px 15px;font-size:.74rem}
+#tr .foldbar button{padding:4px 10px;font-size:.66rem}
+@media(max-width:620px){
+ body.p-open #tr{display:none}
+ body.l-open #tr{display:none}
+ body.l-open #panel{display:none}
+ #tr{bottom:calc(24px + env(safe-area-inset-bottom,0px));left:8px;right:8px;gap:6px}
+ #q{padding:7px 11px;font-size:.76rem;border-radius:8px}
+ #graphSel{padding:6px 9px;font-size:.7rem;border-radius:8px}
+ #ops{gap:5px}#ops button{padding:9px 10px;font-size:.69rem;border-radius:9px;min-height:38px}
+ #filters{margin-top:2px}#filters button{padding:7px 11px;font-size:.69rem;min-height:34px}
+ #kinds{margin-top:2px}#kinds button{padding:6px 10px;font-size:.65rem;min-height:32px}
+}
+/* 关系工具（全高抽屉，与「列表」同款） / 数据导出 / 图谱管理 / 浮动提示 */
+#relTool{position:fixed;top:0;left:0;bottom:0;width:min(380px,90vw);z-index:38;transform:translateX(-103%);transition:transform .28s ease,visibility 0s .28s;
+  overflow-y:auto;padding:18px 16px 60px;background:linear-gradient(200deg,#241018,#120b10);border-right:1px solid var(--line);visibility:hidden}
+#relTool.open{transform:none;box-shadow:14px 0 40px rgba(0,0,0,.55);visibility:visible;transition:transform .28s ease,visibility 0s}
+#relTool .rt-box{width:auto;max-height:none;overflow:visible;background:none;border:0;border-radius:0;box-shadow:none;padding:0}
+#relTool .rt-h{display:flex;align-items:center;justify-content:space-between;font-weight:700;margin-bottom:10px;font-size:1.02rem}
+#relTool .rt-x{cursor:pointer;opacity:.7;font-size:1.1rem;padding:0 6px}
+#relTool .rt-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+#relTool select{flex:1;min-width:130px;padding:7px 9px;border-radius:9px;border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.06);color:inherit;font-family:inherit;font-size:.85rem}
+#relTool button{padding:7px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);
+  color:inherit;cursor:pointer;font-family:inherit;font-size:.85rem}
+#relTool .rt-go{background:var(--accent);border-color:var(--accent);color:#fff}
+#relTool .rt-hint{font-size:.78rem;opacity:.7}
+#relTool .rt-out{margin-top:6px;font-size:.85rem;line-height:1.9}
+#relTool .rt-sec{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.12)}
+#relTool .rt-sec b{color:var(--accent)}
+#relTool .rt-chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+#relTool .rt-chain span{background:rgba(255,255,255,.08);border-radius:8px;padding:3px 8px}
+#relTool .rt-chain i{opacity:.75;font-style:normal;font-size:.78rem}
+#relTool .rt-x{opacity:.85;font-size:.8rem;padding:4px 10px;border:1px solid var(--line);border-radius:8px}
+body.light #relTool{background:linear-gradient(200deg,#fffaf2,#f3e9dc);border-right-color:rgba(0,0,0,.12);color:#2a2320}
+body.sepia #relTool{background:linear-gradient(200deg,#fdf6e6,#f0e2c6);border-right-color:rgba(120,90,40,.25);color:#3a2c18}
+body.light #relTool select,body.light #relTool button{background:rgba(0,0,0,.04);color:#2a2320;border-color:rgba(0,0,0,.16)}
+body.sepia #relTool select,body.sepia #relTool button{background:rgba(255,250,240,.8);color:#3a2c18;border-color:rgba(120,90,40,.3)}
+body.light #relTool .rt-chain span,body.sepia #relTool .rt-chain span{background:rgba(0,0,0,.05)}
+body.light #relTool .rt-sec,body.sepia #relTool .rt-sec{border-top-color:rgba(0,0,0,.1)}
+/* ---- 图谱管理面板（右侧抽屉） ---- */
+#mgPanel{position:fixed;top:0;right:0;bottom:0;width:min(360px,90vw);z-index:40;transform:translateX(103%);transition:transform .28s ease,visibility 0s .28s;
+  overflow-y:auto;padding:18px 16px 60px;background:linear-gradient(200deg,#241018,#120b10);border-left:1px solid var(--line);visibility:hidden}
+#mgPanel.open{transform:none;box-shadow:-14px 0 40px rgba(0,0,0,.55);visibility:visible;transition:transform .28s ease,visibility 0s}
+#mgPanel .x{position:absolute;top:14px;right:14px;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:4px 10px;cursor:pointer;font-family:inherit}
+#mgPanel .mgh0{font-weight:700;font-size:1.02rem;margin-bottom:6px}
+#mgPanel .mg-note{font-size:.75rem;opacity:.72;line-height:1.7;margin:0 0 4px}
+#mgPanel .mg-sec{margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12)}
+#mgPanel .mg-h{font-weight:700;font-size:.88rem;margin-bottom:8px}
+#mgPanel .mg-sub{font-weight:400;font-size:.72rem;opacity:.6;margin-left:6px}
+#mgPanel .mg-grid{display:flex;flex-wrap:wrap;gap:6px}
+#mgPanel .mg-grid button{padding:6px 11px;border-radius:20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);
+  color:inherit;font-family:inherit;font-size:.75rem;cursor:pointer}
+#mgPanel .mg-grid button.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+#mgPanel .mg-grid button.off{opacity:.45;text-decoration:line-through}
+#mgPanel .mg-reset{padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);
+  color:inherit;font-family:inherit;font-size:.8rem;cursor:pointer}
+body.light #mgPanel{background:linear-gradient(200deg,#fffaf2,#f3e9dc);border-left-color:rgba(0,0,0,.12);color:#2a2320}
+body.sepia #mgPanel{background:linear-gradient(200deg,#fdf6e6,#f0e2c6);border-left-color:rgba(120,90,40,.25);color:#3a2c18}
+body.light #mgPanel .mg-grid button,body.light #mgPanel .mg-reset{background:rgba(0,0,0,.04);color:#2a2320;border-color:rgba(0,0,0,.16)}
+body.sepia #mgPanel .mg-grid button,body.sepia #mgPanel .mg-reset{background:rgba(255,250,240,.8);color:#3a2c18;border-color:rgba(120,90,40,.3)}
+body.light #mgPanel .mg-sec,body.sepia #mgPanel .mg-sec{border-top-color:rgba(0,0,0,.1)}
+#dataMenu{position:fixed;z-index:39;display:none;flex-direction:column;max-width:calc(100vw - 16px);background:var(--card,#141320);border-radius:12px;
+  padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.12)}
+#dataMenu.open{display:flex}
+#dataMenu button{text-align:left;padding:8px 12px;border:0;background:transparent;color:inherit;cursor:pointer;
+  font-family:inherit;font-size:.83rem;border-radius:8px;white-space:normal;word-break:break-word}
+#dataMenu button:hover{background:rgba(255,255,255,.1)}
+.skip{position:absolute;left:-999px;top:0;z-index:200;background:var(--accent);color:#3a0d0d;padding:8px 14px;border-radius:0 0 8px 0;text-decoration:none}
+.skip:focus{left:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 聚焦模式：顶部状态条（深度切换 + 返回全图） */
+#focusBar{position:fixed;left:50%;top:calc(56px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:12;display:none;align-items:center;gap:7px;flex-wrap:wrap;justify-content:center;
+  padding:7px 12px;border:1px solid var(--line);border-radius:22px;background:rgba(10,9,14,.88);color:var(--text);font-size:.76rem;max-width:92vw}
+#focusBar.open{display:flex}
+#focusBar b{color:var(--accent);font-weight:700}
+#focusBar button{padding:5px 10px;border-radius:15px;border:1px solid var(--line);background:transparent;color:inherit;font-family:inherit;font-size:.72rem;cursor:pointer;min-width:34px}
+#focusBar button.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+body.light #focusBar{background:rgba(255,250,242,.94);border-color:rgba(0,0,0,.14);color:#2a2320}
+body.sepia #focusBar{background:rgba(253,246,230,.94);border-color:rgba(120,90,40,.3);color:#3a2c18}
+/* 影响力排名列表 */
+#rankPanel ul{list-style:none;padding:0;margin:0 0 10px}
+#rankPanel li{margin:2px 0}
+#rankPanel li button{width:100%;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:9px 10px;border:0;border-radius:8px;
+  background:transparent;color:inherit;font-family:inherit;font-size:.8rem;cursor:pointer;text-align:left;min-height:38px}
+#rankPanel li button:hover{background:rgba(245,197,24,.14)}
+#rankPanel li .lr{opacity:.72;font-size:.72rem;flex:none}
+#rankPanel .rk-h{font-weight:700;font-size:.82rem;margin:12px 0 4px}
+#rankPanel .rk-note{font-size:.74rem;opacity:.72;line-height:1.7;margin:0 0 6px}
+#gtoast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:41;display:none;background:rgba(10,9,14,.94);
+  color:#f3e6d8;border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:8px 14px;font-size:.8rem;max-width:86vw;text-align:center}
+
+</style></head><body>
+<a class="skip" href="#lb">跳到节点列表</a>
+<canvas id="cv" role="img" aria-label="关系图谱画布：可拖动平移、滚轮缩放、点击节点查看详情；无法用鼠标时可改用左侧「📋 列表」按名称检索定位"></canvas>
+<div class="ui" id="tl"><h1>学通 · 关系图谱</h1><a class="back" href="index.html">← 返回学通</a>
+ <div class="sub">拖动平移 · 滚轮缩放 · 点节点高亮其关系网</div>
+ <div class="legend" id="nodeLegend">
+  <span class="lg" style="opacity:.5">节点</span>
+  <span class="lg lg-person">人物</span><span class="lg lg-idea">思想</span><span class="lg lg-org">组织</span><span class="lg lg-crit">被批判 / 对立</span>
+ </div>
+ <div class="legend" id="edgeLegend">
+  <span class="lg" style="opacity:.5">关系线</span>
+  <span id="kindLegend" style="display:contents"></span>
+  <span class="lg edge-sample"><i class="eg eg-pos"></i>同志·协作</span><span class="lg edge-sample"><i class="eg eg-neg"></i>批判·对立</span><span class="lg edge-sample"><i class="eg eg-fam"></i>亲属·伴侣</span>
+ </div></div>
+<div class="ui" id="tr">
+ <select id="graphSel" title="切换图谱" aria-label="切换图谱"></select>
+ <input id="q" type="search" placeholder="找人物 / 思想 / 组织…">
+ <div id="filters">
+  <button data-f="all" class="on">全部</button>
+  <button data-f="person">人物</button>
+  <button data-f="idea">思想</button>
+  <button data-f="org">组织</button>
+  <button data-f="crit">被批判</button>
+ </div>
+ <div id="ops"><button id="fb" onclick="fitAll()">⤢ 适应窗口</button><button id="vb" onclick="toggleViewMode()">🗺 地图</button><button id="cb2" onclick="toggleComm()">🎨 社区</button><button id="cb3" onclick="toggleYears()">⏳ 时间轴</button><button id="cb4" onclick="toggleBundle()">🎀 束线</button><button id="cb" onclick="toggleClean()">🚫 清屏</button><button onclick="toggleEdges()" id="eb" class="on">🔗 关系线</button><button onclick="toggleList()" id="lb" aria-expanded="false" aria-controls="listPanel">📋 列表</button><button onclick="toggleRank()" id="rankb" aria-expanded="false" aria-controls="rankPanel" title="按影响力排名（关联最多 / 最关键的中间人）">📊 排名</button><button onclick="openRelTool()" id="rtb" title="查两个人的共同关系与关系链">🔎 关系工具</button><button onclick="openDataMenu(event)" id="dtb" title="导出图谱数据">⬇ 数据</button><button id="mgb" onclick="toggleMgr()" title="自定义显示哪些工具与节点 / 关系">⚙ 管理</button></div>
+ <div class="foldbar"><button id="trFold" onclick="toggleTr()">▾ 收起面板</button></div>
+</div>
+<div id="focusBar" role="status" aria-live="polite"></div>
+<div id="hint">共 <b id="nc">-</b> 个节点 · <b id="lc">-</b> 条关系 · <span id="shown"></span><br>点节点看关系网；<k>连点三次</k> 或 <k>长按 0.5 秒</k> 打开介绍</div>
+<a id="nodeJump" class="njump" href="#" title="展开/收起介绍">介绍</a>
+<button id="cleanExit" onclick="toggleClean()">⤢ 退出清屏</button>
+<aside id="panel" aria-live="polite" aria-label="节点详情"><button class="x" onclick="collapsePanel()">▾ 收起</button>
+ <div class="phead"><div class="pav" id="pav"></div><div><div class="chip" id="pchip"></div><h2 id="pname"></h2><div class="meta" id="pmeta"></div></div></div>
+ <div id="pback"></div>
+ <div class="desc" id="pdesc"></div><div id="prelic"></div><div id="ppts"></div><div id="pw"></div><div id="pr"></div>
+ <button class="exitbtn" onclick="clearSel()">← 取消高亮</button></aside>
+<button id="ptab" onclick="expandPanel()">📖 展开介绍</button>
+<script src="data/avatars.js"></script>
+<script src="data/content.js"></script>
+<script src="data/knowledge.js"></script>
+<script src="data/graph.js"></script>
+<script src="data/graph-wenge.js"></script>
+<script src="data/graph-geo.js"></script>
+<script src="data/graph-world.js"></script>
+<script src="data/geo-china.js"></script>
+<script src="data/geo-world.js"></script>
+<script src="assets/cite.js"></script>
+<script src="assets/overlay.js"></script>
+<script>
+try{var _gm=/[?&]g=([^&]+)/.exec(location.search);if(_gm&&window.YZY&&YZY.setActiveGraph){YZY.setActiveGraph(decodeURIComponent(_gm[1]));}}catch(e){}
+var GR=(window.YZY&&window.YZY.graphData)?window.YZY.graphData():(window.SITE_GRAPH||{nodes:[],links:[]}),P={};GR.nodes.forEach(function(n){P[n.id]=n;});
+/* 世界图谱的节点自带真实经纬度（data/graph-world.js），无需运行时注入。 */
+document.getElementById('nc').textContent=GR.nodes.length;document.getElementById('lc').textContent=GR.links.length;
+(function(){try{var sel=document.getElementById('graphSel');if(!sel||!window.YZY||!YZY.listGraphs)return;var list=YZY.listGraphs(),act=YZY.activeGraphId();list.forEach(function(g){var o=document.createElement('option');o.value=g.id;o.textContent=g.name;if(g.id===act)o.selected=true;sel.appendChild(o);});sel.onchange=function(){var v=sel.value;var r=YZY.setActiveGraph(v);if(r&&r.ok!==false){var qs=location.search.replace(/[?&]g=[^&]*/,'').replace(/^[?&]/,'');location.href=location.pathname+(qs?'?'+qs+'&':'?')+'g='+encodeURIComponent(v)+location.hash;}};}catch(e){}})();
+/* 类型配色：Okabe-Ito 色盲安全色板（蓝/橙/绿/黄，红绿色盲也能分辨）；亮色主题取深一档保证对比度 */
+function color(n){if(LIGHT){if(n.crit)return '#8E2A5E';if(n.type==='event')return '#C05000';if(n.type==='idea')return '#946200';if(n.type==='org')return '#00796B';return '#0072B2';}if(n.crit)return '#CC79A7';if(n.type==='event')return '#E69F00';if(n.type==='idea')return '#F0E442';if(n.type==='org')return '#009E73';return '#56B4E9';}
+function relKind(r){r=r||'';if(/批判|对立|分歧|开除|论战|叛徒|错误|敌人|反对|前身思潮/.test(r))return 'neg';if(/父子|伴侣|亲人|兄弟|夫妻/.test(r))return 'fam';return 'pos';}
+function relColor(r){var k=relKind(r);return k==='neg'?CL.neg:k==='fam'?CL.fam:CL.pos;}
+var KINDCLR=(GR&&GR.kinds)||{};
+function edgeColor(e){if(e&&e.k&&KINDCLR[e.k])return KINDCLR[e.k];return relColor(e?e.r:'');}
+function tyName(t){return t==='person'?'人物':t==='idea'?'思想':t==='event'?'事件':'组织';}
+function tyEmoji(t){return t==='person'?'👤':t==='idea'?'💡':t==='event'?'📅':'🏛';}
+var DIM=0.10;
+function sysDark(){try{if(window.AndroidApp&&typeof AndroidApp.systemDark==='function')return !!AndroidApp.systemDark();}catch(e){}return !(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches);}
+function isLightMode(){var t=localStorage.getItem('theme')||'auto';if(t==='light')return true;if(t==='dark')return false;return !sysDark();}
+var LIGHT=isLightMode(),CL={};
+function applyBodyTheme(){try{document.body.classList.toggle('light',LIGHT);document.body.classList.remove('sepia');}catch(e){}}
+function rebuildCL(){CL=LIGHT?{grid:'rgba(120,90,20,0.13)',unrel:'rgba(70,60,50,.45)',lbl:'rgba(45,36,28,.94)',lblHi:'#9a6b00',lblRel:'#8a5f00',dot:'rgba(0,0,0,.06)',dotTx:'rgba(45,35,25,.9)',ring:'rgba(180,130,20,.7)',ringHi:'rgba(160,110,10,.98)',halo:'rgba(255,255,255,.95)',elblBg:'rgba(255,252,245,.92)',neg:'rgba(200,40,40,.85)',fam:'rgba(130,70,180,.9)',pos:'rgba(170,120,10,.8)'}:{grid:'rgba(245,197,24,0.10)',unrel:'rgba(200,193,178,.5)',lbl:'rgba(242,232,216,.9)',lblHi:'#f5c518',lblRel:'#ffe9a8',dot:'rgba(255,255,255,.10)',dotTx:'rgba(242,232,216,.92)',ring:'rgba(245,197,24,.62)',ringHi:'rgba(245,197,24,.98)',halo:'rgba(255,255,255,.14)',elblBg:'rgba(10,9,14,.9)',neg:'rgba(255,140,140,.98)',fam:'rgba(215,174,242,.98)',pos:'rgba(245,197,24,.95)'};}
+applyBodyTheme();rebuildCL();
+window.__yzSystemTheme=function(){try{var l=isLightMode();if(l!==LIGHT){LIGHT=l;applyBodyTheme();rebuildCL();draw();}}catch(e){}};
+var CT=(window.SITE_CONTENT||{}),CMAP={};((CT.leaders||[]).concat(CT.comrades||[])).forEach(function(p){CMAP[p.name]=p;});
+
+/* 当前图谱的底图模式（必须在建图/布局之前确定） */
+var hasProv = GR.nodes.filter(function(n){return n.prov;}).length>=5;
+var hasGeo  = GR.nodes.filter(function(n){return n.geo;}).length>=5;
+var mapMode = hasProv ? 'china' : (hasGeo ? 'world' : 'none');   /* 按当前图谱自动选底图 */
+
+/* ---------- 语义分组 + 地理落点（图谱页与编辑器共用；换图后调用 window.yzPlace()/window.yzGeo() 重算） ---------- */
+var GROUPS=[
+ {key:'core',      label:'革命导师',        ids:['marx','engels','lenin','stalin','mao']},
+ {key:'intl',      label:'国际共运',        ids:['liebknecht','bebels','luxemburg','kl','zetkin','gramsci','dimitrov','thaelmann','ho','castro','che','tito','hoxha']},
+ {key:'cn_early',  label:'中国 · 建党先驱', ids:['chen_duxiu','dch','cai_hesen','qu_qiubai','yun_daiying','peng_pai','fang_zhimin','xiang_jingyu','deng_zhongxia','liu_shaoqi','zhou_enlai','zhu_de']},
+ {key:'cn_martyr', label:'革命同志 · 英烈', ids:['dongbiwu','linboqu','zhangwentian','wangjiaxiang','renbishi','chentanqiu','heshuheng','dengfa','maozemin','liuzhidan','yangjingyu','zhaoyiman','jiangzhujun','liuhulan','dongcunrui','huangjiguang','leifeng','jiaoyulu']},
+ {key:'srb',       label:'文化大革命',      ids:['jiangqing','zhangchunqiao','yaowenyuan','wanghongwen']},
+ {key:'critic',    label:'被批判 · 对立',   ids:['proudhon','weitling','bakunin','lassalle','duhring','bernstein','kautsky','martov','trotsky']},
+ {key:'idea',      label:'思想 · 理论',     ids:[]},
+ {key:'org',       label:'组织 · 政党',     ids:[]}
+];
+var ELL=[2000,900];
+var GID={}, CENTER={};
+function yzKey(n){ return ((n.type==='event')?'事件':(n.type==='org')?'组织':(n.type==='idea')?'思想':'')+'·'+(n.prov||'全国'); }
+function yzPlace(){
+  var G=(window.GROUPS&&window.GROUPS.length)?window.GROUPS:GROUPS;
+  /* 动态组（思想/组织）随当前数据刷新 */
+  G.forEach(function(g){ if(g.key==='idea') g.ids=GR.nodes.filter(function(n){return n.type==='idea';}).map(function(n){return n.id;});
+                         if(g.key==='org')  g.ids=GR.nodes.filter(function(n){return n.type==='org';}).map(function(n){return n.id;}); });
+  var gid={}, cen={}, k;
+  if(mapMode==='china'){
+    /* 地方图谱（如文革图谱）：内置分组表不适用 → 按「类型 + 省份」合成，中心均布在一个环上（避免全挤在原点） */
+    var keys=[], seen={}, byKey={}, G2=[];
+    GR.nodes.forEach(function(n){ var kk=yzKey(n); if(!seen[kk]){seen[kk]=1;keys.push(kk);byKey[kk]={key:kk,label:(n.prov||'全国'),ids:[]};G2.push(byKey[kk]);} byKey[kk].ids.push(n.id); });
+    var kn=keys.length||1;
+    keys.forEach(function(kk,ii){ var a=ii/kn*2*Math.PI; cen[kk]=[Math.cos(a)*1500,Math.sin(a)*1500]; byKey[kk].c=cen[kk]; });
+    GR.nodes.forEach(function(n){ gid[n.id]=yzKey(n); });
+    GROUPS=G2;
+  } else {
+    G.forEach(function(g){ g.ids.forEach(function(id){ gid[id]=g.key; }); });
+    var ex=[]; GR.nodes.forEach(function(n){ if(!gid[n.id])ex.push(n.id); });
+    if(ex.length){ var eg={key:'__extra',label:'其它',ids:ex}; G.push(eg); ex.forEach(function(id){ gid[id]='__extra'; }); }
+    var others=G.filter(function(g){return g.key!=='core';});
+    others.forEach(function(g,ii){ var a=ii/others.length*2*Math.PI-Math.PI/2+Math.PI/6; g.c=[Math.cos(a)*ELL[0],Math.sin(a)*ELL[1]]; cen[g.key]=g.c; });
+    var core=G.filter(function(g){return g.key==='core';})[0]; if(core)core.c=[0,0];
+    cen.core=[0,0];
+    GROUPS=G;
+  }
+  GID=gid; CENTER=cen; window.GROUPS=GROUPS; window.GID=gid; window.CENTER=cen;
+  return gid;
+}
+function yzGeo(list){
+  var arr=(list&&list.length)?list:ns;
+  try{
+    /* 落点优先级：①节点自带 geo（真实发生地）②节点 prov（省/市名）③全国中心。
+       同一「0.2° 网格」内的节点视为同城 → 归为一组，组内位置锚定真实经纬度；
+       彼此不重叠的「散开」由 S() 以固定的屏幕像素给出（见下），故缩放时不变形。 */
+    var byKey={};
+    arr.forEach(function(o){ var d0=(o.d||{}); var base,key;
+      if(d0.geo && d0.geo.length===2 && typeof d0.geo[0]==='number' && typeof d0.geo[1]==='number'){
+        key='g'+Math.round(d0.geo[0]*10)+','+Math.round(d0.geo[1]*10); base=proj(d0.geo[0],d0.geo[1]); }
+      else { var pp=d0.prov||'全国', c=PROVC[pp]||PROVC['全国'];
+        key='p'+pp; base=proj(c[0],c[1]); }
+      (byKey[key]=byKey[key]||[]).push({o:o,base:base}); });
+    Object.keys(byKey).forEach(function(k){ var a=byKey[k];
+      a.forEach(function(it,ii){ var o=it.o; o.gx=it.base.x; o.gy=it.base.y; o._gI=ii; o._gN=a.length; }); });
+  }catch(e){}
+}
+window.yzPlace=yzPlace; window.yzGeo=yzGeo;
+var GEO_R={p:2.6,o:2.1,e:3.4,d:3.0};      /* 世界地图：固定半径（px）人物/组织思想/事件/逝世 */
+var GEO_R_CN={p:3.8,o:3.1,e:4.2,d:3.8};   /* 中国（文革）地图：节点更大一档 */
+var GEO_USE=GEO_R;
+function geoR(){ return (mapMode==='china')?GEO_R_CN:GEO_R; }
+var labelsAll=true,edgesOn=true,hideText=false,filter='all',selected=null,hover=null,nb={},EVMARKS=[],EVLBL=[],GEOBOX=[],EVAGG=[],AGG=[];
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d'),DPR=Math.min(devicePixelRatio||1,2),W,H;
+yzPlace();
+var ns=GR.nodes.map(function(n,i){var c=CENTER[GID[n.id]]||[0,0],a=i*2.399963,r=6+(i%7)*5;return{d:n,x:c[0]+Math.cos(a)*r,y:c[1]+Math.sin(a)*r,vx:0,vy:0,deg:0,img:null,imgOk:false};});
+var ix={};ns.forEach(function(o){ix[o.d.id]=o;});
+function hashStr(str){var h=2166136261;for(var i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+var es=[],usedPair={};GR.links.forEach(function(l){var s=ix[l.source],t=ix[l.target];if(s&&t){var key=[l.source,l.target].sort().join('|');usedPair[key]=(usedPair[key]||0)+1;es.push({s:s,t:t,r:l.rel,k:l.kind,dir:((hashStr(key)%2)?1:-1)*usedPair[key]});s.deg++;t.deg++;}});
+function imgList(d){
+  if(d.type!=='person')return [];
+  var out=[];
+  if(d.img)out.push(d.img);
+  /* 只请求「头像清单」里确实存在的文件（由 tools/gen_avatars.js 生成），
+     避免按 id 猜路径产生大量 404；清单里没有的人物＝确实没有照片，不请求。 */
+  var F=window.AVATAR_FILES||{}, id=String(d.id||'');
+  var p=F[id]||F[id.replace(/_/g,'')];
+  if(p&&out.indexOf(p)<0)out.push(p);
+  return out;
+}
+/* 头像改为「首帧绘制之后再渐进加载」：不让几十张图片请求与首次布局/绘制抢主线程与带宽 */
+(function(){
+  var queue=ns.filter(function(o){ return imgList(o.d).length; }), at=0;
+  function loadOne(o){
+    var list=imgList(o.d), i=0, im=new Image();
+    im.onload=function(){o.imgOk=true;draw();};
+    im.onerror=function(){i++; if(i<list.length){im.src=list[i];} else {o.imgOk=false;o.img=null;} };
+    im.src=list[0]; o.img=im;
+  }
+  function step(){
+    var n=0;
+    while(at<queue.length && n<6){ loadOne(queue[at++]); n++; }
+    if(at<queue.length) setTimeout(step,110);
+  }
+  function kick(){ setTimeout(step,500); }
+  if(typeof requestAnimationFrame==='function') requestAnimationFrame(function(){ requestAnimationFrame(kick); });
+  else setTimeout(kick,800);
+})();
+
+/* ---------- 分组聚簇布局：组内聚拢 + 组间分离 + 碰撞，清晰不糊 ---------- */
+(function(){
+ var N=ns.length,F=26000,KG=0.0035,REST=300,LK=0.010,MIN=150,IT=1100;
+ for(var it=0;it<IT;it++){var al=1-it/IT;
+  for(var i=0;i<N;i++){var a=ns[i];
+   for(var j=i+1;j<N;j++){var b=ns[j],dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+0.01,d=Math.sqrt(d2),f=F/d2,ux=dx/d*f,uy=dy/d*f;a.vx+=ux;a.vy+=uy;b.vx-=ux;b.vy-=uy;}}
+  for(var k=0;k<es.length;k++){var e=es[k],ex=e.t.x-e.s.x,ey=e.t.y-e.s.y,ed=Math.sqrt(ex*ex+ey*ey)||0.01,ff=(ed-REST)*LK,tx=ex/ed*ff,ty=ey/ed*ff;e.s.vx+=tx;e.s.vy+=ty;e.t.vx-=tx;e.t.vy-=ty;}
+  for(var m=0;m<N;m++){var o=ns[m],c=CENTER[GID[o.d.id]]||[0,0];o.vx+=(c[0]-o.x)*KG;o.vy+=(c[1]-o.y)*KG;o.x+=o.vx*al*0.5;o.y+=o.vy*al*0.5;o.vx*=0.82;o.vy*=0.82;}
+  for(var p=0;p<N;p++){var A=ns[p];for(var q=p+1;q<N;q++){var B=ns[q],dx2=A.x-B.x,dy2=A.y-B.y,dd=Math.sqrt(dx2*dx2+dy2*dy2)||0.01;if(dd<MIN){var push=(MIN-dd)*0.5,nx=dx2/dd,ny=dy2/dd;A.x+=nx*push;A.y+=ny*push;B.x-=nx*push;B.y-=ny*push;}}}
+ }
+})();
+
+/* 覆盖层写回的用户位置：布局跑完后恢复（把用户拖过的节点“钉住”）——
+   修复“内置主图谱里移动节点，刷新后位置丢失”。 */
+for(var _pi=0;_pi<ns.length;_pi++){var _pn=ns[_pi];
+  if(_pn.d&&typeof _pn.d.x==='number'&&typeof _pn.d.y==='number'){_pn.x=_pn.d.x;_pn.y=_pn.d.y;_pn.vx=0;_pn.vy=0;_pn.pinned=true;}}
+
+var view={x:0,y:0,k:1};
+function resize(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';}
+var mapOnly = !!(GR && GR.mapOnly);   /* 声明「只能用地图」的图谱（如世界图谱）→ 不提供关系网视图 */
+var viewMode = (mapMode==='none') ? 'net' : 'geo';   /* 有底图 → 默认地图（节点固定在地理位置）；无底图 → 关系网 */
+function WX(o){return (viewMode==='geo'&&typeof o.gx==='number')?o.gx:o.x;}
+function WY(o){return (viewMode==='geo'&&typeof o.gy==='number')?o.gy:o.y;}
+/* 屏幕坐标：**严格锚定（固定定点）**。
+   地理视图下节点屏幕位置 = proj(geo) × view.k + view 平移，不叠加任何屏幕像素偏移，
+   故缩放/平移时节点与底图严丝合缝、零漂移。同一落点的多个节点因此完全重合，
+   重叠改由「聚合徽标（计数圈）」表达（见 draw() 的 AGG 与 clusterList）。 */
+function S(o){ return {x:WX(o)*view.k+view.x, y:WY(o)*view.k+view.y}; }
+/* ---- 地理视图：省级示意底图 + 按 prov 落点 ---- */
+var PROVC = { '北京':[116.4,39.9],'上海':[121.47,31.23],'武汉':[114.3,30.6],'成都':[104.07,30.67],'广州':[113.26,23.13],'全国':[104.5,35.5] };
+(function(){ try{ ((window.SITE_GEO&&window.SITE_GEO.provinces)||[]).forEach(function(p){ if(!p.c) return; PROVC[p.n]=p.c; PROVC[p.n.replace(/(省|市|自治区|特别行政区|壮族|回族|维吾尔|自治)/g,'')]=p.c; }); }catch(e){} })();
+(function(){ try{ var C=(window.SITE_GEO&&window.SITE_GEO.cities)||null; if(C){ for(var k in C){ if(C[k]&&C[k].length===2){ PROVC[k]=C[k]; } } } }catch(e){} })();
+var WS=10; /* 世界底图：1 度 = 10 单位 */
+function proj(lng,lat){ return (mapMode==='world') ? { x:lng*WS, y:-lat*WS } : { x:(lng-104.5)*62, y:(36-lat)*62 }; }
+yzGeo(ns);   /* 计算各地理落点（编辑模式同样调用 window.yzGeo） */
+function drawGeo(){
+  if(mapMode==='world'){ drawWorld(); return; }
+  var G=window.SITE_GEO; if(!G){ return; }
+  ctx.lineWidth=Math.max(0.6,0.9*view.k);
+  ctx.strokeStyle=(LIGHT?'rgba(120,90,20,.45)':'rgba(245,197,24,.32)');
+  ctx.fillStyle=(LIGHT?'rgba(120,90,20,.05)':'rgba(245,197,24,.055)');
+  var rings=(G.provinces||[]);
+  for(var pi=0;pi<rings.length;pi++){ var p=rings[pi], rr=p.r||[];
+    for(var ri=0;ri<rr.length;ri++){ var ring=rr[ri]; if(!ring||ring.length<3)continue;
+      ctx.beginPath();
+      for(var i=0;i<ring.length;i++){ var w=proj(ring[i][0],ring[i][1]); var sx=w.x*view.k+view.x, sy=w.y*view.k+view.y; if(i)ctx.lineTo(sx,sy); else ctx.moveTo(sx,sy); }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    if(view.k>0.05&&p.c){ var w2=proj(p.c[0],p.c[1]); ctx.fillStyle=CL.grid; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font='600 '+Math.max(9,Math.round(10*Math.min(view.k,1.4)+6))+'px -apple-system,sans-serif';
+      var _px=w2.x*view.k+view.x, _py=w2.y*view.k+view.y-1, _pw=ctx.measureText(p.n).width+8;
+      GEOBOX.push([_px-_pw/2,_py-11,_px+_pw/2,_py+4]);   /* 省份名参与防重叠 */
+      ctx.fillText(p.n, _px, _py); ctx.textBaseline='alphabetic'; }
+  }
+  ctx.fillStyle=CL.grid; ctx.font='10px -apple-system,sans-serif'; ctx.textAlign='right';
+  ctx.fillText('示意图 · 省级边界来自公开数据（个人学习用）', W-12, H-16); ctx.textAlign='left';
+}
+function drawWorld(){
+  var Wd=window.SITE_WORLD; if(!Wd||!Wd.land)return;
+  ctx.lineWidth=Math.max(0.6,0.7*view.k);
+  ctx.strokeStyle=(LIGHT?'rgba(120,90,20,.5)':'rgba(245,197,24,.34)');
+  ctx.fillStyle=(LIGHT?'rgba(120,90,20,.05)':'rgba(245,197,24,.05)');
+  for(var i=0;i<Wd.land.length;i++){var ring=Wd.land[i]; if(!ring||ring.length<3)continue;
+    ctx.beginPath();
+    for(var j=0;j<ring.length;j++){var w=proj(ring[j][0],ring[j][1]),sx=w.x*view.k+view.x,sy=w.y*view.k+view.y; if(j)ctx.lineTo(sx,sy); else ctx.moveTo(sx,sy);}
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.strokeStyle=(LIGHT?'rgba(120,90,20,.12)':'rgba(245,197,24,.10)'); ctx.lineWidth=1;
+  for(var lg=-180;lg<=180;lg+=30){var p1=proj(lg,84),p2=proj(lg,-58);ctx.beginPath();ctx.moveTo(p1.x*view.k+view.x,p1.y*view.k+view.y);ctx.lineTo(p2.x*view.k+view.x,p2.y*view.k+view.y);ctx.stroke();}
+  for(var la=-60;la<=84;la+=30){var q1=proj(-180,la),q2=proj(180,la);ctx.beginPath();ctx.moveTo(q1.x*view.k+view.x,q1.y*view.k+view.y);ctx.lineTo(q2.x*view.k+view.x,q2.y*view.k+view.y);ctx.stroke();}
+  ctx.fillStyle=CL.grid; ctx.font='10px -apple-system,sans-serif'; ctx.textAlign='right';
+  ctx.fillText('示意图 · 世界海岸线来自 Natural Earth（公有领域，个人学习用）', W-12, H-16); ctx.textAlign='left';
+}
+function drawEvents(){
+  EVMARKS=[]; EVLBL=[];
+  if(!(viewMode==='geo'&&mapMode==='world'))return;
+  var pts=[];
+  var E=(window.SITE_EXTRA&&window.SITE_EXTRA.events)||[]; var G=(window.SITE_EVENT_GEO)||{};
+  E.forEach(function(e,idx){ var g=G[e.name]; if(!g||!g.geo)return; var sp=spotYear(e.year);
+    /* 复合事件的 place 用「/」并列多个地点，与 geo 数组一一对应 → 逐点拆分，
+       保证每个标点标注的确实是它自己真实发生的地点，绝不张冠李戴。 */
+    var pls=String(g.place||'').split(/\s*[\/、]\s*/);
+    g.geo.forEach(function(gg,jj){ var w=proj(gg[0],gg[1]);
+      var pl=(pls.length===g.geo.length)?pls[jj]:g.place;
+      pts.push({kind:'event',i:idx,lng:gg[0],lat:gg[1],x:w.x*view.k+view.x,y:w.y*view.k+view.y,nm:e.name,place:pl,sp:sp}); }); });
+  /* 人物「逝世 / 牺牲」标点（谁在哪里逝世） */
+  var D=window.SITE_DEATH_GEO||{};
+  Object.keys(D).forEach(function(id){ var d=D[id]; if(!d||!d.geo||!d.geo.length)return; var o=ix[id]; if(!o||!passesFilter(o))return;
+    var w=proj(d.geo[0],d.geo[1]); pts.push({kind:'death',pid:id,lng:d.geo[0],lat:d.geo[1],x:w.x*view.k+view.x,y:w.y*view.k+view.y,nm:o.d.name,place:d.place,sp:spotYear(d.year)}); });
+  /* 严格锚定（固定定点）：标点不叠加任何屏幕偏移。
+     此前按 place 做「固定像素向日葵」散开 → 缩放时会相对底图滑动（红/橙标点尤其明显）。 */
+  /* 「同一地点」聚合：**只按真实经纬度是否邻近**归并（0.05° 网格 ≈ 5km），不再按名字。
+     名字相同但实际相距很远的标点（复合事件的多地等）绝不合并。 */
+  var bg={}, bgPlace={}; pts.forEach(function(p){
+    var k=(typeof p.lng==='number'&&typeof p.lat==='number')?(Math.round(p.lng*20)+','+Math.round(p.lat*20)):('?'+(p.place||''));
+    if(!bg[k]){bg[k]=[];bgPlace[k]=[];} bg[k].push(p); if(bgPlace[k].indexOf(p.place)<0)bgPlace[k].push(p.place);
+  });
+  var aggPts=[]; Object.keys(bg).forEach(function(k){ var a=bg[k]; if(a.length>1){ var nm2=bgPlace[k];
+    var title=(nm2.length===1)?nm2[0]:(nm2.length<=3?nm2.join(' / '):(nm2.slice(0,2).join(' / ')+' 等'));
+    aggPts.push({x:a[0].x,y:a[0].y,n:a.length,place:title,kind:a[0].kind,items:a}); } });
+  pts.forEach(function(m){ ctx.globalAlpha=m.sp;
+    var _mr=GEO_USE.e;   /* 事件/逝世标点：固定小点 */
+    if(m.kind==='death'){ ctx.beginPath();ctx.arc(m.x,m.y,GEO_USE.d,0,6.2832);ctx.fillStyle='#d9534f';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.6)';ctx.stroke(); }
+    else { ctx.beginPath();ctx.arc(m.x,m.y,_mr,0,6.2832);ctx.fillStyle='#e0913a';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.5)';ctx.stroke(); }
+    if(view.k>=0.2){ EVLBL.push({x:m.x,y:m.y+13,txt:m.nm,col:(m.kind==='death'?'#e2a3a3':CL.lbl),prio:(m.kind==='death'?6:5)}); }
+    EVMARKS.push({x:m.x,y:m.y,n:1,kind:m.kind,i:m.i,pid:m.pid,nm:m.nm,place:m.place}); });
+  ctx.globalAlpha=1;
+  /* 同地点标点完全重合 → 画「计数徽标」（同心、零偏移、严格固定），点击可展开列表 */
+  aggPts.forEach(function(g){ var rr=GEO_USE.d+5;
+    /* 与「节点聚合」徽标重叠时整体错开到右上并画引线，避免两个数字互相盖住 */
+    var _ov=null;
+    for(var _k=0;_k<AGG.length;_k++){ var _a=AGG[_k];
+      if((_a.x-g.x)*(_a.x-g.x)+(_a.y-g.y)*(_a.y-g.y) < (rr+_a.r+2)*(rr+_a.r+2)){ _ov=_a; break; } }
+    var _dx=_ov?15:0, _dy=_ov?-15:0;
+    if(_ov){ ctx.save();ctx.globalAlpha=.55;ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.strokeStyle=(LIGHT?'rgba(120,90,20,.75)':'rgba(245,197,24,.75)');
+      ctx.beginPath();ctx.moveTo(g.x,g.y);ctx.lineTo(g.x+_dx,g.y+_dy);ctx.stroke();ctx.restore(); }
+    EVMARKS.push({x:g.x+_dx,y:g.y+_dy,n:g.n,kind:'agg',i:-1,pid:null,nm:g.place,place:g.place,items:g.items});
+    ctx.beginPath();ctx.arc(g.x+_dx,g.y+_dy,rr,0,6.2832);ctx.fillStyle=(LIGHT?'rgba(255,252,245,.92)':'rgba(14,12,18,.85)');ctx.fill();
+    ctx.lineWidth=1.4;ctx.strokeStyle=(g.kind==='death'?'#d9534f':'#e0913a');ctx.stroke();
+    ctx.fillStyle=(LIGHT?'#7a5400':'#f5c518');ctx.font='bold 9.5px -apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(String(g.n),g.x+_dx,g.y+_dy+0.5);ctx.textBaseline='alphabetic'; });
+  EVAGG=aggPts;
+}
+function hitEvent(mx,my){ for(var i=0;i<EVMARKS.length;i++){ var m=EVMARKS[i]; var r=(m.n>1?16:12); if((m.x-mx)*(m.x-mx)+(m.y-my)*(m.y-my)<r*r) return m; } return null; }
+/* 聚合徽标命中（节点簇）：同一落点完全重合 → 以「计数圈」为交互入口 */
+function hitAgg(mx,my){ for(var i=0;i<AGG.length;i++){ var g=AGG[i]; if((g.x-mx)*(g.x-mx)+(g.y-my)*(g.y-my)<g.r*g.r) return g; } return null; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+/* 「同一地点」条目列表：节点严格锚定经纬度 → 同落点完全重合，故用列表展开 */
+function clusterList(title,sub,items,onPick){
+  document.getElementById('pchip').textContent='同一地点';
+  document.getElementById('pchip').className='chip';
+  document.getElementById('pname').textContent=title||'聚合点';
+  document.getElementById('pmeta').textContent=sub||'';
+  document.getElementById('pav').innerHTML='<span>📍</span>';
+  document.getElementById('pdesc').textContent='这些节点锚定在同一经纬度（固定定点、不散开），因此在图上完全重合。点击下方任一条目查看其介绍。';
+  document.getElementById('prelic').innerHTML='';document.getElementById('ppts').innerHTML='';
+  document.getElementById('pw').innerHTML='';document.getElementById('pr').innerHTML='';
+  document.getElementById('pback').innerHTML='<div style="display:flex;flex-direction:column;gap:7px">'+items.map(function(it,i){
+    return '<button type="button" class="clitem" data-ci="'+i+'" style="display:flex;align-items:center;gap:8px;text-align:left;padding:9px 11px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;cursor:pointer;font-family:inherit;font-size:.85rem">'
+      +'<span style="flex:none;opacity:.8">'+(it.tag||'·')+'</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.name)+'</span><span style="flex:none;opacity:.5;font-size:.72rem">'+(it.note||'')+'</span></button>'; }).join('')+'</div>';
+  var box=document.getElementById('pback');
+  Array.prototype.slice.call(box.querySelectorAll('.clitem')).forEach(function(b){ b.onclick=function(){ var i=+b.getAttribute('data-ci'); if(onPick)onPick(items[i],i); }; });
+  document.getElementById('panel').classList.add('open');
+  document.body.classList.add('p-open');
+  var tb=document.getElementById('ptab'); if(tb)tb.classList.remove('show');
+}
+function tapAgg(g){ if(!g)return;
+  var items=g.ids.map(function(id){ var o=ix[id]; if(!o)return null; var t=o.d.type;
+    return {id:id,name:o.d.name,tag:(t==='person'?'人物':t==='org'?'组织':t==='event'?'事件':t==='idea'?'思想':'·'),note:(t==='person'?'':(o.d.place||''))}; }).filter(Boolean);
+  var _hasPerson=g.ids.some(function(id){ return ix[id]&&ix[id].d.type==='person'; });
+  clusterList(_hasPerson?'同一地点':((g.rep&&g.rep.d&&g.rep.d.place)||'同一地点'), g.n+' 个节点', items, function(it){ select(it.id); });
+}
+/* 统一命中：同一屏幕点附近可能同时存在「节点聚合」「事件标点聚合」「单个事件/逝世标点」，
+   旧版 hitEvent 优先于 hitAgg → 数字显示的是节点数，点开却只有 1 条事件。这里全部合并。 */
+function tapAt(mx, my) {
+  var nodes = [], evs = [], seen = {}, i, j;
+  /* 只取「最近的一个」节点簇：相邻地点在低缩放下屏幕距离很近，全收会把别处的人一起列出来 */
+  var bestG = null, bd = 1e18;
+  for (i = 0; i < AGG.length; i++) {
+    var g0 = AGG[i], rr0 = (g0.r || 9) + 4;
+    var d0 = (g0.x - mx) * (g0.x - mx) + (g0.y - my) * (g0.y - my);
+    if (d0 < rr0 * rr0 && d0 < bd) { bd = d0; bestG = g0; }
+  }
+  if (bestG) (bestG.ids || []).forEach(function (id) {
+    var o = ix[id]; if (!o || seen['n' + id]) return;
+    seen['n' + id] = 1; nodes.push({ id: id, o: o });
+  });
+  /* 事件 / 逝世标点：同样只取最近的一个（若是聚合徽标则展开它全部条目） */
+  var bestM = null, bd2 = 1e18;
+  for (j = 0; j < EVMARKS.length; j++) {
+    var m0 = EVMARKS[j], rr1 = (m0.n > 1 ? 16 : 12) + 4;
+    var d1 = (m0.x - mx) * (m0.x - mx) + (m0.y - my) * (m0.y - my);
+    if (d1 < rr1 * rr1 && d1 < bd2) { bd2 = d1; bestM = m0; }
+  }
+  if (bestM) {
+    if (bestM.kind === 'agg') (bestM.items || []).forEach(function (p) { evs.push(p); });
+    else evs.push(bestM);
+  }
+  if (!nodes.length && !evs.length) return false;
+  var items = [];
+  nodes.forEach(function (x) {
+    items.push({ tag: tyEmoji(x.o.d.type), name: x.o.d.name, note: (x.o.d.place || ''), kind: 'node', id: x.id, o: x.o });
+  });
+  evs.forEach(function (p) {
+    items.push({
+      tag: (p.kind === 'death' ? '🕯' : '📅'),
+      name: (p.kind === 'death' ? p.nm + ' · 逝世地' : p.nm),
+      note: (p.kind === 'death' ? '逝世' : (p.place || '事件')),
+      kind: 'ev', p: p
+    });
+  });
+  var place = '';
+  /* 标题必须用「最近的那个」徽标的地点，绝不能取数组第一个（否则永远显示 EVMARKS[0] 的伦敦） */
+  if (bestM && bestM.place) place = bestM.place;
+  if (!place && bestG && bestG.rep && bestG.rep.d) place = bestG.rep.d.place || bestG.rep.d.prov || '';
+  if (!place && bestG) place = '同一地点';
+  clusterList(place || '同一地点',
+    (nodes.length ? nodes.length + ' 个节点' : '') + (nodes.length && evs.length ? ' · ' : '') + (evs.length ? evs.length + ' 个事件 / 逝世标点' : ''),
+    items, function (it) {
+      if (it.kind === 'node') { try { select(it.id); } catch (e) { } return; }
+      var p = it.p;
+      if (p.kind === 'death' && p.pid) { try { select(p.pid); } catch (e) { } }
+      else { try { panelEvent(p.i); } catch (e) { } }
+    });
+  return true;
+}
+function panelEvent(idx){
+  var E=(window.SITE_EXTRA&&window.SITE_EXTRA.events)||[]; var e=E[idx]; if(!e)return;
+  var g=(window.SITE_EVENT_GEO||{})[e.name]||{};
+  document.getElementById('pchip').textContent='事件'; document.getElementById('pchip').className='chip';
+  document.getElementById('pname').textContent=e.name;
+  document.getElementById('pmeta').textContent=[e.year,g.place].filter(Boolean).join(' · ');
+  document.getElementById('pav').innerHTML='<span>📅</span>';
+  document.getElementById('pdesc').textContent=e.desc||'';
+  document.getElementById('prelic').innerHTML='';
+  document.getElementById('ppts').innerHTML='';
+  document.getElementById('pw').innerHTML='';
+  document.getElementById('pr').innerHTML='';
+  document.getElementById('pback').innerHTML='<p style="margin:0 0 10px"><a href="index.html#/e/'+idx+'" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📖 在革命史料中查看 →</a></p>';
+  document.getElementById('panel').classList.add('open'); document.body.classList.add('p-open'); var tb=document.getElementById('ptab'); if(tb)tb.classList.remove('show');
+}
+function toggleViewMode(){ if(mapMode==='none'||mapOnly)return; viewMode=(viewMode==='geo')?'net':'geo'; if(selected)clearSel();
+  var b=document.getElementById('vb'); if(b){ b.classList.toggle('on',viewMode==='geo'); b.textContent=(viewMode==='geo')?'🧩 关系网':'🗺 地图'; }
+  if(viewMode==='geo')fitGeo(); else fitTo(ns); }
+function toggleTr(){ var t=document.getElementById('tr'); if(!t)return; var f=t.classList.toggle('folded'); var b=document.getElementById('trFold'); if(b)b.textContent=f?'⚙ 面板':'▾ 收起面板'; }
+/* ---- 社区自动着色（标签传播）---- */
+/* ============ 新增：路径高亮 / 社区命名 / 拼音检索 / 跳书库 ============ */
+var hiPath = null;                 /* {ids:{节点id:1}, edge:{'a|b':1}} —— 关系工具算出的路径，在图上点亮 */
+function highlightPath(chain){
+  if(!chain || chain.length < 2){ toast2('请先在关系工具里算出关系链'); return; }
+  var ids = {}, edge = {};
+  for(var i=0;i<chain.length;i++){
+    ids[chain[i].id] = 1;
+    if(i){ edge[chain[i-1].id + '|' + chain[i].id] = 1; edge[chain[i].id + '|' + chain[i-1].id] = 1; }
+  }
+  try{ clearSel(); }catch(e){}
+  selected = null; nb = {}; hiPath = { ids: ids, edge: edge };
+  try{ closeRelTool(); }catch(e){}
+  try{
+    var xs = chain.map(function(c){ return ix[c.id]; }).filter(Boolean);
+    if(xs.length && viewMode !== 'geo') fitTo(xs);
+  }catch(e){}
+  draw(); saveViewState();
+  toast2('已高亮这条关系链（' + (chain.length - 1) + ' 步）· 点「← 取消高亮」或空白处即取消');
+}
+function commName(k){
+  var best = null, bd = -1;
+  for(var i=0;i<ns.length;i++){ var o = ns[i]; if(comm[o.d.id] === k){ var dd = o.deg || 0; if(dd > bd){ bd = dd; best = o; } } }
+  if(!best) return '社区' + (k + 1);
+  var nm0 = String(best.d.name || '');
+  if(nm0.length > 9) nm0 = nm0.slice(0, 9) + '…';
+  return nm0 ? ('以「' + nm0 + '」为中心的群') : ('社区' + (k + 1));
+}
+function _pyOf(nm){
+  var str = String(nm || ''), full = '', abbr = '';
+  for(var i=0;i<str.length;i++){ var p = PYMAP[str.charAt(i)]; if(p){ full += p; abbr += p.charAt(0); } }
+  return { full: full, abbr: abbr };
+}
+var _lqT = 0;
+function onListInput(v){ if(_lqT) clearTimeout(_lqT); _lqT = setTimeout(function(){ try{ renderList(v); }catch(e){} }, 150); }
+/* 代表文献 → 回主站书库（?q=书名：自动搜索；若唯一命中会直接打开该条目） */
+function openBook(t){ try{ location.href = 'index.html?q=' + encodeURIComponent(String(t || '')); }catch(e){} }
+var PYMAP={'一':'yi','万':'wan','三':'san','下':'xia','不':'bu','与':'yu','专':'zhuan','世':'shi','东':'dong','中':'zhong','丹':'dan','主':'zhu','义':'yi','也':'ye','予':'yu','争':'zheng','事':'shi','二':'er','五':'wu','井':'jing','亥':'hai','产':'chan','人':'ren','什':'shen','代':'dai','任':'ren','伊':'yi','会':'hui','伯':'bo','体':'ti','何':'he','俄':'e','保':'bao','修':'xiu','倍':'bei','元':'yuan','光':'guang','克':'ke','党':'dang','八':'ba','公':'gong','兰':'lan','共':'gong','兵':'bing','兹':'zi','内':'nei','冈':'gang','军':'jun','农':'nong','切':'qie','列':'lie','刘':'liu','利':'li','动':'dong','勒':'lei','化':'hua','十':'shi','半':'ban','华':'hua','协':'xie','南':'nan','卜':'bo','卡':'ka','卢':'lu','卫':'wei','历':'li','发':'fa','叔':'shu','变':'bian','古':'gu','台':'tai','史':'shi','同':'tong','向':'xiang','周':'zhou','命':'ming','和':'he','唯':'wei','四':'si','团':'tuan','国':'guo','图':'tu','坦':'tan','埃':'ai','基':'ji','堡':'bao','塔':'ta','夏':'xia','大':'da','天':'tian','夫':'fu','奇':'qi','奥':'ao','姚':'yao','威':'wei','存':'cun','孟':'meng','季':'ji','学':'xue','宁':'ning','宇':'yu','安':'an','少':'shao','尔':'er','尼':'ni','山':'shan','工':'gong','巴':'ba','布':'bu','希':'xi','年':'nian','府':'fu','廉':'lian','弗':'fu','张':'zhang','弼':'bi','彭':'peng','征':'zheng','德':'de','必':'bi','志':'zhi','思':'si','恩':'en','恽':'yun','想':'xiang','意':'yi','愿':'yuan','成':'cheng','战':'zhan','托':'tuo','抗':'kang','拉':'la','援':'yuan','放':'fang','政':'zheng','敏':'min','文':'wen','斗':'dou','断':'duan','斯':'si','新':'xin','方':'fang','施':'shi','无':'wu','日':'ri','时':'shi','昌':'chang','明':'ming','春':'chun','普':'pu','曼':'man','月':'yue','朝':'chao','朱':'zhu','李':'li','杜':'du','来':'lai','杨':'yang','林':'lin','枯':'ku','查':'cha','格':'ge','桥':'qiao','森':'sen','次':'ci','正':'zheng','武':'wu','毛':'mao','民':'min','江':'jiang','法':'fa','泽':'ze','洛':'luo','洪':'hong','派':'pai','济':'ji','渠':'qu','湃':'pai','潭':'tan','焦':'jiao','爱':'ai','物':'wu','特':'te','独':'du','王':'wang','理':'li','瑞':'rui','瑟':'se','瓦':'wa','界':'jie','白':'bai','的':'de','盟':'meng','瞿':'qu','社':'she','祥':'xiang','禄':'lu','秀':'xiu','秋':'qiu','科':'ke','稼':'jia','空':'kong','立':'li','竹':'zhu','第':'di','筠':'yun','米':'mi','红':'hong','约':'yue','级':'ji','纳':'na','经':'jing','继':'ji','续':'xu','维':'wei','罗':'luo','美':'mei','考':'kao','者':'zhe','联':'lian','胡':'hu','苏':'su','英':'ying','茨':'ci','莎':'sha','菲':'fei','萨':'sa','葛':'ge','董':'dong','蒲':'pu','蔡':'cai','衡':'heng','裕':'yu','西':'xi','解':'jie','警':'jing','议':'yi','论':'lun','证':'zheng','谱':'pu','赫':'he','赵':'zhao','起':'qi','路':'lu','辛':'xin','辩':'bian','运':'yun','遵':'zun','邓':'deng','里':'li','金':'jin','钊':'zhao','铁':'tie','锋':'feng','长':'zhang','闻':'wen','阶':'jie','际':'ji','陈':'chen','隆':'long','雅':'ya','雷':'lei','霍':'huo','青':'qing','靖':'jing','革':'ge','马':'ma','魏':'wei','鲁':'lu','黄':'huang','黎':'li'};
+/* ================================================================ */
+var comm = {}, commOn = false, bundleOn = false;
+var COMMP = ['#E69F00','#56B4E9','#009E73','#F0E442','#0072B2','#D55E00','#CC79A7','#8C8C8C'];   /* Okabe-Ito 色盲安全色板 */
+function computeComm(){ try{
+  var adj = {}; ns.forEach(function(o){ adj[o.d.id] = {}; });
+  (window.GR.links || []).forEach(function(l){ if (adj[l.source] && adj[l.target]) { adj[l.source][l.target] = 1; adj[l.target][l.source] = 1; } });
+  var lab = {}; ns.forEach(function(o){ lab[o.d.id] = o.d.id; });
+  for (var it = 0; it < 12; it++) { var ch = false;
+    ns.forEach(function(o){ var id = o.d.id, cnt = {}, A = adj[id];
+      for (var k in A) { var L = lab[k]; cnt[L] = (cnt[L] || 0) + 1; }
+      var best = lab[id], bc = cnt[lab[id]] || 0, keys = Object.keys(cnt).sort();
+      for (var i = 0; i < keys.length; i++) { if (cnt[keys[i]] > bc) { bc = cnt[keys[i]]; best = keys[i]; } }
+      if (best !== lab[id]) { lab[id] = best; ch = true; } });
+    if (!ch) break; }
+  var map = {}, ci = 0; comm = {}; ns.forEach(function(o){ var k = lab[o.d.id]; if (!(k in map)) map[k] = ci++; comm[o.d.id] = map[k]; });
+  return ci;
+} catch (e) { return 0; } }
+function commColor(o){ var k = comm[o.d.id]; if (k == null) return CL.ring; return COMMP[k % COMMP.length]; }
+function commScreen(o){ var k = comm[o.d.id]; if (k == null) return null; if (_ccCache[k] !== undefined) return _ccCache[k];
+  var sx = 0, sy = 0, n = 0; for (var i = 0; i < ns.length; i++) { if (comm[ns[i].d.id] === k) { var p = S(ns[i]); sx += p.x; sy += p.y; n++; } }
+  var r = n ? { x: sx / n, y: sy / n } : null; _ccCache[k] = r; return r; }
+function toggleComm(){ commOn = !commOn; if (commOn) computeComm(); var b = document.getElementById('cb2'); if (b) b.classList.toggle('on', commOn); commLegend(); draw(); }
+function commLegend(){ try{ var old = document.getElementById('commLegend'); if (old) old.parentNode.removeChild(old); if (!commOn) return;
+  var tl = document.getElementById('tl'); if (!tl) return; var n = 0; for (var k in comm) if (comm[k] >= n) n = comm[k] + 1;
+  var lg = document.createElement('div'); lg.className = 'legend'; lg.id = 'commLegend';
+  var hd = document.createElement('span'); hd.className = 'lg'; hd.textContent = '⬤ 社区（自动聚类 · 按核心节点命名）'; lg.appendChild(hd);
+  for (var i = 0; i < n; i++) { var s = document.createElement('span'); s.className = 'lg';
+    s.innerHTML = '<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + COMMP[i % COMMP.length] + ';margin-right:5px"></i>' + (i + 1) + '. ' + esc2(commName(i)); lg.appendChild(s); }
+  tl.appendChild(lg); } catch (e) {} }
+function toggleBundle(){ bundleOn = !bundleOn; if (Object.keys(comm).length === 0) computeComm(); var b = document.getElementById('cb4'); if (b) b.classList.toggle('on', bundleOn); draw(); }
+/* ---- 时间轴滑块 ---- */
+var yearOn = false, yearMin = 0, yearMax = 0, yearVal = null;
+function yearsAvailable(){ for (var i = 0; i < ns.length; i++) { if (ns[i].d && typeof ns[i].d.y0 === 'number') return true; } return false; }
+/* 时间轴「聚光灯」：不隐藏，只按与选定年份的关系调透明度（临近变亮、活跃最亮、退出渐淡） */
+function _spotCurve(t,a,b){ if(t<a){var d=a-t;return d>=4?0.15:0.15+0.85*(1-d/4);} if(t>b){var e=t-b;return Math.max(0.15,1-0.85*Math.min(e/3,1));} return 1; }
+function spot(o){ if(!yearOn||yearVal===null)return 1; var d=o.d||{}; if(typeof d.y0!=='number')return 1; return _spotCurve(yearVal,d.y0,(typeof d.y1==='number')?d.y1:d.y0); }
+function spotYear(str){ if(!yearOn||yearVal===null)return 1; var m=String(str||'').match(/\d{4}/g); if(!m)return 1; return _spotCurve(yearVal,+m[0],m[1]?+m[1]:+m[0]); }
+function toggleYears(){ if (!yearsAvailable()) return; yearOn = !yearOn; var b = document.getElementById('cb3'); if (b) b.classList.toggle('on', yearOn);
+  if (yearOn) { var ys = []; ns.forEach(function(o){ var d = o.d || {}; if (typeof d.y0 === 'number') ys.push(d.y0); if (typeof d.y1 === 'number') ys.push(d.y1); });
+    yearMin = Math.min.apply(null, ys); yearMax = Math.max.apply(null, ys); if (yearVal === null) yearVal = yearMax; buildSlider(); clearSel(); }
+  var sl = document.getElementById('yearbar'); if (sl) sl.style.display = yearOn ? 'flex' : 'none';
+  draw(); }
+function buildSlider(){ var d = document.getElementById('yearbar');
+  if (!d) { d = document.createElement('div'); d.id = 'yearbar';
+    d.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:52px;z-index:6;display:none;align-items:center;gap:10px;padding:8px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(10,9,14,.85);font-size:.78rem';
+    d.innerHTML = '<span id="ylab" style="color:var(--accent);font-variant-numeric:tabular-nums">—</span><input id="yrange" type="range" style="width:min(52vw,260px)">';
+    document.body.appendChild(d);
+    var r = d.querySelector('#yrange'); r.oninput = function(){ yearVal = parseInt(r.value, 10); updateSliderLabel(); draw(); syncHash(); }; }
+  updateSliderLabel(); }
+function updateSliderLabel(){   var r = document.getElementById('yrange'); if (r) { r.min = yearMin; r.max = yearMax; if (yearVal === null) yearVal = yearMax; r.value = yearVal; }
+  var l = document.getElementById('ylab'); if (l) l.textContent = '截至 ' + yearVal; }
+function passesFilter(o){ var d=(o&&o.d)||{}; if(focusId&&!(_focusSet&&_focusSet[d.id]))return false; if(mgNodeHidden('crit')&&d.crit)return false; if(mgNodeHidden(d.type))return false;
+ if(filter==='all')return true; if(filter==='crit')return !!d.crit; return d.type===filter; }
+function listShown(){return ns.filter(passesFilter);}
+function bounds(list){var l=list&&list.length?list:ns;var x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;l.forEach(function(o){var xx=WX(o),yy=WY(o);if(xx<x0)x0=xx;if(yy<y0)y0=yy;if(xx>x1)x1=xx;if(yy>y1)y1=yy;});return{cx:(x0+x1)/2,cy:(y0+y1)/2,w:x1-x0,h:y1-y0};}
+function fitTo(list){var b=bounds(list);var lo=(viewMode==='geo')?0.05:0.2;view.k=Math.max(lo,Math.min(Math.min((W-130)/(b.w||1),(H-140)/(b.h||1)),2.2));view.x=W/2-b.cx*view.k;view.y=H/2-b.cy*view.k;draw();}
+/* 世界地图：**允许缩放（滚轮/双指）与空处拖动平移**，但「节点不可拖动」——
+   拖动若起始于节点则不平移（节点锁死不动），点选节点也不再让整幅图跟着移位。 */
+function geoLocked(){ return viewMode==='geo' && mapMode==='world'; }
+function geoBounds(){ if(mapMode==='world'){ var a=proj(-180,84),b=proj(180,-58); return{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,w:Math.abs(b.x-a.x),h:Math.abs(b.y-a.y)}; } var G=window.SITE_GEO;if(!G||!G.provinces)return null;var x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+ G.provinces.forEach(function(p){(p.r||[]).forEach(function(ring){for(var i=0;i<ring.length;i++){var w=proj(ring[i][0],ring[i][1]);if(w.x<x0)x0=w.x;if(w.y<y0)y0=w.y;if(w.x>x1)x1=w.x;if(w.y>y1)y1=w.y;}});});
+ if(x0>x1)return null;return{cx:(x0+x1)/2,cy:(y0+y1)/2,w:x1-x0,h:y1-y0};}
+function fitGeo(full){var b=geoBounds();if(!b){fitTo(ns);return;}
+ var k=Math.max(0.05,Math.min((W-30)/(b.w||1),(H-150)/(b.h||1)));
+ /* 地图不够放：把整张地图放大（允许左右平移）；「适应窗口」则给全图 */
+ if(!full && !geoLocked()){
+   /* 地图不够放就整体放大（可平移）；世界地图锁死 → 只用全图比例，保证整幅世界都看得见 */
+   var _fh=(mapMode==='world')?0.62:0.92, _fw=(mapMode==='world')?1.55:1.72;
+   k=Math.max(k,Math.min((H-40)*_fh/(b.h||1),(W-14)*_fw/(b.w||1)));
+ }
+ view.k=k;view.x=W/2-b.cx*view.k;view.y=H/2-b.cy*view.k;draw();}
+function fitAll(){clearSel();if(viewMode==='geo')fitGeo(true);else fitTo(ns);}
+function centerDefault(){view.k=Math.max(0.85,Math.min(1.3,Math.min(W,H)/820));view.x=W/2;view.y=H/2;draw();}
+
+function prio(o){if(o===selected)return 1e6;if(o===hover)return 5e5;if(selected&&nb[o.d.id])return 1e4;return o.deg;}
+function makeGrid(cell){var m={};return{
+ hit:function(b){var c=cell,x0=Math.floor(b[0]/c),x1=Math.floor(b[2]/c),y0=Math.floor(b[1]/c),y1=Math.floor(b[3]/c);
+  for(var x=x0;x<=x1;x++)for(var y=y0;y<=y1;y++){var a=m[x+','+y];if(a)for(var i2=0;i2<a.length;i2++){var q=a[i2];if(!(b[2]<q[0]||b[0]>q[2]||b[3]<q[1]||b[1]>q[3]))return true;}}return false;},
+ push:function(b){var c=cell,x0=Math.floor(b[0]/c),x1=Math.floor(b[2]/c),y0=Math.floor(b[1]/c),y1=Math.floor(b[3]/c);
+  for(var x=x0;x<=x1;x++)for(var y=y0;y<=y1;y++){var k=x+','+y;if(!m[k])m[k]=[];m[k].push(b);}}};}
+function showLabel(o){
+ if(!passesFilter(o))return false;
+ if(o===hover||o===selected)return true;
+ if(selected&&nb[o.d.id])return true;
+ if(labelsAll)return true;
+ return o.deg>=9;
+}
+var _ccCache={};
+function edgeStroke(e){var a=S(e.s),b=S(e.t);var ex=b.x-a.x,ey=b.y-a.y,el=Math.hypot(ex,ey)||1;
+ var qx=(a.x+b.x)/2+(-ey/el)*Math.min(el*0.13,22)*e.dir, qy=(a.y+b.y)/2+(ex/el)*Math.min(el*0.13,22)*e.dir;
+ if(bundleOn){ var cs=commScreen(e.s), ct=commScreen(e.t);
+   if(cs&&ct&&(comm[e.s.d.id]===undefined||comm[e.s.d.id]!==comm[e.t.d.id])){
+     var mx0=(a.x+b.x)/2,my0=(a.y+b.y)/2,tx=(cs.x+ct.x)/2,ty=(cs.y+ct.y)/2;
+     var dx=(tx-mx0)*0.42,dy=(ty-my0)*0.42,dl=Math.sqrt(dx*dx+dy*dy),cap=el*0.5;
+     if(dl>cap&&dl>0){dx=dx/dl*cap;dy=dy/dl*cap;} qx=mx0+dx;qy=my0+dy; } }
+ ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(qx,qy,b.x,b.y);ctx.stroke();return{a:a,b:b,qx:qx,qy:qy,el:el};}
+function draw(){
+ ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
+ _ccCache={};GEOBOX=[];GEO_USE=geoR();
+ if(viewMode==='geo')drawGeo();
+ var eLbl=[];
+ /* 分组名称（底纹） */
+ if(!hideText&&viewMode!=='geo'){ctx.textAlign='center';ctx.textBaseline='middle';
+ GROUPS.forEach(function(g){var p=S({x:g.c[0],y:g.c[1]});ctx.font='600 '+Math.round(30*Math.min(view.k,1)+10)+'px -apple-system,sans-serif';ctx.fillStyle=CL.grid;ctx.fillText(g.label,p.x,p.y);});
+ ctx.textBaseline='alphabetic';}
+ /* 关系线：选中节点的线=实线加粗；其余=虚线淡化 */
+ if(edgesOn && !(viewMode==='geo'&&mapMode==='world')){   /* 世界地图视图不画关系线 */
+  var rl=[],ul=[];
+  for(var k=0;k<es.length;k++){var e=es[k];if(!passesFilter(e.s)||!passesFilter(e.t))continue;if(linkHidden(e))continue;
+   if(hiPath){ if(hiPath.edge[e.s.d.id+'|'+e.t.d.id])rl.push(e); else ul.push(e); }
+   else if(selected&&!(e.s===selected||e.t===selected))ul.push(e);else rl.push(e);}
+  /* ① 无关的线：极淡虚线（先画，压在最底层） */
+  ctx.setLineDash([6,9]);ctx.strokeStyle=CL.unrel;
+  for(var u0=0;u0<ul.length;u0++){ctx.globalAlpha=0.07*Math.min(spot(ul[u0].s),spot(ul[u0].t));ctx.lineWidth=1;ctx.shadowBlur=0;edgeStroke(ul[u0]);}
+  ctx.setLineDash([]);ctx.globalAlpha=1;
+  /* ② 相关的线：粗实线 + 发光（后画，在最上层） */
+  for(var r0=0;r0<rl.length;r0++){var e2=rl[r0],touch=selected&&(e2.s===selected||e2.t===selected);
+   /* 线型也表达含义：批判/对立=虚线、亲属/伴侣=点线、其它=实线（不只靠颜色区分，色觉障碍也能分辨） */
+   var _kd=relKind(e2.r);ctx.setLineDash(_kd==='neg'?[7,4]:(_kd==='fam'?[1.5,3.5]:[]));
+   ctx.globalAlpha=Math.min(spot(e2.s),spot(e2.t));ctx.lineWidth=touch?4.2:1;ctx.strokeStyle=edgeColor(e2);
+   ctx.shadowColor=touch?edgeColor(e2):'transparent';ctx.shadowBlur=touch?9:0;
+   var g=edgeStroke(e2);ctx.shadowBlur=0;
+   var minLen=selected?58:88; if(e2.r&&g.el>minLen)eLbl.push({g:g,r:e2.r,touch:touch?1:0});
+  }
+  ctx.shadowBlur=0;ctx.setLineDash([]);
+ }
+ /* 节点：先画无关（淡），再画相关（清晰在上层） */
+ var _ord=ns.filter(passesFilter).sort(function(A,B){var ra=(!selected||A===selected||nb[A.d.id])?1:0,rb=(!selected||B===selected||nb[B.d.id])?1:0;if(hiPath){ra=hiPath.ids[A.d.id]?1:0;rb=hiPath.ids[B.d.id]?1:0;}return ra-rb;});
+ for(var q=0;q<_ord.length;q++){var o=_ord[q];var p=S(o);
+  if(p.x<-90||p.x>W+90||p.y<-90||p.y>H+90)continue;   /* 视口裁剪：屏幕外的节点不绘制 */
+  var big=(o===hover)||(o===selected),related=hiPath?!!hiPath.ids[o.d.id]:(!selected||o===selected||nb[o.d.id]);
+  ctx.globalAlpha=(related?1:DIM)*spot(o);
+  var isP=(o.d.type==='person');
+  var R=(isP?6.4:o.d.type==='org'?4.6:3.6)+Math.min(o.deg,6)*0.3;if(big)R*=1.25;o._R=R;
+  if(isP&&o.imgOk&&o.img&&viewMode!=='geo'){
+    var rr=(viewMode==='geo')?GEO_USE.p:(Math.max(R*view.k,6.5));   /* 地图上按正常节点大小随缩放，不再用头像尺寸 */
+    if(viewMode!=='geo'){ctx.beginPath();ctx.arc(p.x,p.y,rr+2.6,0,6.2832);ctx.fillStyle=CL.halo;ctx.fill();}
+    ctx.save();ctx.beginPath();ctx.arc(p.x,p.y,rr,0,6.2832);ctx.clip();ctx.drawImage(o.img,p.x-rr,p.y-rr,rr*2,rr*2);ctx.restore();
+    ctx.lineWidth=big?2.6:1.6;ctx.strokeStyle=commOn?commColor(o):(o.d.crit?'rgba(255,139,139,.9)':(big?CL.ringHi:CL.ring));ctx.beginPath();ctx.arc(p.x,p.y,rr,0,6.2832);ctx.stroke();
+    if(big){ctx.lineWidth=1.3;ctx.strokeStyle=CL.ring;ctx.beginPath();ctx.arc(p.x,p.y,rr+3.5,0,6.2832);ctx.stroke();}
+  }
+  else{var R2=(viewMode==='geo')?GEO_USE.o:R;   /* 地图上同样缩小 */o._R=R2;
+   /* 形状也表达类型：◆事件 ■组织 ●人物/思想（色盲/灰度下同样可辨） */
+   ctx.beginPath();
+   if(o.d.type==='event'){var _dr=R2*1.3;ctx.moveTo(p.x,p.y-_dr);ctx.lineTo(p.x+_dr,p.y);ctx.lineTo(p.x,p.y+_dr);ctx.lineTo(p.x-_dr,p.y);ctx.closePath();}
+   else if(o.d.type==='org'){ctx.rect(p.x-R2*0.92,p.y-R2*0.92,R2*1.84,R2*1.84);}
+   else{ctx.arc(p.x,p.y,R2,0,6.2832);}
+   ctx.fillStyle=commOn?commColor(o):color(o.d);ctx.fill();if(o.d.crit){ctx.lineWidth=1.2;ctx.strokeStyle='rgba(255,139,139,.9)';ctx.stroke();}if(big){ctx.lineWidth=1.4;ctx.strokeStyle='rgba(245,197,24,.95)';ctx.stroke();}}
+  /* 中介枢纽（介数 Top）：右上角一枚小金点，说明「他是关系网的关键节点」 */
+  if(_bcTop&&_bcTop[o.d.id]){var _rr=(o._R||6);ctx.globalAlpha=related?1:(DIM*0.75);ctx.beginPath();ctx.fillStyle='#e0aa46';ctx.arc(p.x+_rr*0.82,p.y-_rr*0.82,3.1,0,6.2832);ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.stroke();}
+ }
+ ctx.globalAlpha=1;
+ /* 聚合徽标（节点）：同一落点（_gN≥2）节点完全重合 → 同心「计数圈」；零偏移、严格固定；
+    点击可展开该地点的全部条目（见 hitAgg/clusterList）。 */
+ /* 聚合徽标（节点）：**屏幕聚合** —— 屏幕距离 < 22px 的节点合成一个「计数圈」。
+    节点本身严格锚定 proj(geo) 不动；徽标置于簇质心（= 固定地理点均值×k+平移，
+    随缩放线性变化 → 不跳变、不相对底图滑动）。点击展开该处条目（tapAgg/clusterList）。 */
+ AGG=[];
+ if(viewMode==='geo'){
+  /* 只按「真实经纬度是否为同一落点(≈0.05° 网格)」归并：相隔较远的「地方」在任何缩放下都不会
+     被错并成一团（旧版按屏幕距离<22px 链式合并，低缩放时会把几十个地点并成一个计数圈）。 */
+  var _cell={}, _cl=[], _i2;
+  for(_i2=0;_i2<ns.length;_i2++){ var _on=ns[_i2]; if(!passesFilter(_on))continue; var _sp=S(_on);
+   if(_sp.x<-60||_sp.x>W+60||_sp.y<-60||_sp.y>H+60)continue;
+   var _gg=(_on.d&&_on.d.geo)||null;
+   var _k2=_gg?('g'+Math.round(_gg[0]*20)+','+Math.round(_gg[1]*20)):('s'+Math.floor(_sp.x/28)+','+Math.floor(_sp.y/28));
+   var _grp=_cell[_k2]; if(!_grp){ _grp={sx:0,sy:0,n:0,ids:[],rep:_on}; _cell[_k2]=_grp; _cl.push(_grp); }
+   _grp.sx+=_sp.x;_grp.sy+=_sp.y;_grp.n++;_grp.ids.push(_on.d.id);
+   if((_on._gN||1)>(_grp.rep._gN||1))_grp.rep=_on;
+  }
+  _cl.forEach(function(g2){ if(g2.n<2)return; var pp={x:g2.sx/g2.n,y:g2.sy/g2.n};
+   var sel2=!!(selected&&g2.ids.indexOf(selected.d.id)>=0), rr=(GEO_USE.p||3)+6;
+   ctx.beginPath();ctx.arc(pp.x,pp.y,rr,0,6.2832);ctx.fillStyle=(LIGHT?'rgba(255,252,245,.92)':'rgba(14,12,18,.84)');ctx.fill();
+   ctx.lineWidth=sel2?2.2:1.4;ctx.strokeStyle=sel2?CL.ringHi:CL.ring;ctx.stroke();
+   ctx.fillStyle=(LIGHT?'#7a5400':'#f5c518');ctx.font='bold '+(g2.n>999?7.5:(g2.n>99?8:9.5))+'px -apple-system,sans-serif';
+   ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(g2.n),pp.x,pp.y+0.5);ctx.textBaseline='alphabetic';
+   AGG.push({x:pp.x,y:pp.y,r:rr+7,n:g2.n,ids:g2.ids,rep:g2.rep}); });
+ }
+ drawEvents();
+ /* 选中项若处在聚合簇中：在簇旁标注其名字 */
+ for(var _ag=0;_ag<AGG.length;_ag++){ var _G3=AGG[_ag]; if(selected&&_G3.ids.indexOf(selected.d.id)>=0){ EVLBL.push({x:_G3.x,y:_G3.y-_G3.r+2,txt:selected.d.name,col:CL.lblHi,prio:9}); } }
+ /* 名称标签：统一防重叠（逝世/事件标点优先，其余按等级） */
+ var BG=makeGrid(46); for(var _g0=0;_g0<GEOBOX.length;_g0++)BG.push(GEOBOX[_g0]);   /* 省份名先占位（空间哈希） */
+ if(!hideText){
+  var LB=[];
+  for(var _d0=0;_d0<EVLBL.length;_d0++){var _m=EVLBL[_d0];LB.push({p:9e5+(_m.prio||0),x:_m.x,y:_m.y,t:_m.txt,c:_m.col,a:1,bold:false});}
+  for(var _c1=0;_c1<ns.length;_c1++){var _oc=ns[_c1];if(!passesFilter(_oc)||!showLabel(_oc))continue;var _pl=S(_oc);if(_pl.x<-50||_pl.x>W+50||_pl.y<-50||_pl.y>H+50)continue;var _bl=(_oc===hover||_oc===selected);
+   LB.push({p:prio(_oc),x:_pl.x,y:_pl.y-(_oc._R||6)-6,t:_oc.d.name,bold:_bl,a:spot(_oc),c:_bl?CL.lblHi:(selected&&nb[_oc.d.id]?CL.lblRel:CL.lbl)});}
+  LB.sort(function(A,B){return B.p-A.p;});
+  ctx.textAlign='center';ctx.textBaseline='alphabetic';
+  for(var _l0=0;_l0<LB.length;_l0++){var L2=LB[_l0];var _fs=L2.bold?13:12;ctx.font=(L2.bold?'bold ':'')+_fs+'px -apple-system,sans-serif';
+   var _w=ctx.measureText(L2.t).width,_h=_fs+3,_bx=[L2.x-_w/2-2,L2.y-_h,L2.x+_w/2+2,L2.y+2];
+   if(BG.hit(_bx))continue;BG.push(_bx);
+   ctx.globalAlpha=L2.a;ctx.fillStyle=L2.c;ctx.fillText(L2.t,L2.x,L2.y);ctx.globalAlpha=1;}
+ /* 关系线文字：防遮挡（选中的优先） */
+ eLbl.sort(function(A,B){return B.touch-A.touch;});
+ for(var e1=0;e1<eLbl.length;e1++){var L=eLbl[e1];ctx.font='10.5px -apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+  var lx=(L.g.a.x+2*L.g.qx+L.g.b.x)/4, ly=(L.g.a.y+2*L.g.qy+L.g.b.y)/4-3;
+  var lw=ctx.measureText(L.r).width, lbx=[lx-lw/2-4,ly-12,lx+lw/2+4,ly+3];
+  if(BG.hit(lbx))continue; BG.push(lbx);
+  var kk2=relKind(L.r); var col=kk2==='neg'?CL.neg:kk2==='fam'?CL.fam:CL.pos;
+  ctx.save();ctx.lineWidth=3.2;ctx.strokeStyle=CL.elblBg;ctx.strokeText(L.r,lx,ly);ctx.fillStyle=col;ctx.fillText(L.r,lx,ly);ctx.restore();
+ }
+ }
+ document.getElementById('shown').textContent='当前显示 '+listShown().length+' 个';
+}
+function hit(mx,my){var best=null,bd=28*28;ns.forEach(function(o){if(!passesFilter(o))return;var p=S(o),d2=(p.x-mx)*(p.x-mx)+(p.y-my)*(p.y-my);if(d2<bd){bd=d2;best=o;}});return best;}
+function toggleClean(){var on=document.body.classList.toggle('clean');var b=document.getElementById('cb');if(b)b.classList.toggle('on',on);}
+function collapsePanel(){closePanel();var tb=document.getElementById('ptab');if(tb){tb.textContent='📖 展开介绍'+(selected?(' · '+selected.d.name):'');tb.classList.add('show');}}
+function expandPanel(){document.getElementById('panel').classList.add('open');document.body.classList.add('p-open');var tb=document.getElementById('ptab');if(tb)tb.classList.remove('show');}
+function togglePanel(){var p=document.getElementById('panel');if(p.classList.contains('open'))collapsePanel();else expandPanel();}
+function toggleEdges(){edgesOn=!edgesOn;document.getElementById('eb').classList.toggle('on',edgesOn);draw();}
+function applyFilter(f){filter=f;if(selected)clearSel();Array.prototype.slice.call(document.querySelectorAll('#filters button')).forEach(function(b){b.classList.toggle('on',b.dataset.f===f);});if(viewMode==='geo')fitGeo();else fitTo(listShown());syncHash();}
+Array.prototype.slice.call(document.querySelectorAll('#filters button')).forEach(function(b){b.onclick=function(){applyFilter(b.dataset.f);};});
+/* ---- 文革图谱：关系线类型「图例 + 过滤」（仅当图谱声明 kinds 时启用） ---- */
+(function(){try{
+ if(!GR.kinds)return;
+ window.__kf={};
+ var el=document.getElementById('edgeLegend');
+ if(el){Array.prototype.slice.call(el.querySelectorAll('.edge-sample')).forEach(function(x){if(x.parentNode)x.parentNode.removeChild(x);});}
+ var kl=document.getElementById('kindLegend');
+ if(kl){Object.keys(GR.kinds).forEach(function(kn){var s=document.createElement('span');s.className='lg';
+   s.innerHTML='<i class="eg" style="border-color:'+GR.kinds[kn]+'"></i>'+kn;kl.appendChild(s);});}
+ var box=document.getElementById('tr'),row=document.createElement('div');row.id='kinds';
+ Object.keys(GR.kinds).forEach(function(kn){var b=document.createElement('button');b.type='button';
+  b.setAttribute('data-kind',kn);
+  b.innerHTML='<i class="eg" style="border-color:'+GR.kinds[kn]+';margin-right:4px"></i>'+kn;
+  b.onclick=function(){setKindVis(kn, mgRelHidden(kn));};
+  row.appendChild(b);});
+ if(box)box.appendChild(row);
+ if(ns.some(function(o){return o.d.type==='event';})){
+  var host=document.getElementById('filters');
+  if(host){var fb=document.createElement('button');fb.type='button';fb.dataset.f='event';fb.textContent='事件';
+   fb.onclick=function(){applyFilter('event');};host.appendChild(fb);}
+  var nl=document.getElementById('nodeLegend');
+  if(nl){var s2=document.createElement('span');s2.className='lg';
+   s2.innerHTML='<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e0913a;margin-right:5px"></i>事件';nl.appendChild(s2);}
+ }
+}catch(e){}})();
+
+var drag=null;
+cv.onmousedown=function(e){var h=hit(e.clientX,e.clientY);drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y,moved:false,lock:geoLocked()&&!!h};if(h)startLP(h);};
+cv.onmousemove=function(e){if(drag){var dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>9)drag.moved=true;if(drag.moved){cancelLP();if(!drag.lock){view.x=drag.vx+dx;view.y=drag.vy+dy;draw();}}return;}var h=hit(e.clientX,e.clientY);if(h!==hover){hover=h;cv.style.cursor=h?'pointer':'grab';draw();}};
+cv.onmouseup=function(e){cancelLP();if(drag){if(!drag.moved){if(!tapAt(e.clientX,e.clientY)){var h=hit(e.clientX,e.clientY);if(h)select(h.d.id);else yzBlankTap();}}drag=null;}};
+cv.onmouseleave=function(){cancelLP();drag=null;if(hover){hover=null;draw();}};
+cv.onwheel=function(e){cancelLP();e.preventDefault();var f=e.deltaY<0?1.12:0.89,mx=e.clientX,my=e.clientY;view.x=mx-(mx-view.x)*f;view.y=my-(my-view.y)*f;view.k*=f;draw();};
+var pinch=null;
+cv.addEventListener('touchstart',function(e){
+  if(e.touches.length>=2){drag=null;cancelLP();var a=e.touches[0],b=e.touches[1];
+    pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1,k:view.k,cx:(a.clientX+b.clientX)/2,cy:(a.clientY+b.clientY)/2,x:view.x,y:view.y};
+    e.preventDefault();return;}
+  var t=e.touches[0];var h=hit(t.clientX,t.clientY);drag={x:t.clientX,y:t.clientY,vx:view.x,vy:view.y,moved:false,lock:geoLocked()&&!!h};if(h)startLP(h);
+},{passive:false});
+cv.addEventListener('touchmove',function(e){
+  if(pinch&&e.touches.length>=2){e.preventDefault();
+    var a=e.touches[0],b=e.touches[1];var d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    var nk=Math.max(0.12,Math.min(6,pinch.k*(d/pinch.d)));var r=nk/pinch.k;
+    view.x=pinch.cx-(pinch.cx-pinch.x)*r;view.y=pinch.cy-(pinch.cy-pinch.y)*r;view.k=nk;draw();return;}
+  if(!drag)return;e.preventDefault();var t=e.touches[0],dx=t.clientX-drag.x,dy=t.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>10)drag.moved=true;
+  if(drag.moved){cancelLP();if(!drag.lock){view.x=drag.vx+dx;view.y=drag.vy+dy;draw();}}
+},{passive:false});
+var _lastTapT=0,_lastTapX=0,_lastTapY=0;
+cv.addEventListener('touchend',function(e){
+  if(pinch&&e.touches.length<2){pinch=null;return;}
+  cancelLP();if(drag&&!drag.moved&&e.changedTouches[0]){var _tx=e.changedTouches[0].clientX,_ty=e.changedTouches[0].clientY;
+    /* 双击（320ms 内、同一处）＝ 视图归位：把整张图重新适配到屏幕（手机上没有滚轮，这是最快的"回到全局"手势） */
+    var _now=Date.now();
+    if(_now-_lastTapT<400&&Math.abs(_tx-_lastTapX)<30&&Math.abs(_ty-_lastTapY)<30&&!hit(_tx,_ty)){_lastTapT=0;drag=null;fitAll();toast2('已回到全图');return;}
+    _lastTapT=_now;_lastTapX=_tx;_lastTapY=_ty;
+    if(!tapAt(_tx,_ty)){var h=hit(_tx,_ty);if(h)select(h.d.id);else yzBlankTap();}}drag=null;
+},{passive:false});
+cv.addEventListener('touchcancel',function(){pinch=null;drag=null;cancelLP();},{passive:false});
+
+
+/* ================= 关系工具 / 导出 / 引用（round22 新增） ================= */
+function toast2(msg) {
+  try {
+    var d = document.getElementById('gtoast'); if (!d) return;
+    d.textContent = msg; d.style.display = 'block';
+    clearTimeout(d._t); d._t = setTimeout(function () { d.style.display = 'none'; }, 3000);
+  } catch (e) {}
+}
+function _adj() {
+  var a = {};
+  GR.links.forEach(function (l) {
+    (a[l.source] = a[l.source] || []).push({ id: l.target, rel: l.rel });
+    (a[l.target] = a[l.target] || []).push({ id: l.source, rel: l.rel });
+  });
+  return a;
+}
+function chainOf(aId, bId) {
+  if (!aId || !bId) return null;
+  var adj = _adj(); if (aId === bId) return [{ id: aId, rel: '' }];
+  var q = [aId], seen = {}, prev = {}; seen[aId] = 1;
+  while (q.length) {
+    var cur = q.shift();
+    var nx = adj[cur] || [];
+    for (var i = 0; i < nx.length; i++) {
+      var to = nx[i].id;
+      if (!seen[to]) { seen[to] = 1; prev[to] = { from: cur, rel: nx[i].rel }; q.push(to); }
+    }
+  }
+  if (!seen[bId]) return null;
+  var chain = [], k = bId;
+  while (k !== aId) { chain.unshift({ id: k, rel: prev[k].rel }); k = prev[k].from; }
+  chain.unshift({ id: aId, rel: '' });
+  return chain;
+}
+function nbrsOf(id) {
+  var out = {};
+  GR.links.forEach(function (l) { if (l.source === id) out[l.target] = l.rel; if (l.target === id) out[l.source] = l.rel; });
+  return out;
+}
+function nm(id) { var n = P[id]; return n ? n.name : id; }
+function spanOf(n) { var m = String((n && n.years) || '').match(/\d{4}/g); return m ? [+m[0], m[1] ? +m[1] : +m[0]] : null; }
+function fillRelSelects() {
+  var A = document.getElementById('rtA'), B = document.getElementById('rtB');
+  if (!A || !B || A.options.length) return;
+  var order = ['person', 'org', 'idea', 'event'], head = { person: '👤 人物', org: '🏛 组织', idea: '💡 思想', event: '📅 事件' };
+  var html = '';
+  order.forEach(function (t) {
+    var g = GR.nodes.filter(function (n) { return n.type === t; });
+    if (!g.length) return;
+    html += '<optgroup label="' + head[t] + '">' + g.map(function (n) {
+      return '<option value="' + esc2(n.id) + '">' + esc2(n.name) + '</option>'; }).join('') + '</optgroup>';
+  });
+  A.innerHTML = html; B.innerHTML = html;
+}
+/* ================= 图谱页管理：自定义显示哪些工具 / 节点 / 关系（round25 新增） ================= */
+var MG_KEY='graphMgr', MG={tools:{},nodes:{},rels:{}};
+function mgLoad(){ try{ var o=JSON.parse(localStorage.getItem(MG_KEY)||'{}')||{};
+  MG={tools:o.tools||{},nodes:o.nodes||{},rels:o.rels||{}}; }catch(e){ MG={tools:{},nodes:{},rels:{}}; } }
+function mgSave(){ try{ localStorage.setItem(MG_KEY,JSON.stringify(MG)); }catch(e){} }
+var MG_TOOLS=[
+ {id:'fb',  t:'⤢ 适应窗口'},
+ {id:'vb',  t:'🗺 地图'},
+ {id:'cb2', t:'🎨 社区'},
+ {id:'cb3', t:'⏳ 时间轴'},
+ {id:'cb4', t:'🎀 束线'},
+ {id:'cb',  t:'🚫 清屏'},
+ {id:'eb',  t:'🔗 关系线'},
+ {id:'lb',  t:'📋 列表'},
+ {id:'rtb', t:'🔎 关系工具'},
+ {id:'dtb', t:'⬇ 数据'}
+];
+var MG_TYPES=[{k:'person',t:'👤 人物'},{k:'idea',t:'💡 思想'},{k:'org',t:'🏛 组织'},{k:'event',t:'📅 事件'},{k:'crit',t:'⚠ 被批判 / 对立'}];
+function mgKinds(){ try{ return (GR&&GR.kinds)?Object.keys(GR.kinds):[]; }catch(e){ return []; } }
+function mgRelList(){ var ks=mgKinds(); if(ks.length) return ks.map(function(k){ return {k:k,t:k}; });
+  return [{k:'kind:pos',t:'同志·协作'},{k:'kind:neg',t:'批判·对立'},{k:'kind:fam',t:'亲属·伴侣'}]; }
+var MG_DEFAULT_OFF={cb2:1,cb3:1,cb4:1,dtb:1};   /* 社区 / 时间轴 / 束线 / 「⬇ 数据」：默认不显示，需要时去「⚙ 管理」里打开 */
+function mgToolHidden(id){ if(MG.tools[id]===true) return true; if(MG.tools[id]===false) return false; return !!MG_DEFAULT_OFF[id]; }
+function mgNodeHidden(k){ return MG.nodes[k]===false; }
+function mgRelHidden(k){ return MG.rels[k]===false; }
+function linkHidden(e){ if(!e) return false;
+  if(e.k && (mgRelHidden(e.k) || (window.__kf && window.__kf[e.k]===false))) return true;
+  return mgRelHidden('kind:'+relKind(e.r)); }
+function mgApplyTools(){
+  MG_TOOLS.forEach(function(t){ var b=document.getElementById(t.id); if(!b) return;
+    if(t.id==='vb'){ b.style.display=(mgToolHidden('vb')||mapMode==='none'||mapOnly)?'none':''; return; }
+    b.style.display=mgToolHidden(t.id)?'none':''; });
+}
+function applyMgr(){ mgApplyTools();
+  try{ window.__kf=window.__kf||{}; mgKinds().forEach(function(k){ window.__kf[k]=!mgRelHidden(k); }); }catch(e){} syncKindRow(); }
+function syncKindRow(){ try{ var row=document.getElementById('kinds'); if(!row) return;
+  Array.prototype.slice.call(row.querySelectorAll('button')).forEach(function(b){
+    var kk=b.getAttribute('data-kind'); if(kk) b.classList.toggle('off', mgRelHidden(kk)); }); }catch(e){} }
+function setKindVis(kn, show){ if(show) delete MG.rels[kn]; else MG.rels[kn]=false; mgSave();
+  try{ window.__kf=window.__kf||{}; window.__kf[kn]=!!show; }catch(e){}
+  syncKindRow(); renderMgr(); if(selected&&clearSel)clearSel(); draw(); }
+function renderMgr(){
+  var t=document.getElementById('mgTools');
+  if(t) t.innerHTML=MG_TOOLS.map(function(x){ return '<button type="button" class="'+(mgToolHidden(x.id)?'off':'on')+'" onclick="toggleMgrTool(\''+x.id+'\')">'+x.t+'</button>'; }).join('');
+  var n=document.getElementById('mgNodes');
+  if(n) n.innerHTML=MG_TYPES.map(function(x){ return '<button type="button" class="'+(mgNodeHidden(x.k)?'off':'on')+'" onclick="toggleMgrNode(\''+x.k+'\')">'+x.t+'</button>'; }).join('');
+  var list=mgRelList(), r=document.getElementById('mgRels');
+  if(r) r.innerHTML=list.length?list.map(function(x){ return '<button type="button" class="'+(mgRelHidden(x.k)?'off':'on')+'" onclick="toggleMgrRel(\''+x.k+'\')">'+x.t+'</button>'; }).join(''):'<span class="mg-note">该图谱未定义关系类型</span>';
+  var st=document.getElementById('mgStat');
+  if(st){ var onT=MG_TOOLS.filter(function(x){return !mgToolHidden(x.id);}).length;
+    var onN=MG_TYPES.filter(function(x){return !mgNodeHidden(x.k);}).length;
+    var hiddenR=mgRelList().filter(function(x){return mgRelHidden(x.k);}).length;
+    st.textContent='工具 '+onT+' / '+MG_TOOLS.length+'　节点类型 '+onN+' / '+MG_TYPES.length+(hiddenR?('　已隐藏关系 '+hiddenR+' 类'):''); }
+}
+function toggleMgrTool(id){ MG.tools[id]= mgToolHidden(id) ? false : true; mgSave(); mgApplyTools(); renderMgr(); }
+function toggleMgrNode(k){ if(mgNodeHidden(k)) delete MG.nodes[k]; else MG.nodes[k]=false; mgSave();
+  if(selected&&clearSel)clearSel(); renderMgr(); try{ renderList(document.getElementById('lq')?document.getElementById('lq').value:''); }catch(e){} draw(); }
+function toggleMgrRel(k){ if(mgRelHidden(k)) delete MG.rels[k]; else MG.rels[k]=false; mgSave();
+  if(mgKinds().length){ try{ window.__kf=window.__kf||{}; window.__kf[k]=!mgRelHidden(k); }catch(e){} }
+  syncKindRow(); renderMgr(); if(selected&&clearSel)clearSel(); draw(); }
+function openMgr(){ var p=document.getElementById('mgPanel'); if(!p) return; mgLoad(); renderMgr(); yzCloseDrawers('mgPanel'); p.classList.add('open'); yzFocusPanel('#mgPanel .x'); }
+function closeMgr(){ var p=document.getElementById('mgPanel'); if(p) p.classList.remove('open'); }
+function toggleMgr(){ var p=document.getElementById('mgPanel'); if(!p) return; if(p.classList.contains('open')) closeMgr(); else openMgr(); }
+function resetMgr(){ MG={tools:{},nodes:{},rels:{}}; mgSave();
+  try{ window.__kf={}; mgKinds().forEach(function(k){ window.__kf[k]=true; }); }catch(e){}
+  applyMgr(); renderMgr(); if(selected&&clearSel)clearSel(); draw(); toast2('已恢复默认显示'); }
+
+function openRelTool() {
+  var box = document.getElementById('relTool'); if (!box) return;
+  fillRelSelects();
+  var A = document.getElementById('rtA'), B = document.getElementById('rtB');
+  if (A && selected) A.value = selected.d.id;
+  if (B && (!B.value || B.value === (A && A.value))) {
+    var cand = GR.nodes.filter(function (n) { return n.type === 'person' && (!A || n.id !== A.value); })[0];
+    if (cand) B.value = cand.id;
+  }
+  yzCloseDrawers('relTool');
+  box.classList.add('open');
+  yzFocusPanel('#relTool .rt-x');
+  if (_dlgEsc) return;
+  _dlgEsc = true;
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeRelTool(); });
+}
+var _dlgEsc = false;
+function closeRelTool() { var b = document.getElementById('relTool'); if (b) b.classList.remove('open'); }
+function swapRel() {
+  var A = document.getElementById('rtA'), B = document.getElementById('rtB'); if (!A || !B) return;
+  var t = A.value; A.value = B.value; B.value = t;
+}
+function runRelTool() {
+  var A = document.getElementById('rtA'), B = document.getElementById('rtB'), out = document.getElementById('rtOut');
+  if (!A || !B || !out) return;
+  var a = A.value, b = B.value;
+  if (!a || !b) { out.innerHTML = '<p class="rt-hint">请先选择两个人。</p>'; return; }
+  var na = P[a] || {}, nb2 = P[b] || {};
+  var ha = nbrsOf(a), hb = nbrsOf(b);
+  var same = Object.keys(ha).filter(function (k) { return hb[k] && k !== a && k !== b; });
+  var chain = chainOf(a, b);
+  try { window.__lastChain = chain; } catch (e) { }
+  var html = '';
+  /* 关系链 */
+  if (a === b) html += '<div class="rt-sec"><b>关系链</b>：同一个对象。</div>';
+  else if (!chain) html += '<div class="rt-sec"><b>关系链</b>：两者之间没有可达路径（可能分属不同图谱分区）。</div>';
+  else {
+    html += '<div class="rt-sec"><b>关系链</b>（' + (chain.length - 1) + ' 步）：<div class="rt-chain">' +
+      chain.map(function (c, i) {
+        return (i ? '<i>' + esc2(c.rel) + ' →</i>' : '') + '<span>' + esc2(nm(c.id)) + '</span>';
+      }).join('') + '</div><div class="rt-hint" style="margin-top:6px">' +
+      esc2(nm(a)) + ' 与 ' + esc2(nm(b)) + ' 之间隔 ' + (chain.length - 1) + ' 层关系。</div>' +
+      '<div style="margin-top:9px"><button type="button" class="rt-hl" onclick="highlightPath(window.__lastChain)">🎯 在图上高亮这条关系链</button></div></div>';
+  }
+  /* 共同关系 */
+  html += '<div class="rt-sec"><b>共同关系</b>：' + (same.length ? same.length + ' 个' : '无') +
+    (same.length ? '<div class="rt-chain" style="margin-top:6px">' + same.slice(0, 24).map(function (k) {
+      return '<span>' + esc2(nm(k)) + '</span>'; }).join('') + '</div>' : '') + '</div>';
+  html += '<div class="rt-sec"><b>' + esc2(nm(a)) + '</b> 的关系（' + Object.keys(ha).length + '）：' +
+    '<div class="rt-hint">' + esc2(Object.keys(ha).slice(0, 10).map(function (k) { return nm(k) + '(' + ha[k] + ')'; }).join('、')) +
+    (Object.keys(ha).length > 10 ? ' …' : '') + '</div></div>';
+  html += '<div class="rt-sec"><b>' + esc2(nm(b)) + '</b> 的关系（' + Object.keys(hb).length + '）：' +
+    '<div class="rt-hint">' + esc2(Object.keys(hb).slice(0, 10).map(function (k) { return nm(k) + '(' + hb[k] + ')'; }).join('、')) +
+    (Object.keys(hb).length > 10 ? ' …' : '') + '</div></div>';
+  /* 同代 / 同乡 */
+  var sa = spanOf(na), sb = spanOf(nb2);
+  var sameEra = (sa && sb) ? (Math.min(sa[1], sb[1]) >= Math.max(sa[0], sb[0]) - 10) : null;
+  var pa = (window.SITE_GRAPH_GEO || {})[a] && window.SITE_GRAPH_GEO[a].place;
+  var pb = (window.SITE_GRAPH_GEO || {})[b] && window.SITE_GRAPH_GEO[b].place;
+  html += '<div class="rt-sec"><b>同代 / 同乡</b>：' +
+    (sa ? esc2(nm(a)) + ' ' + sa[0] + '—' + sa[1] + '；' : '') + (sb ? esc2(nm(b)) + ' ' + sb[0] + '—' + sb[1] + '；' : '') +
+    (sameEra === null ? '年代信息不足。' : (sameEra ? '两人年代有重叠（同代人）。' : '两人年代基本不重叠。')) +
+    ((pa && pb) ? (pa === pb ? '　同一地点：' + esc2(pa) : '　地点：' + esc2(pa) + ' / ' + esc2(pb)) : '') + '</div>';
+  out.innerHTML = html;
+}
+/* ---------- 开放数据导出 ---------- */
+function _xmlEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function openDataMenu(ev) {
+  var m = document.getElementById('dataMenu'); if (!m) return;
+  var b = document.getElementById('dtb');
+  var open = m.classList.contains('open');
+  m.classList.toggle('open', !open);
+  if (open) return;
+  yzCloseDrawers('dataMenu');
+  /* 定位：贴着按钮但绝不越出屏幕（此前在手机上会掉到屏幕下沿之外，选项看不到） */
+  m.style.visibility = 'hidden'; m.style.maxHeight = ''; m.style.overflowY = '';
+  var mw = m.offsetWidth, mh = m.offsetHeight;
+  var iw = window.innerWidth || 360, ih = window.innerHeight || 640;
+  var r = b ? b.getBoundingClientRect() : { left: 20, top: ih - 60, bottom: ih - 30 };
+  if (mh > ih - 16) { m.style.maxHeight = (ih - 16) + 'px'; m.style.overflowY = 'auto'; mh = ih - 16; }
+  var left = Math.min(Math.max(8, Math.round(r.left)), Math.max(8, iw - mw - 8));
+  var top = Math.round(r.top - mh - 6);
+  if (top < 8) top = Math.round(Math.min(r.bottom + 6, ih - mh - 8));
+  if (top < 8) top = 8;
+  m.style.left = left + 'px'; m.style.top = top + 'px'; m.style.visibility = '';
+  if (!_dmEsc) {
+    _dmEsc = true;
+    document.addEventListener('click', function (e) {
+      if (!m.contains(e.target) && e.target !== b) m.classList.remove('open');
+    });
+  }
+}
+var _dmEsc = false;
+function _datasetName() { try { var s = document.getElementById('graphSel'); return s && s.selectedOptions && s.selectedOptions[0] ? s.selectedOptions[0].textContent : '图谱'; } catch (e) { return '图谱'; } }
+/* ---------- 导入图谱（全局：不依赖「自助编辑」，与导出成对） ---------- */
+function yzImportGraph() {
+  var m = document.getElementById('dataMenu'); if (m) m.classList.remove('open');
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json,application/json';
+  inp.onchange = function () {
+    var f = inp.files && inp.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var obj = null;
+      try { obj = JSON.parse(r.result); }
+      catch (e) { toast2('导入失败：文件不是有效的 JSON'); return; }
+      if (!window.YZY || !YZY.importGraph) { toast2('当前版本不支持导入图谱'); return; }
+      var res = YZY.importGraph(obj);
+      if (!res || res.ok === false) { toast2('导入失败：' + ((res && res.msg) || '未知错误')); return; }
+      toast2('已导入「' + res.name + '」：' + res.nodes + ' 个节点 / ' + res.links + ' 条关系');
+      if (res.saved === false) { try { alert('⚠ 本机存储可能已满，导入的图谱刷新后可能不保留。'); } catch (e) {} }
+      setTimeout(function () {
+        var qs = location.search.replace(/[?&]g=[^&]*/, '').replace(/^[?&]/, '');
+        location.href = location.pathname + (qs ? '?' + qs + '&' : '?') + 'g=' + encodeURIComponent(res.id);
+      }, 900);
+    };
+    r.onerror = function () { toast2('读取文件失败'); };
+    r.readAsText(f);
+  };
+  inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.click();
+  setTimeout(function () { try { inp.remove(); } catch (e) {} }, 60000);
+}
+window.yzImportGraph = yzImportGraph;
+
+function showExported(fname, txt, mime) {
+  try {
+    var pending = (window.AndroidApp && window.YZSave && YZSave.isApp && YZSave.isApp());
+    if (window.YZSave && YZSave.preview && YZSave.b64) {
+      YZSave.preview(fname, 'data:' + (mime || 'text/plain') + ';base64,' + YZSave.b64(txt),
+        (pending ? '⏳ 正在保存…' : '') + fname + ' · ' + txt.length + ' 字符（内容如下，可关闭）');
+    } else { toast2(window.YZSave && YZSave.tip ? YZSave.tip(fname) : ('已导出：' + fname)); }
+    if (pending) {
+      window.yzOnSaveResult = function (r) {
+        try {
+          var ov = document.getElementById('yzExportOv'); if (!ov) return;
+          var p = ov.querySelector('p');
+          if (p) p.textContent = r.msg || '';
+          var old = ov.querySelector('button.yzOpenBtn'); if (old) old.remove();
+          if (r.ok && r.uri && window.AndroidApp && AndroidApp.openSaved) {
+            var b = document.createElement('button');
+            b.className = 'yzOpenBtn'; b.type = 'button'; b.textContent = '用其他应用打开';
+            b.style.cssText = 'padding:10px 22px;border-radius:22px;border:0;background:#e23a3a;color:#fff;font-size:.9rem;cursor:pointer';
+            b.onclick = function () { try { AndroidApp.openSaved(r.uri, r.mime); } catch (e) {} };
+            var closeBtn = ov.querySelector('button:not(.yzOpenBtn)');
+            if (closeBtn) ov.insertBefore(b, closeBtn); else ov.appendChild(b);
+          }
+        } catch (e) {}
+      };
+    }
+  } catch (e) { try { toast2('已导出：' + fname); } catch (e2) {} }
+}
+function exportData(kind) {
+  try {
+    var m = document.getElementById('dataMenu'); if (m) m.classList.remove('open');
+    var tag = _datasetName().replace(/[^0-9A-Za-z\u4e00-\u9fff]/g, '') || 'graph';
+    var stamp = new Date().toISOString().slice(0, 10);
+    var nodes = GR.nodes, links = GR.links;
+    if (kind === 'json') {
+      var o = {
+        name: _datasetName(), source: '学通', date: stamp,
+        nodes: nodes.map(function (n) {
+          /* 完整字段导出：导出的 JSON 可直接用「🗂 图谱 → 📥 导入图谱」还原 */
+          var o = { id: n.id, name: n.name, type: n.type, years: n.years || '', role: n.role || '' };
+          if (n.desc) o.desc = n.desc;
+          if (typeof n.img === 'string' && n.img) o.img = n.img;
+          if (n.points && n.points.length) o.points = n.points;
+          if (n.works && n.works.length) o.works = n.works;
+          if (n.tags && n.tags.length) o.tags = n.tags;
+          if (n.crit) o.crit = true;
+          return o;
+        }),
+        links: links.map(function (l) { return { source: l.source, target: l.target, rel: l.rel }; })
+      };
+      var jtxt = JSON.stringify(o, null, 2);
+      if (window.YZSave && YZSave.text(tag + '-' + stamp + '.json', 'application/json', jtxt)) { showExported(tag + '-' + stamp + '.json', jtxt, 'application/json'); return; }
+    } else if (kind === 'csv') {
+      var rows = ['source,source_name,rel,target,target_name'];
+      links.forEach(function (l) { rows.push([l.source, P[l.source] ? P[l.source].name : '', l.rel, l.target, P[l.target] ? P[l.target].name : ''].map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(',')); });
+      var ctxt = '\ufeff' + rows.join('\r\n');
+      if (window.YZSave && YZSave.text(tag + '-rel-' + stamp + '.csv', 'text/csv', ctxt)) { showExported(tag + '-rel-' + stamp + '.csv', ctxt, 'text/csv'); return; }
+    } else {
+      var x = ['<?xml version="1.0" encoding="UTF-8"?>', '<graphml xmlns="http://graphml.graphdrawing.org/xmlns">',
+        '<key id="n" for="node" attr.name="name" attr.type="string"/><key id="t" for="node" attr.name="type" attr.type="string"/>',
+        '<key id="r" for="edge" attr.name="rel" attr.type="string"/><graph id="G" edgedefault="directed">'];
+      nodes.forEach(function (n) { x.push('<node id="' + _xmlEsc(n.id) + '"><data key="n">' + _xmlEsc(n.name) + '</data><data key="t">' + _xmlEsc(n.type || '') + '</data></node>'); });
+      links.forEach(function (l, i) { x.push('<edge id="e' + i + '" source="' + _xmlEsc(l.source) + '" target="' + _xmlEsc(l.target) + '"><data key="r">' + _xmlEsc(l.rel || '') + '</data></edge>'); });
+      x.push('</graph></graphml>');
+      var gtxt = x.join('\n');
+      if (window.YZSave && YZSave.text(tag + '-' + stamp + '.graphml', 'application/xml', gtxt)) { showExported(tag + '-' + stamp + '.graphml', gtxt, 'application/xml'); return; }
+    }
+    toast2('导出失败：当前环境不支持保存');
+  } catch (e) { toast2('导出失败：' + (e && e.message ? e.message : e)); }
+}
+
+/* ================= 聚焦模式：只看某人的一/二/三度关系（round28 新增） ================= */
+var focusId = null, focusDepth = 1, _focusSet = null;
+function focusRebuild(){
+  if (!focusId || !ix[focusId]){ _focusSet = null; return; }
+  var set = {}, seen = {}, frontier = [focusId], d = 0, maxD = Math.max(1, Math.min(3, focusDepth | 0));
+  set[focusId] = 1; seen[focusId] = 1;
+  while (d < maxD){
+    var nxt = [], i, j;
+    for (i = 0; i < frontier.length; i++){
+      var f = frontier[i];
+      for (j = 0; j < GR.links.length; j++){
+        var l = GR.links[j], o = null;
+        if (l.source === f) o = l.target; else if (l.target === f) o = l.source;
+        if (o && !seen[o]){ seen[o] = 1; set[o] = 1; nxt.push(o); }
+      }
+    }
+    frontier = nxt; d++;
+    if (!frontier.length) break;
+  }
+  _focusSet = set;
+}
+function setFocus(id, depth){
+  focusId = id || null;
+  if (depth != null) focusDepth = Math.max(1, Math.min(3, depth | 0));
+  focusRebuild();
+  if (focusId){ select(focusId); fitTo(listShown()); }
+  else { clearSel(); fitTo(ns); }
+  updateFocusBar(); saveViewState(); syncHash(); draw();
+}
+function exitFocus(){ setFocus(null); }
+function updateFocusBar(){
+  var b = document.getElementById('focusBar'); if (!b) return;
+  if (!focusId || !ix[focusId]){ b.classList.remove('open'); b.innerHTML = ''; return; }
+  var nm2 = (ix[focusId].d && ix[focusId].d.name) || focusId;
+  b.classList.add('open');
+  var seg = [1, 2, 3].map(function(k){
+    return '<button type="button" class="' + (focusDepth === k ? 'on' : '') + '" title="显示' + k + '度关系" onclick="setFocus(\'' + String(focusId).replace(/'/g, '') + '\',' + k + ')">' + k + '度</button>';
+  }).join('');
+  b.innerHTML = '🎯 聚焦 <b>' + esc2(nm2) + '</b><span style="opacity:.7">范围</span>' + seg +
+    '<button type="button" onclick="exitFocus()">✕ 返回全图</button>';
+}
+/* ================= 影响力排名：度（关联数）与介数（中介度） ================= */
+var _rank = null, _bcTop = null;
+function rankCompute(){
+  try{
+    var ids = GR.nodes.map(function(n){ return n.id; }), idxOf = {}, n = ids.length, i, j;
+    for (i = 0; i < n; i++) idxOf[ids[i]] = i;
+    var adj = []; for (i = 0; i < n; i++) adj.push([]);
+    GR.links.forEach(function(l){ var a = idxOf[l.source], b = idxOf[l.target];
+      if (a == null || b == null) return; adj[a].push(b); adj[b].push(a); });
+    var deg = adj.map(function(a2){ return a2.length; });
+    var bc = []; for (i = 0; i < n; i++) bc.push(0);
+    for (var s = 0; s < n; s++){
+      var stack = [], pred = [], sigma = [], dist = [], q = [];
+      for (i = 0; i < n; i++){ pred.push([]); sigma.push(0); dist.push(-1); }
+      sigma[s] = 1; dist[s] = 0; q.push(s);
+      while (q.length){
+        var v = q.shift(); stack.push(v);
+        for (j = 0; j < adj[v].length; j++){
+          var w = adj[v][j];
+          if (dist[w] < 0){ dist[w] = dist[v] + 1; q.push(w); }
+          if (dist[w] === dist[v] + 1){ sigma[w] += sigma[v]; pred[w].push(v); }
+        }
+      }
+      var delta = []; for (i = 0; i < n; i++) delta.push(0);
+      for (i = stack.length - 1; i >= 0; i--){
+        var v2 = stack[i];
+        for (j = 0; j < pred[v2].length; j++){ var w2 = pred[v2][j];
+          delta[w2] += (sigma[w2] / sigma[v2]) * (1 + delta[v2]); }
+        if (v2 !== s) bc[v2] += delta[v2];
+      }
+    }
+    _rank = ids.map(function(id, i2){ return { id: id, name: nm(id), deg: deg[i2], bc: bc[i2] / 2 }; });
+    var set = {};
+    _rank.slice().sort(function(a, b){ return b.bc - a.bc; }).slice(0, 6).forEach(function(r){ if (r.bc > 0) set[r.id] = 1; });
+    _bcTop = set;
+  }catch(e){ _rank = null; _bcTop = null; }
+}
+function toggleRank(force){
+  var p = document.getElementById('rankPanel'), b = document.getElementById('rankb');
+  if (!p) return;
+  var open = (force === undefined) ? !p.classList.contains('open') : !!force;
+  if (open){ if (!_rank) rankCompute(); yzCloseDrawers('rankPanel'); renderRank(); yzFocusPanel('#rankPanel .x'); }
+  p.classList.toggle('open', open);
+  if (b){ b.classList.toggle('on', open); b.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+}
+function renderRank(){
+  var d = document.getElementById('rankDeg'), b = document.getElementById('rankBc');
+  if (!d || !b || !_rank) return;
+  var byDeg = _rank.slice().sort(function(a, b2){ return b2.deg - a.deg; }).slice(0, 10);
+  var byBc = _rank.slice().sort(function(a, b2){ return b2.bc - a.bc; }).filter(function(r){ return r.bc > 0; }).slice(0, 10);
+  function rows(list, key){
+    if (!list.length) return '<li><span class="rk-note">暂无数据</span></li>';
+    return list.map(function(r, i){
+      return '<li><button type="button" onclick="rankPick(\'' + String(r.id).replace(/'/g, '') + '\')">' +
+        '<b>' + (i + 1) + '. ' + esc2(r.name) + '</b>' +
+        '<span class="lr">' + (key === 'deg' ? ('关联 ' + r.deg + ' 个') : ('中介度 ' + r.bc.toFixed(1))) + '</span>' +
+        '</button></li>';
+    }).join('');
+  }
+  d.innerHTML = rows(byDeg, 'deg');
+  b.innerHTML = rows(byBc, 'bc');
+}
+function rankPick(id){ try{ focusN(id); }catch(e){} toggleRank(false); }
+
+/* ---- 「添加到主页」：与首页「我的好友」共用同一份数据（localStorage: homeFriends） ---- */
+function yzHomeList(){ try{ var a=JSON.parse(localStorage.getItem('homeFriends')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function yzHomeIn(k){ return yzHomeList().some(function(x){ return x && x.k === k; }); }
+function yzHomeToggle(id){
+  var n=P[id]; if(!n) return;
+  var k='p:'+id, a=yzHomeList(), i=-1;
+  a.forEach(function(x,j){ if(x && x.k===k) i=j; });
+  if(i>=0) a.splice(i,1);
+  else a.push({ k:k, name:n.name, img:(n.img && !/placeholder\.svg$/.test(n.img) ? n.img : ''), icon:'🕸️',
+    sub:[n.years,n.role].filter(Boolean).join(' · '), act:"openFigure('"+String(id).replace(/'/g,'')+"')" });
+  try{ localStorage.setItem('homeFriends', JSON.stringify(a)); }
+  catch(e){ toast2('本机存储已满，没能保存'); return; }
+  panel(id);
+  toast2(i>=0 ? '已从主页移出' : '已添加到主页');
+}
+/* ---- 2D 深链：把「聚焦 / 范围 / 筛选 / 年份 / 选中」写进地址栏，复制链接即可还原 ----
+   格式：#<选中节点id>?focus=<聚焦id>&depth=<1-3>&f=<筛选>&y=<年份>&v=geo */
+function encodeHash(){
+  var base = selected ? encodeURIComponent(selected.d.id) : '', q = [];
+  if (focusId) q.push('focus=' + encodeURIComponent(focusId));
+  if (focusDepth !== 1) q.push('depth=' + focusDepth);
+  if (filter && filter !== 'all') q.push('f=' + encodeURIComponent(filter));
+  if (yearOn && yearVal !== null) q.push('y=' + yearVal);
+  if (viewMode === 'geo') q.push('v=geo');
+  return '#' + base + (q.length ? ('?' + q.join('&')) : '');
+}
+function syncHash(){
+  try{
+    var h = encodeHash();
+    if (location.hash === h) return;
+    if (history.replaceState) history.replaceState(null, '', location.pathname + location.search + h);
+  }catch(e){}
+}
+function parseHashInit(){
+  try{
+    var raw = String(location.hash || '').replace(/^#/, '');
+    if (!raw) return false;
+    var qi = raw.indexOf('?'), idp = qi < 0 ? raw : raw.slice(0, qi), qs = qi < 0 ? '' : raw.slice(qi + 1);
+    var p = new URLSearchParams(qs);
+    if (p.get('f')){ filter = p.get('f'); applyFilter(filter); }
+    if (p.get('y')){
+      var yv = parseInt(p.get('y'), 10);
+      if (!isNaN(yv) && yearsAvailable()){ if (!yearOn) toggleYears(); yearVal = yv; updateSliderLabel(); draw(); }
+    }
+    if (p.get('v') === 'geo' && viewMode !== 'geo'){ try{ toggleViewMode(); }catch(e){} }
+    var fid = p.get('focus');
+    if (fid){ setFocus(decodeURIComponent(fid), parseInt(p.get('depth') || '1', 10) || 1); }
+    else if (idp){
+      var hid = decodeURIComponent(idp);
+      if (ix[hid]) setTimeout(function(){ focusN(hid); syncHash(); }, 140);
+    }
+    return true;
+  }catch(e){ return false; }
+}
+/* 同页内 hash 变化（例如粘贴/点击另一个深链）也要重新解析还原 */
+window.addEventListener('hashchange', function(){ try{ parseHashInit(); }catch(e){} });
+
+/* ---- 记住上次视角：下次打开自动回到上次看的人与位置（有深链参数时以深链为准） ---- */
+function saveViewState(){
+  try{
+    var s=document.getElementById('graphSel');
+    localStorage.setItem('graphView', JSON.stringify({ ds:(s?s.value:''), id:(selected?selected.d.id:''), k:view.k, x:view.x, y:view.y }));
+  }catch(e){}
+}
+function restoreViewState(){
+  try{
+    if(location.hash) return;                       /* 深链优先 */
+    var sv=JSON.parse(localStorage.getItem('graphView')||'null'); if(!sv) return;
+    var s=document.getElementById('graphSel'); var cur=s?s.value:'';
+    if(sv.ds && sv.ds!==cur) return;                /* 数据集不同就不强行套用 */
+    if(typeof sv.k==='number' && sv.k>0){ view.k=sv.k; view.x=(typeof sv.x==='number')?sv.x:view.x; view.y=(typeof sv.y==='number')?sv.y:view.y; }
+    if(sv.id && ix[sv.id]) select(sv.id); else draw();
+  }catch(e){}
+}
+function panelExtra(id) {
+  var h = '<a href="card.html?id=' + encodeURIComponent(id) + '" target="_blank" rel="noopener" style="display:inline-block;padding:7px 13px;border:1px solid var(--card-border);border-radius:9px;color:inherit;text-decoration:none;font-size:.82rem">🖨 速查卡</a>';
+  if (P[id] && P[id].type === 'person') h += '<button onclick="yzHomeToggle(\'' + String(id).replace(/'/g, '') + '\')">' + (yzHomeIn('p:' + id) ? '✔ 已添加到主页' : '➕ 添加到主页') + '</button>';
+  h += '<button onclick="setFocus(\'' + String(id).replace(/'/g, '') + '\')" title="只保留与这位有一/二/三度关系的人">🎯 只看向这位</button>';
+  if (viewMode === 'geo') h += '<button onclick="showInNet(\'' + id + '\')">🕸 在关系网中查看此人</button>';
+  return h ? '<p style="margin:0 0 10px;display:flex;flex-wrap:wrap;gap:6px">' + h + '</p>' : '';
+}
+function showInNet(id) {
+  var o = ix[id]; if (!o) return;
+  if (viewMode === 'geo') { toggleViewMode(); }
+  select(id);
+  var list = [o];
+  Object.keys(nb).forEach(function (k) { if (ix[k]) list.push(ix[k]); });
+  setTimeout(function () { fitTo(list); }, 60);
+  toast2('已在关系网中定位：' + nm(id));
+}
+
+function select(id){var o=ix[id];if(!o)return;
+ selected=o;nb={};nb[o.d.id]=1;
+ GR.links.forEach(function(l){if(l.source===id)nb[l.target]=1;if(l.target===id)nb[l.source]=1;});
+ hover=null;
+ var tk=(viewMode==='geo')?view.k:Math.max(view.k,Math.max(1.0,Math.min(1.35,Math.min(W,H)/780)));
+ view.k=tk;if(!geoLocked()){view.x=W/2-WX(o)*tk;view.y=H/2-WY(o)*tk;}   /* 世界地图锁死：点选节点不再整体移动 */
+ panel(id);draw();showJump(o);registerTap(id);saveViewState();syncHash();
+}
+/* 连点三次 或 长按 0.5 秒 → 跳转介绍 */
+var _tapId=null,_tapN=0,_tapT=null,lpTimer=null;
+function registerTap(id){if(_tapId===id)_tapN++;else{_tapId=id;_tapN=1;}clearTimeout(_tapT);
+ if(_tapN>=3){_tapN=0;_tapId=null;jumpToIntro(id);return;}
+ _tapT=setTimeout(function(){_tapN=0;_tapId=null;},700);}
+function jumpToIntro(id){var o=ix[id];if(!o)return;if(selected!==o)select(id);expandPanel();var p=document.getElementById('panel');if(p)p.scrollTop=0;}
+function startLP(o){cancelLP();lpTimer=setTimeout(function(){lpTimer=null;jumpToIntro(o.d.id);},500);}
+function cancelLP(){if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}}
+function clearSel(){selected=null;nb={};hiPath=null;closePanel();var j=document.getElementById('nodeJump');if(j)j.classList.remove('on');var tb=document.getElementById('ptab');if(tb)tb.classList.remove('show');draw();saveViewState();syncHash();}
+function placeJump(){var j=document.getElementById('nodeJump');if(!j)return;
+ if(W<=620){j.style.right='12px';j.style.top='12px';return;}
+ var t=document.getElementById('tr'),top=12;if(t){var r=t.getBoundingClientRect();if(r.bottom>0)top=Math.round(r.bottom)+8;}
+ j.style.top=top+'px';
+ var p=document.getElementById('panel'),pw=(p&&p.classList.contains('open'))?p.offsetWidth:0;j.style.right=(pw+14)+'px';}
+function showJump(o){var j=document.getElementById('nodeJump');if(!j)return;j.onclick=function(ev){ev.preventDefault();togglePanel();};j.classList.add('on');placeJump();}
+function focusN(id){var o=ix[id];if(!o)return;selected=o;nb={};nb[o.d.id]=1;GR.links.forEach(function(l){if(l.source===id)nb[l.target]=1;if(l.target===id)nb[l.source]=1;});if(viewMode!=='geo')view.k=Math.max(view.k,0.85);if(!geoLocked()){view.x=W/2-WX(o)*view.k;view.y=H/2-WY(o)*view.k;}panel(id);draw();saveViewState();}
+
+function placeOf(n){
+  if(!n) return '';
+  try{ var g=(window.SITE_GRAPH_GEO||{})[n.id]; if(g&&g.place) return g.place; }catch(e){}
+  if(n.prov) return n.prov+(n.place?('·'+n.place):'');
+  return '';
+}
+function deathPlaceOf(n){ try{ var d=(window.SITE_DEATH_GEO||{})[n.id]; return (d&&d.place)||''; }catch(e){ return ''; } }
+function panel(id){var n=P[id];if(!n)return;
+ var chip=document.getElementById('pchip');
+ chip.textContent=tyName(n.type)+(n.crit?' · 被批判 / 对立':'');
+ chip.className='chip'+(n.crit?' crit':'');
+ document.getElementById('pname').textContent=n.name;
+ document.getElementById('pmeta').textContent=[n.years,n.role].filter(Boolean).concat((n.type==='person'?[placeOf(n)?('籍贯 '+placeOf(n)):'',deathPlaceOf(n)?('逝世于 '+deathPlaceOf(n)):''].filter(Boolean):[])).join(' · ');
+ var av=document.getElementById('pav');
+ av.innerHTML=n.img?('<img src="'+escA2(n.img)+'" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.parentNode.innerHTML=\'<span>'+tyEmoji(n.type)+'</span>\'">'):'<span>'+tyEmoji(n.type)+'</span>';
+ document.getElementById('pdesc').textContent=n.desc||'';
+ var cm=CMAP[n.name];
+ document.getElementById('prelic').innerHTML=cm?('<div class="sub2">革命史料 · 简介</div><div style="font-size:.83rem;line-height:1.95;opacity:.9">'+esc2(cm.intro||'')+'</div>'+(cm.works?('<div style="font-size:.75rem;opacity:.72;margin-top:6px">代表作：'+esc2(cm.works)+'</div>'):'')):'';
+ var pts=n.points||[];
+ document.getElementById('ppts').innerHTML=pts.length?'<div class="sub2">要点</div><ul class="pts">'+pts.map(function(x){return '<li>'+esc2(x)+'</li>';}).join('')+'</ul>':'';
+ var w=n.works||[];
+ document.getElementById('pw').innerHTML=w.length?'<div class="sub2">代表文献 <span style="font-size:.72em;opacity:.6;font-weight:normal">· 点书名到书库查看／阅读</span></div><div class="wrap">'+w.map(function(x){return '<button type="button" title="到书库查看《'+esc2(x)+'》——有原文可直接阅读，没有可导入本机文件" onclick="openBook(\''+String(x).replace(/'/g,'')+'\')">'+esc2(x)+'</button>';}).join('')+'</div>':'';
+ var rels=[];
+ GR.links.forEach(function(l){if(l.source===id)rels.push({id:l.target,rel:l.rel,o:true,src:l.src});if(l.target===id)rels.push({id:l.source,rel:l.rel,o:false,src:l.src});});
+ document.getElementById('pr').innerHTML=rels.length?'<div class="sub2">关系网 · 关联 '+rels.length+' 个</div><div class="rlist">'+rels.map(function(r){var t=P[r.id];if(!t)return '';var kk=relKind(r.rel);var avv=t.img?'<img class="rav" src="'+escA2(t.img)+'" alt="" onerror="this.replaceWith(document.createTextNode(\'\'))">':'<span class="rav">'+tyEmoji(t.type)+'</span>';return '<button class="rbtn rk-'+kk+'" onclick="focusN(\''+r.id+'\')">'+avv+'<span class="rtx"><b>'+(r.o?'':'← ')+esc2(t.name)+'</b><em>'+tyName(t.type)+(t.crit?' · 对立':'')+'</em></span><i>'+esc2(r.rel)+(r.src?'（依据：'+esc2(r.src)+'）':'')+'</i></button>';}).join('')+'</div>':'';
+ document.getElementById('pback').innerHTML='<p style="margin:0 0 10px"><a href="index.html#/g/'+n.id+'" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📖 在革命史料中查看 →</a></p>'+panelExtra(n.id);
+ document.getElementById('panel').classList.add('open');document.body.classList.add('p-open');var tb=document.getElementById('ptab');if(tb)tb.classList.remove('show');
+}
+function closePanel(){var _p=document.getElementById('panel');if(_p)_p.classList.remove('open');document.body.classList.remove('p-open');}
+/* ---- 统一浮层管理：互斥 / Esc / 点空白 / 焦点可达 ---- */
+function yzCloseDrawers(except){
+  /* 右侧「图谱管理」与右侧详情面板同侧：打开它时收起详情，避免完全重叠；左侧抽屉不影响详情 */
+  if(except==='mgPanel'){ try{ var _p=document.getElementById('panel'); if(_p&&_p.classList.contains('open')) clearSel(); }catch(e){} }
+  try{ if(except!=='listPanel') toggleList(false); }catch(e){}
+  try{ if(except!=='mgPanel') closeMgr(); }catch(e){}
+  try{ if(except!=='rankPanel') toggleRank(false); }catch(e){}
+  try{ if(except!=='relTool') closeRelTool(); }catch(e){}
+  try{ var dm=document.getElementById('dataMenu'); if(dm && except!=='dataMenu') dm.classList.remove('open'); }catch(e){}
+}
+function yzFocusPanel(sel){ try{ var b=document.querySelector(sel); if(b) b.focus(); }catch(e){} }
+function yzAnyDrawer(){ var ids=['dataMenu','relTool','mgPanel','rankPanel','listPanel']; for(var i=0;i<ids.length;i++){ var el=document.getElementById(ids[i]); if(el&&el.classList.contains('open')) return true; } return false; }
+/* 点画布空白：先收起打开的抽屉，再取消选中 */
+function yzBlankTap(){ if(yzAnyDrawer()) yzCloseDrawers(''); clearSel(); }
+var _qT=null;
+/* ---------- 节点列表视图：键盘 / 读屏的等价入口 ---------- */
+function esc2(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function escA2(s){return esc2(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function toggleList(force){
+  var pn=document.getElementById('listPanel'), b=document.getElementById('lb');
+  if(!pn) return;
+  var open=(force===undefined)?!pn.classList.contains('open'):!!force;
+  pn.classList.toggle('open',open);
+  document.body.classList.toggle('l-open',open);
+  if(b){ b.classList.toggle('on',open); b.setAttribute('aria-expanded',open?'true':'false'); }
+  if(open){ yzCloseDrawers('listPanel'); renderList(document.getElementById('lq').value||'');
+    try{ document.getElementById('lq').focus(); }catch(e){} }
+}
+function renderList(q){
+  var box=document.getElementById('llist'); if(!box) return;
+  q=(q||'').trim().toLowerCase();
+  var hit=GR.nodes.filter(function(n){
+    if(!q) return true;
+    var hay=((n.name||'')+' '+(n.role||'')+' '+(n.desc||'')+' '+(n.years||'')+' '+((n.tags||[]).join(' '))).toLowerCase();
+    if(hay.indexOf(q)>=0) return true;
+    /* 全拼 / 首字母（makesi / mks）也能命中 */
+    var p=(n.__py||(n.__py=_pyOf(n.name)));
+    return (!!p.full&&p.full.indexOf(q)>=0)||(!!p.abbr&&p.abbr.indexOf(q)>=0);
+  });
+  var order=['person','idea','org','event'], head={person:'👤 人物',idea:'💡 思想',org:'🏛 组织',event:'📅 事件'};
+  var one=function(n){ var id=String(n.id).replace(/[^0-9A-Za-z_\-]/g,'');
+    return '<li><button type="button" onclick="pickNode(\''+id+'\')"><b>'+esc2(n.name)+'</b>'+
+      (n.years?'<span class="ly">'+esc2(n.years)+'</span>':'')+
+      (n.role?'<span class="lr">'+esc2(n.role)+'</span>':'')+'</button></li>'; };
+  var html='';
+  order.forEach(function(t){ var g=hit.filter(function(n){return n.type===t;}); if(!g.length) return;
+    html+='<li class="lh">'+head[t]+' · '+g.length+'</li>'+g.map(one).join(''); });
+  var other=hit.filter(function(n){return order.indexOf(n.type)<0;});
+  if(other.length) html+='<li class="lh">其他 · '+other.length+'</li>'+other.map(one).join('');
+  box.innerHTML = html || '<li class="lh">没有匹配的节点</li>';
+  var c=document.getElementById('lcount'); if(c) c.textContent=hit.length+' / '+GR.nodes.length;
+}
+function pickNode(id){ try{ focusN(id); }catch(e){} if((window.innerWidth||999)<720) toggleList(false); }
+document.getElementById('q').addEventListener('input',function(e){var _v=e.target.value;if(_qT)clearTimeout(_qT);
+ _qT=setTimeout(function(){var q=(_v||'').trim().toLowerCase();if(!q)return;
+  for(var i=0;i<GR.nodes.length;i++){var n=GR.nodes[i];
+  var hay=((n.name||'')+' '+(n.tags||[]).join(' ')).toLowerCase();
+  var p=(n.__py||(n.__py=_pyOf(n.name)));
+  if(hay.indexOf(q)>=0||(p.full&&p.full.indexOf(q)>=0)||(p.abbr&&p.abbr.indexOf(q)>=0)){focusN(n.id);break;}}},180);});
+addEventListener('keydown',function(e){
+  if(e.key!=='Escape') return;
+  if(yzAnyDrawer()){ yzCloseDrawers(''); return; }
+  clearSel();
+});
+addEventListener('resize',function(){resize();draw();placeJump();});
+resize();if(viewMode==='geo'){fitGeo();}else if(mapMode==='china'){fitTo(ns);}else{centerDefault();}
+var _vb=document.getElementById('vb');if(_vb){if(mapMode==='none'||mapOnly){_vb.style.display='none';}_vb.classList.toggle('on',viewMode==='geo');_vb.textContent=(viewMode==='geo')?'🧩 关系网':'🗺 地图';}
+mgLoad();applyMgr();rankCompute();restoreViewState();
+parseHashInit();
+</script>
+<aside id="relTool" role="dialog" aria-label="关系工具" aria-modal="false">
+ <div class="rt-box">
+  <div class="rt-h"><span>🔎 关系工具</span><span class="rt-x" role="button" tabindex="0" onclick="closeRelTool()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();closeRelTool();}" title="收起">▾ 收起</span></div>
+  <div class="rt-row">
+    <select id="rtA" aria-label="第一个对象"></select>
+    <button onclick="swapRel()" title="交换左右">⇄</button>
+    <select id="rtB" aria-label="第二个对象"></select>
+  </div>
+  <div class="rt-row"><button class="rt-go" onclick="runRelTool()">查询</button><span class="rt-hint">查两个人的共同关系、最短关系链（可当“传承脉络”用）与同代/同乡</span></div>
+  <div id="rtOut" class="rt-out" aria-live="polite"></div>
+ </div>
+</aside>
+<div id="dataMenu" role="menu" aria-label="导出数据">
+  <button role="menuitem" onclick="exportData('json')">JSON（节点 + 关系）</button>
+  <button role="menuitem" onclick="exportData('csv')">CSV（关系表，Excel 可读）</button>
+  <button role="menuitem" onclick="exportData('graphml')">GraphML（Gephi / yEd 可读）</button>
+  <button role="menuitem" onclick="yzImportGraph()">📥 导入图谱（JSON）</button>
+</div>
+<aside id="mgPanel" aria-label="图谱显示管理">
+ <button class="x" onclick="closeMgr()">▾ 收起</button>
+ <div class="mgh0">⚙ 图谱管理</div>
+ <p class="mg-note">决定这张图谱上显示哪些工具、节点与关系。设置只存在本机，随时可改。<br>默认只留常用的（适应窗口 / 地图 / 清屏 / 关系线 / 列表 / 关系工具 / 导出数据）；社区、时间轴、束线默认关闭，点一下即可打开。</p>
+ <div class="mg-sec"><div class="mg-h">工具按钮<span class="mg-sub">关掉就从底部去掉</span></div><div id="mgTools" class="mg-grid"></div></div>
+ <div class="mg-sec"><div class="mg-h">节点<span class="mg-sub">关掉则该类不再显示（其关系线一起隐藏）</span></div><div id="mgNodes" class="mg-grid"></div></div>
+ <div class="mg-sec"><div class="mg-h">关系<span class="mg-sub">关掉则不画该类关系线</span></div><div id="mgRels" class="mg-grid"></div></div>
+ <div class="mg-sec"><button class="mg-reset" type="button" onclick="resetMgr()">↺ 全部恢复默认</button><div id="mgStat" class="mg-note" style="margin-top:8px"></div></div>
+</aside>
+<div id="gtoast" role="status" aria-live="polite"></div>
+<aside id="listPanel" aria-label="节点列表">
+ <button class="x" onclick="toggleList(false)">▾ 收起</button>
+ <div class="lh0">📋 节点列表　<span id="lcount" class="lcount"></span></div>
+ <input id="lq" type="search" placeholder="筛选：名称 / 身份 / 简介" aria-label="筛选节点（支持汉字、全拼如 makesi、首字母如 mks）" oninput="onListInput(this.value)">
+ <ul id="llist"></ul>
+ <p class="lnote">与图谱同一份数据。可用键盘浏览（Tab 移动 · 回车选中）；选中后右侧显示该节点的简介与关系，读屏可直接朗读。</p>
+</aside>
+<aside id="rankPanel" aria-label="影响力排名">
+ <button class="x" onclick="toggleRank(false)">▾ 收起</button>
+ <div class="lh0">📊 影响力排名</div>
+ <p class="rk-note">按当前图谱实时算：<b>关联数</b>＝直接相关的人/物/组织有多少；<b>中介度</b>＝处在多少条最短关系链上，越高越像"桥梁"。点条目即定位。</p>
+ <div class="rk-h">关联最多</div><ul id="rankDeg"></ul>
+ <div class="rk-h">最关键的中介</div><ul id="rankBc"></ul>
+</aside>
+
+
+<script src="assets/graph-edit.js"></script>
+</body></html>

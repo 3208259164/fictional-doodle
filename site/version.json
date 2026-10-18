@@ -1,0 +1,7 @@
+{
+  "deprecated": true,
+  "note": "应用内自更新已移除（App 完全离线、无网络权限）。本文件仅留档，不再用于更新检测。",
+  "versionCode": 131,
+  "versionName": "0.16.65",
+  "siteVersion": "0.34.61"
+}

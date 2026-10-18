@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="红色头像">
+  <defs>
+    <radialGradient id="red" cx="36%" cy="30%" r="85%">
+      <stop offset="0" stop-color="#ea4636"/>
+      <stop offset="0.55" stop-color="#c8102e"/>
+      <stop offset="1" stop-color="#7d0818"/>
+    </radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#red)"/>
+  <polygon points="100,42 118,90 170,90 128,122 144,170 100,140 56,170 72,122 30,90 82,90"
+           fill="#f5c518" opacity="0.92"/>
+</svg>
+
+

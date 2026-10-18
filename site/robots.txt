@@ -1,0 +1,6 @@
+# 学通 robots.txt —— 允许搜索引擎收录
+# 换域名时，只需把下面 Sitemap 一行、以及 sitemap.xml / data/config.js 里的域名一起改掉。
+User-agent: *
+Allow: /
+
+Sitemap: https://chimerical-peony-793bf1.netlify.app/sitemap.xml

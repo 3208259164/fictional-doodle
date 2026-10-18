@@ -1,0 +1,35 @@
+# NOTICE · 第三方组件与许可（发布前逐条核对版本）
+
+> 放在仓库根目录。**必须**与实际内置版本一致，供 F-Droid 审查。
+> 站点侧（WebView 内运行）实际内置的 JS 库，与 `licenses.html` 保持一致。
+
+## 一、当前发行版实际内置（站点 + APK 同时分发）
+
+| 组件 | 文件 | 用途 | 许可 | 版本 |
+|---|---|---|---|---|
+| 3d-force-graph | `lib/3d-force-graph.min.js` | 3D 关系图谱 | MIT · © Vasco Asturiano | **1.80.1**（UMD 自包含；已验证为当时最新版） |
+| three.js | 同上（被打包进上一条的 UMD 内） | 3D 渲染 | MIT · © three.js authors | **r186** |
+| three-forcegraph / three-render-objects / kapsule / d3-force-3d | 同上 | 图谱运行时依赖 | MIT | 随 3d-force-graph 1.80.1 固定 |
+| qrcode-generator | `assets/vendor/qrcode.min.js` | 分享二维码 | MIT · © Kazuhiko Arase | **1.4.4** |
+
+> 上表中 `lib/3d-force-graph.min.js` 的原有 MIT 版权头曾被降级处理覆盖，现已在本版本中补回（见文件顶部注释）。
+> 三个 JS 库的许可与版权声明均已随文件本身分发，并列入 `licenses.html`。
+
+## 二、历史版本曾使用、当前发行版已移除
+
+| 组件 | 曾用途 | 许可 | 移除原因 |
+|---|---|---|---|
+| JSZip `jszip.min.js` | 解包 EPUB | MIT 或 GPLv3（选 MIT） | 「本地书库」下线后**无任何代码调用**，本版本从 index.html / sw.js 预缓存中移除且不再分发 |
+| epub.js `epub.min.js` | EPUB 渲染 | MIT（© FuturePress） | 同上 |
+| PDF.js `pdf.min.js` / `pdf.worker.min.js` | PDF 渲染 | Apache-2.0（© Mozilla Foundation） | 同上 |
+
+## 三、自有代码与内容
+
+| 对象 | 许可 | 说明 |
+|---|---|---|
+| 程序代码（Java 源码 / 构建脚本 / 站点 HTML·CSS·JS） | GPL-3.0-or-later | 版权归项目 |
+| 文案 / 文献整理 / 本站原创图像 | CC BY-SA 4.0 | 原始文献版权归原作者与出版方 |
+| 世界海岸线数据 | 公有领域 | Natural Earth |
+| Acorn（仅构建期，`tools/audit_code.js`） | MIT | **不进入 APK**，仅作者本地体检用 |
+
+> App 端（Java）**零第三方依赖**（仅 Android framework），故无需 Gradle/AndroidX。

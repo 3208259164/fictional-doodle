@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>人物速查卡 · 学通</title><meta name="theme-color" content="#1a1208">
+<style>
+ :root{ --ink:#211a12; --sub:#6b5c48; --line:#d8cdb8; --accent:#8a5a12; }
+ *{box-sizing:border-box}
+ body{margin:0;background:#f4efe4;color:var(--ink);font-family:"Songti SC",Georgia,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.7}
+ .wrap{max-width:820px;margin:0 auto;padding:22px 20px 60px;background:#fffdf7}
+ .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+ .bar button,.bar a{padding:7px 14px;border:1px solid var(--line);border-radius:9px;background:#fff;color:inherit;
+   cursor:pointer;font-family:inherit;font-size:.82rem;text-decoration:none}
+ .bar .grow{margin-left:auto;font-size:.72rem;color:var(--sub)}
+ h1{font-size:1.5rem;margin:0 0 4px}
+ .hd{display:flex;gap:16px;align-items:flex-start;border-bottom:2px solid var(--line);padding-bottom:14px;margin-bottom:14px}
+ .hd img,.hd .ph{width:96px;height:96px;border-radius:50%;object-fit:cover;flex:0 0 auto;border:2px solid var(--line);
+   display:flex;align-items:center;justify-content:center;font-size:2rem;background:#faf6ec}
+ .meta{font-size:.82rem;color:var(--sub);margin-top:4px}
+ .chip{display:inline-block;font-size:.7rem;border:1px solid var(--line);border-radius:99px;padding:1px 9px;margin-right:6px;color:var(--sub)}
+ h2{font-size:.92rem;margin:16px 0 4px;color:var(--accent);border-left:3px solid var(--accent);padding-left:8px}
+ p{margin:4px 0;font-size:.86rem}
+ ul{margin:4px 0;padding-left:20px;font-size:.84rem}
+ .rel{font-size:.82rem;line-height:1.9}
+ .rel b{color:var(--accent)}
+ .cite{font-size:.8rem;line-height:1.8;background:#faf6ec;border:1px dashed var(--line);border-radius:8px;padding:8px 10px;word-break:break-all}
+ .pick a{display:block;padding:8px 10px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;font-size:.86rem}
+ .pick a:hover{background:#faf6ec}
+ .foot{margin-top:22px;border-top:1px solid var(--line);padding-top:8px;font-size:.7rem;color:var(--sub)}
+ @media print{
+   @page{size:A4;margin:12mm}
+   body{background:#fff}
+   .wrap{max-width:none;padding:0;background:#fff}
+   .bar{display:none!important}
+   h1{font-size:1.3rem}
+   h2{break-after:avoid}
+   .hd img,.hd .ph{width:80px;height:80px}
+ }
+</style></head>
+<body><div class="wrap">
+ <div class="bar">
+   <button onclick="window.print()">🖨 打印 / 存为 PDF</button>
+   <button id="shareBtn" type="button" onclick="shareCardImg()" title="把这张速查卡绘制成 PNG 图片并保存">📤 生成分享图</button>
+   <button onclick="location.href='graph.html?g=main#/g/'">← 关系图谱</button>
+   <a href="index.html">🏠 首页</a>
+   <span class="grow" id="stamp"></span>
+ </div>
+ <div id="body"><p style="color:#6b5c48">正在载入…</p></div>
+ <div class="foot">
+   本卡片由「学通」自动生成，数据来自站内关系图谱；人物生平与关系均为公开资料整理，仅供参考。
+   站点内容依 <a href="licenses.html">许可</a>（程序 GPL-3.0-or-later／文案与整理 CC BY-SA 4.0）发布。
+ </div>
+</div>
+<script src="data/avatars.js"></script>
+<script src="data/config.js"></script>
+<script src="data/content.js"></script>
+<script src="data/graph.js"></script>
+<script src="data/graph-geo.js"></script>
+<script src="assets/cite.js"></script>
+<script src="assets/vendor/qrcode.min.js"></script>
+<script src="assets/sharecard.js"></script>
+<script>
+(function () {
+  var G = window.SITE_GRAPH || { nodes: [], links: [] };
+  var AV = window.AVATAR_FILES || {}, GEO = window.SITE_GRAPH_GEO || {}, DGEO = window.SITE_DEATH_GEO || {};
+  var P = {}; G.nodes.forEach(function (n) { P[n.id] = n; });
+  var LABEL = { person: '人物', idea: '思想', org: '组织', event: '事件' };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function imgOf(n) {
+    if (n.img) return n.img;
+    var p = AV[n.id] || AV[String(n.id).replace(/_/g, '')];
+    return p || '';
+  }
+  function relGroups(id) {
+    var g = {}, cnt = 0;
+    G.links.forEach(function (l) {
+      var other = null, dir = '';
+      if (l.source === id) { other = l.target; dir = ''; }
+      else if (l.target === id) { other = l.source; dir = '← '; }
+      else return;
+      if (!P[other]) return;
+      (g[l.rel] = g[l.rel] || []).push(dir + P[other].name); cnt++;
+    });
+    return { groups: g, n: cnt };
+  }
+  function render(id) {
+    var n = P[id];
+    if (!n) { picker(); return; }
+    var place = (GEO[id] && GEO[id].place) || n.prov || '';
+    var dplace = (DGEO[id] && DGEO[id].place) || '';
+    var rg = relGroups(id);
+    var html = '<div class="hd">' +
+      (imgOf(n) ? '<img src="' + esc(imgOf(n)) + '" alt="' + esc(n.name || '') + '" onerror="this.outerHTML=\'<div class=&quot;ph&quot;>\'+(this.alt||&quot;·&quot;).charAt(0)+\'</div>\'">' : '<div class="ph">' + esc((n.name || '·').charAt(0)) + '</div>') +
+      '<div><h1>' + esc(n.name) + '</h1>' +
+      '<div><span class="chip">' + esc(LABEL[n.type] || n.type || '') + '</span>' + (n.crit ? '<span class="chip">被批判 / 对立</span>' : '') + '</div>' +
+      '<div class="meta">' + [n.years, n.role].filter(Boolean).map(esc).join(' · ') + '</div>' +
+      (place || dplace ? '<div class="meta">' + [place ? '籍贯 ' + place : '', dplace ? '逝世于 ' + dplace : ''].filter(Boolean).map(esc).join(' · ') + '</div>' : '') +
+      '</div></div>';
+    if (n.desc) html += '<h2>简介</h2><p>' + esc(n.desc) + '</p>';
+    if (n.points && n.points.length) html += '<h2>要点</h2><ul>' + n.points.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+    if (n.works && n.works.length) html += '<h2>代表文献</h2><ul>' + n.works.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+    if (rg.n) {
+      html += '<h2>关系网（' + rg.n + ' 条）</h2><div class="rel">';
+      Object.keys(rg.groups).forEach(function (k) {
+        html += '<div><b>' + esc(k) + '</b>：' + rg.groups[k].map(esc).join('、') + '</div>';
+      });
+      html += '</div>';
+    }
+    document.getElementById('body').innerHTML = html;
+    document.title = n.name + ' · 速查卡 · 学通';
+    var st = document.getElementById('stamp');
+    if (st) st.textContent = '学通 · ' + new Date().toISOString().slice(0, 10);
+    window.__id = id;
+    var _sb=document.getElementById("shareBtn"); if(_sb) _sb.style.display="";
+  }
+  function picker() {
+    var _sb2=document.getElementById("shareBtn"); if(_sb2) _sb2.style.display="none";
+    var ps = G.nodes.filter(function (n) { return n.type === 'person'; })
+      .sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'zh'); });
+    document.getElementById('body').innerHTML = '<h1>选择要打印的人物</h1>' +
+      '<p style="color:#6b5c48;font-size:.82rem">共 ' + ps.length + ' 位。打开后可直接打印，或另存为 PDF。</p>' +
+      '<div class="pick">' + ps.map(function (n) {
+        return '<a href="card.html?id=' + encodeURIComponent(n.id) + '">' + esc(n.name) + '<span style="color:#6b5c48;font-size:.78rem">　' + esc(n.years || '') + '</span></a>';
+      }).join('') + '</div>';
+  }
+
+  var m = String(location.search || '').match(/[?&]id=([^&]+)/);
+  var id = m ? decodeURIComponent(m[1]) : decodeURIComponent(String(location.hash || '').replace(/^#\/?g?\//, '').replace(/^#/, ''));
+  render(id);
+  /* 分享图：assets/sharecard.js 未加载时（如离线首次访问）给出可读提示，避免点了没反应 */
+  if (!window.shareCardImg) window.shareCardImg = function () { alert('分享图脚本未能加载（可能是离线首次访问），请联网后刷新页面重试'); };
+  if (window.YZShareCard && window.YZShareCard.mount) window.YZShareCard.mount();
+})();
+</script>
+</body></html>
