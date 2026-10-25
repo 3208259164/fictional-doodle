@@ -22,6 +22,19 @@
 - 签名：ECDSA P-256，SHA-256 指纹 `60:C5:8F:E3:…:8D:99`（与 [元资源库](https://github.com/3208259164) 共用同一把密钥，可互相覆盖升级）
 - 每个 Release 的说明里附该版本 APK 的 SHA-256，可用 `sha256sum` 核对
 
+**如果 GitHub 直连下载失败**（`release-assets.githubusercontent.com` 在部分网络下不可达），可用加速镜像，下载后**务必核对 SHA-256**：
+
+```bash
+# 任选其一
+curl -L -o xuetong.apk "https://ghproxy.net/https://github.com/3208259164/fictional-doodle/releases/download/v0.17.22/xuetong-0.17.22.apk"
+curl -L -o xuetong.apk "https://gh-proxy.com/https://github.com/3208259164/fictional-doodle/releases/download/v0.17.22/xuetong-0.17.22.apk"
+
+# 校验（应与 Release 说明里的 SHA-256 一致）
+sha256sum xuetong.apk
+```
+
+> 第三方代理存在被篡改的可能，**只认 SHA-256，不看来源**。已实测 v0.17.22 经 `ghproxy.net` 下载后与官方逐字节一致。
+
 > **升级提示**：versionCode 严格递增（构建脚本会拒绝小于历史最大值的构建），因此新包总能覆盖旧包。
 > 应用不申请 INTERNET 权限，无法联网上传任何东西。
 
