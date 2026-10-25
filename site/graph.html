@@ -5,11 +5,17 @@
 <meta name="color-scheme" content="dark light">
 <meta name="description" content="人物 · 思想 · 组织 关系图谱：点击节点查看详细介绍与关联关系。">
 <style>
+.bk-go-btn { display:block; width:100%; margin:8px 0 4px; padding:10px 12px; border-radius:10px;
+  border:1px solid rgba(183,156,237,.55); background:rgba(183,156,237,.14); color:#dcc9ff;
+  font:inherit; font-size:.84rem; font-weight:600; cursor:pointer; text-align:center; }
+body.light .bk-go-btn { color:#5b2f86; background:rgba(123,75,168,.10); border-color:rgba(123,75,168,.45); }
+.bk-go-btn:active { opacity:.75; }
+
 :root{--accent:#f5c518;--text:#f2e8d8;--line:rgba(255,255,255,.18);--card:rgba(255,255,255,.06);--fam:#c792ea}
 *{margin:0;padding:0;box-sizing:border-box}html,body{height:100%}
 body{font-family:-apple-system,"PingFang SC","Noto Serif SC",serif;color:var(--text);overflow:hidden;
  background:radial-gradient(circle at 20% 0%,rgba(200,30,30,.22),transparent 45%),radial-gradient(circle at 90% 100%,rgba(245,197,24,.10),transparent 45%),linear-gradient(160deg,#261f38,#171226 60%,#100c1b)}
-#cv{position:fixed;inset:0;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#cv{position:fixed;top:0;left:0;right:0;bottom:0;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 .ui{position:fixed;z-index:5}
 #tl{top:12px;left:12px;max-width:min(74vw,440px)}
 .ui h1{font-size:1rem;letter-spacing:3px;color:var(--accent)}
@@ -18,6 +24,7 @@ body{font-family:-apple-system,"PingFang SC","Noto Serif SC",serif;color:var(--t
 .legend{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px;padding:6px 9px;border:1px solid var(--line);border-radius:10px;background:rgba(10,9,14,.6);font-size:.68rem}
 .legend .lg{display:inline-flex;align-items:center;gap:5px}.legend .lg::before{content:"";width:9px;height:9px;border-radius:50%}
 .lg-person::before{background:#8de6a1}.lg-idea::before{background:#7ec8ff}.lg-org::before{background:#ffd166}
+.lg-event::before{background:#E69F00}
 .lg-crit::before{background:#ff8b8b;border:1px solid rgba(255,255,255,.5)}
 .eg{display:inline-block;width:16px;height:0;border-top:2px solid}
 .eg-pos{border-color:rgba(245,197,24,.85)}.eg-neg{border-color:rgba(255,107,107,.95)}.eg-fam{border-color:var(--fam)}
@@ -25,6 +32,23 @@ body{font-family:-apple-system,"PingFang SC","Noto Serif SC",serif;color:var(--t
 #q{padding:8px 12px;border-radius:9px;border:1px solid var(--line);background:rgba(10,9,14,.78);color:var(--text);font-size:.8rem;outline:none;width:210px}
 #q:focus{border-color:var(--accent)}
 #graphSel{padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:rgba(10,9,14,.78);color:var(--accent);font-size:.74rem;outline:none;font-family:inherit;max-width:210px}
+/* 关系工具：可打字的对象选择器（原来只能在下拉里一个个翻） */
+.rt-picks{align-items:flex-start}
+.rt-pick{position:relative;flex:1;min-width:0}
+.rt-pick input{width:100%;box-sizing:border-box;padding:7px 9px;border-radius:9px;border:1px solid var(--line);
+  background:rgba(10,9,14,.78);color:var(--text);font-size:.76rem;font-family:inherit;outline:none}
+.rt-pick input:focus{border-color:var(--accent)}
+.rt-pick select{display:none}
+.rt-sug{position:absolute;left:0;right:0;top:calc(100% + 3px);z-index:5;display:none;max-height:212px;overflow:auto;
+  border:1px solid var(--line);border-radius:10px;background:rgba(14,12,22,.98);box-shadow:0 8px 22px rgba(0,0,0,.45)}
+.rt-sug.open{display:block}
+.rt-sug .it{padding:9px 10px;font-size:.76rem;line-height:1.35;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06)}
+.rt-sug .it:last-child{border-bottom:0}
+.rt-sug .it .sub2{display:block;font-size:.66rem;opacity:.6;margin-top:1px}
+.rt-sug .it.hl,.rt-sug .it:hover{background:rgba(245,197,24,.16)}
+.rt-sug .none{padding:9px 10px;font-size:.72rem;opacity:.6}
+body.light .rt-pick input{background:rgba(255,255,255,.92);color:#2a2320}
+body.light .rt-sug{background:#fff;color:#2a2320}
 #ops{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 #ops button{padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:rgba(10,9,14,.78);color:var(--text);font-size:.72rem;cursor:pointer;font-family:inherit}
 #ops button:hover,#ops button.on{border-color:var(--accent);color:var(--accent);background:rgba(245,197,24,.10)}
@@ -238,14 +262,23 @@ body.sepia #focusBar{background:rgba(253,246,230,.94);border-color:rgba(120,90,4
 #gtoast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:41;display:none;background:rgba(10,9,14,.94);
   color:#f3e6d8;border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:8px 14px;font-size:.8rem;max-width:86vw;text-align:center}
 
-</style></head><body>
+
+/* ===== 底部面板下调 + 收紧（手机端）：让画布多露出一些 ===== */
+@media (max-width:720px){
+  #tr{bottom:calc(6px + env(safe-area-inset-bottom,0px))!important;gap:4px!important}
+  #tr #q,#tr #graphSel{font-size:.72rem;padding:5px 9px;border-radius:14px}
+  #tr #ops button,#tr #filters button{padding:3px 8px;font-size:.65rem;border-radius:13px}
+  #tr .foldbar button{padding:2px 10px;font-size:.64rem}
+}
+</style><script src="assets/custom.js"></script><script src="assets/crash.js"></script><script src="assets/diag.js"></script>
+</head><body>
 <a class="skip" href="#lb">跳到节点列表</a>
 <canvas id="cv" role="img" aria-label="关系图谱画布：可拖动平移、滚轮缩放、点击节点查看详情；无法用鼠标时可改用左侧「📋 列表」按名称检索定位"></canvas>
 <div class="ui" id="tl"><h1>学通 · 关系图谱</h1><a class="back" href="index.html">← 返回学通</a>
- <div class="sub">拖动平移 · 滚轮缩放 · 点节点高亮其关系网</div>
+ <div class="sub" id="tlSub">拖动平移 · 滚轮缩放 · 点节点高亮其关系网</div>
  <div class="legend" id="nodeLegend">
   <span class="lg" style="opacity:.5">节点</span>
-  <span class="lg lg-person">人物</span><span class="lg lg-idea">思想</span><span class="lg lg-org">组织</span><span class="lg lg-crit">被批判 / 对立</span>
+  <span class="lg lg-person">人物</span><span class="lg lg-idea">思想</span><span class="lg lg-org">组织</span><span class="lg lg-event">事件</span><span class="lg lg-crit">被批判 / 对立</span>
  </div>
  <div class="legend" id="edgeLegend">
   <span class="lg" style="opacity:.5">关系线</span>
@@ -272,12 +305,14 @@ body.sepia #focusBar{background:rgba(253,246,230,.94);border-color:rgba(120,90,4
 <aside id="panel" aria-live="polite" aria-label="节点详情"><button class="x" onclick="collapsePanel()">▾ 收起</button>
  <div class="phead"><div class="pav" id="pav"></div><div><div class="chip" id="pchip"></div><h2 id="pname"></h2><div class="meta" id="pmeta"></div></div></div>
  <div id="pback"></div>
- <div class="desc" id="pdesc"></div><div id="prelic"></div><div id="ppts"></div><div id="pw"></div><div id="pr"></div>
+ <div class="desc" id="pdesc"></div><div id="pbk"></div><div id="prelic"></div><div id="ppts"></div><div id="pw"></div><div id="plib"></div><div id="pr"></div>
+ <button class="exitbtn" onclick="editSelNode()">✏️ 修改</button>
  <button class="exitbtn" onclick="clearSel()">← 取消高亮</button></aside>
 <button id="ptab" onclick="expandPanel()">📖 展开介绍</button>
 <script src="data/avatars.js"></script>
 <script src="data/content.js"></script>
 <script src="data/knowledge.js"></script>
+<script src="data/resources.js"></script>
 <script src="data/graph.js"></script>
 <script src="data/graph-wenge.js"></script>
 <script src="data/graph-geo.js"></script>
@@ -293,13 +328,28 @@ var GR=(window.YZY&&window.YZY.graphData)?window.YZY.graphData():(window.SITE_GR
 document.getElementById('nc').textContent=GR.nodes.length;document.getElementById('lc').textContent=GR.links.length;
 (function(){try{var sel=document.getElementById('graphSel');if(!sel||!window.YZY||!YZY.listGraphs)return;var list=YZY.listGraphs(),act=YZY.activeGraphId();list.forEach(function(g){var o=document.createElement('option');o.value=g.id;o.textContent=g.name;if(g.id===act)o.selected=true;sel.appendChild(o);});sel.onchange=function(){var v=sel.value;var r=YZY.setActiveGraph(v);if(r&&r.ok!==false){var qs=location.search.replace(/[?&]g=[^&]*/,'').replace(/^[?&]/,'');location.href=location.pathname+(qs?'?'+qs+'&':'?')+'g='+encodeURIComponent(v)+location.hash;}};}catch(e){}})();
 /* 类型配色：Okabe-Ito 色盲安全色板（蓝/橙/绿/黄，红绿色盲也能分辨）；亮色主题取深一档保证对比度 */
-function color(n){if(LIGHT){if(n.crit)return '#8E2A5E';if(n.type==='event')return '#C05000';if(n.type==='idea')return '#946200';if(n.type==='org')return '#00796B';return '#0072B2';}if(n.crit)return '#CC79A7';if(n.type==='event')return '#E69F00';if(n.type==='idea')return '#F0E442';if(n.type==='org')return '#009E73';return '#56B4E9';}
+/* 节点配色 —— 以图例为准：人物=绿、思想=蓝、组织=黄、被批判/对立=红、事件=橙。
+   （0.16.85 的画布与人相反：把人物画成蓝、思想画成黄，看图例会认错节点。） */
+function color(n){
+  if(LIGHT){
+    if(n.crit)return '#B03A3A';
+    if(n.type==='event')return '#C05000';
+    if(n.type==='idea')return '#1565C0';
+    if(n.type==='org')return '#A06A00';
+    return '#1B7A3E';
+  }
+  if(n.crit)return '#ff8b8b';
+  if(n.type==='event')return '#E69F00';
+  if(n.type==='idea')return '#7ec8ff';
+  if(n.type==='org')return '#ffd166';
+  return '#8de6a1';
+}
 function relKind(r){r=r||'';if(/批判|对立|分歧|开除|论战|叛徒|错误|敌人|反对|前身思潮/.test(r))return 'neg';if(/父子|伴侣|亲人|兄弟|夫妻/.test(r))return 'fam';return 'pos';}
 function relColor(r){var k=relKind(r);return k==='neg'?CL.neg:k==='fam'?CL.fam:CL.pos;}
 var KINDCLR=(GR&&GR.kinds)||{};
 function edgeColor(e){if(e&&e.k&&KINDCLR[e.k])return KINDCLR[e.k];return relColor(e?e.r:'');}
-function tyName(t){return t==='person'?'人物':t==='idea'?'思想':t==='event'?'事件':'组织';}
-function tyEmoji(t){return t==='person'?'👤':t==='idea'?'💡':t==='event'?'📅':'🏛';}
+function tyName(t){return t==='person'?'人物':t==='idea'?'思想':t==='event'?'事件':t==='work'?'著作':'组织';}
+function tyEmoji(t){return t==='person'?'👤':t==='idea'?'💡':t==='event'?'📅':t==='work'?'📕':'🏛';}
 var DIM=0.10;
 function sysDark(){try{if(window.AndroidApp&&typeof AndroidApp.systemDark==='function')return !!AndroidApp.systemDark();}catch(e){}return !(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches);}
 function isLightMode(){var t=localStorage.getItem('theme')||'auto';if(t==='light')return true;if(t==='dark')return false;return !sysDark();}
@@ -820,7 +870,8 @@ function draw(){
     if(big){ctx.lineWidth=1.3;ctx.strokeStyle=CL.ring;ctx.beginPath();ctx.arc(p.x,p.y,rr+3.5,0,6.2832);ctx.stroke();}
   }
   else{var R2=(viewMode==='geo')?GEO_USE.o:R;   /* 地图上同样缩小 */o._R=R2;
-   /* 形状也表达类型：◆事件 ■组织 ●人物/思想（色盲/灰度下同样可辨） */
+   /* 形状也表达类型：◆事件 ■组织 ▲思想 ⬡概念 ●人物（色盲/灰度下同样可辨；
+      之前思想与人物同为圆点，只能靠颜色区分，容易看成「人物用了思想的颜色」） */
    ctx.beginPath();
    if(o.d.type==='event'){var _dr=R2*1.3;ctx.moveTo(p.x,p.y-_dr);ctx.lineTo(p.x+_dr,p.y);ctx.lineTo(p.x,p.y+_dr);ctx.lineTo(p.x-_dr,p.y);ctx.closePath();}
    else if(o.d.type==='org'){ctx.rect(p.x-R2*0.92,p.y-R2*0.92,R2*1.84,R2*1.84);}
@@ -1008,9 +1059,9 @@ function fillRelSelects() {
   A.innerHTML = html; B.innerHTML = html;
 }
 /* ================= 图谱页管理：自定义显示哪些工具 / 节点 / 关系（round25 新增） ================= */
-var MG_KEY='graphMgr', MG={tools:{},nodes:{},rels:{}};
+var MG_KEY='graphMgr', MG={tools:{},nodes:{},rels:{},top:{}};
 function mgLoad(){ try{ var o=JSON.parse(localStorage.getItem(MG_KEY)||'{}')||{};
-  MG={tools:o.tools||{},nodes:o.nodes||{},rels:o.rels||{}}; }catch(e){ MG={tools:{},nodes:{},rels:{}}; } }
+  MG={tools:o.tools||{},nodes:o.nodes||{},rels:o.rels||{},top:o.top||{}}; }catch(e){ MG={tools:{},nodes:{},rels:{},top:{}}; } }
 function mgSave(){ try{ localStorage.setItem(MG_KEY,JSON.stringify(MG)); }catch(e){} }
 var MG_TOOLS=[
  {id:'fb',  t:'⤢ 适应窗口'},
@@ -1022,13 +1073,19 @@ var MG_TOOLS=[
  {id:'eb',  t:'🔗 关系线'},
  {id:'lb',  t:'📋 列表'},
  {id:'rtb', t:'🔎 关系工具'},
- {id:'dtb', t:'⬇ 数据'}
+ {id:'dtb', t:'⬇ 数据'},
+ {id:'rankb', t:'📊 排名'}
 ];
+/* 顶部区域：图例与操作提示可在「管理」里关掉，只留标题与「返回」 */
+var MG_TOP=[{id:'nodeLegend',t:'🎨 节点图例'},{id:'edgeLegend',t:'🔗 关系线图例'},{id:'tlSub',t:'📌 操作提示'}];
+function mgTopHidden(id){ return MG.top && MG.top[id]===false; }
+function mgApplyTop(){ MG_TOP.forEach(function(t){ var e=document.getElementById(t.id); if(e) e.style.display=mgTopHidden(t.id)?'none':''; }); }
+function toggleMgrTop(id){ MG.top=MG.top||{}; MG.top[id]= mgTopHidden(id)?true:false; mgSave(); mgApplyTop(); renderMgr(); }
 var MG_TYPES=[{k:'person',t:'👤 人物'},{k:'idea',t:'💡 思想'},{k:'org',t:'🏛 组织'},{k:'event',t:'📅 事件'},{k:'crit',t:'⚠ 被批判 / 对立'}];
 function mgKinds(){ try{ return (GR&&GR.kinds)?Object.keys(GR.kinds):[]; }catch(e){ return []; } }
 function mgRelList(){ var ks=mgKinds(); if(ks.length) return ks.map(function(k){ return {k:k,t:k}; });
   return [{k:'kind:pos',t:'同志·协作'},{k:'kind:neg',t:'批判·对立'},{k:'kind:fam',t:'亲属·伴侣'}]; }
-var MG_DEFAULT_OFF={cb2:1,cb3:1,cb4:1,dtb:1};   /* 社区 / 时间轴 / 束线 / 「⬇ 数据」：默认不显示，需要时去「⚙ 管理」里打开 */
+var MG_DEFAULT_OFF={cb2:1,cb3:1,cb4:1,dtb:1,rankb:1};   /* 社区 / 时间轴 / 束线 / 数据 / 排名：默认不显示，需要时去「⚙ 管理」里打开 */
 function mgToolHidden(id){ if(MG.tools[id]===true) return true; if(MG.tools[id]===false) return false; return !!MG_DEFAULT_OFF[id]; }
 function mgNodeHidden(k){ return MG.nodes[k]===false; }
 function mgRelHidden(k){ return MG.rels[k]===false; }
@@ -1040,7 +1097,7 @@ function mgApplyTools(){
     if(t.id==='vb'){ b.style.display=(mgToolHidden('vb')||mapMode==='none'||mapOnly)?'none':''; return; }
     b.style.display=mgToolHidden(t.id)?'none':''; });
 }
-function applyMgr(){ mgApplyTools();
+function applyMgr(){ mgApplyTools(); mgApplyTop(); try{ renderMgr(); }catch(e){}
   try{ window.__kf=window.__kf||{}; mgKinds().forEach(function(k){ window.__kf[k]=!mgRelHidden(k); }); }catch(e){} syncKindRow(); }
 function syncKindRow(){ try{ var row=document.getElementById('kinds'); if(!row) return;
   Array.prototype.slice.call(row.querySelectorAll('button')).forEach(function(b){
@@ -1051,6 +1108,8 @@ function setKindVis(kn, show){ if(show) delete MG.rels[kn]; else MG.rels[kn]=fal
 function renderMgr(){
   var t=document.getElementById('mgTools');
   if(t) t.innerHTML=MG_TOOLS.map(function(x){ return '<button type="button" class="'+(mgToolHidden(x.id)?'off':'on')+'" onclick="toggleMgrTool(\''+x.id+'\')">'+x.t+'</button>'; }).join('');
+  var tt=document.getElementById('mgTop');
+  if(tt) tt.innerHTML=MG_TOP.map(function(x){ return '<button type="button" class="'+(mgTopHidden(x.id)?'off':'on')+'" onclick="toggleMgrTop(\''+x.id+'\')">'+x.t+'</button>'; }).join('');
   var n=document.getElementById('mgNodes');
   if(n) n.innerHTML=MG_TYPES.map(function(x){ return '<button type="button" class="'+(mgNodeHidden(x.k)?'off':'on')+'" onclick="toggleMgrNode(\''+x.k+'\')">'+x.t+'</button>'; }).join('');
   var list=mgRelList(), r=document.getElementById('mgRels');
@@ -1083,6 +1142,12 @@ function openRelTool() {
     var cand = GR.nodes.filter(function (n) { return n.type === 'person' && (!A || n.id !== A.value); })[0];
     if (cand) B.value = cand.id;
   }
+  /* 把当前选中的 id 同步到「可输入」的输入框里 */
+  try {
+    var aq = document.getElementById('rtAq'), bq = document.getElementById('rtBq');
+    if (aq && A && A.value) aq.value = (P[A.value] || {}).name || '';
+    if (bq && B && B.value) bq.value = (P[B.value] || {}).name || '';
+  } catch (e) { }
   yzCloseDrawers('relTool');
   box.classList.add('open');
   yzFocusPanel('#relTool .rt-x');
@@ -1095,6 +1160,99 @@ function closeRelTool() { var b = document.getElementById('relTool'); if (b) b.c
 function swapRel() {
   var A = document.getElementById('rtA'), B = document.getElementById('rtB'); if (!A || !B) return;
   var t = A.value; A.value = B.value; B.value = t;
+  try {
+    var aq = document.getElementById('rtAq'), bq = document.getElementById('rtBq');
+    if (aq) aq.value = (P[A.value] || {}).name || '';
+    if (bq) bq.value = (P[B.value] || {}).name || '';
+  } catch (e) { }
+}
+/* ---- 关系工具：可打字选对象（支持汉字 / 全拼 / 首字母，键盘 ↑↓ + 回车） ---- */
+var _relHit = { A: [], B: [], hl: { A: -1, B: -1 } };
+function relCand(q) {
+  var key = String(q || '').trim().toLowerCase();
+  var all = GR.nodes || [];
+  if (!key) {
+    /* 没输入：先给人物，再给其他类型 */
+    return all.filter(function (n) { return n.type === 'person'; }).slice(0, 60)
+      .concat(all.filter(function (n) { return n.type !== 'person'; }).slice(0, 20));
+  }
+  var out = [];
+  for (var i = 0; i < all.length; i++) {
+    var n = all[i]; if (!n || !n.name) continue;
+    var nm2 = String(n.name).toLowerCase();
+    var hit = nm2.indexOf(key) >= 0;
+    if (!hit) {
+      try {
+        var py = _pyOf(n.name);
+        /* 用「包含」而不是「开头」：中文名里常有「·」「·」与外国名前缀，
+           如「卡尔·马克思」的首字母串是 k·mks，按开头匹配会让 mks 搜不到他。 */
+        hit = (py.full && py.full.indexOf(key) >= 0) || (py.abbr && py.abbr.indexOf(key) >= 0);
+      } catch (e) { }
+    }
+    if (!hit) {
+      try { hit = (n.tags || []).some(function (t) { return String(t).toLowerCase().indexOf(key) >= 0; }); } catch (e) { }
+    }
+    if (hit) out.push(n);
+    if (out.length >= 30) break;
+  }
+  return out;
+}
+function relPickInput(side, q) {
+  var sug = document.getElementById('rt' + side + 'sug');
+  if (!sug) return;
+  var list = relCand(q);
+  _relHit[side] = list; _relHit.hl[side] = list.length ? 0 : -1;
+  if (!list.length) { sug.innerHTML = '<div class="none">没有匹配的对象，试试拼音首字母（如 mks）</div>'; sug.classList.add('open'); return; }
+  sug.innerHTML = list.map(function (n, i) {
+    var sub = [n.years, n.role].filter(Boolean).join(' · ');
+    return '<div class="it' + (i === 0 ? ' hl' : '') + '" role="option" data-i="' + i + '" ' +
+      'onmousedown="relPickSet(\'' + side + '\',\'' + String(n.id).replace(/'/g, '') + '\')">' +
+      esc2(n.name) + (sub ? '<span class="sub2">' + esc2(sub) + '</span>' : '') + '</div>';
+  }).join('');
+  sug.classList.add('open');
+}
+function relPickSet(side, id) {
+  var sel = document.getElementById('rt' + side), inp = document.getElementById('rt' + side + 'q');
+  var sug = document.getElementById('rt' + side + 'sug');
+  if (!sel) return;
+  /* select 里可能没有这个 id 的 option（例如概念 / 事件节点）——先补一个，
+     否则 sel.value 赋值会被浏览器忽略，查询就白做了。 */
+  var hasOpt = false;
+  for (var oi = 0; oi < sel.options.length; oi++) if (sel.options[oi].value === id) { hasOpt = true; break; }
+  if (!hasOpt) {
+    try {
+      var op = document.createElement('option');
+      op.value = id; op.textContent = (P[id] || {}).name || id;
+      sel.appendChild(op);
+    } catch (e) { }
+  }
+  sel.value = id;
+  var n = P[id] || {};
+  if (inp) inp.value = n.name || '';
+  if (sug) { sug.classList.remove('open'); sug.innerHTML = ''; }
+  _relHit.hl[side] = -1;
+}
+function relPickKey(ev, side) {
+  var sug = document.getElementById('rt' + side + 'sug');
+  var list = _relHit[side] || [];
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    if (!sug || !sug.classList.contains('open')) { relPickInput(side, (document.getElementById('rt' + side + 'q') || {}).value || ''); return; }
+    ev.preventDefault();
+    var d = ev.key === 'ArrowDown' ? 1 : -1;
+    var i = (_relHit.hl[side] + d + list.length) % Math.max(1, list.length);
+    _relHit.hl[side] = i;
+    var its = sug.querySelectorAll('.it');
+    for (var k = 0; k < its.length; k++) its[k].classList.toggle('hl', k === i);
+    if (its[i] && its[i].scrollIntoView) { try { its[i].scrollIntoView({ block: 'nearest' }); } catch (e) { } }
+    return;
+  }
+  if (ev.key === 'Enter') {
+    var idx = _relHit.hl[side];
+    if (idx >= 0 && list[idx]) { ev.preventDefault(); relPickSet(side, list[idx].id); }
+    else { ev.preventDefault(); try { runRelTool(); } catch (e) { } }
+    return;
+  }
+  if (ev.key === 'Escape') { if (sug) sug.classList.remove('open'); }
 }
 function runRelTool() {
   var A = document.getElementById('rtA'), B = document.getElementById('rtB'), out = document.getElementById('rtOut');
@@ -1245,9 +1403,22 @@ function exportData(kind) {
           if (n.works && n.works.length) o.works = n.works;
           if (n.tags && n.tags.length) o.tags = n.tags;
           if (n.crit) o.crit = true;
+          /* 出处与地理：地理模式/详情面板要用，导出再导入不能丢 */
+          if (n.source) o.source = n.source;
+          if (n.prov) o.prov = n.prov;
+          if (n.place) o.place = n.place;
+          if (Array.isArray(n.geo) && n.geo.length === 2) o.geo = [n.geo[0], n.geo[1]];
+          else { if (typeof n.lng === 'number' && isFinite(n.lng)) o.lng = n.lng;
+                 if (typeof n.lat === 'number' && isFinite(n.lat)) o.lat = n.lat; }
           return o;
         }),
-        links: links.map(function (l) { return { source: l.source, target: l.target, rel: l.rel }; })
+        links: links.map(function (l) {
+          var sid = (l.source && typeof l.source === 'object') ? l.source.id : l.source;
+          var tid = (l.target && typeof l.target === 'object') ? l.target.id : l.target;
+          var e = { source: sid, target: tid, rel: l.rel };
+          if (l.src) e.src = l.src;            /* 关系依据 */
+          return e;
+        })
       };
       var jtxt = JSON.stringify(o, null, 2);
       if (window.YZSave && YZSave.text(tag + '-' + stamp + '.json', 'application/json', jtxt)) { showExported(tag + '-' + stamp + '.json', jtxt, 'application/json'); return; }
@@ -1466,6 +1637,30 @@ function showInNet(id) {
   toast2('已在关系网中定位：' + nm(id));
 }
 
+/* 事件节点若在「史料 → 重大事件」里有同名条目，就给出直达入口。
+   （SITE_EXTRA 在 data/knowledge.js 里，本页已加载；世界图谱的 19 个同名事件
+     文本已由 tools/link_world_events.js 与史料统一，避免两处各写一遍。） */
+function exEventIdx(nm){
+  var E=(window.SITE_EXTRA&&window.SITE_EXTRA.events)||[];
+  for(var i=0;i<E.length;i++){ if(E[i] && E[i].name===nm) return i; }
+  return -1;
+}
+/* 从图谱节点详情直接去改这条内容：人物跳首页人物详情（那里有「✏️」可改生卒年/身份/介绍） */
+function editSelNode(){
+  try{
+    if(!selected||!selected.d){ toast2('请先点选一个节点'); return; }
+    var n=selected.d, nm=n.name||'';
+    if(n.type==='person' && nm){
+      location.href='index.html#/p/'+encodeURIComponent(nm);
+      return;
+    }
+    if(n.type==='idea'||n.type==='org'||n.type==='event'){
+      toast2('思想 / 组织 / 事件请在「史料」对应栏目里修改');
+      return;
+    }
+    toast2('该节点暂不支持直接修改');
+  }catch(e){ try{ toast2('打开失败：'+(e&&e.message)); }catch(_){} }
+}
 function select(id){var o=ix[id];if(!o)return;
  selected=o;nb={};nb[o.d.id]=1;
  GR.links.forEach(function(l){if(l.source===id)nb[l.target]=1;if(l.target===id)nb[l.source]=1;});
@@ -1507,16 +1702,54 @@ function panel(id){var n=P[id];if(!n)return;
  var av=document.getElementById('pav');
  av.innerHTML=n.img?('<img src="'+escA2(n.img)+'" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.parentNode.innerHTML=\'<span>'+tyEmoji(n.type)+'</span>\'">'):'<span>'+tyEmoji(n.type)+'</span>';
  document.getElementById('pdesc').textContent=n.desc||'';
+ /* 著作节点：直接给书库入口（有 bookId 就精确打开，没有就按书名搜） */
+ try{
+  var _bkBox=document.getElementById('pbk');
+  if(_bkBox){
+    if(n.type==='work'){
+      _bkBox.innerHTML='<button type="button" class="bk-go-btn" onclick="' +
+        (n.bookId? ("location.href='index.html#/r/'+encodeURIComponent('"+String(n.bookId).replace(/'/g,'')+"')") : ("openBook(\'"+String(n.name).replace(/'/g,'')+"\')")) +
+        '">📚 到书库打开《'+esc2(n.name)+'》</button>';
+    } else { _bkBox.innerHTML=''; }
+  }
+ }catch(e){}
  var cm=CMAP[n.name];
  document.getElementById('prelic').innerHTML=cm?('<div class="sub2">革命史料 · 简介</div><div style="font-size:.83rem;line-height:1.95;opacity:.9">'+esc2(cm.intro||'')+'</div>'+(cm.works?('<div style="font-size:.75rem;opacity:.72;margin-top:6px">代表作：'+esc2(cm.works)+'</div>'):'')):'';
  var pts=n.points||[];
  document.getElementById('ppts').innerHTML=pts.length?'<div class="sub2">要点</div><ul class="pts">'+pts.map(function(x){return '<li>'+esc2(x)+'</li>';}).join('')+'</ul>':'';
  var w=n.works||[];
  document.getElementById('pw').innerHTML=w.length?'<div class="sub2">代表文献 <span style="font-size:.72em;opacity:.6;font-weight:normal">· 点书名到书库查看／阅读</span></div><div class="wrap">'+w.map(function(x){return '<button type="button" title="到书库查看《'+esc2(x)+'》——有原文可直接阅读，没有可导入本机文件" onclick="openBook(\''+String(x).replace(/'/g,'')+'\')">'+esc2(x)+'</button>';}).join('')+'</div>':'';
+ /* 书库联动：按作者名动态查（不依赖手写的 works 列表） */
+ try{
+  var _RES = window.SITE_RESOURCES || [];
+  var _nm = String(n.name || '');
+  var _mine = _RES.filter(function(r){
+    var a = String(r.author || '');
+    if (!a || !_nm) return false;
+    if (a === _nm) return true;
+    return a.indexOf(_nm) >= 0 && _nm.length >= 2;
+  });
+  var _hasBody = _mine.filter(function(r){ return r.status === 'ok'; });
+  var _el = document.getElementById('plib');
+  if (_el) {
+    if (_mine.length) {
+      _el.innerHTML = '<div class="sub2">书库中 ' + _mine.length + ' 本' +
+        (_hasBody.length ? ' · 其中 ' + _hasBody.length + ' 本有原文' : ' · 均为书壳，可导入本机文件') + '</div>' +
+        '<div class="wrap">' + _mine.slice(0, 12).map(function(r){
+          return '<button type="button" title="到书库查看《' + esc2(r.title) + '》" onclick="openBook(\'' + String(r.title).replace(/'/g, '') + '\')">' + esc2(r.title) + '</button>';
+        }).join('') + (_mine.length > 12 ? '<button type="button" onclick="openBook(\'' + _nm + '\')" style="opacity:.7">还有 ' + (_mine.length - 12) + ' 本 ›</button>' : '') + '</div>';
+    } else {
+      _el.innerHTML = '';
+    }
+  }
+ }catch(e){}
  var rels=[];
  GR.links.forEach(function(l){if(l.source===id)rels.push({id:l.target,rel:l.rel,o:true,src:l.src});if(l.target===id)rels.push({id:l.source,rel:l.rel,o:false,src:l.src});});
  document.getElementById('pr').innerHTML=rels.length?'<div class="sub2">关系网 · 关联 '+rels.length+' 个</div><div class="rlist">'+rels.map(function(r){var t=P[r.id];if(!t)return '';var kk=relKind(r.rel);var avv=t.img?'<img class="rav" src="'+escA2(t.img)+'" alt="" onerror="this.replaceWith(document.createTextNode(\'\'))">':'<span class="rav">'+tyEmoji(t.type)+'</span>';return '<button class="rbtn rk-'+kk+'" onclick="focusN(\''+r.id+'\')">'+avv+'<span class="rtx"><b>'+(r.o?'':'← ')+esc2(t.name)+'</b><em>'+tyName(t.type)+(t.crit?' · 对立':'')+'</em></span><i>'+esc2(r.rel)+(r.src?'（依据：'+esc2(r.src)+'）':'')+'</i></button>';}).join('')+'</div>':'';
- document.getElementById('pback').innerHTML='<p style="margin:0 0 10px"><a href="index.html#/g/'+n.id+'" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📖 在革命史料中查看 →</a></p>'+panelExtra(n.id);
+ var _exi = (n.type==='event' || n.ex) ? exEventIdx(n.name) : -1;
+ document.getElementById('pback').innerHTML='<p style="margin:0 0 10px"><a href="index.html#/g/'+n.id+'" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📖 在革命史料中查看 →</a></p>' +
+   (_exi>=0 ? '<p style="margin:0 0 10px"><a href="index.html#/e/'+_exi+'" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📜 重大事件完整记述（背景 / 要点 / 影响）→</a></p>' : '') +
+   panelExtra(n.id);
  document.getElementById('panel').classList.add('open');document.body.classList.add('p-open');var tb=document.getElementById('ptab');if(tb)tb.classList.remove('show');
 }
 function closePanel(){var _p=document.getElementById('panel');if(_p)_p.classList.remove('open');document.body.classList.remove('p-open');}
@@ -1588,15 +1821,28 @@ addEventListener('resize',function(){resize();draw();placeJump();});
 resize();if(viewMode==='geo'){fitGeo();}else if(mapMode==='china'){fitTo(ns);}else{centerDefault();}
 var _vb=document.getElementById('vb');if(_vb){if(mapMode==='none'||mapOnly){_vb.style.display='none';}_vb.classList.toggle('on',viewMode==='geo');_vb.textContent=(viewMode==='geo')?'🧩 关系网':'🗺 地图';}
 mgLoad();applyMgr();rankCompute();restoreViewState();
+setTimeout(function(){ try{ renderMgr(); }catch(e){} }, 0);   /* #mgTop 的 DOM 在脚本之后，就绪后再渲染一次 */
 parseHashInit();
 </script>
 <aside id="relTool" role="dialog" aria-label="关系工具" aria-modal="false">
  <div class="rt-box">
   <div class="rt-h"><span>🔎 关系工具</span><span class="rt-x" role="button" tabindex="0" onclick="closeRelTool()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();closeRelTool();}" title="收起">▾ 收起</span></div>
-  <div class="rt-row">
-    <select id="rtA" aria-label="第一个对象"></select>
+  <div class="rt-row rt-picks">
+    <div class="rt-pick">
+      <input id="rtAq" type="search" placeholder="输入姓名 / 全拼 / 首字母" aria-label="第一个对象（可输入搜索）"
+             autocomplete="off" oninput="relPickInput('A',this.value)" onkeydown="relPickKey(event,'A')"
+             onfocus="relPickInput('A',this.value)">
+      <div class="rt-sug" id="rtAsug" role="listbox" aria-label="候选"></div>
+      <select id="rtA" aria-label="第一个对象" tabindex="-1"></select>
+    </div>
     <button onclick="swapRel()" title="交换左右">⇄</button>
-    <select id="rtB" aria-label="第二个对象"></select>
+    <div class="rt-pick">
+      <input id="rtBq" type="search" placeholder="输入姓名 / 全拼 / 首字母" aria-label="第二个对象（可输入搜索）"
+             autocomplete="off" oninput="relPickInput('B',this.value)" onkeydown="relPickKey(event,'B')"
+             onfocus="relPickInput('B',this.value)">
+      <div class="rt-sug" id="rtBsug" role="listbox" aria-label="候选"></div>
+      <select id="rtB" aria-label="第二个对象" tabindex="-1"></select>
+    </div>
   </div>
   <div class="rt-row"><button class="rt-go" onclick="runRelTool()">查询</button><span class="rt-hint">查两个人的共同关系、最短关系链（可当“传承脉络”用）与同代/同乡</span></div>
   <div id="rtOut" class="rt-out" aria-live="polite"></div>
@@ -1612,6 +1858,7 @@ parseHashInit();
  <button class="x" onclick="closeMgr()">▾ 收起</button>
  <div class="mgh0">⚙ 图谱管理</div>
  <p class="mg-note">决定这张图谱上显示哪些工具、节点与关系。设置只存在本机，随时可改。<br>默认只留常用的（适应窗口 / 地图 / 清屏 / 关系线 / 列表 / 关系工具 / 导出数据）；社区、时间轴、束线默认关闭，点一下即可打开。</p>
+ <div class="mg-sec"><div class="mg-h">顶部显示<span class="mg-sub">关掉后页面顶部只留标题和「返回」</span></div><div id="mgTop" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">工具按钮<span class="mg-sub">关掉就从底部去掉</span></div><div id="mgTools" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">节点<span class="mg-sub">关掉则该类不再显示（其关系线一起隐藏）</span></div><div id="mgNodes" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">关系<span class="mg-sub">关掉则不画该类关系线</span></div><div id="mgRels" class="mg-grid"></div></div>

@@ -27,10 +27,15 @@
   function withDB(cb) {
     if (_db) return cb(_db);
     if (!window.indexedDB) return cb(null);
+    var _tDb = (window.__YZTiming ? window.__YZTiming.now() : 0);
     try {
       var rq = window.indexedDB.open(DB_NAME, 1);
       rq.onupgradeneeded = function () { try { if (!rq.result.objectStoreNames.contains(STORE)) rq.result.createObjectStore(STORE); } catch (e) { } };
-      rq.onsuccess = function () { _db = rq.result; cb(_db); };
+      rq.onsuccess = function () {
+        _db = rq.result;
+        try { if (window.__YZTiming) window.__YZTiming.span('dbOpen', _tDb); } catch (e) {}
+        cb(_db);
+      };
       rq.onerror = function () { cb(null); };
     } catch (e) { cb(null); }
   }
@@ -239,7 +244,6 @@
       });
     };
     paint(arr);
-    try { window.__yzLocalBookCount = arr.length; } catch (e) { }
     /* 一次性完整性自检：元数据在、文件却已被系统清掉的，不能再显示“已收录” */
     dbKeys(function (keys) {
       if (!keys) return;                       /* 环境不支持检查 → 保持原样 */
@@ -249,7 +253,6 @@
       if (!missing.length) return;
       missing.forEach(function (m) { detachByBookId(m.id); });
       try { metaSave(arr.filter(function (m) { return have[m.id]; })); } catch (e) { }
-      try { window.__yzLocalBookCount = metaAll().length; } catch (e) { }
       try { if (typeof render === 'function') render(); } catch (e) { }
       try { toast('检测到 ' + missing.length + ' 本本机电子书已不在本机（可能被系统清理了），条目已还原为「暂无原文」，可重新导入'); } catch (e) { }
     });
@@ -397,12 +400,32 @@
         '<button onclick="yzBooks.remove(\'' + esc(id) + '\')">🗑 从本机删除</button></div>');
   }
 
+  /* 章节标题识别：第一章 / 一、 / 1. / 序言 / 前言 / 引言 / 结语 / 后记 / 附录 / 尾声
+     —— 只认「短行」，避免把正文里出现「第一章」的句子误当标题。 */
+  var CH_RE = /^(?:第\s*[〇零一二三四五六七八九十百千0-9]+\s*[章节篇部卷讲]|[〇零一二三四五六七八九十]{1,3}\s*[、.．]|[0-9]{1,3}\s*[、.．)）]|序\s*[言章]|前\s*言|引\s*言|导\s*言|结\s*语|后\s*记|附\s*录|尾\s*声)/;
+  function splitChapters(paras) {
+    var chs = [], i;
+    for (i = 0; i < paras.length; i++) {
+      var t = String(paras[i]).replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+      if (!t || t.length > 34) continue;
+      if (CH_RE.test(t)) chs.push({ pi: i, title: t.slice(0, 30) });
+    }
+    return chs;
+  }
+
   function renderReader(title, text, id) {
     if (typeof openContent !== 'function') return;
     var paras = String(text).replace(/\r\n?/g, '\n').split(/\n{2,}/).map(function (s) { return s.replace(/[ \t]+$/g, ''); }).filter(function (s) { return s.trim().length > 0; });
     if (!paras.length) paras = ['（空文件）'];
     var fs = parseInt(localStorage.getItem('readerFS') || '17', 10) || 17;
-    var body = paras.map(function (p) { return '<p>' + esc(p).replace(/\n/g, '<br>') + '</p>'; }).join('');
+    var chs = splitChapters(paras), chAt = {}, ci;
+    for (ci = 0; ci < chs.length; ci++) chAt[chs[ci].pi] = ci;
+    var body = paras.map(function (p, i) {
+      var inner = (chAt[i] != null)
+        ? '<h3 class="rch" id="yzch-' + chAt[i] + '" data-ch="' + chAt[i] + '">' + esc(p).replace(/\n/g, '<br>') + '</h3>'
+        : '<p data-i="' + i + '">' + esc(p).replace(/\n/g, '<br>') + '</p>';
+      return inner;
+    }).join('');
     openContent('📖 ' + title,
       (typeof crumbFrom === 'function' ? crumbFrom([{ t: '我的书', fn: openLocalShelf }, { t: title, fn: function () { read(id, title); } }]) : '') +
       '<div id="yzReader" data-book="' + esc(id) + '">' +
@@ -410,27 +433,123 @@
           '<button onclick="yzBooks.setFS(-1)" aria-label="缩小字号">A−</button>' +
           '<span class="rfs">' + fs + '</span>' +
           '<button onclick="yzBooks.setFS(1)" aria-label="放大字号">A＋</button>' +
+          (chs.length ? '<button onclick="yzBooks.toc()" aria-label="目录">📑 目录</button>' : '') +
           '<span style="flex:1"></span>' +
-          '<span style="opacity:.6;font-size:.74rem">共 ' + paras.length + ' 段</span>' +
+          '<span class="rpos" style="opacity:.6;font-size:.72rem;margin-right:6px"></span>' +
+          '<span style="opacity:.6;font-size:.74rem">共 ' + paras.length + ' 段' + (chs.length ? ' · ' + chs.length + ' 章' : '') + '</span>' +
         '</div>' +
         '<article class="reader-body" style="font-size:' + fs + 'px">' + body + '</article>' +
       '</div>');
     restorePos(id);
+    updatePosLabel();
   }
 
   /* 进度记忆：记在 #drawer 的滚动位置上 */
   function drawerEl() { return document.getElementById('drawer'); }
+  /* ---------- 阅读位置：章节 + 章内比例（旧的纯像素值仍双写，兼容老版本数据） ---------- */
+  function chEls() { return document.querySelectorAll('#yzReader .rch'); }
+  function curCh() {
+    var hs = chEls(); if (!hs.length) return -1;
+    var d = drawerEl(); if (!d) return -1;
+    var base = d.getBoundingClientRect().top + 60, cur = 0;
+    for (var i = 0; i < hs.length; i++) {
+      if (hs[i].getBoundingClientRect().top <= base) cur = i; else break;
+    }
+    return cur;
+  }
+  function chRatio() {
+    /* 当前章节读了多少（0~1）：用下一章顶部 - 本章顶部作分母 */
+    var hs = chEls(); var c = curCh();
+    if (c < 0) return 0;
+    var d = drawerEl(); if (!d) return 0;
+    var base = d.getBoundingClientRect().top + 60;
+    var y0 = hs[c].getBoundingClientRect().top - base;
+    var y1 = (c + 1 < hs.length) ? (hs[c + 1].getBoundingClientRect().top - base) : (d.scrollHeight - d.scrollTop - 60);
+    if (y1 <= y0) return 0;
+    var r = (-y0) / (y1 - y0);
+    return Math.max(0, Math.min(1, r));
+  }
+  function updatePosLabel() {
+    var r = document.getElementById('yzReader'); if (!r) return;
+    var s = r.querySelector('.rpos'); if (!s) return;
+    var hs = chEls(), c = curCh();
+    if (!hs.length) { s.textContent = ''; return; }
+    var pct = Math.round(((c + chRatio()) / hs.length) * 100);
+    s.textContent = '第 ' + (c + 1) + '/' + hs.length + ' 章 · ' + pct + '%';
+  }
   function restorePos(id) {
     setTimeout(function () {
       var d = drawerEl(); if (!d) return;
+      var rec = null;
+      try { rec = JSON.parse(localStorage.getItem('readerCh-' + id) || 'null'); } catch (e) { rec = null; }
+      if (rec && rec.ch >= 0) {
+        var hs = chEls(), el = hs[rec.ch];
+        if (el) {
+          var y = el.getBoundingClientRect().top - d.getBoundingClientRect().top + d.scrollTop - 56;
+          try { d.scrollTop = Math.max(0, y); } catch (e) { }
+          updatePosLabel();
+          return;
+        }
+      }
       var top = parseInt(localStorage.getItem('readerPos-' + id) || '0', 10) || 0;
       if (top > 0) { try { d.scrollTop = top; } catch (e) { } }
+      updatePosLabel();
     }, 60);
   }
   function savePos() {
     var r = document.getElementById('yzReader'); if (!r) return;
     var d = drawerEl(); if (!d) return;
-    try { localStorage.setItem('readerPos-' + r.getAttribute('data-book'), String(d.scrollTop || 0)); } catch (e) { }
+    var id = r.getAttribute('data-book');
+    /* 旧键照写（像素），保证老逻辑 / 老数据都能用 */
+    try { localStorage.setItem('readerPos-' + id, String(d.scrollTop || 0)); } catch (e) { }
+    /* 新键：章节序号 + 章内比例 —— 换字号 / 换设备后仍能定位到同一处 */
+    try {
+      var c = curCh(), hs = chEls();
+      if (hs.length) {
+        localStorage.setItem('readerCh-' + id, JSON.stringify({ ch: c, r: Number(chRatio().toFixed(3)), t: Date.now() }));
+        /* 顺手把书架上的百分比更新成按章节算的真实进度 */
+        try {
+          if (window.YZRead && YZRead.setProgress) YZRead.setProgress(id, Math.round(((c + chRatio()) / hs.length) * 100));
+        } catch (e2) { }
+      }
+    } catch (e) { }
+    updatePosLabel();
+  }
+  /* 目录浮层：不替换阅读页（openContent 会把阅读器整个换掉） */
+  function toc() {
+    var hs = chEls(); if (!hs.length) { try { toast('这本书没识别到章节标题'); } catch (e) { } return; }
+    var cur = curCh(), i;
+    var old = document.getElementById('yzToc'); if (old) old.parentNode.removeChild(old);
+    var box = document.createElement('div');
+    box.id = 'yzToc';
+    box.setAttribute('style', 'position:fixed;left:0;right:0;top:0;bottom:0;z-index:210;background:rgba(0,0,0,.5)');
+    var list = '';
+    for (i = 0; i < hs.length; i++) {
+      var t = String(hs[i].textContent || '').slice(0, 40);
+      list += '<div data-ch="' + i + '" style="display:flex;align-items:center;gap:8px;min-height:48px;padding:6px 2px;border-bottom:1px solid var(--line);cursor:pointer">' +
+        '<span style="flex:1;font-size:.88rem;line-height:1.6;' + (i === cur ? 'color:var(--accent);font-weight:600' : '') + '">' + (i === cur ? '▶ ' : '') + esc(t) + '</span>' +
+        '<span style="opacity:.45;font-size:.72rem">' + (i + 1) + '</span></div>';
+    }
+    box.innerHTML = '<div style="position:absolute;left:0;right:0;bottom:0;top:auto;max-height:78vh;overflow:auto;background:var(--card);border-top:1px solid var(--card-border);border-radius:16px 16px 0 0;padding:14px 16px calc(18px + env(safe-area-inset-bottom, 0px))">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin:0 0 8px"><b style="flex:1">📑 目录（' + hs.length + ' 章）</b>' +
+      '<button data-close="1" style="background:none;border:0;color:inherit;font-size:1rem;padding:6px 8px">✕</button></div>' + list + '</div>';
+    document.body.appendChild(box);
+    box.addEventListener('click', function (ev) {
+      var tg = ev.target;
+      while (tg && tg !== box && !tg.getAttribute('data-ch') && !tg.getAttribute('data-close')) tg = tg.parentNode;
+      if (!tg || tg === box) { closeToc(); return; }
+      if (tg.getAttribute('data-close')) { closeToc(); return; }
+      var k = parseInt(tg.getAttribute('data-ch'), 10);
+      closeToc(); jumpCh(k);
+    });
+  }
+  function closeToc() { var e = document.getElementById('yzToc'); if (e && e.parentNode) e.parentNode.removeChild(e); }
+  function jumpCh(k) {
+    var hs = chEls(), el = hs[k]; if (!el) return;
+    var d = drawerEl(); if (!d) return;
+    var y = el.getBoundingClientRect().top - d.getBoundingClientRect().top + d.scrollTop - 56;
+    try { d.scrollTop = Math.max(0, y); } catch (e) { }
+    savePos();
   }
   function setFS(delta) {
     var fs = parseInt(localStorage.getItem('readerFS') || '17', 10) || 17;
@@ -487,7 +606,8 @@
   }
 
   /* 阅读时把「我的书」入口也挂到详情页按钮上（供 openItemDetail 调用） */
-  window.yzBooks = { load: loadAll, pick: pick, read: read, remove: remove, setFS: setFS, savePos: savePos, openShelf: openLocalShelf, openExternal: openExternal, importInto: importInto, findShell: findShell, findShellInfo: findShellInfo, decideShell: decideShell, simScore: simScore, meta: metaAll };
+  window.yzBooks = { load: loadAll, pick: pick, read: read, remove: remove, setFS: setFS, savePos: savePos, openShelf: openLocalShelf, openExternal: openExternal, importInto: importInto, findShell: findShell, findShellInfo: findShellInfo, decideShell: decideShell, simScore: simScore, meta: metaAll,
+    toc: toc, closeToc: closeToc, jumpCh: jumpCh, splitChapters: splitChapters, curCh: curCh };
   /* 滚动时保存进度（节流） */
   var _t = 0;
   window.addEventListener('scroll', function () { if (!document.getElementById('yzReader')) return; var n = Date.now(); if (n - _t < 1200) return; _t = n; savePos(); }, true);

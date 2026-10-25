@@ -1,5 +1,9 @@
 :root { --accent:#f5c518; --card:rgba(255,255,255,.09); --card-border:rgba(255,255,255,.34); --text:#f2e8d8; }
 body.light { --accent:#7a4e00; --card:rgba(120,10,10,.08); --card-border:rgba(120,10,10,.25); --text:#3a0d0d;
+  /* 编辑层（自助编辑台 / 图谱编辑）在浅色主题下的配色，避免弹出黑框 */
+  --panel-bg:#fffaf3; --panel-bg2:#f7ece1; --panel-line:rgba(120,40,30,.30); --panel-text:#3a0d0d;
+  --panel-accent:#8a3a00; --panel-btn:#8f3a2c; --panel-btn-line:#a8543f; --panel-btn-text:#fff8ef;
+  --panel-glass:rgba(255,250,243,.95);
   background:
     radial-gradient(circle at 20% 10%, rgba(255,150,120,.35), transparent 45%),
     radial-gradient(circle at 85% 90%, rgba(200,60,40,.25), transparent 50%),
@@ -18,7 +22,7 @@ body { font-family:-apple-system,"PingFang SC","Noto Serif SC",serif; color:var(
     repeating-linear-gradient(45deg, rgba(255,255,255,.018) 0 2px, transparent 2px 26px),
     linear-gradient(160deg, #4a0808 0%, #2b0505 55%, #170303 100%);
   background-attachment:fixed; }
-.stars { position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0; }
+.stars { position:fixed; top:0;left:0;right:0;bottom:0; pointer-events:none; overflow:hidden; z-index:0; }
 .stars span { position:absolute; color:rgba(245,197,24,.10); font-size:1.75rem; animation:float 14s ease-in-out infinite; }
 .stars span:nth-child(1){left:8%;top:15%;animation-delay:0s;font-size:2.1rem}
 .stars span:nth-child(2){left:85%;top:12%;animation-delay:-3s;font-size:1.4rem}
@@ -28,6 +32,11 @@ body { font-family:-apple-system,"PingFang SC","Noto Serif SC",serif; color:var(
 @keyframes float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-24px) rotate(18deg)}}
 
 .view { width:100%; display:flex; flex-direction:column; align-items:center; }
+/* ★ main 在 body(flex column, align-items:center) 下是「按内容收缩」的：
+   一旦首页的「每日一句」被隐藏（自定义片段），最宽的子元素消失，整个首页就会缩成一条，
+   表现为「我的主页内容变小」。这里强制撑满，宽度不再取决于内容。 */
+main#main { width:100%; min-width:0; }
+#view-home, #view-results { max-width:100%; }
 
 #setBtn,#musicBtn { position:fixed; top:calc(16px + env(safe-area-inset-top, 0px)); z-index:40; background:var(--card); border:1px solid var(--card-border);
   color:var(--text); border-radius:50%; width:40px; height:40px; cursor:pointer; font-size:1.125rem; backdrop-filter:blur(8px); }
@@ -132,7 +141,7 @@ body:not(.light) img.lface[src*="placeholder"], body:not(.light) img.lface-lg[sr
 .changelog li { padding:5px 0; border-bottom:1px dashed var(--card-border); opacity:.85; font-size:0.8rem; }
 .changelog li b { color:var(--text); font-weight:normal; margin-right:8px; }
 
-.modal { position:fixed; inset:0; z-index:80; background:rgba(0,0,0,.92); display:none; flex-direction:column; }
+.modal { position:fixed; top:0;left:0;right:0;bottom:0; z-index:80; background:rgba(0,0,0,.92); display:none; flex-direction:column; }
 .modal.open { display:flex; }
 .modal-bar { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 14px; font-size:0.875rem; }
 .modal-bar .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -140,7 +149,7 @@ body:not(.light) img.lface[src*="placeholder"], body:not(.light) img.lface-lg[sr
   border-radius:8px; padding:5px 12px; font-size:0.8125rem; cursor:pointer; text-decoration:none; }
 .modal iframe { flex:1; width:100%; border:0; background:#fff; }
 
-.scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:50; display:none; }
+.scrim { position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,.55); z-index:50; display:none; }
 .scrim.open { display:block; }
 .drawer { position:fixed; top:0; left:0; bottom:0; width:min(420px,100%); z-index:55; overflow-y:auto;
   padding:0 18px 40px; transform:translateX(-100%); transition:transform .25s ease;
@@ -184,3 +193,11 @@ body.no-motion a.card, body.no-motion .drawer{ transition:none; }
 @media (pointer: coarse) {
   #setBtn, #musicBtn, #toTop, .tabbar button { min-width:44px; min-height:44px; }
 }
+
+/* ===== 编辑层（自助编辑台 / 图谱编辑）配色：跟随主题，避免浅色主题下弹出黑框 ===== */
+:root { --panel-bg:#150c0c; --panel-bg2:#231313; --panel-line:#5c2b2b; --panel-text:#f2e7d8;
+        --panel-accent:#f3c98b; --panel-btn:#7a1f1f; --panel-btn-line:#a33; --panel-btn-text:#ffeccb;
+        --panel-glass:rgba(10,9,14,.9); }
+body.sepia { --panel-bg:#fbf3e0; --panel-bg2:#f4e7cc; --panel-line:rgba(120,80,20,.30); --panel-text:#3a2a0d;
+             --panel-accent:#7a5400; --panel-btn:#8a5a1f; --panel-btn-line:#a8763f; --panel-btn-text:#fffaf0;
+             --panel-glass:rgba(251,243,224,.95); }

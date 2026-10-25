@@ -26,7 +26,7 @@ console.log('== 学通 · 数据校验 ==');
 CFG.siteUrl ? OK('siteUrl 已配置') : E('SITE_CONFIG.siteUrl 缺失');
 
 /* 2. 资源 */
-const CATS = ['原著','导读','词典','有声书','歌曲','影像','参考','工具'];
+const CATS = ['原著','导读','词典','有声书','歌曲','影像','参考','工具','对公文献','当代'];
 const ids = new Set(), dup = [];
 RES.forEach((r, i) => {
   if (!r.id) E('资源 #' + i + ' 缺 id');

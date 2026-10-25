@@ -7,7 +7,7 @@
 # =====================================================================
 set -e
 APK="${1:?用法: bash tools/verify_apk.sh <apk> [build-tools目录]}"
-BT="${2:-${ANDROID_HOME:-$HOME/Android/Sdk}/build-tools/36.0.0}"
+BT="${2:-/sandbox/workspace/android/android-16}"
 [ -f "$APK" ] || { echo "找不到 APK: $APK"; exit 1; }
 T=/tmp/verify_apk_$$; mkdir -p "$T"; cp "$APK" "$T/a.apk"
 ok=0; fail=0
@@ -78,6 +78,8 @@ has "$LS" "assets/site/index.html"   "index.html"
 has "$LS" "assets/site/graph.html"   "graph.html"
 has "$LS" "assets/site/graph3d.html" "graph3d.html（3D 图谱）"
 has "$LS" "assets/site/offline.html" "offline.html（离线页）"
+has "$LS" "assets/site/ask.html" "ask.html（图谱问答页）"
+has "$LS" "assets/site/assets/qa-engine.js" "问答引擎 qa-engine.js"
 echo
 echo "== 结果：通过 $ok 项，失败 $fail 项 =="
 rm -rf "$T"

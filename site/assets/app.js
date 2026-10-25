@@ -3,6 +3,61 @@
    依赖：data/config.js、data/resources.js、data/content.js、data/knowledge.js
         assets/vendor/qrcode.min.js（分享二维码，可选）
    ===================================================================== */
+/* ===== 一次性数据迁移：林彪的节点 id 统一（linbiao → lin_biao） =====
+   0.17.22 起文革图谱把林彪的节点 id 改成与主图谱一致（全站其余人物都是下划线风格）。
+   本机旧数据里若存过 linbiao，这里定向搬一次，否则用户的编辑/收藏/摘录会指向一个不存在的节点。
+   安全性：只处理「整串恰好等于 linbiao」的值和「键恰好是 linbiao / person:linbiao」的键，
+   不触碰任何长文本；写完即打标记，重复执行无副作用。 */
+(function migrateLinbiaoId(){
+  var OLD = 'linbiao', NEW = 'lin_biao';
+  try { if (localStorage.getItem('yzMigLinbiao') === '1') return; } catch (e) { return; }
+  function fix(v, depth){
+    if (depth > 12) return v;
+    if (typeof v === 'string') return (v === OLD) ? NEW : v;
+    if (Array.isArray(v)) { for (var i = 0; i < v.length; i++) v[i] = fix(v[i], depth + 1); return v; }
+    if (v && typeof v === 'object') {
+      Object.keys(v).forEach(function (k) {
+        var nv = fix(v[k], depth + 1);
+        if (k === OLD || k === ('person:' + OLD)) {
+          var nk = (k === OLD) ? NEW : ('person:' + NEW);
+          if (!(nk in v)) v[nk] = nv;
+          delete v[k];
+        } else { v[k] = nv; }
+      });
+      return v;
+    }
+    return v;
+  }
+  var keys = ['yzy_ov_v1', 'favs', 'marks', 'yzExcerpts', 'yzPaths', 'yzRead', 'yzImportedBooks'];
+  var touched = [];
+  keys.forEach(function (k) {
+    var raw = null;
+    try { raw = localStorage.getItem(k); } catch (e) { return; }
+    if (!raw || raw.indexOf(OLD) < 0) return;          /* 没有出现就跳过，零成本 */
+    try {
+      var obj = JSON.parse(raw);
+      var out = JSON.stringify(fix(obj, 0));
+      if (out !== raw) { localStorage.setItem(k, out); touched.push(k); }
+    } catch (e) { /* 解析不了就不碰，宁可不动也不能改坏 */ }
+  });
+  try { localStorage.setItem('yzMigLinbiao', '1'); } catch (e) {}
+  if (touched.length) { try { console.log('[migrate] linbiao→lin_biao:', touched.join(',')); } catch (e) {} }
+})();
+
+/* ===== 轻量耗时刻度（performance.now 的 0 点就是导航开始） =====
+   用途：用户说「慢」的时候，用数字代替感觉。全部结果随诊断报告导出。
+   开销：一次 performance.now + 一次对象写入，可忽略。 */
+window.__YZTiming = window.__YZTiming || {
+  m: {},
+  now: function () {
+    try { return (window.performance && performance.now) ? performance.now() : Date.now(); }
+    catch (e) { return 0; }
+  },
+  mark: function (k) { try { this.m[k] = Math.round(this.now()); } catch (e) {} return this.m[k]; },
+  span: function (k, t0) { try { this.m[k] = Math.round(this.now() - t0); } catch (e) {} },
+  dump: function () { return this.m; }
+};
+
 const CFG = window.SITE_CONFIG   || {};
 const RES = window.SITE_RESOURCES || [];
 /* 外链净化：占位链接（example.com、含省略号/全角、缺协议、网盘地址 之类）一律视为“未添加”，
@@ -30,12 +85,102 @@ const HUB_NAME = window.__YZY_HUB_NAME || '史料';
 const BASE = (CFG.siteUrl || (location.origin + location.pathname)).replace(/#.*$/, '');
 
 const statusMap = {ok:'✅', warn:'⚠️', dead:'❌'};
-const catIcon = {原著:'📕', 导读:'📗', 词典:'📘', 有声书:'🎧', 歌曲:'🎼', 影像:'🎬', 手册:'📘', '对公文献':'📄', 参考:'📕', 工具:'🧰'};
-let activeCat = '推荐';
-let activeTag = '';
-let curQ = '';
-let favOnly = false;
-let fileOnly = false;
+const catIcon = {原著:'📕', 导读:'📗', 词典:'📘', 有声书:'🎧', 歌曲:'🎼', 影像:'🎬', 手册:'📘', '对公文献':'📄', 参考:'📕', 当代:'📜', 工具:'🧰'};
+/* ---------- 状态单一真相源 ----------
+   所有筛选条件收在一个对象里，对外仍暴露 activeCat/activeTag/curQ/favOnly/fileOnly
+   五个访问器（读写原样可用），这样 148 处既有调用一行都不用改。
+   任何一次写入都会防抖同步到 URL（#browse?q=&cat=&tag=…），做到：可分享、可回退、刷新不丢。 */
+var S = { q:'', cat:'推荐', tag:'', fav:false, file:false, author:'全部作者', sort:'default', groupBy:'cat' };
+var _urlTimer = null, _lastRestoreHash = '';
+
+function syncURL(){
+  if (_urlTimer) clearTimeout(_urlTimer);
+  _urlTimer = setTimeout(function(){
+    _urlTimer = null;
+    var p = [];
+    if (S.q) p.push('q=' + encodeURIComponent(S.q));
+    if (S.cat && S.cat !== '推荐') p.push('cat=' + encodeURIComponent(S.cat));
+    if (S.tag) p.push('tag=' + encodeURIComponent(S.tag));
+    if (S.author && S.author !== '全部作者') p.push('au=' + encodeURIComponent(S.author));
+    if (S.sort && S.sort !== 'default') p.push('sort=' + encodeURIComponent(S.sort));
+    if (S.groupBy && S.groupBy !== 'cat') p.push('g=' + encodeURIComponent(S.groupBy));
+    if (S.fav) p.push('fav=1');
+    if (S.file) p.push('file=1');
+    var h = p.length ? '#browse?' + p.join('&') : '';
+    _lastRestoreHash = h;
+    try { history.replaceState(null, '', location.pathname + location.search + h); } catch(e){}
+  }, 220);
+}
+
+function restoreURL(){
+  var h = location.hash || '';
+  if (h === _lastRestoreHash) return;
+  _lastRestoreHash = h;
+  var m = h.match(/^#browse\?(.*)$/); if (!m) return;
+  var q = {};
+  m[1].split('&').forEach(function(kv){
+    var i = kv.indexOf('=');
+    if (i > 0) { try { q[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); } catch(e){} }
+  });
+  if (q.q != null) { S.q = q.q; var se = document.getElementById('search'); if (se) se.value = q.q; }
+  if (q.cat) S.cat = q.cat;
+  if (q.tag != null) S.tag = q.tag;
+  if (q.au) { S.author = q.au; var as = document.getElementById('authorSel'); if (as) as.value = q.au; }
+  if (q.sort) { S.sort = q.sort; var ss = document.getElementById('sortSel'); if (ss) ss.value = q.sort; }
+  if (q.g) { S.groupBy = q.g; var gs = document.getElementById('groupSel'); if (gs) gs.value = q.g; }
+  S.fav = q.fav === '1';
+  S.file = q.file === '1';
+}
+
+/* ---------- 事件委托 ----------
+   静态页面用 data-act / data-arg 声明行为，不再写内联 onclick。
+   查找顺序：ACTIONS 表 → window 全局函数；找不到就静默返回（不影响残留的 onclick）。
+   用 while-parentNode 而不是 closest()：Android WebView 老内核没有 Element.closest。 */
+var ACTIONS = Object.create(null);
+function yzAct(action, fn){ ACTIONS[action] = fn; return fn; }
+window.yzAct = yzAct;   /* 暴露给 overlay / 插件注册自定义动作；静态扫描看不到这类外部引用 */
+function _yzFindAct(t){
+  while (t && t !== document){
+    if (t.getAttribute && t.getAttribute('data-act')) return t;
+    t = t.parentNode;
+  }
+  return null;
+}
+function _yzRunAct(el, e){
+  var act = el.getAttribute('data-act');
+  var fn = ACTIONS[act] || window[act];
+  if (typeof fn !== 'function') return false;
+  try { fn.call(el, el.getAttribute('data-arg'), el, e); return true; }
+  catch (err) { try { diagLog('act:' + act, (err && err.message) || err); } catch(_){} return false; }
+}
+document.addEventListener('click', function(e){
+  /* 最近搜索：chips / 删除 / 清空（单独处理，因为一个容器里有三种动作） */
+  var t = e.target;
+  while (t && t !== document && !(t.getAttribute && (t.getAttribute('data-rs') !== null || t.getAttribute('data-rs-del') !== null || t.getAttribute('data-rs-clear') !== null))) t = t.parentNode;
+  if (t && t !== document && t.getAttribute){
+    if (t.getAttribute('data-rs-clear') !== null){ e.preventDefault(); clearRecentSearches(); return; }
+    if (t.getAttribute('data-rs-del') !== null || t.getAttribute('data-rs') !== null){ e.preventDefault(); recentTap(t, e); return; }
+  }
+  var el = _yzFindAct(e.target); if (!el) return;
+  if (_yzRunAct(el, e)) e.preventDefault();
+}, false);
+document.addEventListener('keydown', function(e){
+  if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+  var tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  var el = _yzFindAct(e.target); if (!el) return;
+  if (_yzRunAct(el, e)) e.preventDefault();
+}, false);
+
+/* 五个旧变量名 → 指向 state 的访问器（非严格模式下裸标识符会落到 window 属性） */
+[['activeCat','cat'], ['activeTag','tag'], ['curQ','q'], ['favOnly','fav'], ['fileOnly','file']]
+  .forEach(function(pair){
+    Object.defineProperty(window, pair[0], {
+      configurable: true,
+      get: function(){ return S[pair[1]]; },
+      set: function(v){ if (S[pair[1]] === v) return; S[pair[1]] = v; syncURL(); }
+    });
+  });
 
 var _noticeEl = document.getElementById('noticeText'); if (_noticeEl) _noticeEl.textContent = CFG.notice || '';
 var QQ_AVA_DEF = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" fill="#2b1b1b"/><circle cx="20" cy="15" r="7.5" fill="#b9a79a"/><path d="M6 40c0-8.5 6.3-13.5 14-13.5S34 31.5 34 40z" fill="#b9a79a"/></svg>');
@@ -158,7 +303,7 @@ function rowHTML(idx){
   const it = RES[idx]; if (!it) return '';
   const badge = isNew(it) ? '<i class="badge-new">NEW</i>' : '';
   return `<button class="lcard aslink" onclick="openItemDetail(${idx})"><span class="li">${it.icon||'📕'}</span>` +
-    `<span style="flex:1"><span class="pname">${it.title}${badge}</span>` +
+    `<span style="flex:1"><span class="pname">${it.title}${badge}${linkOf(it) ? ' <i class="badge-link" title="有链接">🔗</i>' : ''}</span>` +
     `<span class="prole">${it.author} · ${it.cat}${it.size && it.size!=='—' ? ' · ' + it.size : ''} · ${hasBody(it) ? statusMap[it.status] : '📭 暂无原文'}</span></span>` +
     `<span style="opacity:.4">›</span></button>`;
 }
@@ -200,16 +345,19 @@ function toast(msg){
   clearTimeout(t._h); t._h = setTimeout(() => { t.style.opacity = '0'; }, 1800);
 }
 
-/* ---------- 每日一句（首页） ---------- */
-const QUOTES = CT.quotes || [];
-let qIdx = QUOTES.length ? Math.floor(Math.random() * QUOTES.length) : 0;
+/* ---------- 每日一句（首页） ----------
+   只用 content.js 里标了 home:1 的条目（原有那 6 条）。
+   后来补进 quotes 的几十条只用于「问一问」的引文反查，不进首页——
+   长句会让首页那一块忽高忽低，把下面的人物行挤小。 */
+const DAILY_QUOTES = (CT.quotes || []).filter(q => q.home);
+let qIdx = DAILY_QUOTES.length ? Math.floor(Math.random() * DAILY_QUOTES.length) : 0;
 function paintQuote(){
   const el = document.getElementById('dailyQuote'); if (!el) return;
-  if (!QUOTES.length){ el.style.display = 'none'; return; }
-  const q = QUOTES[qIdx];
+  if (!DAILY_QUOTES.length){ el.style.display = 'none'; return; }
+  const q = DAILY_QUOTES[qIdx];
   el.innerHTML = `“${q.t}”<br><b>—— ${q.a}，${q.s}</b>`;
 }
-function nextQuote(){ if (!QUOTES.length) return; qIdx = (qIdx + 1) % QUOTES.length; paintQuote(); }
+function nextQuote(){ if (!DAILY_QUOTES.length) return; qIdx = (qIdx + 1) % DAILY_QUOTES.length; paintQuote(); }
 
 /* ---------- 模态浮层的焦点管理（WAI-ARIA dialog 模式） ----------
    打开：记住来源元素并把焦点移入浮层；关闭：把焦点还原到来源 */
@@ -264,6 +412,23 @@ function openGraphJump(id, ds){
 }
 
 /* ---------- 导出 / 导入我的数据 ---------- */
+/* 从崩溃报告正文里挑一行最能说明问题的（异常 / 说明），给体检结论用 */
+function vAddCrashHead(cl){
+  try {
+    const list = (cl && cl.crashes) || [];
+    if (!list.length) return '未知';
+    const t = String(list[list.length - 1].text || '');
+    const m = t.match(/^(异常|说明):\s*(.+)$/m);
+    return m ? m[2].slice(0, 80) : (t.split('\n')[0] || '未知');
+  } catch(e){ return '未知'; }
+}
+/* 设置页「崩溃日志」入口：打开本机崩溃报告面板（crash.js 提供 UI） */
+function openCrashLog(){
+  try { if (window.YZCrash && YZCrash.open) { YZCrash.open(); return; } } catch(e){}
+  toast('诊断模块未加载，刷新页面后重试');
+}
+window.openCrashLog = openCrashLog;
+
 async function exportDiag(){
   const cfg = {};
   ['siteUrl','tgChannel','email','requestForm'].forEach(k => { cfg[k] = CFG[k] ? '已填' : '未添加'; });
@@ -285,16 +450,62 @@ async function exportDiag(){
     if (!('PointerEvent' in window)) miss.push('no-pointer-events');
     if (miss.length) cssFeat = miss.join(',');
   } catch(e){}
+  /* ---------- 体检结论：直接写成「有没有问题、有什么问题」，不用读者自己猜 ---------- */
+  let ovStore = null, edits = null, pageErrs = [], crashLog = null;
+  try { if (window.YZCrash && YZCrash.read) crashLog = YZCrash.read(); } catch(e){}
+  try { if (window.YZY && YZY.storage) ovStore = YZY.storage(); } catch(e){}
+  try { if (window.YZY && YZY.stats) edits = YZY.stats(); } catch(e){}
+  try { pageErrs = JSON.parse(localStorage.getItem('yzErrLog') || '[]') || []; } catch(e){}
+  const verdict = [];
+  const vAdd = (lv, msg) => verdict.push({ level: lv, msg: msg });
+  let stOk = true; try { stOk = storageSelfTest(); } catch(e){ stOk = false; }
+  if (!stOk) vAdd('error', '本机存储不可用：收藏、笔记、自助编辑都不会保存');
+  /* 模块自检：用户报「某个功能没生效」时，先看这里有没有掉模块 */
+  let selfChk = null;
+  try {
+    selfChk = yzSelfCheck();
+    const miss = Object.keys(selfChk).filter(k => selfChk[k] === false);
+    if (miss.length) vAdd('warn', '有模块/函数没加载：' + miss.join('、') + '（相关功能会不生效，把这份报告发出来即可定位）');
+    else vAdd('info', '模块自检全部就绪（返回键处理、分类页、人物年表、相册保存、正文检索、朗读、导出）');
+  } catch (e) { vAdd('warn', '模块自检执行失败：' + (e && e.message)); }
+  if (ovStore && ovStore.backend && ovStore.backend !== 'localStorage') {
+    vAdd('warn', '自助编辑的存储已降级到「' + ovStore.backend + '」' + (ovStore.warn ? '（' + ovStore.warn + '）' : '') + '：关掉页面可能丢失改动');
+  }
+  if (edits) {
+    const nPeople = (edits.peopleEdited || 0) + (edits.peopleAdded || 0) + (edits.peopleMoved || 0);
+    const nRes = (edits.added || 0) + (edits.edited || 0) + (edits.removed || 0);
+    const nNode = edits.graphNodes || 0, nEdge = edits.graphEdges || 0, nGraph = edits.graphs || 0;
+    if (nPeople + nRes + nNode + nEdge + nGraph > 0) {
+      vAdd('info', '本机有自助编辑：人物 ' + nPeople + ' 处、图谱 ' + nGraph + ' 张 / 新增节点 ' + nNode + ' / 新增关系 ' + nEdge + '、书库 ' + nRes + ' 条。跟随 APK 更新不会丢，但换设备请先「导出我的数据」');
+    }
+  }
+  /* 崩溃（进程级 / 渲染进程级）：这是页面自己 catch 不到的一类，必须单独报 */
+  const crashN = crashLog && crashLog.crashes ? crashLog.crashes.length : 0;
+  const crashSt = (crashLog && crashLog.state) || {};
+  if (crashN > 0) {
+    vAdd('error', '本机记录到 ' + crashN + ' 次崩溃：' + (vAddCrashHead(crashLog)) + '（详见 crash 段，可在「崩溃日志」里看最近操作）');
+  } else if (crashSt.web === undefined && IS_APP) {
+    vAdd('info', 'App 内暂无崩溃记录；崩溃会在下次启动时提示，并自动写进本报告');
+  }
+  if (crashSt.safeMode) vAdd('warn', '当前处于安全模式：本机改动未加载（连续三次启动未成功会自动进入），可在崩溃日志里退出');
+  if (crashSt.failCount > 1) vAdd('warn', '连续 ' + crashSt.failCount + ' 次启动未完成心跳，稳定性可疑');
+
+  const errTotal = DIAG.errors.length + pageErrs.length;
+  if (errTotal === 0) vAdd('ok', '本次运行未捕获到脚本错误');
+  else vAdd(errTotal > 5 ? 'warn' : 'info', '捕获 ' + errTotal + ' 条错误（首页 ' + DIAG.errors.length + ' 条 / 其他页 ' + pageErrs.length + ' 条），详见 errors 与 pageErrors');
+  if (cssFeat !== 'ok') vAdd('warn', '样式特性缺失：' + cssFeat + '，页面可能显示异常');
+  if (!sw || sw === 'none') vAdd('warn', 'Service Worker 未注册：离线打开可能空白');
+
   const data = {
     generated: new Date().toISOString(),
-    tool: 'runtime-diagnostics v2',
+    tool: 'runtime-diagnostics v3',
     app: { name: CFG.siteName || '', site: CFG.version || '', app: app || '(web)', isApp: IS_APP },
     env: { ua: DIAG.ua, lang: DIAG.lang, platform: (navigator.platform || ''), online: online, connection: conn,
            webview: (wv || ('Chrome/' + _cr)), device: (dev || '(web)'), cssFeatures: cssFeat,
            viewport: innerWidth + 'x' + innerHeight, dpr: (window.devicePixelRatio || 1),
            screen: (screen.width + 'x' + screen.height), theme: (document.body.className || '(默认)'), storage: (storageSelfTest() ? 'ok' : 'fail'),
            motion: ((document.body.className || '').indexOf('no-motion') >= 0 ? 'off' : 'on') },
-    storage: { localStorageKeys: lsKeys, localStorageBytes: lsBytes, indexedDB: !!window.indexedDB, localSites: siteCount, serviceWorker: sw, jsHeap: mem },
+    storage: { localStorageKeys: lsKeys, localStorageBytes: lsBytes, indexedDB: !!window.indexedDB, localSites: siteCount, serviceWorker: sw, jsHeap: mem, overlay: ovStore },
     config: cfg,
     counts: { resources: RES.length, byCat: byCat,
               leaders: (leaders || []).length, comrades: (comrades || []).length, recommend: (CT.recommend || []).length,
@@ -302,35 +513,105 @@ async function exportDiag(){
               events: (EX.events || []).length, features: (EX.features || []).length, debunks: (EX.debunks || []).length,
               critics: (EX.critics || []).length, schools: (EX.schools || []).length,
               marks: marks().length, favs: favSet().size },
+    verdict: verdict,
+    modules: selfChk,
+    timing: (function(){ try { return window.__YZTiming ? __YZTiming.dump() : null; } catch(e){ return null; } })(),
+    edits: edits,
     errors: DIAG.errors.slice(-50),
-    events: DIAG.events.slice(-20)
+    events: DIAG.events.slice(-20),
+    pageErrors: pageErrs.slice(-40),
+    crash: crashLog ? {
+      count: crashN,
+      state: crashSt,
+      bread: (crashLog.bread || '').slice(-4000),
+      reports: (crashLog.crashes || []).map(function(c){ return { file:c.file, at:c.at, size:c.size, text:(c.text||'').slice(0,4000) }; })
+    } : null
   };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = '学通-诊断.json';
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
-  toast('诊断报告已导出（v2 · 含环境 / 存储 / 数据统计，可直接发给开发者）｜' + (window.AndroidApp ? '已存到系统「下载」' : '已存到浏览器下载'));
+  const txt = JSON.stringify(data, null, 2);
+  const fname = '学通-诊断-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '') + '.json';
+  /* ★ App 内 <a download> 无效（blob: 会被 DownloadListener 拦成「请点击页面内的保存按钮」），
+     必须走原生桥保存；只有浏览器环境才回退到 Blob 下载。 */
+  try {
+    if (window.YZSave && YZSave.text && YZSave.text(fname, 'application/json', txt)) {
+      const isApp = !!(YZSave.isApp && YZSave.isApp());
+      if (isApp && YZSave.preview && YZSave.b64) {
+        YZSave.preview(fname, 'data:application/json;base64,' + YZSave.b64(txt),
+          '⏳ 正在保存诊断报告（' + txt.length + ' 字符）…');
+      } else { toast('诊断报告已保存：' + fname); }
+      return;
+    }
+  } catch (e) {}
+  try {
+    const blob = new Blob([txt], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+    toast('诊断报告已下载：' + fname);
+  } catch (e) { toast('此环境不支持保存文件，请检查存储权限'); }
+}
+/* 导出/导入覆盖的本机数据：白名单键 + 前缀键。
+   ★ 原则：凡是「用户自己产生或改过」的东西，都要能被带走 ——
+   早期版本漏了 yzy_ov_v1（人物介绍修改 / 节点增删改 / 新建图谱 / 书库改动）、
+   频道点赞评论、主页好友、阅读进度，导致换机后编辑全丢。 */
+var DATA_KEYS = ['theme','fs','lh','w','motion','defaultLib','lastItem','favs','marks','links','libLinks',
+  'chanLikes','chanComments','channelExtra','homeFriends','homeFriendsInit','recentSearch',
+  'readlistDone','readerFS','graphView','classifyHidden','notifs','askHistory','yzCustom','yzRead','yzExcerpts','yzPaths','libsLocal','yzGuides',
+  /* 下面三项是 0.17.x 之后新增的「用户自己的东西」，早期导出会漏：
+     · yzImportedBooks —— 本机导入书的元数据（正文在 IndexedDB，见导出页的说明）
+     · albumExtra —— 相册里自己导入的照片索引
+     · yzSnapAuto —— 每日自动快照开关 */
+  'yzImportedBooks','albumExtra','yzSnapAuto'];
+/* 前缀键：阅读进度（像素）+ 章节进度 + 做题成绩（缺了换机后「读到第几章」「做对过没有」都会丢） */
+var DATA_PREFIX = ['note_','readerPos-','readerCh-','yzq_best_','yzq_last_'];
+function collectLocalKV(){
+  const kv = {};
+  DATA_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v != null) kv[k] = v; });
+  DATA_PREFIX.forEach(p => {
+    for (let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (k && k.indexOf(p) === 0) kv[k] = localStorage.getItem(k);
+    }
+  });
+  return kv;
 }
 function buildDataObj(){
-  const data = { app:'学通', ver:2, exportedAt:new Date().toISOString(),
+  const kv = collectLocalKV();
+  const data = { app:'学通', ver:3, exportedAt:new Date().toISOString(),
     name: localStorage.getItem('acctName') || '', avatar: localStorage.getItem('acctAvatar') || '',
-    theme: localStorage.getItem('theme'), fs: localStorage.getItem('fs'), lh: localStorage.getItem('lh'),
-    w: localStorage.getItem('w'), motion: localStorage.getItem('motion'),
-    defaultLib: getDefaultLib(), lastItem: localStorage.getItem('lastItem'),
-    favs: localStorage.getItem('favs'), marks: localStorage.getItem('marks'),
-    quizBank: quizBank(), notes: {} };
-  Object.keys(localStorage).forEach(k => { if (k.indexOf('note_') === 0) data.notes[k] = localStorage.getItem(k); });
+    kv: kv, quizBank: quizBank(), notes: {} };
+  // 自助编辑覆盖层（人物介绍 / 节点 / 图谱 / 书库 / 分类 全部改动都在这里）
+  try { if (window.YZY && YZY.exportJSON) data.ov = JSON.parse(YZY.exportJSON()); } catch(e){ data.ov = null; }
+  // —— 兼容旧备份格式（旧版是平铺字段）——
+  DATA_KEYS.forEach(k => { if (kv[k] != null) data[k] = kv[k]; });
+  if (kv.defaultLib != null) data.defaultLib = kv.defaultLib;
+  Object.keys(kv).forEach(k => { if (k.indexOf('note_') === 0) data.notes[k] = kv[k]; });
   return data;
 }
 function applyImportedData(d){
   let fail = 0;
-  const put = (k, v) => { if (!lset(k, v)) fail++; };
-  ['favs','marks','theme','fs','lh','w','motion','lastItem'].forEach(k => { if (d[k] != null) put(k, d[k]); });
+  const put = (k, v) => { if (v != null && !lset(k, v)) fail++; };
+  const kv = Object.assign({}, d.kv || {});
+  /* 兼容旧备份：旧版把字段平铺在顶层 */
+  DATA_KEYS.forEach(k => { if (d[k] != null && kv[k] == null) kv[k] = d[k]; });
+  DATA_PREFIX.forEach(p => {
+    Object.keys(d).forEach(k => { if (k.indexOf(p) === 0 && kv[k] == null) kv[k] = d[k]; });
+  });
+  Object.keys(kv).forEach(k => put(k, kv[k]));
   if (d.name != null) put('acctName', d.name);
   if (d.avatar != null) put('acctAvatar', d.avatar);
-  if (d.defaultLib) put('defaultLib', d.defaultLib);
   Object.entries(d.notes || {}).forEach(([k, v]) => put(k, v));
   if (Array.isArray(d.quizBank)) { try { quizSave(d.quizBank); } catch (e) { fail++; } }
+  /* 自助编辑覆盖层：交给 overlay 归一化后合并，保证结构与运行时一致 */
+  if (d.ov && typeof d.ov === 'object') {
+    try {
+      if (window.YZY && YZY.importJSON) {
+        const r = YZY.importJSON(JSON.stringify(d.ov), 'merge');
+        if (!r || !r.ok) fail++;
+      } else { put('yzy_ov_v1', JSON.stringify(d.ov)); }
+    } catch (e) { fail++; }
+  }
+  /* 自定义配置导入后要立刻重新应用（样式片段 / 模板 / 首页编排都是即时生效的） */
+  try { if (window.YZCustom) { YZCustom.apply(); YZCustom.applyHome(); } } catch (e) {}
   return fail;                                    /* 0 = 全部写入成功 */
 }
 function exportData(){ openDataIO('export'); }
@@ -339,8 +620,8 @@ function openDataIO(mode){
   const m = document.getElementById('dataModal'); if (!m) return;
   document.getElementById('dataTitle').textContent = exp ? '💾 导出我的数据' : '🔐 导入我的数据';
   document.getElementById('dataHint').innerHTML = exp
-    ? '下面是你的全部数据（收藏 · 书签 · 笔记 · 做题题库 · 各项设置）。点「📋 复制」存进备忘录 / 聊天，换设备时粘贴回来即可恢复。'
-    : '把你的数据 JSON 粘贴到下面，点「导入并恢复」；<b>部分浏览器</b>也支持直接用「选择文件」。';
+    ? '下面是你的<b>全部</b>本机数据：收藏 · 书签 · 笔记 · 做题题库 · 各项设置 · 主页好友 · 频道点赞评论 · 阅读进度（含章节） · 相册导入记录，以及<b>自助编辑的全部改动</b>（人物介绍与年表、图谱节点与关系、新建图谱、书库条目与分类）。点「⬇️ 下载 .json」或「📋 复制」保存，换设备后导入即可完整恢复。<br><b>注意</b>：你自己导入的<b>电子书正文</b>和<b>相册照片</b>存在本机数据库里、不在这个 JSON 内，换设备需要重新导入文件；书目索引（书名与导入记录）会随 JSON 一起备份。'
+    : '把你的数据 JSON 粘贴到下面，点「导入并恢复」；<b>部分浏览器</b>也支持直接用「选择文件」。导入为<b>合并</b>：本机已有的不会丢，同名的以备份为准。';
   const ta = document.getElementById('dataText');
   ta.value = exp ? JSON.stringify(buildDataObj(), null, 2) : '';
   ta.readOnly = exp;
@@ -362,6 +643,16 @@ function copyDataText(){
   else fb();
 }
 function downloadDataText(){
+  const t0 = (document.getElementById('dataText') || {}).value || '';
+  /* App 内 <a download> 无效（blob: 会被 DownloadListener 拦下），必须走原生桥保存 */
+  try {
+    if (window.YZSave && YZSave.text && YZSave.text('学通-我的数据.json', 'application/json', t0)) {
+      if (YZSave.isApp && YZSave.isApp() && YZSave.preview && YZSave.b64) {
+        YZSave.preview('学通-我的数据.json', 'data:application/json;base64,' + YZSave.b64(t0), '⏳ 正在保存…');
+      } else { toast('已导出：学通-我的数据.json'); }
+      return;
+    }
+  } catch(e){}
   try {
     const t = document.getElementById('dataText').value || '';
     const blob = new Blob([t], { type:'application/json' });
@@ -397,18 +688,6 @@ function importData(input){
   r.readAsText(f);
 }
 
-/* ---------- 意见反馈：跳转反馈页；页内表单通过 AJAX 提交到 Netlify Forms ---------- */
-function requestAction(){ if (CFG.requestForm) confirmLeave(CFG.requestForm, '意见反馈'); else openSection(secIdx('意见反馈')); }
-function submitFeedback(e){
-  e.preventDefault();
-  const form = e.target, note = document.getElementById('fbNote');
-  const val = (form && form.note && form.note.value ? form.note.value : '').trim();
-  const url = CFG.requestForm || 'https://wj.qq.com/s2/28091671/hw7m/';
-  // 跨站问卷无法由脚本代填，改为：复制你写的内容 + 直接打开问卷
-  try { if (val && navigator.clipboard) navigator.clipboard.writeText(val); } catch(err){}
-  if (note) note.textContent = (val ? '已复制你写的内容；' : '') + '正在打开问卷，粘贴进去提交即可…';
-  setTimeout(() => { confirmLeave(url, '意见反馈 · 腾讯问卷'); }, 120);
-}
 
 
 /* ---------- 外链确认弹窗 ---------- */
@@ -439,7 +718,7 @@ function leaveNever(){ lset('leaveOK', '1'); leaveGo(); }
 function closeLeave(){ const m = document.getElementById('leaveModal'); if (m) m.classList.remove('open'); yzDlgClose(); }
 
 /* ---------- 视图切换 ---------- */
-function goResults(){ if (location.hash !== '#browse') location.hash = 'browse'; else route(); }
+function goResults(){ _shownEntry = null; if ((location.hash || '').indexOf('#browse') !== 0) location.hash = 'browse'; else route(); }
 function goHome(){ try { resetPageStack(); } catch(e){} try { closeDrawer(); } catch(e){} try { setTopbar('root', { right:{ text:'＋', act:'togglePlus()' } }); } catch(e){} if (location.hash !== '') location.hash = ''; else route(); }
 var _rootSearch = null;
 function topSearch(){ var q = document.getElementById('qSearch'); var v = q ? q.value.trim() : '';
@@ -449,29 +728,31 @@ function topSearch(){ var q = document.getElementById('qSearch'); var v = q ? q.
 /* 主页（root 模式）下滑手势打开搜索框：scrollY==0 且起点在顶部 → 下拉 ≥70px → focus 输入框并提示。
    仅在 root 模式生效（qSearchWrap 可见且非详情页）。 */
 (function(){
-  var stY = 0, triggered = false;
-  /* 四个 tab 页（频道也有搜索框）才响应；下滑不必从搜索框附近开始 */
+  var stY = 0, stX = 0, stT = 0, triggered = false;
+  /* 四个 tab 页（频道也有搜索框）才响应 */
   function canPull(){
     var bar = document.getElementById('qSearchBar');
     return !!(bar && !bar.hidden);
   }
   document.addEventListener('touchstart', function(e){
     triggered = false;
-    stY = (e.touches && e.touches[0]) ? e.touches[0].clientY : 0;
+    var t = e.touches && e.touches[0];
+    stY = t ? t.clientY : 0; stX = t ? t.clientX : 0; stT = Date.now();
   }, { passive: true });
   document.addEventListener('touchmove', function(e){
     if (triggered) return;
     if (!canPull()) return;
     var t = (e.touches && e.touches[0]); if (!t) return;
-    var dy = t.clientY - stY;
-    /* 页面已经滚下去了：下滑 = 内容往回滚，等它自然滚到顶，搜索框就回来了，不抢手势 */
+    var dy = t.clientY - stY, dx = Math.abs(t.clientX - stX);
+    /* 页面已经滚下去了：下滑 = 内容往回滚，等它自然滚到顶 */
     if (window.scrollY > 30) return;
-    if (dy > 70){
-      triggered = true;
-      /* 直接打开全屏搜索（#browse），不再只是 focus */
-      try { if (typeof topSearch === 'function') topSearch(); else goResults(); } catch(_){ try { goResults(); } catch(__){} }
-      try { if (typeof flash2 === 'function') flash2('已打开搜索', 1200); } catch(_){ }
-    }
+    /* ★ 防误触四道闸：起点必须在屏幕上部、必须是竖向手势、距离足够、且是快速下拉 */
+    if (stY > 160) return;                 /* 从页面中部往下划不触发 */
+    if (dx > Math.abs(dy) * 0.8) return;   /* 横向滑动不触发 */
+    if (Math.abs(dy) < 120) return;        /* 距离门槛 70 → 120px */
+    if (Date.now() - stT > 900) return;    /* 慢慢拖也不算「下拉唤起」 */
+    triggered = true;
+    try { if (typeof topSearch === 'function') topSearch(); else goResults(); } catch(_){ try { goResults(); } catch(__){} }
   }, { passive: true });
 })();
 
@@ -500,8 +781,42 @@ function setTopbar(mode, opts){
   var dt = document.getElementById('drawerTitle');
   if (dt) dt.textContent = (mode === 'page') ? (opts.title || '') : '';
   var plus = document.getElementById('qPlus');
-  var rc = (mode === 'page') ? { text:'＋', act:'togglePlus()' } : (opts.right || { text:'＋', act:'togglePlus()' });
-  if (plus){ plus.textContent = rc.text || '＋'; plus.setAttribute('onclick', rc.act || 'togglePlus()'); }
+  /* page 模式原来强制显示「＋」，会把详情页自定义的按钮吞掉；现在统一：有 opts.right 就用它 */
+  var rc = opts.right || { text:'＋', act:'togglePlus()' };
+  if (plus){
+    plus.textContent = rc.text || '＋';
+    /* 只改 data-act（走全局事件委托），绝不再写内联 onclick ——
+       两者同时存在会让一次点击触发两次 togglePlus，表现就是「点加号没反应」。 */
+    var actStr = String(rc.act || 'togglePlus()').trim();
+    var m = /^([A-Za-z_$][\w$]*)\((.*)\)$/.exec(actStr);
+    if (m){
+      plus.setAttribute('data-act', m[1]);
+      var arg = m[2].trim().replace(/^['"]|['"]$/g, '');
+      if (arg) plus.setAttribute('data-arg', arg); else plus.removeAttribute('data-arg');
+    } else {
+      plus.setAttribute('data-act', actStr);
+      plus.removeAttribute('data-arg');
+    }
+    plus.removeAttribute('onclick');
+  }
+  /* 顶部第二个动作按钮（如频道页的「切换频道」，位于「导入」右边） */
+  var act2 = document.getElementById('qAct');
+  if (act2){
+    if (mode !== 'page' && opts.right2){
+      act2.hidden = false;
+      act2.textContent = opts.right2.text || '⋯';
+      act2.removeAttribute('onclick');
+      var a2 = String(opts.right2.act || '').trim();
+      var m2 = /^([A-Za-z_$][\w$]*)\((.*)\)$/.exec(a2);
+      if (m2){
+        act2.setAttribute('data-act', m2[1]);
+        var arg2 = m2[2].trim().replace(/^['"]|['"]$/g, '');
+        if (arg2) act2.setAttribute('data-arg', arg2); else act2.removeAttribute('data-arg');
+      } else { act2.setAttribute('data-act', a2); act2.removeAttribute('data-arg'); }
+    } else {
+      act2.hidden = true;
+    }
+  }
 }
 /* 底栏四个标签：先清空页面栈，保证「点哪个进哪个」（否则会停留在上次打开的子页面） */
 function tabTo(kind){
@@ -512,6 +827,16 @@ function tabTo(kind){
   if (kind === 'history')  { try { openSection(0); } catch(e){} return; }
   if (kind === 'classify') { try { openClassify(); } catch(e){} return; }
 }
+/* 打开「问一问」：图谱问答页（离线专家系统，不联网、不调模型） */
+function openQA(){
+  try { closePlus(); } catch(e){}
+  /* 把主站「当前实际主题」带过去：ask.html 是独立页，光靠 localStorage 在
+     WebView 里可能与主站不一致（系统媒体查询不跟随时就会出错）。 */
+  var t = 'dark';
+  try { t = resolvedTheme(localStorage.getItem('theme') || 'auto'); } catch(e){}
+  location.href = 'ask.html?theme=' + (t === 'light' ? 'light' : 'dark');
+}
+window.openQA = openQA;
 function homeCat(key){ activeCat = key; document.getElementById('search').value = ''; goResults(); }
 function route(){
   const h = location.hash || '';
@@ -539,16 +864,25 @@ function route(){
     openGraphNodeById(unSlug(h.slice(4)), true);
     window.scrollTo(0, 0); return;
   }
+  if (h.indexOf('#/c/') === 0){        /* 概念详情（频道 → 概念频道） */
+    homeEl.hidden = false; resEl.hidden = true;
+    if (typeof openConcept === 'function') openConcept(unSlug(h.slice(4)));
+    window.scrollTo(0, 0); return;
+  }
   if (h.indexOf('#/e/') === 0){
     homeEl.hidden = false; resEl.hidden = true;
     openEvent(parseInt(unSlug(h.slice(4)), 10) || 0, true);
     window.scrollTo(0, 0); return;
   }
 
-  const isResults = h === '#browse';
+  const isResults = h === '#browse' || h.indexOf('#browse?') === 0;
   homeEl.hidden = isResults;
   resEl.hidden = !isResults;
-  if (isResults) render(); else CUR_TRAIL = [];
+  if (isResults) {
+    restoreURL(); render();
+    /* 结果视图也要能返回（原来这里 qBack 是隐藏的，用户只能按系统键） */
+    try { const bk = document.getElementById('qBack'); if (bk) bk.hidden = false; } catch (e) { }
+  } else CUR_TRAIL = [];
   window.scrollTo(0, 0);
 }
 window.addEventListener('hashchange', route);
@@ -661,6 +995,29 @@ function introHit(item, q){
   return '<span style="display:block;margin-top:4px;opacity:.82;font-size:.72rem;line-height:1.5">🔎 ' + parts.slice(0, 2).join(' ／ ') + '</span>';
 }
 
+/* 章节命中：告诉用户「命中的是哪一章」 */
+function chapterHit(item, q){
+  if (!q || !item.chapters || !item.chapters.length) return '';
+  var ql = String(q).toLowerCase();
+  var hits = [];
+  for (var i = 0; i < item.chapters.length; i++) {
+    var c = item.chapters[i] || {};
+    var blob = ((c.t || '') + ' ' + (c.d || '')).toLowerCase();
+    if (blob.indexOf(ql) >= 0) {
+      var sn = '';
+      try { sn = snipOf(c.d || c.t || '', q) || ''; } catch (e) { sn = ''; }
+      hits.push({ t: c.t || ('第 ' + (i + 1) + ' 章'), s: sn });
+      if (hits.length >= 2) break;
+    }
+  }
+  if (!hits.length) return '';
+  return hits.map(function (h) {
+    return '<span style="display:block;margin-top:4px;opacity:.9;font-size:.72rem;line-height:1.5">' +
+      '📑 命中章节：<b style="color:var(--gold)">' + escAttr(h.t) + '</b>' +
+      (h.s ? ' — ' + h.s : '') + '</span>';
+  }).join('');
+}
+
 /* ---------- 卡片 ---------- */
 function resourceCardHTML(item){
   const idx = RES.indexOf(item);
@@ -672,12 +1029,14 @@ function resourceCardHTML(item){
   const fav = isFav(item);
   const st = escAttr(item.title.replace(/'/g, ''));
   const badge = (item.crit ? '<i class="badge-crit">被批判</i>' : '') + (isNew(item) ? '<i class="badge-new">NEW</i>' : '');
+  const lnk = linkOf(item);
   return `<a class="card" href="javascript:void(0)" data-key="${k}" onclick="return cardAction(${idx})">
     <span class="icon">${item.icon}</span>
-    <span class="body"><span class="title">${hl(item.title, curQ)}${badge}</span>
+    <span class="body"><span class="title">${hl(item.title, curQ)}${badge}${lnk ? '<i class="badge-link" title="有链接">🔗</i>' : ''}</span>
       <span class="desc">${hl(item.author, curQ)} · ${hl(item.desc, curQ)}${sizeTxt}</span>
       <span class="tags">${tags}</span>
       ${introHit(item, curQ)}
+      ${chapterHit(item, curQ)}
       <span class="ops">
         ${item.local ? `<button onclick="event.preventDefault();event.stopPropagation();yzBooks.read('${escAttr(item.bookId||'')}','${st}')">📖 阅读</button>` : (canPreview && hasBody(item) ? `<button onclick="event.preventDefault();event.stopPropagation();openPreview('${item.url}','${st}')">👁 预览</button>` : '')}
         <button class="${fav ? 'on' : ''}" onclick="event.preventDefault();event.stopPropagation();toggleFav(${idx})">${fav ? '★ 已收藏' : '☆ 收藏'}</button>
@@ -686,16 +1045,131 @@ function resourceCardHTML(item){
 }
 
 /* ---------- 检索（多字段 + 模糊回退 + 相关度排序） ---------- */
+/* 章节文本：标题 + 每章 50~120 字简介。322 本书累计约 15 万字，
+   是「搜得到概念」和「只搜得到书名」的分水岭。 */
+function chapterText(r){
+  if (!r.chapters || !r.chapters.length) return '';
+  return r.chapters.map(function (c) { return (c.t || '') + ' ' + (c.d || ''); }).join(' ');
+}
 function haystack(r){
   return (r.title + ' ' + r.author + ' ' + r.cat + ' ' + (r.tags || []).join(' ') + ' ' + (r.alias || '') + ' ' +
     (r.py || '') + ' ' + (r.id || '') + ' ' + (r.fmt || '') + ' ' + (r.desc || '') + ' ' + (r.intro || '') + ' ' +
-    (r.note || '') + ' ' + (r.publisher || '') + ' ' + (r.pubyear || '') + ' ' + (r.translator || '')).toLowerCase();
+    (r.note || '') + ' ' + (r.publisher || '') + ' ' + (r.pubyear || '') + ' ' + (r.translator || '') + ' ' +
+    chapterText(r)).toLowerCase();
 }
+/* ---------- 最近搜索（只存本机，最多 12 条） ---------- */
+function recentSearches(){
+  try { var a = JSON.parse(localStorage.getItem('recentSearch') || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; }
+}
+function addRecentSearch(q){
+  q = String(q || '').trim();
+  if (!q || q.length > 40) return;
+  var a = recentSearches().filter(function (x) { return x !== q; });
+  a.unshift(q);
+  try { lset('recentSearch', JSON.stringify(a.slice(0, 12))); } catch(e){}
+}
+function dropRecentSearch(q){
+  var a = recentSearches().filter(function (x) { return x !== q; });
+  try { lset('recentSearch', JSON.stringify(a)); } catch(e){}
+  renderRecent();
+}
+function clearRecentSearches(){
+  try { lset('recentSearch', '[]'); } catch(e){}
+  renderRecent();
+  toast('已清空最近搜索');
+}
+function recentSearchHTML(){
+  var a = recentSearches();
+  if (!a.length) return '';
+  return '<div class="rs-box"><div class="rs-h"><span>最近搜索</span>' +
+    '<button class="rs-clear" data-rs-clear="1">清空</button></div><div class="rs-row">' +
+    a.map(function (q, i) {
+      return '<button class="rs-chip" data-rs="' + escAttr(q) + '">' + escHtml(q) +
+        '<i class="rs-x" data-rs-del="' + escAttr(q) + '" role="button" aria-label="删除该记录">×</i></button>';
+    }).join('') + '</div></div>';
+}
+function renderRecent(){
+  var box = document.getElementById('recentBox');
+  if (!box) return;
+  var q = (document.getElementById('search') || {}).value || '';
+  if (String(q).trim()){ box.hidden = true; box.innerHTML = ''; return; }
+  var html = recentSearchHTML();
+  box.innerHTML = html;
+  box.hidden = !html;
+}
+function recentTap(el, e){
+  var del = el.getAttribute('data-rs-del');
+  if (del){ e.stopPropagation(); dropRecentSearch(del); return; }
+  var q = el.getAttribute('data-rs');
+  if (!q) return;
+  /* 顶部搜索框与结果页搜索框是两根输入框，必须同时写；
+     否则 topSearch() 会把空值回写、把结果清掉。 */
+  var inp = document.getElementById('search'); if (inp) inp.value = q;
+  var top = document.getElementById('qSearch'); if (top) top.value = q;
+  render();
+  try { window.scrollTo(0, 0); } catch(e){}
+}
+
+/* ---------- 拼音检索 ----------
+   数据：data/py.js（构建期用 pypinyin 生成，675 条名称的全拼与首字母）。
+   输入 mao / mzd / zibenlun 时先映射回中文名，再走原有匹配，
+   这样中文输入法切换不便时也能搜到。 */
+function pyIndex(){
+  if (window.__yzPyIdx) return window.__yzPyIdx;
+  var P = window.SITE_PY || {}, arr = [];
+  for (var k in P){ var v = P[k], i = v.indexOf('|'); arr.push({ n: k, f: v.slice(0, i), a: v.slice(i + 1) }); }
+  window.__yzPyIdx = arr;
+  return arr;
+}
+/* 人物名集合（缓存）：拼音检索时人物优先，否则「毛」会被一堆书名挤下去 */
+function pyPersonSet(){
+  if (window.__yzPset) return window.__yzPset;
+  var M = {}, GR = window.SITE_GRAPH;
+  try {
+    ((GR && GR.nodes) || []).forEach(function (n) {
+      if (n && n.name && (n.type === 'person' || !n.type)) M[n.name] = 1;
+    });
+    ['leaders', 'comrades', 'critics', 'figures'].forEach(function (k) {
+      var arr = (k === 'critics' ? (window.SITE_EXTRA || {}).critics : (window.SITE_CONTENT || {})[k]) || [];
+      arr.forEach(function (x) { if (x && x.name) M[x.name] = 1; });
+    });
+  } catch (e) {}
+  window.__yzPset = M;
+  return M;
+}
+function pyQuery(q){
+  var s = String(q || '').toLowerCase().trim();
+  if (!/^[a-z]{1,24}$/.test(s)) return [];
+  var out = [], PS = pyPersonSet();
+  pyIndex().forEach(function (it) {
+    var sc = 0;
+    if (it.a === s) sc = 100;                                  /* 首字母全等：mzd */
+    else if (it.f === s) sc = 95;                              /* 全拼全等：maozedong */
+    else if (s.length >= 2 && it.a.indexOf(s) === 0) sc = 80;   /* 首字母前缀：mz */
+    else if (it.f.indexOf(s) === 0) sc = 70;                   /* 全拼前缀：mao */
+    else if (s.length >= 4 && it.f.indexOf(s) >= 0) sc = 50;
+    if (sc && PS[it.n]) sc += 15;   /* 人物 / 条目名优先于以同名开头的书名 */
+    if (sc) out.push({ n: it.n, s: sc });
+  });
+  out.sort(function (a, b) { return b.s - a.s; });
+  return out.slice(0, 8).map(function (x) { return x.n; });
+}
+
+/* 命中了哪一章（给结果卡片做提示）；标题/简介命中时返回空 */
 function scoreIt(r, terms){
-  const title = (r.title + ' ' + (r.alias || '')).toLowerCase();
+  const title = (r.title + ' ' + (r.alias || '') + ' ' + (r.py || '')).toLowerCase();
+  const tags = (r.tags || []).join(' ').toLowerCase();
   const hay = haystack(r);
   let s = 0, any = false, all = true;
-  terms.forEach(t => { if (hay.includes(t)){ any = true; s += title.includes(t) ? 5 : 1; } else { all = false; } });
+  terms.forEach(t => {
+    if (hay.includes(t)){
+      any = true;
+      if (title.includes(t)) s += 12;        /* 书名/别名命中优先 */
+      else if (tags.includes(t)) s += 5;
+      else s += 1;                            /* 正文命中 */
+    } else all = false;
+  });
+  if (any && terms.length) { const t0 = terms[0]; if (t0 && title.includes(t0) && r.title.toLowerCase().indexOf(t0) === 0) s += 20; }
   if (all) s += 10;
   return any ? s : 0;
 }
@@ -708,8 +1182,126 @@ function suggest(q){
   return out.slice(0, 4);
 }
 
-/* ---------- 全站命中：把「史料 + 资源导航」也纳入检索 ---------- */
+/* 结果排序：标题全等 > 标题前缀 > 标题包含 > 拼音命中 > 正文命中 */
+function hitScore(t, q, pyNames){
+  var tl = String(t || '').toLowerCase(), ql = String(q || '').toLowerCase(), s = 0;
+  if (ql){ if (tl === ql) s += 120; else if (tl.indexOf(ql) === 0) s += 90; else if (tl.indexOf(ql) >= 0) s += 60; }
+  (pyNames || []).forEach(function (n) {
+    var nl = String(n).toLowerCase();
+    if (tl === nl) s += 110; else if (tl.indexOf(nl) >= 0) s += 50;
+  });
+  return s || 10;
+}
+function sortHits(list, q, pyNames){
+  var seen = {}, out = [];
+  list.forEach(function (h) {
+    var k = h.cat + '|' + h.t;
+    if (seen[k]) return;
+    seen[k] = h; h._s = hitScore(h.t, q, pyNames); out.push(h);
+  });
+  out.sort(function (a, b) { return (b._s || 0) - (a._s || 0); });
+  return out.slice(0, 120);
+}
+/* key（book:/person:/concept:/event:）→ 显示名 / 打开动作；找不到就返回空串（点了没反应好过报错） */
+function yzNameOf(kind, id) {
+  try {
+    if (kind === 'book') { var r = RES.find(function (x) { return x.id === id; }); return r ? r.title : id; }
+    if (kind === 'person') { var p = allGraphNodes().find(function (x) { return x.id === id; }); return p ? p.name : id; }
+    if (kind === 'concept') { var c = ((window.SITE_CONCEPTS && SITE_CONCEPTS.nodes) || []).find(function (x) { return x.id === id; }); return c ? c.name : id; }
+    if (kind === 'event') { var e = (EX.events || []).find(function (x) { return x.name === id || x.id === id; }); return e ? e.name : id; }
+  } catch (e) {}
+  return id;
+}
+function yzOpenRef(kind, id) {
+  try {
+    if (kind === 'book') { var i = RES.findIndex(function (x) { return x.id === id; }); return i >= 0 ? 'openItemDetail(' + i + ')' : ''; }
+    if (kind === 'person') return 'openFigure(\'' + escAttr(id) + '\')';
+    if (kind === 'concept') return 'openConcept(\'' + escAttr(id) + '\')';
+    if (kind === 'event') { var j = (EX.events || []).findIndex(function (x) { return x.name === id || x.id === id; }); return j >= 0 ? 'openEvent(' + j + ')' : ''; }
+  } catch (e) {}
+  return '';
+}
+/* 外层：拼音查询先映射成中文名，再合并结果按相关度排序 */
 function omniSearch(q){
+  var raw = omniSearchRaw(q);
+  var names = pyQuery(q);
+  if (!names.length) return sortHits(raw, q, []);
+  var extra = [];
+  names.slice(0, 5).forEach(function (n) { extra = extra.concat(omniSearchRaw(n)); });
+  return sortHits(raw.concat(extra), q, names);
+}
+/* ---------- 全站命中：把「史料」也纳入检索 ---------- */
+/* ---------- 运行时自检 ----------
+   用途：用户反馈「某个功能没生效」时，先确认对应模块是否真的加载、对应函数是否存在。
+   设置 → 诊断 → 导出诊断报告 会把这份结果一并写进去。 */
+/* App 版本标签：0.17.21(200)。写进诊断报告与自检，避免「装了哪一版」说不清 */
+function appTag(){
+  try {
+    if (!window.AndroidApp) return ' / web';
+    var n = AndroidApp.versionName ? AndroidApp.versionName() : '';
+    var c = AndroidApp.versionCode ? AndroidApp.versionCode() : 0;
+    return ' / app ' + (n || '?') + (c ? '(' + c + ')' : '');
+  } catch (e) { return ' / app ?'; }
+}
+window.YZ_APPTAG = appTag;
+function yzSelfCheck(){
+  const has = (f) => { try { return typeof f === 'function'; } catch (e) { return false; } };
+  const out = {
+    build: 'site ' + (CFG.version || '?') + appTag(),
+    appJs: has(omniSearch),
+    overlay: !!(window.YZY && window.YZY.reapply),
+    fulltext: !!window.YZFULLTEXT,
+    speech: !!window.YZSPEECH,
+    exportdata: !!window.YZEXPORT,
+    crash: !!window.YZCrash,
+    bridge: !!window.AndroidApp,
+    backHandler: has(window.__appBack),
+    catPage: has(openCatPage),
+    personChrono: has(parseChrono),
+    prsToggle: has(prsToggleNext),
+    addRelated: has(openAddRelated),
+    savePhoto: has(savePhoto),
+    books3d: has(yzSelfCheck),
+    /* 返回键自检：最近一次按返回键是应用内层级接管、退历史，还是退出应用 */
+    backLast: (function () {
+      try { return (window.AndroidApp && AndroidApp.backProbe) ? AndroidApp.backProbe() : '(web)'; }
+      catch (e) { return '?'; }
+    })(),
+    appVer: appTag().replace(/^ \/ /, '')
+  };
+  out.ok = out.appJs && out.overlay && out.backHandler && out.catPage;
+  return out;
+}
+window.YZ_SELFCHECK = yzSelfCheck;
+
+/* ---------- 正文级检索辅助（fulltext.js）---------- */
+function _ftSnip(text, q){
+  try { return (window.YZFULLTEXT && text) ? YZFULLTEXT.snipText(text, q, 30) : ''; } catch (e) { return ''; }
+}
+let _localHits = null, _localHitQ = '';
+function searchLocalBooks(q){
+  if (!window.YZFULLTEXT) { toast('正文检索模块未加载'); return; }
+  q = String(q || '').trim(); if (!q) return;
+  window.__yzftQ = q; _localHitQ = q;
+  toast('正在检索本机书正文…');
+  try {
+    YZFULLTEXT.searchLocal(q, function (hits) {
+      _localHits = hits || [];
+      openLocalHits(q);
+    });
+  } catch (e) { toast('检索失败：' + (e && e.message ? e.message : e)); }
+}
+function openLocalHits(q){
+  const hits = _localHits || [];
+  const body = hits.length ? hits.map(h => `<div class="lcard" onclick="${h.fn}">
+      <div style="flex:1"><div class="pname">${hl(h.t, q)}</div>
+      <div class="prole" style="line-height:1.7">${hl(String(h.sub || '').slice(0, 90), q)}</div></div>
+      <span style="opacity:.4">›</span></div>`).join('')
+    : `<p class="sub" style="line-height:1.8">本机没有导入过含「${escHtml(q)}」的书。<br>只有<b>本机导入的 TXT / MD</b> 会进入正文检索；书目清单里的外链条目没有正文。</p>`;
+  openContent('📖 本机正文 · ' + q,
+    `<p class="sub" style="margin:0 0 10px;line-height:1.7">在<b>本机已导入的书</b>里搜「${escHtml(q)}」，命中 <b>${hits.length}</b> 本。点条目看命中段落。</p>` + body);
+}
+function omniSearchRaw(q){
   if (!q) return [];
   const ql = String(q).toLowerCase();
   const hit = s => s && String(s).toLowerCase().includes(ql);
@@ -722,7 +1314,6 @@ function omniSearch(q){
   (EX.features || []).forEach(f => { if (hit(f.name) || hit(f.desc)) out.push({ cat:(f.id === 'wenhua' ? '文革' : '专题'), t:f.name, sub:(f.desc || ''), fn:(f.id === 'wenhua' ? `openHub('wenge')` : `openHub('features')`) }); });
   (EX.debunks || []).forEach((d, i) => { if (hit(d.title) || hit(d.q) || hit(d.a)) out.push({ cat:'辟谣', t:'辟谣 · ' + d.title, sub:(d.q || '') + ' → ' + (d.a || ''), fn:`openHub('debunks')` }); });
   schoolGroups().forEach((g, gi) => (g.items || []).forEach((it, ii) => { if (hit(it.name) || hit(it.desc)) out.push({ cat:(g.group || (gi === 0 ? '思想' : '组织')), t:it.name, sub:(it.desc || ''), fn:`openSchoolItem(${gi},${ii})` }); }));
-  (navGroups || []).forEach((g, gi) => (g.items || []).forEach((l, ii) => { if (hit(l.name) || hit(l.desc) || hit(l.intro)) out.push({ cat:'资源导航', t:l.name, sub:(l.desc || l.intro || ''), fn:`openNavItem(${gi},${ii})` }); }));
   /* —— round16 扩展：纳入此前未被检索的文本源 —— */
   (wengeGraph().nodes || []).forEach(n => {                 /* 文革图谱（人物已由 figuresList 覆盖，此处只补组织/派系/事件） */
     if (!n || n.type === 'person') return;
@@ -744,6 +1335,57 @@ function omniSearch(q){
   (CT.help || []).forEach(([k, v]) => { if (hit(k) || hit(v)) out.push({ cat:'使用指南', t:k, sub:v, fn:`openSection(secIdx('使用指南'))` }); });
   (CT.faq || []).forEach(([qq, aa]) => { if (hit(qq) || hit(aa)) out.push({ cat:'常见问题', t:qq, sub:aa, fn:`openSection(secIdx('使用指南'))` }); });
   (channelList() || []).forEach(c => { const _s = [c.author, c.text, c.critique && c.critique.text].filter(Boolean).join(' '); if (hit(_s)) out.push({ cat:'频道', t:c.author || '发言', sub:_s, fn:'openChannel()' }); });
+  /* 书库：全站搜索要能搜到书名 / 作者 / 简介（此前只在书库页内可搜，首页搜不到书名） */
+  (RES || []).forEach((it, i) => {
+    if (!it) return;
+    if (hit(it.title) || hit(it.author) || hit(it.desc) || hit(it.intro))
+      out.push({ cat:'书库', t:it.title, sub:(it.author || '') + (it.cat ? ' · ' + it.cat : ''), fn:`openItemDetail(${i})`,
+        snip: _ftSnip((it.intro || '') + ' ' + (it.desc || '') + ' ' + (it.note || ''), q) });
+  });
+
+  /* ---------- 我的资料：摘录 / 标注 / 笔记（只搜本机，不上传） ---------- */
+  try {
+    if (window.YZRead) {
+      YZRead.excerpts().forEach(function (x) {
+        if (hit(x.txt) || hit(x.note)) {
+          var b = (window.SITE_RESOURCES || []).find(function (r) { return r.id === x.b; });
+          var bi = b ? (window.SITE_RESOURCES || []).indexOf(b) : -1;
+          out.push({ cat: '我的摘录', t: (b ? b.title : '未关联书目'),
+            sub: '「' + String(x.txt || '').slice(0, 40) + (x.note ? '」· ' + String(x.note).slice(0, 20) : '」'),
+            fn: bi >= 0 ? 'openItemDetail(' + bi + ')' : '' });
+        }
+      });
+    }
+    if (window.YZY && YZY.allMeta) {
+      var allMeta = YZY.allMeta();
+      Object.keys(allMeta).forEach(function (k) {
+        (allMeta[k] || []).forEach(function (f) {
+          if (hit(f.k) || hit(f.v)) {
+            var pp = k.split(':');
+            out.push({ cat: '我的标注', t: yzNameOf(pp[0], pp[1]), sub: f.k + '：' + f.v, fn: yzOpenRef(pp[0], pp[1]) });
+          }
+        });
+      });
+    }
+    try {
+      for (var _i = 0; _i < localStorage.length; _i++) {
+        var _k = localStorage.key(_i);
+        if (_k && _k.indexOf('note_') === 0) {
+          var _v = localStorage.getItem(_k) || '';
+          if (hit(_v)) out.push({ cat: '我的笔记', t: _k.slice(5), sub: _v.slice(0, 60), fn: yzOpenRef('book', _k.slice(5)) });
+        }
+      }
+    } catch (e) {}
+  } catch (e) {}
+  /* —— 正文级检索：词典 / 概念 / 导读 / 答疑 / 长段正文（fulltext.js）——
+     条目级匹配只看标题与摘要，这里补的是「正文里那句话」，命中时带上下文片段。 */
+  try {
+    if (window.YZFULLTEXT) {
+      window.__yzftQ = q;
+      /* 直接 push，交给下面统一的「同类同名去重」处理，避免依赖尚未创建的 _seen */
+      YZFULLTEXT.search(q).forEach(h => out.push(h));
+    }
+  } catch (e) { }
 
   /* 同类同名去重 + 每类限量，避免单一来源刷屏 */
   const _seen = {}, _per = {}, _kept = [];
@@ -771,19 +1413,29 @@ function openOmniResults(q){
   const cut = s => { s = String(s || ''); return s.length > 72 ? s.slice(0, 72) + '…' : s; };
   const body = hits.length ? hits.map(h => `<div class="lcard" onclick="${h.fn}">
       <div style="flex:1"><div class="pname">${hl(h.t, q)}<span style="font-size:.62rem;opacity:.55;font-weight:normal;margin-left:8px;border:1px solid currentColor;border-radius:4px;padding:0 5px">${h.cat}</span></div>
-      <div class="prole" style="line-height:1.7">${hl(cut(h.sub), q)}</div></div>
+      <div class="prole" style="line-height:1.7">${hl(cut(h.sub), q)}</div>
+      ${h.snip && h.sub !== h.snip ? `<div class="prole" style="line-height:1.62;opacity:.72;font-size:.75rem;margin-top:2px">… ${hl(cut(h.snip), q)}</div>` : ''}</div>
       <span style="opacity:.4">›</span></div>`).join('') : '<p class="sub">没有匹配的史料 / 导航条目。</p>';
+  const _localBtn = `<div style="display:flex;gap:8px;margin:0 0 10px">
+      <button class="sbtn" style="flex:0 0 auto" onclick="searchLocalBooks('${escAttr(q)}')">📖 再搜本机书正文</button></div>`;
   openContent('🔎 全站命中 · ' + q,
-    `<p class="sub" style="margin:0 0 10px;line-height:1.7">关键词「${escHtml(q)}」全站共命中 <b>${hits.length}</b> 条，分布在：${omniCounts(hits)}。</p>` + body);
+    _localBtn +
+    `<p class="sub" style="margin:0 0 10px;line-height:1.7">关键词「${escHtml(q)}」全站共命中 <b>${hits.length}</b> 条，分布在：${omniCounts(hits)}。<br>带灰色小字的是<b>正文里那句话</b>（词典 / 概念 / 导读 / 答疑 / 书库提要），点开能看整段。</p>` + body);
 }
 const PAGE = 20;
 let listLimit = PAGE, listSig = '';
 function render(){
   curQ = document.getElementById('search').value.trim().toLowerCase();
-  const terms = curQ.split(/\s+/).filter(Boolean);
+  if (curQ) addRecentSearch(curQ);      /* 有词就记，重复的会提到最前 */
+  let terms = curQ.split(/\s+/).filter(Boolean);
+  /* 输入的是字母 → 先映射出中文名，让「mao」也能命中《毛泽东选集》等 */
+  const _py = pyQuery(curQ);
+  if (_py.length) terms = terms.concat(_py);
   const author = authorSel.value;
   const sort = document.getElementById('sortSel').value;
   const groupBy = document.getElementById('groupSel').value;
+  /* 选择器的值是视图，state 才是真相源：每次渲染把视图回写进 state，再由 syncURL 落进地址栏 */
+  S.author = author; S.sort = sort; S.groupBy = groupBy;
   const sig = [curQ, activeCat, activeTag, author, sort, groupBy, favOnly, fileOnly].join('~');
   if (sig !== listSig){ listSig = sig; listLimit = PAGE; }
 
@@ -813,6 +1465,8 @@ function render(){
   if (activeCat === '推荐' || sort === 'hot') all = all.slice().sort((a,b) => (b.hot||0) - (a.hot||0));
   if (sort === 'new') all = all.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
 
+  try { renderRecent(); } catch(e){}
+
   const total = all.length;
   const list = all.slice(0, listLimit);
 
@@ -835,6 +1489,7 @@ function render(){
   renderOmni(curQ);
 
   const emptyEl = document.getElementById('empty');
+  syncURL();
   if (total){ emptyEl.style.display = 'none'; }
   else {
     emptyEl.style.display = 'block';
@@ -867,9 +1522,17 @@ function renderContinue(){
   const idx = RES.findIndex(r => (r.id || r.title) === id);
   if (idx < 0){ el.innerHTML = ''; return; }
   const it = RES[idx];
-  el.innerHTML = `<button class="continue aslink" onclick="openItemDetail(${idx})">
+  /* 只有「本机已导入正文」的书才有「继续读」；书壳只能回详情页去导入 */
+  const local = !!(it.local && it.bookId);
+  let pos = 0;
+  if (local){ try { pos = parseInt(localStorage.getItem('readerPos-' + it.bookId) || '0', 10) || 0; } catch(e){} }
+  const hint = local ? (pos > 0 ? '继续读 · 已读一部分' : '开始读') : '继续上次';
+  const act = local
+    ? `yzBooks.read('${escAttr(it.bookId)}','${escAttr(String(it.title).replace(/'/g,''))}')`
+    : `openItemDetail(${idx})`;
+  el.innerHTML = `<button class="continue aslink" onclick="${act}">
     <span class="ci">${it.icon || '📕'}</span>
-    <span class="ct"><span class="cn">继续上次</span><span>${it.title}</span></span>
+    <span class="ct"><span class="cn">${hint}</span><span>${it.title}</span></span>
     <span style="opacity:.4">›</span></button>`;
 }
 
@@ -954,7 +1617,6 @@ function renderPc(){
   var el = document.getElementById('pcView'); if (!el) return;
   var name = localStorage.getItem('acctName') || '教员的好战士';
   var av = localStorage.getItem('acctAvatar') || '';
-  var favN = 0; try { favN = JSON.parse(localStorage.getItem('favs') || '[]').length; } catch(e){}
   el.innerHTML =
     '<div class="pc-head">' +
       '<button class="pc-ava" onclick="openAccountView()" title="我的资料">' + (av ? '<img src="' + av + '" alt="">' : '👤') + '</button>' +
@@ -964,25 +1626,21 @@ function renderPc(){
     '</div>' +
     '<div class="pc-list">' +
       pcRow('🖼️','相册','内置照片 ' + albumCount() + ' 张','openAlbum()') +
-      pcRow('⭐','收藏','我的收藏 ' + favN + ' 项','openFavs()') +
       pcRow('🌐','网站版','xuetone.netlify.app · 浏览器打开','openSiteVersion()') +
+      pcRow('🔓','开源地址','GitHub · 源码 / 许可 / 更新日志','openRepo()') +
       pcRow('📁','文件','全部文件 · ' + RES.length + ' 项',"openSection(secIdx('文件'))") +
       pcRow('📥','导入书籍','本机电子书 · 可搜索可阅读','yzBooks.openShelf()') +
       pcRow('🎮','闯关','地图关卡 · 导入 HTML 包','location.href=\'challenge.html\'') +
-      pcRow('👕','个性装扮','敬请期待','pcDress()') +
+      pcRow('📚','我的资料','书架 · 收藏 · 书签 · 摘录 · 标注','openMine()') +
+      pcRow('🎛','自定义','外观 · 片段 · 版式 · 首页','openCustom()') +
+      pcRow('🗄','备份与恢复','本机改动快照 · 最多 5 份','openBackup()') +
     '</div>' +
     '<div class="pc-bottom">' +
       '<button class="pc-b" onclick="openSettings()">⚙️ 设置</button>' +
       '<button class="pc-b" onclick="pcNight()">🌙 夜间</button>' +
     '</div>';
 }
-function openFavs(){
-  var list = RES.filter(isFav);
-  openContent('⭐ 我的收藏',
-    crumbFrom([{ t:'我的收藏', fn:openFavs }]) +
-    (list.length ? list.map(function(r){ return rowHTML(RES.indexOf(r)); }).join('')
-                 : '<p class="sub" style="line-height:1.9">还没有收藏。在资源卡片上点「☆」即可加入收藏。</p>'));
-}
+/* 独立的「收藏」整页列表已合并进「我的资料 → 收藏」页签（mine.js），此处不再保留第二套 UI。 */
 /* ---------- 相册：IndexedDB 大容量存储（旧 localStorage 数据自动迁移） ---------- */
 const ALBUM_DB = 'yzy_album', ALBUM_STORE = 'photos';
 let __albumExtra = [], __albumBooting = false, __albumBooted = false;
@@ -1107,12 +1765,62 @@ function albumImportDo(inp){
     rd.readAsDataURL(file);
   });
 }
+/* 保存相册照片到本机。
+   ⚠️ WebView 不支持 <a download>（不会触发下载管理器，点了没反应），
+   所以必须走 AndroidApp.saveBase64 桥；没有桥（浏览器里预览）时才回退到 a[download]。 */
+function savePhoto(srcEnc, nameEnc){
+  var src = decodeURIComponent(srcEnc || ''), name = decodeURIComponent(nameEnc || '照片');
+  var m = /\.([A-Za-z0-9]{2,5})(?:[?#]|$)/.exec(src);
+  var ext = (m ? m[1] : 'jpg').toLowerCase();
+  if (['jpg','jpeg','png','webp','gif','bmp','avif'].indexOf(ext) < 0) ext = 'jpg';
+  var mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : (ext === 'gif' ? 'image/gif' : 'image/jpeg'));
+  var fn = String(name).replace(/[\\/:*?"<>|\\n\\r\\t]/g, '_').slice(0, 60) || '照片';
+  if (!/\.[A-Za-z0-9]{2,5}$/.test(fn)) fn += '.' + (ext === 'jpeg' ? 'jpg' : ext);
+
+  function done(b64){
+    if (!b64) { toast('读取照片失败'); return; }
+    try {
+      if (window.AndroidApp && typeof AndroidApp.saveBase64 === 'function'){
+        AndroidApp.saveBase64(fn, b64, mime);
+        return;
+      }
+    } catch (e) { }
+    /* 浏览器兜底 */
+    try {
+      var a = document.createElement('a');
+      a.href = 'data:' + mime + ';base64,' + b64;
+      a.download = fn;
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ try { a.parentNode.removeChild(a); } catch(e){} }, 200);
+      toast('已保存：' + fn);
+    } catch (e) { toast('这台设备不支持直接保存，可长按图片选择「保存图片」'); }
+  }
+
+  try {
+    if (src.indexOf('data:') === 0){ done(src.split(',')[1] || ''); return; }
+    toast('正在保存…');
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', src, true);
+    xhr.responseType = 'blob';
+    xhr.onload = function(){
+      if (xhr.status && xhr.status !== 200 && xhr.status !== 0){ toast('读取照片失败（' + xhr.status + '）'); return; }
+      var b = xhr.response;
+      if (!b){ toast('读取照片失败'); return; }
+      var fr = new FileReader();
+      fr.onload = function(){ done(String(fr.result || '').split(',')[1] || ''); };
+      fr.onerror = function(){ toast('读取照片失败'); };
+      fr.readAsDataURL(b);
+    };
+    xhr.onerror = function(){ toast('读取照片失败'); };
+    xhr.send();
+  } catch (e) { toast('保存失败：' + (e && e.message ? e.message : e)); }
+}
 function openPhoto(srcEnc, nameEnc){
   var src = decodeURIComponent(srcEnc), name = decodeURIComponent(nameEnc);
   var old = document.getElementById('photoView'); if (old) old.remove();
   var d = document.createElement('div'); d.id = 'photoView'; d.className = 'photo-view';
   d.innerHTML = '<div class="pv-bar"><span class="pv-name">' + escHtml(name) + '</span>' +
-    '<a class="pv-btn" href="' + src + '" download="' + escHtml(name) + '">\u2b07 \u4e0b\u8f7d</a>' +
+    '<button class="pv-btn" onclick="savePhoto(\'' + srcEnc + '\',\'' + nameEnc + '\')">\u2b07 \u4e0b\u8f7d</button>' +
     '<button class="pv-btn" onclick="closePhoto()">\u2715</button></div>' +
     '<div class="pv-stage"><img src="' + src + '" alt="' + escHtml(name) + '"></div>';
   d.addEventListener('click', function(ev){ if (ev.target === d || ev.target.classList.contains('pv-stage')) closePhoto(); });
@@ -1204,16 +1912,115 @@ function channelBodyHTML(list){
   if (!list.length) return '<p class="sub" style="line-height:1.9">没有找到相关发言。</p>';
   return list.map(chanCardHTML).join('');
 }
-function channelHTML(){ return channelBodyHTML(channelList()); }
+/* ---------- 频道：人物频道（原有发言流）+ 概念频道（理论范畴） ---------- */
+var _chanTab = 'concept';   /* 默认进概念频道（用户要求） */
+function conceptNodes(){ return (window.SITE_CONCEPTS && window.SITE_CONCEPTS.nodes) || []; }
+function conceptById(id){
+  var N = conceptNodes();
+  for (var i = 0; i < N.length; i++) if (N[i].id === id) return N[i];
+  return null;
+}
+function chanTabSet(k){
+  _chanTab = (k === 'concept') ? k : 'people';
+  var cv = document.getElementById('contentView');
+  if (cv) cv.innerHTML = channelHTML();
+  var inp = document.getElementById('qSearch');
+  if (inp){ inp.value = ''; inp.placeholder = (_chanTab === 'concept') ? '搜索概念…' : '搜索发言…'; }
+  try { window.scrollTo(0, 0); } catch(e){}
+}
+function conceptCardHTML(c){
+  var desc = String(c.desc || '');
+  var lead = desc.length > 92 ? (desc.slice(0, 92) + '…') : desc;
+  var work = (c.works && c.works.length) ? '<span class="ch-book">📖 ' + escHtml(c.works[0]) + (c.works.length > 1 ? ' 等' : '') + '</span>' : '';
+  return '<article class="ch-post cc-post" data-act="openConcept" data-arg="' + escHtml(c.id) + '">' +
+    '<div class="cc-head"><span class="cc-ic">💡</span><span class="cc-name">' + escHtml(c.name) + '</span>' +
+      (c.role ? '<span class="cc-role">' + escHtml(c.role) + '</span>' : '') + '</div>' +
+    '<div class="cc-desc">' + escHtml(lead) + '</div>' +
+    (work ? '<div class="cc-foot">' + work + '</div>' : '') +
+    '</article>';
+}
+function conceptListHTML(list){
+  if (!list.length) return '<p class="sub" style="line-height:1.9">没有找到相关概念。</p>';
+  return list.map(conceptCardHTML).join('');
+}
+function channelHTML(){
+  if (_chanTab === 'concept') return conceptListHTML(conceptNodes());
+  return channelBodyHTML(channelList());
+}
 function channelSearch(q){
   var cv = document.getElementById('contentView'); if (!cv) return;
   var ql = (q || '').toLowerCase();
   if (!ql){ cv.innerHTML = channelHTML(); return; }
+  if (_chanTab === 'concept'){
+    var cl = conceptNodes().filter(function(c){
+      var hay = [c.name, c.role, c.desc, c.source, (c.tags || []).join(' '), (c.works || []).join(' '), (c.points || []).join(' ')].filter(Boolean).join(' ').toLowerCase();
+      return hay.indexOf(ql) >= 0;
+    });
+    cv.innerHTML = conceptListHTML(cl);
+    return;
+  }
   var list = channelList().filter(function(p){
     var hay = String(p.author || '') + String(p.text || '') + String(p.src || '') + (p.critic ? JSON.stringify(p.critique || {}) : '');
     return hay.toLowerCase().indexOf(ql) >= 0;
   });
   cv.innerHTML = channelBodyHTML(list);
+}
+/* 概念详情 */
+/* 当前详情页。★ 两个变量必须分开：
+     _yzLast —— 持久记住「最后打开的详情页」，供 openCurrent() 重渲染；
+     _yzDeco —— 一次性标记，只给紧接着的那次 openContent 用，用完即清。
+   早期版本只有一个变量且不清理，导致「书详情 → 分类页」时，阅读状态/摘录/标注
+   被追加到分类页最下方（用户看到的「阅读状态卡在分类最下面」）。 */
+var _yzLast = null, _yzDeco = null;
+function yzSetCur(o){ _yzLast = o; _yzDeco = o ? { kind: o.kind, id: o.id } : null; }
+function yzCur(){ return _yzLast; }
+function openCurrent(){
+  if (!_yzLast) return false;
+  var y = 0; try { y = window.scrollY || document.documentElement.scrollTop || 0; } catch (e) {}
+  try {
+    if (_yzLast.kind === 'book') openItemDetail(_yzLast.idx);
+    else if (_yzLast.kind === 'person') openFigure(_yzLast.id);
+    else if (_yzLast.kind === 'concept') openConcept(_yzLast.id);
+    else if (_yzLast.kind === 'event') openEvent(_yzLast.idx);
+    setTimeout(function () { try { window.scrollTo(0, y); } catch (e) {} }, 0);
+    return true;
+  } catch (e) { return false; }
+}
+window.openCurrent = openCurrent;
+window.yzCur = yzCur;
+function openConcept(id){
+  var c = conceptById(id); if (!c) return;
+  yzSetCur({ kind:'concept', id:id });
+  var pts = (c.points && c.points.length)
+    ? '<h2 class="sub-title" style="margin-top:16px">📌 要点</h2><ul style="list-style:none;padding:0;font-size:.85rem;line-height:1.95;opacity:.92">' +
+      c.points.map(function(x){ return '<li style="padding-left:16px;position:relative">▸ ' + escHtml(x) + '</li>'; }).join('') + '</ul>'
+    : '';
+  var qs = (c.quotes && c.quotes.length)
+    ? '<h2 class="sub-title" style="margin-top:16px">❝ 原文</h2>' + c.quotes.map(function(q){
+        var t = (typeof q === 'string') ? q : (q.text || '');
+        var src = (typeof q === 'string') ? '' : (q.from || q.source || '');
+        return '<blockquote style="margin:8px 0;padding:8px 12px;border-left:3px solid var(--accent);background:var(--ev);border-radius:0 8px 8px 0;font-size:.85rem;line-height:1.9">' +
+          escHtml(t) + (src ? '<div style="margin-top:4px;opacity:.65;font-size:.75rem">—— ' + escHtml(src) + '</div>' : '') + '</blockquote>';
+      }).join('')
+    : '';
+  var works = (c.works && c.works.length)
+    ? '<h2 class="sub-title" style="margin-top:16px">📚 相关文献</h2><div class="tagrow">' +
+      c.works.map(function(w){ return '<span class="tag">' + escHtml(w) + '</span>'; }).join('') + '</div>'
+    : '';
+  var tags = (c.tags && c.tags.length)
+    ? '<h2 class="sub-title" style="margin-top:16px">🏷 关键词</h2><div class="tagrow">' +
+      c.tags.map(function(t){ return '<span class="tag">' + escHtml(t) + '</span>'; }).join('') + '</div>'
+    : '';
+  var src = c.source ? '<p class="sub" style="margin-top:16px;line-height:1.8">📖 出处：' + escHtml(c.source) + '</p>' : '';
+  openContent('💡 ' + c.name,
+    crumbFrom([{ t:'频道', fn:openChannel }, { t:'概念频道', fn:function(){ chanTabSet('concept'); } }, { t:c.name, fn:function(){ openConcept(id); } }]) +
+    '<div class="cdetail">' +
+      '<h3>' + escHtml(c.name) + '</h3>' +
+      (c.role ? '<div class="prole">' + escHtml(c.role) + '</div>' : '') +
+      '<p>' + escHtml(c.desc || '') + '</p>' +
+      pts + qs + works + tags + src +
+      (window.YZStudy ? YZStudy.glossaryBlock(id) : '') +
+    '</div>');
 }
 function chanDetailHTML(key, keyEnc){
   var p = channelList().find(function(x){ return chanKey(x) === key; });
@@ -1240,7 +2047,35 @@ function chanSend(kEnc){
   if (top){ top.html = html; _renderPage(top); } else { openChannelPost(kEnc); }
   toast('已发布评论');
 }
-function openChannel(){ openContent('📡 频道', channelHTML(), { root:true, search:channelSearch, ph:'搜索发言…', right:{ text:'📥', act:'channelImport()' } }); }
+function openChannel(){
+  openContent('📡 频道', channelHTML(), {
+    root:true, search:channelSearch,
+    ph:(_chanTab === 'concept' ? '搜索概念…' : '搜索发言…'),
+    right:{ text:'📥', act:'channelImport()' },
+    right2:{ text:'📡', act:'chanPick()' }
+  });
+}
+/* 频道选择：顶部按钮点开一个小弹层（不在正文里铺两个大标签） */
+function chanPick(){
+  closeChanPick();
+  var d = document.createElement('div');
+  d.id = 'chanPick';
+  d.className = 'chp-scrim';
+  var cur = _chanTab;
+  d.innerHTML = '<div class="chp-box" role="menu">' +
+    '<div class="chp-t">选择频道</div>' +
+    '<button class="chp-item' + (cur === 'concept' ? ' on' : '') + '" data-k="concept"><span>💡</span>概念频道<i>' + conceptNodes().length + ' 个概念</i></button>' +
+    '<button class="chp-item' + (cur === 'people' ? ' on' : '') + '" data-k="people"><span>📡</span>人物频道<i>讲话 · 语录</i></button>' +
+    '</div>';
+  document.body.appendChild(d);
+  d.addEventListener('click', function(e){
+    var it = e.target;
+    while (it && it !== d && !it.getAttribute('data-k')) it = it.parentNode;
+    if (it && it !== d && it.getAttribute('data-k')){ chanTabSet(it.getAttribute('data-k')); closeChanPick(); return; }
+    if (e.target === d) closeChanPick();
+  });
+}
+function closeChanPick(){ var e = document.getElementById('chanPick'); if (e && e.parentNode) e.parentNode.removeChild(e); }
 function renderChannel(){ var cv = document.getElementById('contentView'); if (cv) cv.innerHTML = channelHTML(); }
 function channelImport(){
   var old = document.getElementById('chImport'); if (old) old.remove();
@@ -1264,8 +2099,20 @@ function channelImportDo(){
   try { lset('channelExtra', JSON.stringify(cur)); } catch(e){ toast('\u5b58\u4e0d\u4e0b\uff0c\u5185\u5bb9\u8fc7\u591a'); return; }
   channelImportClose(); renderChannel(); toast('\u5df2\u5bfc\u5165 ' + ok.length + ' \u6761');
 }
-function pcDress(){ toast('个性装扮暂未开放'); }
+
 /* 网站版（Netlify 部署）：App 内无网络权限，交给系统浏览器打开 */
+function openRepo(){
+  var u = 'https://github.com/3208259164/fictional-doodle';
+  try{
+    if (window.AndroidApp && typeof AndroidApp.openExternal === 'function'){
+      AndroidApp.openExternal(u);
+      try { toast('已在浏览器打开开源仓库'); } catch(e){}
+      return;
+    }
+  }catch(e){}
+  try { window.open(u, '_blank'); }
+  catch(e){ try { location.href = u; } catch(x){} }
+}
 function openSiteVersion(){
   var u = 'https://xuetone.netlify.app/';
   try{
@@ -1314,15 +2161,134 @@ const metaHTML = (CT.meta||[]).map(s => `<section style="margin-bottom:16px"><h2
 
 /* ---------- 人物与资料 ---------- */
 function personAuthors(name){ const a = (EX.authors || {})[name]; return (a && a.length) ? a : [name]; }
-function personResources(name){ const keys = personAuthors(name); return RES.filter(r => r.author && keys.includes(r.author)); }
+function personResources(name){
+  const keys = personAuthors(name);
+  const base = RES.filter(r => r.author && keys.includes(r.author));
+  /* 手工加的推荐（related 里可写书名或 id）：并进「本站收录」，但不重复 */
+  const p = personOfAny(name) || {};
+  const extra = [];
+  (p.related || []).forEach(function(t){
+    const hit = RES.filter(r => r && (r.title === t || r.id === t))[0];
+    if (hit && base.indexOf(hit) < 0 && extra.indexOf(hit) < 0) extra.push(hit);
+  });
+  return base.concat(extra);
+}
+/* 四类人物里找这个人（导师 / 同志 / 其他人物 / 被批判） */
+function personOfAny(name){
+  const all = [].concat(CT.leaders || [], CT.comrades || [], CT.figures || [], EX.critics || []);
+  for (let i = 0; i < all.length; i++) if (all[i] && all[i].name === name) return all[i];
+  return null;
+}
 function personResourcesHTML(name){
   const list = personResources(name);
-  if (!list.length) return `<h2 class="sub-title" style="margin-top:18px">📚 本站收录</h2><p class="sub">暂未收录相关书籍，欢迎通过「意见反馈」补充。</p>`;
-  /* 默认直接展开：条目本就不多；此前默认折叠成「▸ 显示更多」，容易被误认为「书籍打不开」。 */
-  return `<h2 class="sub-title" style="margin-top:18px">📚 本站收录 · ${list.length}</h2>` +
-    `<p class="sub" style="margin:2px 0 6px;line-height:1.7">以下均为资源库里的同一条目，点一下即可打开详情。</p>` +
-    list.map(it => rowHTML(RES.indexOf(it))).join('');
+  const p = personOfAny(name) || {};
+  const relSet = {};
+  (p.related || []).forEach(function(t){ relSet[t] = 1; });
+  const head = `<h2 class="sub-title" style="margin-top:18px;display:flex;align-items:center;gap:8px">
+      <span>📚 本站收录${list.length ? ' · ' + list.length : ''}</span>
+      <button class="sbtn" style="margin-left:auto;font-size:.72rem;padding:3px 9px" data-act="prsToggleNext" aria-expanded="true">收起</button>
+      <button class="sbtn" style="font-size:.72rem;padding:3px 9px" data-act="openAddRelated" data-arg="${escAttr(name)}">＋ 加书</button>
+    </h2>`;
+  if (!list.length){
+    return head + `<div id="yzPrsBody"><p class="sub">暂未收录相关书籍。点上面的「＋ 加书」从书库里挑一本加进来，或到书目详情里补充链接。</p></div>`;
+  }
+  const rows = list.map(function(it){
+    const idx = RES.indexOf(it);
+    const isRel = relSet[it.title] || relSet[it.id];
+    return (isRel ? `<div style="font-size:.68rem;opacity:.75;margin:6px 0 0">★ 推荐</div>` : '') + rowHTML(idx);
+  }).join('');
+  return head +
+    `<div id="yzPrsBody"><p class="sub" style="margin:2px 0 6px;line-height:1.7">以下均为资源库里的同一条目，点一下即可打开详情。</p>` + rows + `</div>`;
 }
+/* 收起 / 展开「本站收录」 */
+function prsToggleNext(arg, btn){
+  const box = document.getElementById('yzPrsBody'); if (!box) return;
+  if (!btn || !btn.textContent) btn = document.querySelector('[data-act="prsToggleNext"]');
+  /* 用 data-full 记录「展开时的完整内容」——有它就说明现在处于收起态 */
+  const hidden = !!box.getAttribute('data-full');
+  /* 收起时只留前 3 条，避免整页被书目占满 */
+  if (!hidden){
+    if (!box.getAttribute('data-full')){
+      box.setAttribute('data-full', box.innerHTML);
+      const rows = box.querySelectorAll('.lcard');
+      for (let i = 3; i < rows.length; i++) rows[i].style.display = 'none';
+      const subs = box.querySelectorAll('.sub');
+      for (let k = 0; k < subs.length; k++) subs[k].style.display = 'none';
+      const marks = box.querySelectorAll('div[style*="★ 推荐"]');
+      for (let m = 0; m < marks.length; m++) marks[m].style.display = 'none';
+    }
+    btn.textContent = '展开（共 ' + box.querySelectorAll('.lcard').length + '）';
+    btn.setAttribute('aria-expanded', 'false');
+  } else {
+    box.innerHTML = box.getAttribute('data-full') || box.innerHTML;
+    box.removeAttribute('data-full');
+    btn.textContent = '收起';
+    btn.setAttribute('aria-expanded', 'true');
+  }
+}
+/* 从书库里挑一本，加进这个人的「本站收录」 */
+function openAddRelated(name){
+  if (!window.YZY || typeof YZY.editPerson !== 'function'){ toast('编辑器未加载，请刷新页面'); return; }
+  const g = personGroupOf(name);
+  if (!g){ toast('这位还没收录进人物库，先加人物'); return; }
+  const cur = personOfAny(name) || {};
+  const has = (cur.related || []).slice();
+  const old = document.getElementById('addRelBox'); if (old) old.parentNode.removeChild(old);
+  const d = document.createElement('div');
+  d.id = 'addRelBox'; d.className = 'le-scrim';
+  d.innerHTML = '<div class="le-box" style="max-height:84vh;overflow:hidden;display:flex;flex-direction:column;text-align:left">' +
+    '<div class="le-t">＋ 给「' + escHtml(name) + '」加书</div>' +
+    '<input id="arQ" class="le-in" placeholder="输入书名 / 作者 / 拼音首字母筛选" autocomplete="off">' +
+    '<div id="arList" style="flex:1;overflow:auto;margin:8px 0"></div>' +
+    '<div class="le-ops"><button data-ar="cancel">完成</button></div></div>';
+  document.body.appendChild(d);
+  const listEl = d.querySelector('#arList'), qEl = d.querySelector('#arQ');
+  function draw(){
+    const q = String(qEl.value || '').trim().toLowerCase();
+    const out = [];
+    for (let i = 0; i < RES.length && out.length < 60; i++){
+      const r = RES[i]; if (!r) continue;
+      const hay = (r.title || '') + ' ' + (r.author || '');
+      if (q && hay.toLowerCase().indexOf(q) < 0) continue;
+      out.push({ r: r, i: i });
+    }
+    listEl.innerHTML = out.length ? out.map(function(x){
+      const added = has.indexOf(x.r.title) >= 0;
+      return '<div class="lcard" style="cursor:pointer" data-add="' + escAttr(x.r.title) + '">' +
+        '<div style="flex:1"><div class="pname">' + escHtml(x.r.title) + '</div>' +
+        '<div class="prole">' + escHtml(x.r.author || '') + ' · ' + escHtml(x.r.cat || '') + '</div></div>' +
+        '<span style="opacity:.7;font-size:.72rem">' + (added ? '✓ 已加' : '＋') + '</span></div>';
+    }).join('') : '<p class="sub">没有匹配的书。</p>';
+  }
+  qEl.oninput = draw;
+  draw();
+  d.addEventListener('click', function(e){
+    let t = e.target;
+    while (t && t !== d && !t.getAttribute('data-add') && !t.getAttribute('data-ar')) t = t.parentNode;
+    if (e.target === d){ closeAddRelated(); return; }
+    if (!t || t === d) return;
+    if (t.getAttribute('data-ar') === 'cancel'){ closeAddRelated(); refreshPersonPage(name); return; }
+    const title = t.getAttribute('data-add');
+    if (!title) return;
+    if (has.indexOf(title) >= 0){ toast('这本已经在里面了'); return; }
+    has.push(title);
+    const r = YZY.editPerson(g, name, { related: has });
+    if (!r || r.ok === false){ toast((r && r.msg) || '保存失败'); return; }
+    try { YZY.reapply(); } catch (err) { }
+    toast('已加入：' + title);
+    draw();
+  });
+  setTimeout(function(){ try { qEl.focus(); } catch (e) { } }, 60);
+}
+function closeAddRelated(){ const b = document.getElementById('addRelBox'); if (b && b.parentNode) b.parentNode.removeChild(b); }
+function refreshPersonPage(name){
+  try {
+    const gn = allGraphNodes().filter(function(n){ return n.name === name; })[0];
+    if (gn && typeof openFigure === 'function'){ openFigure(gn.id); return; }
+    if (typeof openAuthor === 'function'){ openAuthor(name); return; }
+  } catch (e) { }
+}
+
 function timelineHTML(name){
   const ev = (EX.timelines || {})[name]; if (!ev || !ev.length) return '';
   return `<h2 class="sub-title" style="margin-top:18px">🕰️ 生平年表</h2><ul class="timeline">` + ev.map(e => `<li><b>${e.y}</b>${e.t}</li>`).join('') + `</ul>`;
@@ -1364,6 +2330,7 @@ const HUB = [
   { key:'events',   icon:'📅', title:'重大事件' },
   { key:'features', icon:'🧩', title:'专题' },
   { key:'debunks',  icon:'🧾', title:'辟谣' },
+  { key:'answers',  icon:'❓', title:'答疑解惑' },
 ];
 /* 覆盖层：栏目改名（客户端/官方均可） */
 var HUB_DEF = {}; HUB.forEach(function(h){ HUB_DEF[h.key] = h.title; });
@@ -1378,6 +2345,31 @@ function hubTabs(active){
     HUB.map(h => `<span class="tag${h.key === active ? ' active' : ''}" onclick="openHub('${h.key}')">${h.icon} ${h.title}</span>`).join('') + `</nav>`;
 }
 /* 「人物」框：取自关系图谱同一份数据（graph.js），介绍与图谱一致 */
+/* ---------- 文革图谱数据（142 KB）首屏不加载 ----------
+   首页只有三处用到它：全站搜索的文革条目、知识分层统计、人物跳转。
+   首屏先渲染，空闲 400ms 后再把数据补进来（补完 reapply 一次，本机改动不丢）。 */
+let _wgLoading = null, _wgCbs = [];
+function loadWengeGraph(cb){
+  if (window.SITE_GRAPH_WENGE) { if (typeof cb === 'function') try { cb(); } catch (e) { } return; }
+  if (typeof cb === 'function') _wgCbs.push(cb);
+  if (_wgLoading) return;
+  try {
+    const s = document.createElement('script');
+    /* 与 HTML 里的静态引用保持一致：带构建号，浏览器才会用长缓存 + V8 编译缓存 */
+    s.src = 'data/graph-wenge.js' + (window.__YZV ? '?v=' + window.__YZV : '');
+    s.onload = function () {
+      _wgLoading = null;
+      const q = _wgCbs; _wgCbs = [];
+      q.forEach(function (f) { try { f(); } catch (e) { } });
+      try { if (window.YZY && YZY.reapply) YZY.reapply(); } catch (e) { }
+      try { if (typeof render === 'function') render(); } catch (e) { }
+    };
+    s.onerror = function () { _wgLoading = null; };
+    _wgLoading = s;
+    document.head.appendChild(s);
+  } catch (e) { _wgLoading = null; }
+}
+setTimeout(function () { loadWengeGraph(); }, 400);
 function wengeGraph(){ return window.SITE_GRAPH_WENGE || { nodes: [], links: [] }; }
 function allGraphNodes(){
   var out = [], seen = {};
@@ -1387,14 +2379,29 @@ function allGraphNodes(){
   return out;
 }
 function figuresList(){
-  var leadersN = {}; (leaders || []).forEach(function(p){ leadersN[p.name] = 1; });
-  var comradesN = {}; (comrades || []).forEach(function(p){ comradesN[p.name] = 1; });
-  var criticsN = {}; (EX.critics || []).forEach(function(x){ criticsN[x.name] = 1; });
+  /* ① 先取人物库的「其他人物」组（有 id、可在详情页编辑，介绍与图谱同一份）
+     ② 再补图谱里尚未进任何名单的人（新加的图谱节点自动兜底） */
+  var libN = {};
+  (leaders || []).forEach(function(p){ libN[p.name] = 1; });
+  (comrades || []).forEach(function(p){ libN[p.name] = 1; });
+  (EX.critics || []).forEach(function(x){ libN[x.name] = 1; });
   var seen = {}, out = [];
+  /* 姓名 → 图谱节点 id 兜底表。
+     ⚠️ 真实 bug（0.17.21 修）：人物库有条目没写 id，原来直接拿中文姓名当 id，
+     而图谱节点的 id 是拼音 slug（如 林彪 → linbiao）。结果人物栏里的条目点开时
+     openFigure('林彪') 在 allGraphNodes 里找不到 → 点了没反应。 */
+  var gidByName = {};
+  allGraphNodes().forEach(function(n){ if (n && n.type === 'person' && n.name && !gidByName[n.name]) gidByName[n.name] = n.id; });
+  (CT.figures || []).forEach(function(p){
+    if (!p || !p.name || libN[p.name] || seen[p.name]) return;
+    seen[p.name] = 1;
+    out.push({ id: p.id || gidByName[p.name] || p.name, name: p.name, years: p.years, role: p.role,
+               desc: p.intro || p.desc, img: p.img, points: p.points, type: 'person' });
+  });
   allGraphNodes().forEach(function(n){
-    if (!n || n.type !== 'person' || seen[n.id]) return;
-    if (leadersN[n.name] || comradesN[n.name] || criticsN[n.name]) return; /* 已单列，不重复 */
-    seen[n.id] = 1; out.push(n);
+    if (!n || n.type !== 'person' || seen[n.name]) return;
+    if (libN[n.name]) return;
+    seen[n.name] = 1; out.push(n);
   });
   return out;
 }
@@ -1408,6 +2415,7 @@ function hubCount(key){
   if (key === 'features') return (EX.features || []).filter(function(f){ return f.id !== 'wenhua'; }).length;
   if (key === 'wenge') return wengeGraph().nodes.length;
   if (key === 'debunks') return (EX.debunks || []).length;
+  if (key === 'answers') { try { return YZStudy.summary().answers + YZStudy.summary().terms; } catch(e){ return 0; } }
   const g = schoolGroups()[hubGi(key)]; return g ? g.items.length : 0;
 }
 function hubTrail(key){ return [ { t:HUB_NAME, fn:()=>openSection(0) }, { t:hubTitle(key), fn:()=>openHub(key) } ]; }
@@ -1471,8 +2479,10 @@ function openHub(key){
         <div style="flex:1;min-width:0"><div class="pname">${escAttr(p.name)}<span style="font-size:.72rem;opacity:.55;font-weight:normal;margin-left:6px">${p.account && p.account !== p.name ? ('@'+escAttr(p.account)) : ''}${p.fans ? (' · 粉丝 '+escAttr(p.fans)) : ''}</span></div>
         <div class="prole" style="line-height:1.8;opacity:.86">${escAttr(p.intro || '')}</div>
         </div>
+        <button class="libedit" onclick="event.stopPropagation();openRecommendEdit('${escAttr(p.name)}')" aria-label="修改">✏️</button>
       </div>` }));
     openContent('📺 推荐人物', crumbFrom(hubTrail('recommend')) + hubTabs('recommend') +
+      `<div style="display:flex;gap:8px;margin:0 0 8px"><button class="sbtn" onclick="openRecommendNew()">＋ 新增推荐</button></div>` +
       `<p class="sub" style="margin:0 0 8px;line-height:1.8">${CT.recommendNote || ''}</p>` +
       tocHTML(cards) + cards.map(c => c.html).join(''));
     return;
@@ -1487,6 +2497,20 @@ function openHub(key){
     openContent('👤 人物', crumbFrom(hubTrail('figures')) + hubTabs('figures') +
       `<p class="sub" style="margin:0 0 8px;line-height:1.7">以下为暂未归入「革命导师 / 革命同志 / 被批判人物」的其他重要人物（共运活动家、早期领导人等）。其介绍与「关系图谱」中同一人物的介绍为同一份内容。</p>` +
       tocHTML(cards) + foldCards(cards.map(c => c.html), 40));
+    return;
+  }
+  if (key === 'answers'){
+    /* 一页两签，避免在底栏/史料里再开两个入口 */
+    var tab = window.__yzAnsTab || 'qa';
+    var body = (tab === 'gl') ? YZStudy.glossaryHTML() : YZStudy.answersHTML();
+    var sum = YZStudy.summary();
+    openContent('❓ 答疑解惑', crumbFrom(hubTrail('answers')) + hubTabs('answers') +
+      '<nav class="tagrow" style="margin:2px 0 10px">' +
+        '<span class="tag' + (tab === 'qa' ? ' active' : '') + '" onclick="__yzAnsTab=\'qa\';openHub(\'answers\')">❓ 答疑（' + sum.answers + '）</span>' +
+        '<span class="tag' + (tab === 'gl' ? ' active' : '') + '" onclick="__yzAnsTab=\'gl\';openHub(\'answers\')">📗 术语卡（' + sum.terms + '）</span>' +
+      '</nav>' +
+      '<div id="yzAnsWrap">' + body + '</div>' +
+      '<p class="sub" style="margin-top:18px;line-height:1.8;opacity:.6">答疑与术语是人工审定的静态内容，随版本更新；你的导读正文、笔记、标注只存本机，不会上传。</p>');
     return;
   }
   if (key === 'debunks'){
@@ -1551,8 +2575,10 @@ function openHub(key){
     html:`<div class="lcard" id="hub-s-${gi}-${ii}" onclick="openSchoolItem(${gi},${ii})" style="align-items:flex-start">
       <div style="flex:1"><div class="pname">${it.name}${it.meta ? `<span style="font-size:.66rem;opacity:.55;font-weight:normal;margin-left:8px">${it.meta}</span>` : ''}${it.crit ? ' <i class="badge-crit">被批判</i>' : ''}</div>
       <div class="prole" style="line-height:1.75">${it.desc}</div></div>
+      <button class="libedit" onclick="event.stopPropagation();openSchoolEdit('${escAttr(it.name)}')" aria-label="修改">✏️</button>
       <span style="opacity:.4">›</span></div>` }));
   openContent(h.icon + ' ' + g.group, crumbFrom(hubTrail(key)) + hubTabs(key) +
+    `<div style="display:flex;gap:8px;margin:0 0 8px"><button class="sbtn" onclick="openSchoolNew(${gi})">＋ 新增条目</button></div>` +
     (g.note ? `<p class="sub" style="margin:0 0 8px;line-height:1.7">${g.note}</p>` : '') +
     tocHTML(cards) + cards.map(c => c.html).join(''));
 }
@@ -1560,7 +2586,11 @@ function linkChips(names, kind){
   if (!names || !names.length) return '';
   return names.map(n => {
     if (kind === 'people') return `<span class="tag" onclick="openPerson('${escAttr(n)}')">👤 ${n}</span>`;
-    const s = resolveSchool(n); return s ? `<span class="tag" onclick="openSchoolItem(${s.gi},${s.ii})">${n}</span>` : `<span class="tag">${n}</span>`;
+    const s = resolveSchool(n);
+    if (s) return `<span class="tag" onclick="openSchoolItem(${s.gi},${s.ii})">${n}</span>`;
+    const cp = ((window.SITE_CONCEPTS && window.SITE_CONCEPTS.nodes) || []).find(function(x){ return x.name === n; });
+    if (cp) return `<span class="tag" onclick="openConcept('${escAttr(cp.id)}')">💡 ${n}</span>`;
+    return `<span class="tag">${n}</span>`;
   }).join('');
 }
 function openSchoolItem(gi, ii){
@@ -1570,16 +2600,357 @@ function openSchoolItem(gi, ii){
   const opposed = it.opposed && it.opposed !== '——' ? `<h2 class="sub-title" style="margin-top:16px">⚔️ 对立 / 被其批判的思潮与派系</h2><p class="sub" style="line-height:1.95">${it.opposed}</p>` : '';
   openContent('🧩 ' + it.name,
     crumbFrom(hubTrail(key).concat([{ t:it.name, fn:()=>openSchoolItem(gi,ii) }])) +
-    `<h3 style="color:var(--accent);font-size:1rem;letter-spacing:1px">${it.name}${it.crit ? ' <i class="badge-crit">被批判</i>' : ''}</h3>
+    `<div style="display:flex;align-items:center;gap:8px"><h3 style="color:var(--accent);font-size:1rem;letter-spacing:1px;margin:0;flex:1">${it.name}${it.crit ? ' <i class="badge-crit">被批判</i>' : ''}</h3><button class="libedit" onclick="openSchoolEdit('${escAttr(it.name)}')" aria-label="修改">✏️</button></div>
      ${it.meta ? `<div class="prole" style="margin:4px 0 8px">${it.meta}</div>` : ''}
      <p style="font-size:.85rem;line-height:1.95;opacity:.9">${it.desc || ''}</p>
      ${it.works && it.works !== '—' ? `<dl class="meta-grid" style="margin-top:12px"><dt>相关文献</dt><dd>${it.works}</dd></dl>` : ''}
      ${graphDetailHTML(it.name, true)}
      ${people}${opposed}` + graphLinkHTMLByName(it.name));
 }
+/* ---------- 史料补充内容编辑：推荐人物 / 思想组织 / 答疑（改本机这一份，不上传） ---------- */
+function closeEduEdit(){ var d = document.getElementById('eduEditor'); if (d && d.parentNode) d.parentNode.removeChild(d); }
+function openEduEdit(opts){
+  if (!window.YZY){ toast('编辑器未加载，请刷新页面'); return; }
+  closeEduEdit();
+  var v = function(x){ return escAttr(x == null ? '' : String(x)); };
+  var body = (opts.rows || []).map(function(r){
+    if (r.type === 'area') {
+      return '<div class="le-hint">' + r.label + '</div>' +
+        '<textarea id="ee_' + r.k + '" class="le-in" rows="' + (r.rows || 5) + '" style="resize:vertical;line-height:1.7">' + v(r.value) + '</textarea>';
+    }
+    return '<div class="le-hint">' + r.label + '</div><input id="ee_' + r.k + '" class="le-in" value="' + v(r.value) + '"' +
+      (r.ph ? ' placeholder="' + v(r.ph) + '"' : '') + '>';
+  }).join('');
+  var d = document.createElement('div');
+  d.id = 'eduEditor'; d.className = 'le-scrim';
+  d.innerHTML = '<div class="le-box" style="max-height:86vh;overflow:auto;text-align:left">' +
+    '<div class="le-t">✏️ ' + opts.title + '</div>' + body +
+    '<div class="le-hint">只改本机这一份，不上传；随「导出我的数据」一起带走。</div>' +
+    '<div class="le-ops"><button class="go" data-ee="save">保存</button><button data-ee="cancel">取消</button></div></div>';
+  document.body.appendChild(d);
+  d.addEventListener('click', function(e){
+    var b = e.target; while (b && b !== d && !b.getAttribute('data-ee')) b = b.parentNode;
+    if (e.target === d){ closeEduEdit(); return; }
+    if (!b || b === d) return;
+    var act = b.getAttribute('data-ee');
+    if (act === 'cancel'){ closeEduEdit(); return; }
+    if (act !== 'save') return;
+    var vals = {};
+    (opts.rows || []).forEach(function(r){
+      var el = d.querySelector('#ee_' + r.k);
+      vals[r.k] = el ? el.value : '';
+    });
+    var r2;
+    try { r2 = opts.onSave(vals); }
+    catch (err){ toast('保存失败：' + (err && err.message)); return; }
+    if (r2 && r2.ok === false){ toast(r2.msg || '保存失败'); return; }
+    closeEduEdit();
+    try { YZY.reapply(); } catch (err){}
+    try { if (typeof render === 'function') render(); } catch (err){}
+    try { if (opts.after) opts.after(); } catch (err){}
+    toast('已保存');
+  });
+}
+function findSchoolByName(name){
+  var G = schoolGroups() || [];
+  for (var gi = 0; gi < G.length; gi++){
+    var its = G[gi].items || [];
+    for (var ii = 0; ii < its.length; ii++) if (its[ii] && its[ii].name === name) return { gi: gi, ii: ii, it: its[ii], g: G[gi] };
+  }
+  return null;
+}
+/* ① 推荐人物 */
+function openRecommendEdit(name){
+  var p = (CT.recommend || []).filter(function(x){ return x && x.name === name; })[0];
+  if (!p){ toast('找不到这条推荐'); return; }
+  openEduEdit({
+    title: '编辑推荐人物 · ' + p.name,
+    rows: [
+      { k:'account', label:'账号名（@后面的部分）', value:p.account },
+      { k:'fans',    label:'粉丝数', value:p.fans, ph:'如 89.6万' },
+      { k:'url',     label:'主页链接', value:p.url, ph:'https://' },
+      { k:'intro',   label:'介绍（列表里显示的那段）', type:'area', rows:7, value:p.intro }
+    ],
+    onSave: function(v){ return YZY.editRec(name, { account:v.account, fans:v.fans, url:v.url, intro:v.intro }); },
+    after: function(){ openHub('recommend'); }
+  });
+}
+/* ② 思想 / 组织 */
+function openSchoolEdit(name){
+  var f = findSchoolByName(name);
+  if (!f){ toast('找不到这一条'); return; }
+  var it = f.it;
+  openEduEdit({
+    title: '编辑 · ' + it.name + '（' + (f.g.group || f.g.name || '') + '）',
+    rows: [
+      { k:'meta',    label:'一句话定位', value:it.meta, ph:'如 创立者：马克思、恩格斯' },
+      { k:'desc',    label:'要点说明', type:'area', rows:7, value:it.desc },
+      { k:'works',   label:'相关文献', value:it.works, ph:'《共产党宣言》《资本论》' },
+      { k:'people',  label:'相关人物（空格分隔）', value:(it.people || []).join(' ') },
+      { k:'opposed', label:'对立 / 被其批判的思潮', type:'area', rows:4, value:it.opposed }
+    ],
+    onSave: function(v){
+      return YZY.editSch(name, {
+        meta: v.meta, desc: v.desc, works: v.works, opposed: v.opposed,
+        people: String(v.people || '').split(/\s+/).filter(Boolean)
+      });
+    },
+    after: function(){
+      var f2 = findSchoolByName(name);
+      if (f2) openSchoolItem(f2.gi, f2.ii); else openHub('thoughts');
+    }
+  });
+}
+/* ③ 答疑 */
+function findAnswerById(id){
+  var G = (window.SITE_ANSWERS && window.SITE_ANSWERS.groups) || [];
+  for (var i = 0; i < G.length; i++){
+    var its = G[i].items || [];
+    for (var j = 0; j < its.length; j++) if (its[j] && its[j].id === id) return { g:G[i], it:its[j] };
+  }
+  return null;
+}
+function openAnswerEdit(id){
+  var f = findAnswerById(id);
+  if (!f){ toast('找不到这条答疑'); return; }
+  var it = f.it;
+  openEduEdit({
+    title: '编辑答疑 · ' + String(it.q || '').slice(0, 18) + '…',
+    rows: [
+      { k:'q',     label:'问题', type:'area', rows:2, value:it.q },
+      { k:'a',     label:'回答', type:'area', rows:8, value:it.a },
+      { k:'why',   label:'容易误以为（可不填）', type:'area', rows:3, value:it.why },
+      { k:'basis', label:'依据原文 / 篇目（每行一条）', type:'area', rows:4, value:(it.basis || []).join('\n') },
+      { k:'tags',  label:'标签（空格分隔）', value:(it.tags || []).join(' ') }
+    ],
+    onSave: function(v){
+      return YZY.editQa(id, {
+        q: v.q, a: v.a, why: v.why, basis: String(v.basis || '').split('\n').map(function(x){ return x.trim(); }).filter(Boolean),
+        tags: String(v.tags || '').split(/\s+/).filter(Boolean)
+      });
+    },
+    after: function(){ openHub('answers'); }
+  });
+}
+
+/* 新增（三类） */
+function openRecommendNew(){
+  openEduEdit({
+    title: '新增推荐人物',
+    rows: [
+      { k:'name',    label:'名称', value:'' },
+      { k:'account', label:'账号名', value:'' },
+      { k:'fans',    label:'粉丝数', value:'', ph:'如 12.3万' },
+      { k:'url',     label:'主页链接', value:'', ph:'https://' },
+      { k:'intro',   label:'介绍', type:'area', rows:6, value:'' }
+    ],
+    onSave: function(v){
+      if (!String(v.name || '').trim()) return { ok:false, msg:'名称不能为空' };
+      return YZY.addRec({ name:v.name, account:v.account, fans:v.fans, url:v.url, intro:v.intro });
+    },
+    after: function(){ openHub('recommend'); }
+  });
+}
+function openSchoolNew(gi){
+  var g = schoolGroups()[gi]; if (!g){ toast('找不到分组'); return; }
+  openEduEdit({
+    title: '新增 · ' + (g.group || '条目'),
+    rows: [
+      { k:'name',    label:'名称', value:'' },
+      { k:'meta',    label:'一句话定位', value:'', ph:'如 创立者：…' },
+      { k:'desc',    label:'要点说明', type:'area', rows:6, value:'' },
+      { k:'works',   label:'相关文献', value:'' },
+      { k:'people',  label:'相关人物（空格分隔）', value:'' },
+      { k:'opposed', label:'对立 / 被其批判的思潮', type:'area', rows:3, value:'' }
+    ],
+    onSave: function(v){
+      if (!String(v.name || '').trim()) return { ok:false, msg:'名称不能为空' };
+      return YZY.addSch({
+        name:v.name, meta:v.meta, desc:v.desc, works:v.works, opposed:v.opposed, group:(g.group || ''),
+        people: String(v.people || '').split(/\s+/).filter(Boolean)
+      });
+    },
+    after: function(){ openHub(gi === 0 ? 'thoughts' : 'orgs'); }
+  });
+}
+function openAnswerNew(){
+  openEduEdit({
+    title: '新增答疑',
+    rows: [
+      { k:'q',     label:'问题', type:'area', rows:2, value:'' },
+      { k:'a',     label:'回答', type:'area', rows:7, value:'' },
+      { k:'why',   label:'容易误以为（可不填）', type:'area', rows:3, value:'' },
+      { k:'basis', label:'依据原文 / 篇目（每行一条）', type:'area', rows:3, value:'' },
+      { k:'tags',  label:'标签（空格分隔）', value:'' }
+    ],
+    onSave: function(v){
+      if (!String(v.q || '').trim()) return { ok:false, msg:'问题不能为空' };
+      return YZY.addQa({
+        q:v.q, a:v.a, why:v.why,
+        basis: String(v.basis || '').split('\n').map(function(x){ return x.trim(); }).filter(Boolean),
+        tags: String(v.tags || '').split(/\s+/).filter(Boolean)
+      });
+    },
+    after: function(){ openHub('answers'); }
+  });
+}
+
+/* ---------- 详情页内联编辑：人物（改本机这一份，不上传） ---------- */
+function closePersonEdit(){ var d=document.getElementById('personEditor'); if(d&&d.parentNode) d.parentNode.removeChild(d); }
+function personGroupOf(name){
+  var arrs = { leaders:(CT.leaders||[]), comrades:(CT.comrades||[]), critics:(EX.critics||[]), figures:(CT.figures||[]) };
+  var g = null;
+  Object.keys(arrs).forEach(function(k){
+    if (arrs[k].some(function(x){ return x && x.name === name; })) g = k;
+  });
+  return g;
+}
+function openPersonEdit(idOrName){
+  /* 接受两种入参：图谱节点 id（openFigure 用），或人物姓名（史料各栏目用） */
+  var key = String(idOrName == null ? '' : idOrName);
+  var gnode = allGraphNodes().find(function(n){ return n.id === key; }) || null;
+  var nm = gnode ? (gnode.name || '') : key;
+  if (!nm) return;
+  if (!window.YZY || typeof YZY.editPerson !== 'function'){ toast('编辑器未加载，请刷新页面'); return; }
+  closePersonEdit();
+
+  var g = personGroupOf(nm);
+  var arrs = { leaders:(CT.leaders||[]), comrades:(CT.comrades||[]), critics:(EX.critics||[]), figures:(CT.figures||[]) };
+  var cur = (arrs[g] || []).filter(function(x){ return x && x.name === nm; })[0] || {};
+  var years = cur.years || (gnode ? gnode.years : '') || '';
+  var role  = cur.role  || (gnode ? gnode.role  : '') || '';
+  var intro = cur.intro || cur.desc || (gnode ? gnode.desc : '') || '';
+  var works = (cur.works || (gnode && gnode.works) || []);
+  if (works && works.join) works = works.join('\n');
+  var pts = (cur.points || (gnode && gnode.points) || []);
+  var chrono = (EX.timelines || {})[nm] || [];
+  var wchrono = (EX.worksTimeline || {})[nm] || [];
+  var related = (cur.related || (gnode && gnode.related) || []);
+
+  var gName = { leaders:'革命导师', comrades:'革命同志', critics:'被批判人物', figures:'其他人物' }[g] || '';
+  var v = function(x){ return escAttr(x==null?'':String(x)); };
+  /* 年表 → 文本（每行「年｜事件」） */
+  var chronoText = function(a){ return (a||[]).map(function(x){ return (x.y||'') + '｜' + (x.t||''); }).join('\n'); };
+  var d = document.createElement('div');
+  d.id = 'personEditor'; d.className = 'le-scrim';
+  d.innerHTML = '<div class="le-box" style="max-height:88vh;overflow:auto;text-align:left">' +
+    '<div class="le-t">✏️ 编辑人物 · ' + escHtml(nm) + '</div>' +
+    /* —— 头像 —— */
+    '<div class="le-hint" style="margin-top:0">头像</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
+      '<img id="peAvaImg" alt="" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:1px solid var(--card-border);background:var(--card)" src="' + (cur.img || (gnode && gnode.img) || '') + '">' +
+      '<button type="button" class="sbtn" data-pe="pickAva">＋ 从相册/文件选图</button>' +
+      '<input type="file" id="peAvaFile" accept="image/*" style="display:none">' +
+      (cur.img ? '<button type="button" class="sbtn" data-pe="clearAva">清除</button>' : '') +
+    '</div>' +
+    '<div class="le-hint">姓名（人物详情页与图谱共用，这里不改）</div>' +
+    '<input class="le-in" value="' + v(nm) + '" disabled>' +
+    '<div class="le-hint">所属目录' + (g ? '（' + gName + '）' : '（未收录）') + '</div>' +
+    '<div class="le-hint">生卒年</div><input id="peYears" class="le-in" value="' + v(years) + '" placeholder="如 1818—1883">' +
+    '<div class="le-hint">身份 · 一句概括</div><input id="peRole" class="le-in" value="' + v(role) + '">' +
+    '<div class="le-hint">详细介绍（详情页正文与图谱共用同一份，可多段用空行分开）</div>' +
+    '<textarea id="peIntro" class="le-in" rows="9" style="resize:vertical;line-height:1.75">' + v(intro) + '</textarea>' +
+    '<div class="le-hint">代表作 / 文献（每行一条）</div>' +
+    '<textarea id="peWorks" class="le-in" rows="4" style="resize:vertical;line-height:1.7" placeholder="共产党宣言&#10;资本论">' + v(works) + '</textarea>' +
+    '<div class="le-hint">要点（每行一条，显示在详情页「要点」栏）</div>' +
+    '<textarea id="pePoints" class="le-in" rows="4" style="resize:vertical;line-height:1.7">' + v((pts||[]).join('\n')) + '</textarea>' +
+    '<div class="le-hint">生平年表（每行：年份｜事件；留空则隐藏该栏）</div>' +
+    '<textarea id="peChrono" class="le-in" rows="5" style="resize:vertical;line-height:1.7" placeholder="1818｜出生于普鲁士特里尔&#10;1848｜与恩格斯合著《共产党宣言》">' + v(chronoText(chrono)) + '</textarea>' +
+    '<div class="le-hint">著作年表（每行：年份｜著作）</div>' +
+    '<textarea id="peWChrono" class="le-in" rows="5" style="resize:vertical;line-height:1.7" placeholder="1848｜《共产党宣言》">' + v(chronoText(wchrono)) + '</textarea>' +
+    '<div class="le-hint">相关推荐（每行一个书名，会加进下方「本站收录」并标「推荐」）</div>' +
+    '<textarea id="peRelated" class="le-in" rows="3" style="resize:vertical;line-height:1.7" placeholder="如：共产党宣言">' + v((related||[]).join('\n')) + '</textarea>' +
+    (g
+      ? '<div class="le-hint">只改本机这一份，不上传；随「导出我的数据」一起带走。</div>'
+      : '<div class="le-hint" style="color:#e0a800">⚠️ 这位人物还没收录进人物库，改动无处落脚。请到「史料 → 自助编辑」把他加入人物库后再改。</div>') +
+    '<div class="le-ops">' + (g ? '<button class="go" data-pe="save">保存</button>' : '') +
+      '<button data-pe="cancel">' + (g ? '取消' : '知道了') + '</button></div>' +
+    '</div>';
+  document.body.appendChild(d);
+
+  /* 头像：选图 → canvas 缩到 160×160 → dataURL（16KB 左右，存得下） */
+  var _ava = '';
+  var fileEl = d.querySelector('#peAvaFile'), imgEl = d.querySelector('#peAvaImg');
+  function pickAva(){ if (fileEl) fileEl.click(); }
+  function readAva(file){
+    if (!file) return;
+    if (file.size > 6 * 1024 * 1024){ toast('图片太大（>6MB），请先压缩'); return; }
+    var fr = new FileReader();
+    fr.onload = function(){
+      var im = new Image();
+      im.onload = function(){
+        try {
+          var S = 160, w = im.width || S, h = im.height || S;
+          var sc = Math.min(S / w, S / h);
+          var cw = Math.max(1, Math.round(w * sc)), chh = Math.max(1, Math.round(h * sc));
+          var cv = document.createElement('canvas'); cv.width = S; cv.height = S;
+          var ctx = cv.getContext('2d');
+          ctx.fillStyle = '#1a1414'; ctx.fillRect(0, 0, S, S);
+          ctx.drawImage(im, Math.round((S - cw) / 2), Math.round((S - chh) / 2), cw, chh);
+          _ava = cv.toDataURL('image/jpeg', 0.86);
+          if (imgEl) imgEl.src = _ava;
+          toast('头像已选好，记得点保存');
+        } catch (e) { toast('处理图片失败：' + (e && e.message ? e.message : e)); }
+      };
+      im.onerror = function(){ toast('这张图片读不出来'); };
+      im.src = String(fr.result || '');
+    };
+    fr.onerror = function(){ toast('读取图片失败'); };
+    fr.readAsDataURL(file);
+  }
+  if (fileEl) fileEl.onchange = function(){ readAva(this.files && this.files[0]); };
+
+  d.addEventListener('click', function(e){
+    var b = e.target; while (b && b !== d && !b.getAttribute('data-pe')) b = b.parentNode;
+    if (e.target === d){ closePersonEdit(); return; }
+    if (!b || b === d) return;
+    var act = b.getAttribute('data-pe');
+    if (act === 'pickAva'){ pickAva(); return; }
+    if (act === 'clearAva'){ _ava = ''; if (imgEl) imgEl.removeAttribute('src'); toast('已清除，记得点保存'); return; }
+    if (act === 'cancel'){ closePersonEdit(); return; }
+    if (act !== 'save' || !g) return;
+    var gg = function(x){ var el = d.querySelector('#' + x); return el ? el.value : ''; };
+    var patch = {
+      years: String(gg('peYears')).trim(),
+      role: String(gg('peRole')).trim(),
+      intro: String(gg('peIntro')).trim(),
+      works: String(gg('peWorks')).split('\n').map(function(x){ return x.trim(); }).filter(Boolean).join(' '),
+      points: String(gg('pePoints')).split('\n').map(function(x){ return x.trim(); }).filter(Boolean),
+      timelines: parseChrono(String(gg('peChrono'))),
+      worksTimeline: parseChrono(String(gg('peWChrono'))),
+      related: String(gg('peRelated')).split('\n').map(function(x){ return x.trim(); }).filter(Boolean)
+    };
+    if (_ava) patch.avatar = _ava;
+    var r;
+    try { r = YZY.editPerson(g, nm, patch); }
+    catch(err){ toast('保存失败：' + (err && err.message)); return; }
+    if (!r || r.ok === false){ toast((r && r.msg) || '保存失败'); return; }
+    closePersonEdit();
+    try { YZY.reapply(); } catch(err){}
+    try { if (typeof render === 'function') render(); } catch(err){}
+    toast('已保存（仅本机）');
+    try { window.__yzAfterPersonEdit ? window.__yzAfterPersonEdit(nm) : null; } catch(err){}
+    try { if (gnode) openFigure(gnode.id); else openAuthor(nm); } catch(err){}
+  });
+}
+/* 「年份｜事件」文本 → [{y,t}]（兼容只写事件、不写年份的行） */
+function parseChrono(txt){
+  return String(txt || '').split('\n').map(function(line){
+    var l = line.trim(); if (!l) return null;
+    var p = l.split(/[｜|]/);
+    if (p.length >= 2) return { y: p[0].trim().slice(0, 24), t: p.slice(1).join('｜').trim() };
+    var m = /^(\d{3,4}(?:\s*[—\-~～]\s*\d{0,4})?)\s*[年:：,，]?\s*(.*)$/.exec(l);
+    if (m && m[1]) return { y: m[1], t: (m[2] || '').trim() };
+    return { y: '', t: l };
+  }).filter(Boolean);
+}
+
+function openPersonEditByName(nm){ return openPersonEdit(nm); }
+
 function openFigure(id, fromRoute){
   var G = allGraphNodes();
   var p = G.find(function(n){ return n.id === id; }); if (!p) return;
+  yzSetCur({ kind:'person', id:id });
   var _fe = { k:'p:'+p.id, name:p.name, img:imgOf(p), sub:[p.years, p.role].filter(Boolean).join(' · '), act:"openFigure('"+p.id+"')" };
   var pts = (p.points && p.points.length) ? `<h2 class="sub-title" style="margin-top:16px">📌 要点</h2><ul style="list-style:none;padding:0;font-size:.85rem;line-height:1.95;opacity:.92">${p.points.map(function(x){return '<li style="padding-left:16px;position:relative">▸ '+x+'</li>';}).join('')}</ul>` : '';
   var works = (p.works && p.works.length) ? `<h2 class="sub-title" style="margin-top:16px">📚 代表文献</h2><div class="tagrow">${p.works.map(function(w){return '<span class="tag">'+w+'</span>';}).join('')}</div>` : '';
@@ -1590,7 +2961,9 @@ function openFigure(id, fromRoute){
        <h3>${p.name}</h3><div class="prole">${[p.years, p.role].filter(Boolean).join(' · ')}</div>
        <p>${p.desc || ''}</p>
      </div>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + pts + works +
-    `<p style="margin-top:18px"><a href="graph.html#${p.id}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在关系图谱中查看 →</a></p>`);
+    `<p style="margin-top:18px"><a href="graph.html#${p.id}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在关系图谱中查看 →</a></p>`,
+    { right: (window.YZY && typeof YZY.editPerson === 'function')
+        ? { text:'✏️', act:"openPersonEdit('" + p.id + "')" } : null });
   if (!fromRoute) setHash('#/p/' + slugOf(p.name));
 }
 function openWengeNode(id){
@@ -1614,10 +2987,13 @@ function openCritic(i, fromRoute){
     crumbFrom(hubTrail('critics').concat([{ t:c.name, fn:()=>openCritic(i) }])) +
     `<h3 style="color:var(--accent);font-size:1rem;letter-spacing:1px">${c.name}</h3>
      <div class="prole" style="margin:4px 0 10px">${c.years || ''}${c.role ? ' · ' + c.role : ''}</div>
-     <p style="font-size:.85rem;line-height:1.95;opacity:.9">${c.desc || ''}</p>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + ((c.points && c.points.length) ? `<h2 class="sub-title" style="margin-top:16px">📌 要点</h2><ul style="list-style:none;padding:0;font-size:.85rem;line-height:1.95;opacity:.92">${c.points.map(x=>`<li style="padding-left:16px;position:relative">▸ ${x}</li>`).join('')}</ul>` : '') + graphDetailHTML(c.name, true) + graphLinkHTMLByName(c.name));
+     <p style="font-size:.85rem;line-height:1.95;opacity:.9">${c.desc || ''}</p>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + ((c.points && c.points.length) ? `<h2 class="sub-title" style="margin-top:16px">📌 要点</h2><ul style="list-style:none;padding:0;font-size:.85rem;line-height:1.95;opacity:.92">${c.points.map(x=>`<li style="padding-left:16px;position:relative">▸ ${x}</li>`).join('')}</ul>` : '') + graphDetailHTML(c.name, true) + graphLinkHTMLByName(c.name),
+    { right: (window.YZY && typeof YZY.editPerson === 'function')
+        ? { text:'✏️', act:'openPersonEditByName(' + c.name + ')' } : null });
   if (!fromRoute) setHash('#/p/' + slugOf(c.name));
 }
 function openEvent(i, fromRoute){
+  try { var _e = (EX.events || [])[i]; yzSetCur({ kind:'event', idx:i, id: (_e && (_e.id || _e.name)) || String(i) }); } catch(e){}
   const e = (EX.events || [])[i]; if (!e) return;
   const rel = [];
   if ((e.people || []).length) rel.push(`<h2 class="sub-title" style="margin-top:16px">👤 相关人物</h2><div class="tagrow">${linkChips(e.people, 'people')}</div>`);
@@ -1731,11 +3107,52 @@ function showLeaderDetail(i){
        <div class="pworks">代表作：${p.works}</div>
        <p>${p.intro}</p>
        ${p.points ? `<div style="text-align:left;margin-top:14px"><b>主要贡献与思想</b><ul>${p.points.map(x=>`<li>${x}</li>`).join('')}</ul></div>` : ''}
-     </div>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + timelineHTML(p.name) + worksTimelineHTML(p.name) + personResourcesHTML(p.name) + relatedSchoolsHTML(p.name) + graphLinkHTMLByName(p.name));
+     </div>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + timelineHTML(p.name) + worksTimelineHTML(p.name) + personResourcesHTML(p.name) + relatedSchoolsHTML(p.name) + graphLinkHTMLByName(p.name),
+    { right: (window.YZY && typeof YZY.editPerson === 'function')
+        ? { text:'✏️', act:'openPersonEditByName(' + p.name + ')' } : null });
   setHash('#/p/' + slugOf(p.name));
 }
 function personOf(name){ return leaders.concat(comrades).find(x => x.name === name) || null; }
+/* 作者名 → 人物页：直接命中（导师/同志/其他人物/被批判），或经作者别名表反查（「马克思恩格斯」→ 两人） */
+function authorPeople(name){
+  const n = String(name || '').trim();
+  if (!n) return [];
+  const one = k => {
+    if (leaders.concat(comrades).some(p => p.name === k)) return { name: k, kind: 'comrade' };
+    const f = figuresList().filter(p => p.name === k)[0];
+    if (f) return { name: k, kind: 'figure', id: f.id };
+    const cs = EX.critics || [];
+    for (let i = 0; i < cs.length; i++) if (cs[i].name === k) return { name: k, kind: 'critic', idx: i };
+    return null;
+  };
+  const direct = one(n);
+  if (direct) return [direct];
+  const A = (window.SITE_EXTRA && SITE_EXTRA.authors) || {};
+  const out = [];
+  Object.keys(A).forEach(full => {
+    const als = A[full] || [];
+    if (als.indexOf(n) < 0) return;
+    const hit = one(full) || one(als[0]);
+    if (hit && !out.some(x => x.name === hit.name)) out.push(hit);
+  });
+  return out;
+}
 function openAuthor(name, fromRoute){
+  /* 其他人物 / 被批判人物也有页面：从书名点作者时直接转过去，不再停在空白页 */
+  const _ppl = authorPeople(name);
+  if (_ppl.length === 1 && _ppl[0].kind === 'figure') return openFigure(_ppl[0].id);
+  if (_ppl.length === 1 && _ppl[0].kind === 'critic') return openCritic(_ppl[0].idx);
+  if (_ppl.length > 1) {
+    const trail = [{ t: HUB_NAME, fn: () => openSection(0) }, { t: name, fn: () => openAuthor(name) }];
+    const cards = _ppl.map(x => `<div class="lcard" onclick="${x.kind === 'figure' ? `openFigure('${x.id}')` : (x.kind === 'critic' ? `openCritic(${x.idx})` : `openAuthor('${String(x.name).replace(/'/g, '')}')`)}">
+        <div style="flex:1"><div class="pname">${x.name}</div>
+        <div class="prole">${x.kind === 'figure' ? '人物' : (x.kind === 'critic' ? '被批判人物' : '革命导师 / 同志')}</div></div>
+        <span style="opacity:.4">›</span></div>`).join('');
+    openContent('👤 ' + name,
+      crumbFrom(trail) + `<p class="sub" style="margin:0 0 10px;line-height:1.75">「${escHtml(name)}」是多位作者的合署名，本站为每位作者都建了页面，点开看具体一位。</p>` + cards);
+    if (!fromRoute) setHash('#/a/' + slugOf(name));
+    return;
+  }
   const isComrade = comrades.some(p => p.name === name);
   const trail = [{ t:HUB_NAME, fn:()=>openSection(0) }];
   if (isComrade) trail.push({ t:'革命同志', fn:()=>openHub('comrades') });
@@ -1749,8 +3166,13 @@ function openAuthor(name, fromRoute){
         <p>${p.intro || ''}</p>
         ${p.points ? `<div style="text-align:left;margin-top:12px"><b>主要贡献与思想</b><ul>${p.points.map(x=>`<li>${x}</li>`).join('')}</ul></div>` : ''}
       </div>`
-    : `<h3 style="color:var(--accent);font-size:1rem;letter-spacing:1px">👤 ${name}</h3>`;
-  openContent('👤 ' + name, crumbFrom(trail) + head + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + graphDetailHTML(name) + timelineHTML(name) + worksTimelineHTML(name) + personResourcesHTML(name) + relatedSchoolsHTML(name) + graphLinkHTMLByName(name));
+    : `<div class="ldetail"><div style="font-size:2.2rem;line-height:1;margin-bottom:8px">👤</div>
+        <h3 style="letter-spacing:1px">${escHtml(name)}</h3>
+        <p class="sub" style="margin:8px 0 0;line-height:1.8">本站还没有为这位作者建立人物页。<br>下面列出的是 ta 在本站署名（或相关）的书目，可直接点开。</p>
+        <p class="sub" style="margin:6px 0 0;opacity:.65;font-size:.74rem">想补一页？用页面右上角的 ✏️ 可以在这里直接建（本机保存）。</p></div>`;
+  openContent('👤 ' + name, crumbFrom(trail) + head + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + graphDetailHTML(name) + timelineHTML(name) + worksTimelineHTML(name) + personResourcesHTML(name) + relatedSchoolsHTML(name) + graphLinkHTMLByName(name),
+    { right: (window.YZY && typeof YZY.editPerson === 'function')
+        ? { text:'✏️', act:'openPersonEditByName(' + name + ')' } : null });
   if (!fromRoute) setHash('#/a/' + slugOf(name));
 }
 
@@ -1773,33 +3195,6 @@ function allIndexHTML(){
      <div class="tagrow">` + HUB.map(h => `<span class="tag" onclick="openHub('${h.key}')">${h.icon} ${h.title}（${hubCount(h.key)}）</span>`).join('') + `</div>`;
 }
 
-/* ---------- 资源导航 ---------- */
-const navGroups = CT.navGroups || [];
-const tagHTML = t => t ? ` <span style="font-size:.62rem;opacity:.62;border:1px solid currentColor;border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:middle;white-space:nowrap">${t}</span>` : '';
-function navTrail(i){ return [{ t:'资源导航', fn:()=>openSection(2) }, { t:navGroups[i].name, fn:()=>openNavGroup(i) }]; }
-function navGroupsListHTML(){
-  return `<p class="sub" style="margin-top:0;line-height:1.7">${CT.navNote || '以下均为第三方站点，内容非本站控制，请自行甄别。'}</p>` +
-    navGroups.map((g, i) => `<div class="lcard" onclick="openNavGroup(${i})">
-      <span class="li">${g.icon || '📁'}</span><div style="flex:1"><div class="pname">${g.name}</div><div class="prole">${g.items.length} 个站点</div></div>
-      <span style="opacity:.4">›</span></div>`).join('') +
-    `<p style="margin-top:14px;font-size:.72rem;opacity:.55">链接失效或打不开？<button class="aslink" style="text-decoration:underline" onclick="requestAction()">点此反馈</button></p>`;
-}
-function openNavGroup(i){
-  const g = navGroups[i]; if(!g) return;
-  openContent((g.icon || '📁') + ' ' + g.name, crumbFrom(navTrail(i)) +
-    g.items.map((l, j) => `<div class="lcard" onclick="openNavItem(${i},${j})">
-      <span class="li">🔗</span><div style="flex:1"><div class="pname">${l.name}${tagHTML(l.tag)}</div><div class="prole">${l.desc}</div></div>
-      <span style="opacity:.4">›</span></div>`).join(''));
-}
-function openNavItem(gi, ii){
-  const g = navGroups[gi], l = g && g.items[ii]; if(!l) return;
-  openContent('🔗 ' + l.name,
-    crumbFrom(navTrail(gi).concat([{ t:l.name, fn:()=>openNavItem(gi,ii) }])) +
-    `<h3 style="color:var(--accent);font-size:1rem;letter-spacing:2px">${l.name}${tagHTML(l.tag)}</h3>
-     <p style="margin:10px 0;font-size:0.83rem;opacity:.85;line-height:1.95">${l.intro || l.desc}</p>
-     <p style="margin-top:10px;font-size:.7rem;opacity:.5">本站仅作介绍与索引，<b>不提供跳转</b>；如需访问，请自行在浏览器中搜索该站名。内容由第三方提供，请注意甄别。</p>`);
-}
-
 /* 精华摘要：优先用「重新精炼过的简介」数据（window.YZ_INTRO_SHORT，如有）；否则用数据里那句话简介 desc；
    再否则取详细介绍的首句 / 截断到 100 字以内。——保证一眼看到的是重点，而不是一大段。 */
 function briefIntro(it){
@@ -1813,8 +3208,152 @@ function briefIntro(it){
   if (cut > 12 && cut < 100) return full.slice(0, cut + 1);
   return full.slice(0, 100) + '…';
 }
+function shortLink(u){
+  u = String(u || '');
+  return u.length > 46 ? (u.slice(0, 43) + '…') : u;
+}
+/* ---------- 书库链接：用户可为每本书自行指定链接（只存本机，可恢复默认） ---------- */
+function userLinks(){ try { return JSON.parse(localStorage.getItem('links') || '{}'); } catch(e){ return {}; } }
+function setUserLink(id, url){
+  var m = userLinks();
+  if (url) m[id] = url; else delete m[id];
+  return lset('links', JSON.stringify(m));
+}
+function linkIsCustom(it){ var m = userLinks(); return Object.prototype.hasOwnProperty.call(m, it.id || it.title); }
+function linkOf(it){
+  var id = it.id || it.title, m = userLinks();
+  if (Object.prototype.hasOwnProperty.call(m, id)) return m[id];
+  return (it.url && it.url !== '#') ? it.url : '';
+}
+/* 只放行 http(s) 与站内相对路径；javascript:/data: 一律拒绝（历史漏洞就是漏了这层） */
+function normLink(v){
+  var s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  if (/^(javascript|data|vbscript|file):/i.test(s)) return null;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^(books|assets|data|images)\//.test(s) || /^\.\//.test(s)) return s;
+  return null;
+}
+function openBookLink(idx){
+  var it = RES[idx]; if (!it) return;
+  var u = linkOf(it); if (!u) { openLinkEditor(idx); return; }
+  if (/^https?:\/\//i.test(u)) confirmLeave(u, it.title || '链接');
+  else location.href = u;
+}
+function openLinkEditor(idx){
+  var it = RES[idx]; if (!it) return;
+  closeLinkEditor();
+  var cur = linkOf(it), custom = linkIsCustom(it);
+  var d = document.createElement('div');
+  d.id = 'linkEditor'; d.className = 'le-scrim';
+  d.innerHTML = '<div class="le-box">' +
+    '<div class="le-t">🔗 《' + escHtml(it.title || '') + '》的链接</div>' +
+    '<input id="leInput" class="le-in" type="url" inputmode="url" placeholder="https://… 或 books/文件名.epub" value="' + escAttr(cur) + '">' +
+    '<div class="le-hint">支持 http(s) 链接，或站内路径（books/…）。留空表示不设链接。只存在本机，不上传。</div>' +
+    '<div class="le-ops">' +
+      '<button class="go" data-le="save">保存</button>' +
+      (custom ? '<button data-le="reset">恢复默认</button>' : '') +
+      '<button data-le="cancel">取消</button>' +
+    '</div></div>';
+  document.body.appendChild(d);
+  var inp = d.querySelector('#leInput');
+  setTimeout(function(){ try { inp.focus(); inp.select(); } catch(e){} }, 50);
+  d.addEventListener('click', function(e){
+    var b = e.target;
+    while (b && b !== d && !b.getAttribute('data-le')) b = b.parentNode;
+    if (e.target === d){ closeLinkEditor(); return; }
+    if (!b || b === d) return;
+    var act = b.getAttribute('data-le');
+    if (act === 'cancel'){ closeLinkEditor(); return; }
+    if (act === 'reset'){ setUserLink(it.id || it.title, ''); closeLinkEditor(); toast('已恢复默认链接'); openItemDetail(idx); return; }
+    if (act === 'save'){
+      var v = normLink(inp.value);
+      if (v === null){ toast('链接格式不支持，请用 http(s) 或站内路径'); return; }
+      setUserLink(it.id || it.title, v);
+      closeLinkEditor();
+      toast(v ? '链接已保存' : '已清除链接');
+      openItemDetail(idx);
+    }
+  });
+}
+function closeLinkEditor(){ var e = document.getElementById('linkEditor'); if (e && e.parentNode) e.parentNode.removeChild(e); }
+
 /* ---------- 资源详情 ---------- */
+/* ---------- 详情页内联编辑：书籍（改本机这一份，不上传） ---------- */
+function closeResEdit(){ var d=document.getElementById('resEditor'); if(d&&d.parentNode) d.parentNode.removeChild(d); }
+function chText(it){
+  return ((it && it.chapters) || []).map(function(c){
+    c = c || {};
+    return (c.t || '') + (c.d ? '｜' + c.d : '');
+  }).join('\n');
+}
+function openResEdit(idx){
+  var it = RES[idx]; if (!it) return;
+  if (!window.YZY || typeof YZY.editResource !== 'function'){ toast('编辑器未加载，请刷新页面'); return; }
+  closeResEdit();
+  var v = function(x){ return escAttr(x==null?'':String(x)); };
+  var cats = ['原著','导读','词典','参考','对公文献','当代','有声书','歌曲','影像','工具'];
+  var d = document.createElement('div');
+  d.id = 'resEditor'; d.className = 'le-scrim';
+  d.innerHTML = '<div class="le-box" style="max-height:86vh;overflow:auto;text-align:left">' +
+    '<div class="le-t">✏️ 编辑《' + escHtml(it.title||'') + '》</div>' +
+    '<div class="le-hint">书名</div><input id="reTitle" class="le-in" value="' + v(it.title) + '">' +
+    '<div class="le-hint">作者</div><input id="reAuthor" class="le-in" value="' + v(it.author) + '">' +
+    '<div class="le-hint">分类</div><select id="reCat" class="le-in">' +
+      cats.map(function(c){ return '<option' + (c===it.cat?' selected':'') + '>' + c + '</option>'; }).join('') + '</select>' +
+    '<div class="le-hint">内容介绍（详情页正文，可多段）</div><textarea id="reIntro" class="le-in" rows="7" style="resize:vertical;line-height:1.7">' + v(it.intro) + '</textarea>' +
+    '<div class="le-hint">章节目录（每行一条，格式：章名｜说明。留空则不显示目录）</div>' +
+    '<textarea id="reChapters" class="le-in" rows="6" style="resize:vertical;line-height:1.7">' + v(chText(it)) + '</textarea>' +
+    '<div class="le-hint">出版社</div><input id="rePub" class="le-in" value="' + v(it.publisher) + '" placeholder="如 人民出版社">' +
+    '<div class="le-hint">出版年</div><input id="reYear" class="le-in" value="' + v(it.pubyear) + '" placeholder="如 2013">' +
+    '<div class="le-hint">译者 / 编者</div><input id="reTrans" class="le-in" value="' + v(it.translator) + '">' +
+    '<div class="le-hint">标签（空格分隔）</div><input id="reTags" class="le-in" value="' + v((it.tags||[]).join(' ')) + '">' +
+    '<div class="le-hint">相关推荐（每行一个书名，会排在详情页「相关推荐」最前面）</div>' +
+    '<textarea id="reRelated" class="le-in" rows="3" style="resize:vertical;line-height:1.7" placeholder="如：共产党宣言">' + v((it.related||[]).join('\n')) + '</textarea>' +
+    '<div class="le-hint">来源 · 校订说明</div><textarea id="reNote" class="le-in" rows="3" style="resize:vertical">' + v(it.note) + '</textarea>' +
+    '<div class="le-hint">只改本机这一份，不上传；随「导出我的数据」一起带走。想恢复原样，可到「导出我的数据」里清空覆盖层。</div>' +
+    '<div class="le-ops"><button class="go" data-re="save">保存</button><button data-re="cancel">取消</button></div>' +
+    '</div>';
+  document.body.appendChild(d);
+  d.addEventListener('click', function(e){
+    var b = e.target; while (b && b !== d && !b.getAttribute('data-re')) b = b.parentNode;
+    if (e.target === d){ closeResEdit(); return; }
+    if (!b || b === d) return;
+    var act = b.getAttribute('data-re');
+    if (act === 'cancel'){ closeResEdit(); return; }
+    if (act !== 'save') return;
+    var g = function(id){ var el = d.querySelector('#' + id); return el ? el.value : ''; };
+    var title = String(g('reTitle')).trim();
+    if (!title){ toast('书名不能为空'); return; }
+    var parseCh = function(raw){
+      return String(raw || '').split('\n').map(function(line){
+        var t = line.trim(); if (!t) return null;
+        var i = t.indexOf('｜') >= 0 ? t.indexOf('｜') : t.indexOf('|');
+        if (i < 0) return { t: t, d: '' };
+        return { t: t.slice(0, i).trim(), d: t.slice(i + 1).trim() };
+      }).filter(Boolean);
+    };
+    var patch = { title: title, author: String(g('reAuthor')).trim() || '—', cat: g('reCat'),
+      intro: String(g('reIntro')).trim(), tags: String(g('reTags')).split(/\s+/).filter(Boolean),
+      note: String(g('reNote')).trim(),
+      publisher: String(g('rePub')).trim() || '—', pubyear: String(g('reYear')).trim() || '—',
+      translator: String(g('reTrans')).trim() || '—',
+      chapters: parseCh(g('reChapters')),
+      related: String(g('reRelated') || '').split('\n').map(function(x){ return x.trim(); }).filter(Boolean) };
+    var r;
+    try { r = YZY.editResource(it.id || it.title, patch); }
+    catch(err){ toast('保存失败：' + (err && err.message)); return; }
+    if (!r || r.ok === false){ toast((r && r.msg) || '保存失败'); return; }
+    closeResEdit();
+    try { YZY.reapply(); } catch(err){}
+    try { if (typeof render === 'function') render(); } catch(err){}
+    toast('已保存（仅本机）');
+    try { openItemDetail(idx); } catch(err){}
+  });
+}
+
 function openItemDetail(idx, fromRoute){
+  try { var _it = RES[idx]; yzSetCur({ kind:'book', idx:idx, id: (_it && _it.id) || String(idx) }); } catch(e){}
   const it = RES[idx]; if(!it) return;
   const canPreview = it.url !== '#' && (it.url.endsWith('.pdf') || it.url.endsWith('.epub'));
   const isHttp = it.url.startsWith('http');
@@ -1825,10 +3364,13 @@ function openItemDetail(idx, fromRoute){
   const fmt = it.fmt || (it.url.endsWith('.pdf') ? 'PDF' : it.url.endsWith('.epub') ? 'EPUB' : it.url.endsWith('.mp3') ? 'MP3' : '—');
   const relScore = r => (r.author === it.author ? 3 : 0) + ((r.cat === it.cat) ? 1 : 0) +
     ((r.tags || []).some(t => (it.tags || []).includes(t)) ? 2 : 0);
-  const related = RES.filter(r => r !== it && relScore(r) > 0).slice().sort((a, b) => relScore(b) - relScore(a)).slice(0, 4);
+  /* 手动指定的相关推荐（编辑弹层里填的）排最前，再补自动算出来的同作者/同类型/同标签 */
+  const manualRel = (it.related || []).map(t => RES.filter(r => r === it ? false : (r.title === t || r.id === t))[0]).filter(Boolean);
+  const relSorted = RES.filter(r => r !== it && relScore(r) > 0).slice().sort((a, b) => relScore(b) - relScore(a));
+  const related = manualRel.concat(relSorted.filter(r => manualRel.indexOf(r) < 0)).slice(0, 6);
   const relHTML = related.length ? `<section class="related"><h2 class="rl-title">📎 相关推荐</h2>` + related.map(r => {
       const ri = RES.indexOf(r);
-      const why = r.author === it.author ? '同作者' : (r.cat === it.cat ? '同类型' : '同标签');
+      const why = manualRel.indexOf(r) >= 0 ? '推荐' : (r.author === it.author ? '同作者' : (r.cat === it.cat ? '同类型' : '同标签'));
       return `<div class="lcard" onclick="openItemDetail(${ri})"><span class="li">${r.icon||'📕'}</span><div style="flex:1"><div class="pname">${r.title}</div><div class="prole">${r.author} · ${r.cat} · ${why}</div></div><span style="opacity:.4">›</span></div>`;
     }).join('') + `</section>` : '';
   const noteHTML = it.note ? `<h2 class="sub-title" style="margin-top:16px">📄 来源 · 校订说明</h2><p class="note-box">${it.note}</p>` : '';
@@ -1871,14 +3413,18 @@ function openItemDetail(idx, fromRoute){
          ${it.translator ? `<dt>译者</dt><dd>${it.translator}</dd>` : ''}
          ${it.pages && it.pages !== '—' ? `<dt>页数</dt><dd>${it.pages}</dd>` : ''}
          <dt>状态</dt><dd>${hasBody(it) ? (statusMap[it.status] + ' 已收录' + (it.local ? '（本机正文）' : '')) : '📭 暂无原文（可导入本机文件）'}</dd>
+         <dt>链接</dt><dd>${linkOf(it) ? (escAttr(shortLink(linkOf(it))) + (linkIsCustom(it) ? ' <span class="lk-tag">自定</span>' : '') + ' <button class="lk-edit" onclick="openLinkEditor(${idx})">修改</button>') : '<button class="lk-edit" onclick="openLinkEditor(${idx})">＋ 添加链接</button>'}</dd>
        </dl>
        <div class="ops" style="margin-top:14px">
+         <button class="lk-btn" onclick="openLinkEditor(${idx})">${linkOf(it) ? '✏️ 修改链接' : '🔗 添加链接'}</button>
          ${it.local ? `<button class="go" onclick="yzBooks.read('${escAttr(it.bookId || '')}','${escAttr(it.title)}')">📖 开始阅读</button>` : (canImport(it) ? `<button class="go" onclick="yzBooks.importInto('${escAttr(it.id || '')}')">📥 导入本书</button>` : '')}
          ${it.local
            ? `<p class="sub" style="margin:0;font-size:.76rem;opacity:.7">这是你导入本机的书，内容只存在本机；点「📖 开始阅读」在应用内阅读。</p>`
            : (canImport(it)
              ? `<p class="sub" style="margin:0;font-size:.76rem;opacity:.7">本站只提供条目介绍与索引，<b>不含原文文件</b>；点「📥 导入本书」把你手机里的电子书导进来，就能在这一页阅读（只存在本机、不上传）。</p>`
              : `<p class="sub" style="margin:0;font-size:.76rem;opacity:.7">本站仅作条目介绍与索引，<b>不提供外部跳转</b>；如需获取，请自行在浏览器中检索书名。</p>`)}
+         ${linkOf(it) ? `<button class="go" onclick="openBookLink(${idx})">🔗 打开链接</button>` : ''}
+         <button onclick="openLinkEditor(${idx})">${linkOf(it) ? '✏️ 修改链接' : '🔗 添加链接'}</button>
          <button class="${fav ? 'on' : ''}" onclick="toggleFav(${idx});openItemDetail(${idx})">${fav ? '★ 已收藏' : '☆ 收藏'}</button>
          <button class="${marked ? 'on' : ''}" onclick="toggleMark(${idx})">${marked ? '🔖 已书签' : '🔖 书签'}</button>
          <button onclick="openShare('${escAttr(shareUrlFor(nid))}','${escAttr(it.title)}')">🔗 分享</button>
@@ -1887,13 +3433,16 @@ function openItemDetail(idx, fromRoute){
        <p style="margin-top:12px;font-size:.72rem;opacity:.5">标签：${(it.tags||[]).join(' / ') || '—'}</p>
        ${introSection}
        ${tocSection}
+       ${(window.YZStudy ? YZStudy.guideBlock(it.title) : '')}
        ${contentSection}
        ${noteHTML}
        <section class="notes"><h2 class="rl-title">📝 我的笔记（仅存本机）</h2>
          <textarea placeholder="写点笔记、划重点、记下进度……" aria-label="我的笔记" oninput="saveNote('${escAttr(nid)}', this.value)">${escAttr(getNote(nid))}</textarea>
        </section>
        ${relHTML}
-     </article>`);
+     </article>`,
+    { right: (window.YZY && typeof YZY.editResource === 'function')
+        ? { text:'✏️', act:'openResEdit(' + idx + ')' } : null });
   if (!fromRoute) setHash('#/r/' + slugOf(nid));
   lset('lastItem', nid);
   jsonldItem(it);
@@ -1998,22 +3547,10 @@ function readManualHTML(){
       <hr style="border:0;border-top:1px dashed var(--card-border);margin:18px 0">`;
   }
   return html + `<h2 class="sub-title" style="margin-top:0">📖 推荐阅读书单</h2>` +
-    `<p class="sub" style="margin:2px 0 0;line-height:1.7">带「前往 ↗」的条目可直接点进资源库中的对应书籍。</p>` + readlistMergedHTML();
+    `<p class="sub" style="margin:2px 0 0;line-height:1.7">带「前往 ↗」的条目可直接点进资源库中的对应书籍。</p>` + readlistMergedHTML() +
+    (window.yzPathsHTML ? yzPathsHTML() : '');
 }
 
-/* ---------- 意见反馈 ---------- */
-function feedbackHTML(){
-  return `
-    <p class="sub" style="margin-top:0;line-height:1.75">有话说？想求书、报错、提建议，或只是想聊聊——直接写在下面，提交就行。</p>
-    <form class="fb-form" onsubmit="submitFeedback(event)">
-      <input type="hidden" name="form-name" value="意见反馈">
-      <p style="display:none"><label>请勿填写<input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
-      <textarea name="note" class="fb-input" rows="6" required placeholder="想讲什么就写什么……（求书的话，把书名和版本写上就行）"></textarea>
-      <div class="fb-actions"><button class="go" type="submit">提交</button></div>
-      <p class="fb-note" id="fbNote">提交后由站主在后台查看；本站不收集浏览数据、不索取账号密码。</p>
-    </form>
-    <p style="margin-top:16px;opacity:.55;font-size:.72rem">本站永久免费，不会以任何名义收费或索取账号密码。</p>`;
-}
 
 
 /* ---------- 时间轴专页 ---------- */
@@ -2041,11 +3578,18 @@ function featuresHTML(filter){
     F.map(f => {
       const books = (f.books || []).map(id => { const i = RES.findIndex(r => r.id === id); return i < 0 ? '' : bookCard(i); }).join('');
       const ppl = linkChips(f.people || [], 'people');
-      const evs = (f.events || []).map(y => { const i = (EX.events || []).findIndex(e => e.year === y); return i < 0 ? '' : `<span class="tag" onclick="openEvent(${i})">📅 ${EX.events[i].year} ${EX.events[i].name}</span>`; }).join('');
+      const evs = (f.events || []).map(y => {
+        const sk = String(y).indexOf('|') >= 0 ? String(y).split('|') : null;
+        const i = (EX.events || []).findIndex(e => sk ? (e.year === sk[0] && String(e.name || '').indexOf(sk[1]) >= 0) : e.year === y);
+        return i < 0 ? '' : `<span class="tag" onclick="openEvent(${i})">📅 ${EX.events[i].year} ${EX.events[i].name}</span>`;
+      }).join('');
       const sch = linkChips(f.schools || [], 'school');
       return `<section style="margin:0 0 24px;padding-bottom:8px;border-bottom:1px solid var(--card-border)">
         <h2 class="sub-title" style="font-size:1.05rem;margin-bottom:4px">${f.icon || '🧩'} ${f.name}</h2>
         ${f.desc ? `<p class="sub" style="line-height:1.8;margin:2px 0 4px">${f.desc}</p>` : ''}
+        ${(f.intro && f.intro.length) ? `<div class="fintro">${f.intro.map(p => `<p>${p}</p>`).join('')}</div>` : ''}
+        ${(f.quotes && f.quotes.length) ? H3('📜 关键论断（原文）') + '<div class="fquote">' +
+          f.quotes.map(q => `<blockquote><p>${q.t}</p><cite>—— ${q.src}</cite></blockquote>`).join('') + '</div>' : ''}
         ${books ? H3('📚 相关书籍') + books : ''}
         ${ppl ? H3('👤 相关人物') + `<div class="tagrow">${ppl}</div>` : ''}
         ${evs ? H3('📅 相关事件') + `<div class="tagrow">${evs}</div>` : ''}
@@ -2063,10 +3607,6 @@ function critHTML(id){
       <div style="font-size:.8rem;color:#ff8b8b;margin-bottom:6px">⚔️ 被马克思主义批判的著作</div>
       <div style="font-size:.72rem;opacity:.8;margin-bottom:6px">批判它的著作（点击查看）：</div>
       <div class="tagrow">${links}</div></div>`;
-}
-
-function checkUpdateUI(){
-  toast('更新请通过 F-Droid 或项目发布页获取（应用内不下载、不安装可执行文件）');
 }
 
 /* ---------- 免费赞助（算力支援，完全自愿；不影响任何内容的免费开放） ---------- */
@@ -2088,10 +3628,8 @@ const licensesHTML = '<p class="sub" style="line-height:1.8">本站与本 App �
 const SECTIONS = [
   { icon:'📜', title:HUB_NAME,       get:() => historyPageHTML() },
   { icon:'🏛️', title:'图书馆',       get:() => libsHTML(), hideInNav:true },
-  { icon:'🧭', title:'资源导航',     get:() => navGroupsListHTML() },
   { icon:'📖', title:'阅读与手册',   get:() => readManualHTML() },
   { icon:'📘', title:'使用指南',     get:() => helpFaqHTML(), hideInNav:true },
-  { icon:'📮', title:'意见反馈',     get:() => feedbackHTML() },
   { icon:'📁', title:'文件',     get:() => allIndexHTML(), hideInNav:true },
   { icon:'🛡️', title:'隐私与协议',   get:() => privacyHTML, hideInNav:true },
   { icon:'📜', title:'开源许可',     get:() => licensesHTML, hideInNav:true },
@@ -2104,9 +3642,8 @@ function openSection(i){
   openContent(s.icon + ' ' + s.title, (i === 0 ? '' : crumbFrom([{ t:s.title, fn:()=>openSection(i) }])) + s.get(), { root: true, right: (i === 0 ? { text:'＋', act:'openSelfEdit()' } : null) });
 }
 
-/* 首页板块导航已移除：史料改为底栏标签，关系图谱/3D图谱并入「史料 → 图谱」 */
-document.getElementById('viewList').innerHTML =
-  SECTIONS.map((s, i) => `<div class="set-row"><span>${s.icon} ${s.title}</span><button class="sbtn" onclick="openSection(${i})">查看</button></div>`).join('');
+/* 设置页的「查看」分组已删除：它只是把底栏/快捷面板已有的分区再列一遍（纯重复入口）。
+   如日后需要，用 openSection(i) 从底栏进入即可。 */
 
 /* ---------- 顶部快捷面板（仿 QQ「+」） ---------- */
 function togglePlus(){ try{ var p=document.getElementById('qPanel'), s=document.getElementById('qScrim'); if(!p) return; var open=p.hidden; p.hidden=!open; if(s) s.hidden=!open; }catch(e){} }
@@ -2131,15 +3668,39 @@ function dynamicsHTML(){
       '<div class="dyn-meta">'+(p.years||'')+(p.role?(' · '+p.role):'')+'</div></div></div>';
   }).join('');
 }
+/* 分类 → 某个分类的条目列表。
+   ⚠️ 这里必须「入栈」，不能再用 homeCat()（它只改 hash、把页面交给首页结果视图）。
+   用 hash 的话，返回键一退就把 hash 退没了 → 直接落回主页，回不到分类页。 */
+function catListHTML(cat){
+  var list = RES.filter(function(r){ return r && r.cat === cat; });
+  if (!list.length) return '<p class="sub">这个分类下还没有条目。</p>';
+  return '<p class="sub" style="margin:0 0 8px;line-height:1.7">共 <b>' + list.length + '</b> 条 · 点条目看详情</p>' +
+    list.map(function(r){ return rowHTML(RES.indexOf(r)); }).join('');
+}
+function openCatPage(cat){
+  cat = String(cat || '').trim();
+  if (!cat) return;
+  var icon = (typeof catIcon !== 'undefined' && catIcon[cat]) ? catIcon[cat] : '📁';
+  openContent(icon + ' ' + cat,
+    crumbFrom([{ t:'分类', fn:openClassify }, { t:cat, fn:function(){ openCatPage(cat); } }]) + catListHTML(cat),
+    { right: { text:'🔎', act:'openCatSearch' } });
+}
+/* 顶栏放大镜：跳到首页搜索，并预填当前分类 */
+function openCatSearch(){
+  var t = (_pageStack[_pageStack.length - 1] || {}).title || '';
+  var cat = t.replace(/^[^\s]+\s*/, '').trim();
+  if (cat && typeof activeCat !== 'undefined') { try { activeCat = cat; } catch (e) { } }
+  goResults();
+}
 function classifyRowDefs(){
   var rows=[
-    {k:'推荐', i:'⭐', a:"closeDrawer();homeCat('推荐')", c:countOf('推荐')},
-    {k:'原著', i:'📕', a:"closeDrawer();homeCat('原著')", c:countOf('原著')},
-    {k:'歌曲', i:'🎵', a:"closeDrawer();homeCat('歌曲')", c:countOf('歌曲')},
-    {k:'影像', i:'🎬', a:"closeDrawer();homeCat('影像')", c:countOf('影像')},
-    {k:'工具', i:'🧰', a:"closeDrawer();homeCat('工具')", c:countOf('工具')},
+    {k:'推荐', i:'⭐', a:"closeDrawer();openCatPage('推荐')", c:countOf('推荐')},
+    {k:'原著', i:'📕', a:"closeDrawer();openCatPage('原著')", c:countOf('原著')},
+    {k:'歌曲', i:'🎵', a:"closeDrawer();openCatPage('歌曲')", c:countOf('歌曲')},
+    {k:'影像', i:'🎬', a:"closeDrawer();openCatPage('影像')", c:countOf('影像')},
+    {k:'工具', i:'🧰', a:"closeDrawer();openCatPage('工具')", c:countOf('工具')},
     {k:'图书馆', i:'🏛️', a:"closeDrawer();openSection(secIdx('图书馆'))", c:''},
-    {k:'对公文献', i:'📄', a:"closeDrawer();homeCat('对公文献')", c:countOf('对公文献')},
+    {k:'对公文献', i:'📄', a:"closeDrawer();openCatPage('对公文献')", c:countOf('对公文献')},
     {k:'做题', i:'✍️', a:"closeDrawer();openQuiz()", c:quizCount()}
   ];
   return rows;
@@ -2305,30 +3866,54 @@ function exitToHome(){ try { resetPageStack(); } catch(e){} try { closeDrawer();
 function _hideDrawerViews(){
   ['pcView','accountView','settingsView','contentView'].forEach(function(id){ var e = document.getElementById(id); if (e) e.style.display = 'none'; });
 }
-function openPc(){                       /* 个人中心：左侧抽屉（仿 QQ「我的」） */
+function openPc(){                       /* 个人中心：左侧抽屉（仿 QQ「我的」）—— 它是抽屉根，重开即重置 */
   resetPageStack();
-  _hideDrawerViews();
-  var pv = document.getElementById('pcView'); if (pv) pv.style.display = 'flex';
-  document.getElementById('drawerTitle').textContent = '';
-  var b = document.getElementById('acctBack'); if (b) b.hidden = true;
-  renderPc();
-  openDrawer('drawer');
+  _pageStack.push({ view: 'pcView', title: '' });
+  _renderPage(_pageStack[_pageStack.length - 1]);
 }
-function openSettings(){                 /* 设置页：整页推进 */
-  resetPageStack();
-  _hideDrawerViews();
-  document.getElementById('settingsView').style.display = 'block';
-  setTopbar('page', { title:'⚙️ 设置' });
-  try { syncSelfEditSwitch(); } catch(e){}
-  openDrawer('page');
+function openSettings(){                 /* 设置页：入栈，返回回到上一层（个人中心 / 资料） */
+  _pageStack.push({ view: 'settingsView', title: '⚙️ 设置' });
+  _renderPage(_pageStack[_pageStack.length - 1]);
+  /* 存储用量面板（exportdata.js）：先同步画一版，再等容量估算回来补一次 */
+  try {
+    if (window.YZEXPORT) {
+      const box = document.getElementById('yzUsageBox');
+      if (box) box.innerHTML = YZEXPORT.renderUsagePanel();
+      if (YZEXPORT.refreshUsage) YZEXPORT.refreshUsage().then(function () {
+        const b = document.getElementById('yzUsageBox');
+        if (b) b.innerHTML = YZEXPORT.renderUsagePanel();
+      });
+    }
+  } catch (e) { }
+  /* 朗读引擎 / 正文检索 的自检结果（都只读本机，不联网） */
+  try {
+    const tl = document.getElementById('yzTtsLine');
+    if (tl) {
+      if (window.YZSPEECH) {
+        tl.textContent = YZSPEECH.status();
+      } else tl.textContent = '朗读模块未加载';
+    }
+  } catch (e) { }
+  try {
+    const fl = document.getElementById('yzFtLine');
+    if (fl) {
+      if (window.YZFULLTEXT) {
+        const st = YZFULLTEXT.stats();
+        fl.textContent = st.seg + ' 段正文 · ' + Math.round(st.chars / 1000) + ' 千字' +
+          (st.local && st.local.books ? ' · 本机 ' + st.local.books + ' 本' : '');
+      } else fl.textContent = '检索模块未加载';
+    }
+  } catch (e) { }
 }
-function openAccountView(){              /* 账号页：整页推进 */
-  resetPageStack();
-  _hideDrawerViews();
-  document.getElementById('accountView').style.display = 'block';
-  setTopbar('page', { title:'👤 账号' });
-  renderAccount();
-  openDrawer('page');
+/* 清空本机错误日志（诊断页「清空」按钮） */
+function yzDiagClearAsk(){
+  if (!window.YZDiagClear) { toast('诊断模块未加载'); return; }
+  if (!confirm('清空本机错误日志？（不影响收藏 / 笔记 / 自助编辑）')) return;
+  try { YZDiagClear(); toast('已清空'); } catch (e) { toast('清空失败'); }
+}
+function openAccountView(){              /* 账号页：入栈，返回回到上一层 */
+  _pageStack.push({ view: 'accountView', title: '👤 账号' });
+  _renderPage(_pageStack[_pageStack.length - 1]);
 }
 function secIdx(t){ return SECTIONS.findIndex(s => s.title === t); }
 /* 默认必须是「关」：overlay.js 未加载/加载失败时如果返回 true，
@@ -2375,9 +3960,8 @@ function renderAccount(){
     <div class="acct-menu">
       <button class="acct-item" onclick="openSection(secIdx('隐私与协议'))"><span>🛡️</span>隐私与协议<i>数据与隐私</i></button>
       <button class="acct-item" onclick="openSection(secIdx('开源许可'))"><span>📜</span>开源许可<i>使用了哪些开源库</i></button>
-      <button class="acct-item" onclick="requestAction()"><span>📮</span>意见反馈<i>求书 · 纠错 · 建议</i></button>
       <button class="acct-item" onclick="openMarks()"><span>🔖</span>我的书签<i>${markN} 条</i></button>
-      <button class="acct-item" onclick="exportData()"><span>💾</span>导出我的数据<i>收藏 · 笔记 · 设置</i></button>
+      <button class="acct-item" onclick="exportData()"><span>💾</span>导出我的数据<i>收藏 · 笔记 · 设置 · 我的编辑</i></button>
       <button class="acct-item" onclick="openDataIO('import')"><span>📥</span>导入我的数据<i>粘贴 JSON 恢复</i></button>
       <button class="acct-item" onclick="clearLocal()"><span>🧹</span>清除本机数据<i>不影响线上</i></button>
       <button class="acct-item" onclick="openSection(secIdx('关于本站'))"><span>ℹ️</span>关于本站<i>开源 · 声明</i></button>
@@ -2413,32 +3997,125 @@ function editName(){
   renderAccount(); syncSetAva();
 }
 var _pageStack = [];
+var _shownEntry = null;   /* 当前画面上的是哪个栈条目（null = 已切到栈外视图，如搜索结果） */
 function _renderPage(entry){
+  _shownEntry = entry;
+  /* 固定视图条目（个人中心 / 设置 / 账号 / 搜索结果）：不走 contentView，
+     直接把对应 view 显示出来，这样它们也能进页面栈，返回时能逐级回去。 */
+  if (entry && entry.view){
+    _hideDrawerViews();
+    var vEl = document.getElementById(entry.view);
+    if (vEl) vEl.style.display = (entry.view === 'pcView') ? 'flex' : 'block';
+    if (entry.view === 'pcView'){
+      try { renderPc(); } catch(e){}
+      try { document.getElementById('drawerTitle').textContent = ''; } catch(e){}
+      try { var ab = document.getElementById('acctBack'); if (ab) ab.hidden = true; } catch(e){}
+      setTopbar('page', { title: '' });
+      openDrawer('drawer');
+      return;
+    }
+    if (entry.view === 'settingsView'){
+      try { syncSelfEditSwitch(); } catch(e){}
+      setTopbar('page', { title: entry.title || '⚙️ 设置' });
+      openDrawer('page');
+      return;
+    }
+    if (entry.view === 'accountView'){
+      try { renderAccount(); } catch(e){}
+      setTopbar('page', { title: entry.title || '👤 账号' });
+      openDrawer('page');
+      return;
+    }
+    if (entry.view === 'results'){
+      try {
+        var homeEl = document.getElementById('view-home'), resEl = document.getElementById('view-results');
+        if (homeEl) homeEl.hidden = true;
+        if (resEl) resEl.hidden = false;
+        if (typeof goResults === 'function' && (location.hash || '').indexOf('#browse') !== 0) location.hash = 'browse';
+        else if (typeof route === 'function') route();
+      } catch(e){}
+      setTopbar('root', { search: entry.search || null, ph: entry.ph || '', right: { text:'＋', act:'togglePlus()' } });
+      closeDrawer();
+      return;
+    }
+    return;
+  }
   _hideDrawerViews();
+  /* 从「搜索结果」返回到普通页面时，把底层视图也复位，否则 results 还亮着 */
+  try {
+    var _h = document.getElementById('view-home'), _r = document.getElementById('view-results');
+    if (_h) _h.hidden = false;
+    if (_r) _r.hidden = true;
+  } catch(e){}
   const cv = document.getElementById('contentView');
   cv.style.display = 'block';
   cv.innerHTML = entry.html || '<p class="sub">暂无内容</p>';
   const d = document.getElementById('drawer'); if (d) d.scrollTop = 0;
-  if (entry.root) setTopbar('root', { search: entry.search, ph: entry.ph, right: entry.right });
-  else setTopbar('page', { title: entry.title });
+  if (entry.root) setTopbar('root', { search: entry.search, ph: entry.ph, right: entry.right, right2: entry.right2 });
+  else setTopbar('page', { title: entry.title, right: entry.right, right2: entry.right2 });
   openDrawer('page');
 }
 function openContent(title, html, opts){
   opts = opts || {};
   var body = html || '<p class="sub">暂无内容</p>';
+  /* 自定义层：若当前是详情页，交给 custom.js 套模板、追加「我的标注」。
+     失败一律回落到内置内容（自定义配置绝不能让页面打不开）。 */
+  try {
+    var _deco = _yzDeco;
+    _yzDeco = null;                       /* 一次性：这次 openContent 用完就清 */
+    if (window.YZCustom && _deco) body = YZCustom.decorate(_deco.kind, _deco.id, body);
+  } catch (e) { _yzDeco = null; }
   var top = _pageStack[_pageStack.length - 1];
   function _sameRight(x, y){ if (!x && !y) return true; if (!x || !y) return false; return x.text === y.text && x.act === y.act; }
-  if (top && top.title === title && top.html === body && top.root === !!opts.root && _sameRight(top.right, opts.right || null)){ _renderPage(top); return; }
-  _pageStack.push({ title:title, html:body, root:!!opts.root, search:opts.search || null, ph:opts.ph || '', right:opts.right || null });
+  if (top && top.title === title && top.html === body && top.root === !!opts.root && _sameRight(top.right, opts.right || null) && _sameRight(top.right2, opts.right2 || null)){ _renderPage(top); return; }
+  _pageStack.push({ title:title, html:body, root:!!opts.root, search:opts.search || null, ph:opts.ph || '', right:opts.right || null, right2:opts.right2 || null });
   if (_pageStack.length > 80) _pageStack.shift();
+  var _tp = window.__YZTiming ? __YZTiming.now() : 0;
   _renderPage(_pageStack[_pageStack.length - 1]);
+  if (_tp && window.__YZTiming) {
+    /* 只留「最慢的一次」，避免记录无限增长；标题去掉图标便于辨认 */
+    var _cost = Math.round(__YZTiming.now() - _tp);
+    if (!__YZTiming.m.pageSlowest || _cost > __YZTiming.m.pageSlowestMs) {
+      __YZTiming.m.pageSlowest = String(title || '').slice(0, 24);
+      __YZTiming.m.pageSlowestMs = _cost;
+    }
+    __YZTiming.m.pageCount = (__YZTiming.m.pageCount || 0) + 1;
+  }
 }
 /* 返回上一页；已在最外层则回主页 */
 function pageBack(){
   if (_pageStack.length > 1){ _pageStack.pop(); _renderPage(_pageStack[_pageStack.length - 1]); return; }
-  _pageStack.length = 0; closeDrawer(); goHome();
+  if (_pageStack.length === 1){
+    var top = _pageStack[0];
+    /* ① 个人中心：返回＝关抽屉（不绕回主页） */
+    if (top && top.view === 'pcView'){ _pageStack.length = 0; closeDrawer(); return; }
+    /* ② 当前显示的不是这个栈条目（例如从分类页点进了搜索结果）→ 先回到它 */
+    if (_shownEntry !== top){ _renderPage(top); return; }
+    /* ③ 已经在它上面了 → 清栈回主页 */
+    _pageStack.length = 0;
+  }
+  closeDrawer(); goHome();
 }
 function resetPageStack(){ _pageStack.length = 0; }
+
+/* 系统返回键 / 顶栏 ← 的统一入口（Java 每次返回都先调 window.__appBack，返回 true 才拦截）。
+   层级：页内栈 → 栈里那条（分类页点进搜索结果后）→ 首页视图 → 退出。
+   ⚠️ 这里必须只在「确实有上一层」时返回 true，否则用户退不出 App。 */
+window.__appBack = function(){
+  try {
+    if (_pageStack.length > 1) { pageBack(); return true; }
+    if (_pageStack.length === 1 && _shownEntry !== _pageStack[0]) { _renderPage(_pageStack[0]); return true; }
+    if (_pageStack.length === 1) { _pageStack.length = 0; goHome(); return true; }
+    var h = location.hash || '';
+    if (h && h !== '#') {
+      /* 用 replaceState 清 hash：不新增历史条目，避免「返回键在旧页面之间来回跳」 */
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
+      goHome();
+      return true;
+    }
+    return false;                     /* 已经在首页 → 交给系统（退出 App） */
+  } catch (e) { return false; }
+};
 
 /* ---------- 显示调节（主题 / 字号 / 行距 / 版心 / 动效） ---------- */
 /* 主题：auto = 跟随系统（实时响应系统的深色 / 浅色切换） */
@@ -2455,6 +4132,9 @@ function applyTheme(mode){
   document.body.classList.remove('sepia');
   const tc = document.querySelector('meta[name="theme-color"]');
   if (tc) tc.setAttribute('content', r === 'light' ? '#f5e9e2' : '#2b0505');
+  /* 系统状态栏 / 导航栏 / WebView 容器底色跟着主题走，
+     否则深色页面下方仍是启动时的颜色（浅色主题下尤其突兀）。 */
+  try { if (window.AndroidApp && typeof AndroidApp.setBarColor === 'function') AndroidApp.setBarColor(r === 'light' ? '#f5e9e2' : '#170303'); } catch(e){}
   document.querySelectorAll('#themeSeg button').forEach(b => b.classList.toggle('active', b.dataset.th === m));
 }
 function setTheme(mode){ applyTheme(mode); try { lset('theme', mode); } catch(e){} }
@@ -2718,12 +4398,13 @@ if (localStorage.getItem('motion') === 'off') { document.body.classList.add('no-
 else { document.getElementById('motionSw').textContent = '已开启'; }
 var _totEl = document.getElementById('total'); if (_totEl) _totEl.textContent = RES.length;
 try { var _v = 'v' + ((window.SITE_CONFIG || {}).version || '0.0.0'); document.documentElement.setAttribute('data-build', _v); var _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = _v; } catch(e){}
-try { var _vs=(window.SITE_CONFIG||{}).version||'—'; var _vn=''; if (window.AndroidApp && AndroidApp.versionName) _vn=AndroidApp.versionName(); var _vl=document.getElementById('verLine'); if (_vl) _vl.innerHTML='<span>🌐 网站 v'+_vs+'</span><span style="opacity:.32"> ｜ </span><span>📱 App v'+(_vn||'—')+'</span><span style="opacity:.32"> ｜ </span><span onclick="checkUpdateUI()" style="cursor:pointer;color:var(--accent)">🔄 检查更新</span>'; } catch(e){}
+try { var _vs=(window.SITE_CONFIG||{}).version||'—'; var _vn=''; if (window.AndroidApp && AndroidApp.versionName) _vn=AndroidApp.versionName(); var _vc=''; if (window.AndroidApp && AndroidApp.versionCode) _vc=AndroidApp.versionCode(); var _vl=document.getElementById('verLine'); if (_vl) _vl.innerHTML='<span>🌐 网站 v'+_vs+'</span><span style="opacity:.32"> ｜ </span><span>📱 App v'+(_vn||'—')+(_vc?' ('+_vc+')':'')+'</span>'; } catch(e){}
 try { syncSetAva(); } catch(e){}
 
-paintQuote();
 renderContinue();
 renderHomeFriends();
+try { paintQuote(); } catch(e){}
+
 jsonldBase();
 /* ---------- 从关系图谱带书名跳进来：index.html?q=书名 → 自动到书库搜索 ---------- */
 (function(){
@@ -2780,15 +4461,140 @@ if (CFG.goatcounter) {
 /* =====================================================================
    图书馆 —— 仅作介绍（本站为本地 / 离线应用，不提供任何外部跳转）
    ===================================================================== */
-function getDefaultLib(){ return localStorage.getItem('defaultLib') || CFG.defaultLibrary || 'zlib'; }
+/* ---------- 图书馆链接：默认取 SITE_LIBRARIES[].url，用户可改（只存本机） ---------- */
+function libLinks(){ try { return JSON.parse(localStorage.getItem('libLinks') || '{}'); } catch(e){ return {}; } }
+/* ---------- 图书馆条目本身也能增改（名称 / 标签 / 介绍 / 链接），只存本机 ----------
+   结构：{ added:[{id,name,tag,note,url}], edited:{ id:{name?,tag?,note?,url?} } } */
+function libLocal(){
+  try {
+    var o = JSON.parse(localStorage.getItem('libsLocal') || '{}') || {};
+    return { added: Array.isArray(o.added) ? o.added : [], edited: (o.edited && typeof o.edited === 'object') ? o.edited : {} };
+  } catch (e) { return { added: [], edited: {} }; }
+}
+function libSaveLocal(o){ return lset('libsLocal', JSON.stringify(o)); }
+function libsAll(){
+  var L = libLocal();
+  var out = LIBS.map(function (l) {
+    var e = L.edited[l.id];
+    return e ? Object.assign({}, l, e) : l;
+  });
+  L.added.forEach(function (x) {
+    if (!out.some(function (y) { return y.id === x.id; })) out.push(x);
+  });
+  return out;
+}
+function libByAnyId(id){ return libsAll().filter(function (x) { return x.id === id; })[0] || null; }
+function setLibLink(id, url){
+  var m = libLinks();
+  if (url) m[id] = url; else delete m[id];
+  return lset('libLinks', JSON.stringify(m));
+}
+function libIsCustom(id){ var m = libLinks(); return Object.prototype.hasOwnProperty.call(m, id); }
+function libLinkOf(l){
+  var m = libLinks();
+  if (l && Object.prototype.hasOwnProperty.call(m, l.id)) return m[l.id];
+  return (l && l.url) || '';
+}
+function openLibUrl(id){
+  var l = libByAnyId(id); if (!l) return;
+  var u = libLinkOf(l);
+  if (!u){ openLibEditor(id); return; }
+  try { confirmLeave(u, l.name || '图书馆'); } catch(e){ try { location.href = u; } catch(_){} }
+}
+function libIsAdded(id){ return libLocal().added.some(function (x) { return x.id === id; }); }
+function libIsEdited(id){ return Object.prototype.hasOwnProperty.call(libLocal().edited, id); }
+function libReset(id){
+  var o = libLocal();
+  delete o.edited[id];
+  o.added = o.added.filter(function (x) { return x.id !== id; });
+  libSaveLocal(o);
+  setLibLink(id, '');   /* ★ 链接也要一起复原：否则「恢复默认」后自定义链接还留着，页面照旧显示旧地址 */
+}
+/* 编辑 / 新增图书馆条目：名称、标签、介绍、链接都能改（只存本机） */
+function openLibEditor(id){
+  var isNew = (id === '__new__');
+  var l = isNew ? { id: 'u' + Date.now().toString(36), name: '', tag: '', note: '', url: '' } : libByAnyId(id);
+  if (!l) return;
+  closeLibEditor();
+  var cur = isNew ? '' : libLinkOf(l);
+  var d = document.createElement('div');
+  d.id = 'libEditor'; d.className = 'le-scrim';
+  d.innerHTML = '<div class="le-box">' +
+    '<div class="le-t">' + (isNew ? '🏛️ 新增图书馆' : '🏛️ 编辑：' + escHtml(l.name || '')) + '</div>' +
+    '<input id="leName" class="le-in" placeholder="名称（如 Anna’s Archive）" value="' + escAttr(l.name || '') + '">' +
+    '<input id="leTag" class="le-in" placeholder="标签（如 电子书 / 古籍 / 工具）" value="' + escAttr(l.tag || '') + '">' +
+    '<input id="leNote" class="le-in" placeholder="一句话介绍（收录范围、使用特点）" value="' + escAttr(l.note || '') + '">' +
+    '<input id="leInput" class="le-in" type="url" inputmode="url" placeholder="https://…（可留空）" value="' + escAttr(cur) + '">' +
+    '<div class="le-hint">四项都可改，只存本机、不上传。' + (isNew ? '' : '内置条目改坏了可「恢复默认」。') + '</div>' +
+    '<div class="le-ops">' +
+      '<button class="go" data-le="save">保存</button>' +
+      (isNew ? '' : (libIsAdded(l.id) ? '<button data-le="del">删除</button>'
+        : ((libIsEdited(l.id) || libIsCustom(l.id)) ? '<button data-le="reset">恢复默认</button>' : ''))) +
+      '<button data-le="cancel">取消</button>' +
+    '</div></div>';
+  document.body.appendChild(d);
+  var nameI = d.querySelector('#leName'), tagI = d.querySelector('#leTag'),
+      noteI = d.querySelector('#leNote'), inp = d.querySelector('#leInput');
+  setTimeout(function () { try { (isNew ? nameI : inp).focus(); } catch (e) {} }, 50);
+  d.addEventListener('click', function (e) {
+    var b = e.target;
+    while (b && b !== d && !b.getAttribute('data-le')) b = b.parentNode;
+    if (e.target === d) { closeLibEditor(); return; }
+    if (!b || b === d) return;
+    var act = b.getAttribute('data-le');
+    if (act === 'cancel') { closeLibEditor(); return; }
+    if (act === 'del') {
+      if (!confirm('删除这个自定义条目？')) return;
+      libReset(l.id); closeLibEditor(); toast('已删除'); openSection(secIdx('图书馆')); return;
+    }
+    if (act === 'reset') { libReset(l.id); closeLibEditor(); toast('已恢复默认'); openSection(secIdx('图书馆')); return; }
+    if (act === 'save') {
+      var nm = String(nameI.value || '').trim().slice(0, 40);
+      if (!nm) { toast('名称不能为空'); return; }
+      var v = normLink(inp.value);
+      if (v === null) { toast('链接格式不支持，请用 http(s) 地址'); return; }
+      if (v && !/^https?:\/\//i.test(v)) { toast('图书馆链接需要 http(s) 开头'); return; }
+      var tag = String(tagI.value || '').trim().slice(0, 20);
+      var note = String(noteI.value || '').trim().slice(0, 120);
+      var o = libLocal();
+      if (isNew) {
+        o.added.push({ id: l.id, name: nm, tag: tag, note: note, url: v || '' });
+      } else {
+        o.edited[l.id] = { name: nm, tag: tag, note: note, url: v || '' };
+        if (v) setLibLink(l.id, v); else setLibLink(l.id, '');
+      }
+      libSaveLocal(o);
+      closeLibEditor(); toast('已保存'); openSection(secIdx('图书馆'));
+    }
+  });
+}
+function closeLibEditor(){ var e = document.getElementById('libEditor'); if (e && e.parentNode) e.parentNode.removeChild(e); }
+
 function libsHTML(){
   /* 只作介绍：列出各图书馆的定位与收录范围，不提供任何跳转（本站为本地 / 离线应用）。 */
-  return `<p class="sub" style="margin-top:0;line-height:1.75">以下是常见的<b>第三方图书馆 / 书库</b>，本站仅作<b>介绍与索引</b>——<b>不提供跳转</b>，也不会替你打开它们。想找书时，请自行在浏览器里搜索下面这些名称。</p>` +
-    LIBS.map(l => {
-      return `<div class="lcard"><span class="li">🏛️</span>
-      <div style="flex:1"><div class="pname">${escAttr(l.name)}</div>
-      <div class="prole">${escAttr(l.tag || '')}${l.tag && l.note ? ' · ' : ''}${escAttr(l.note || '')}</div></div></div>`;
-    }).join('') +
+  return `<div style="display:flex;gap:8px;margin:0 0 10px"><button class="sbtn" onclick="openLibEditor('__new__')">＋ 新增图书馆</button></div>` +
+    `<p class="sub" style="margin-top:0;line-height:1.75">以下是常见的<b>第三方图书馆 / 书库</b>。点条目可<b>直接打开</b>；点右侧 <b>✏️</b> 可以改<b>名称 / 标签 / 介绍 / 链接</b>，也可以自己新增条目（只存本机，不上传，可恢复默认）。</p>` +
+    (function(){
+      /* 按大类分组显示（39 条平铺太长）；组顺序固定，组内保持原始顺序 */
+      const ORDER = ['文献与书目','百科与课程','工具与阅读','开发与托管','其他'];
+      const by = {}; const all = libsAll();
+      all.forEach(l => { const g = l.group || '其他'; (by[g] = by[g] || []).push(l); });
+      const groups = ORDER.filter(g => by[g]).concat(Object.keys(by).filter(g => ORDER.indexOf(g) < 0));
+      const card = (l) => {
+        const u = libLinkOf(l);
+        const isC = libIsCustom(l.id);
+        return `<div class="lcard libcard">
+          <span class="li">🏛️</span>
+          <div class="libbody" onclick="openLibUrl('${escAttr(l.id)}')">
+            <div class="pname">${escAttr(l.name)}${isC ? ' <i class="lk-tag">自定</i>' : ''}</div>
+            <div class="prole">${escAttr(l.tag || '')}${l.tag && l.note ? ' · ' : ''}${escAttr(l.note || '')}</div>
+            <div class="liburl">${u ? '🔗 ' + escAttr(shortLink(u)) : '未设置链接'}</div>
+          </div>
+          <button class="libedit" onclick="event.stopPropagation();openLibEditor('${escAttr(l.id)}')" aria-label="修改链接">✏️</button>
+        </div>`;
+      };
+      return groups.map(g => `<h2 class="sub-title" style="margin-top:16px">${g}（${by[g].length}）</h2>` + by[g].map(card).join('')).join('');
+    })() +
     `<p style="margin-top:14px;font-size:.72rem;opacity:.55">本站不存放文件本体，也不代理下载；上列各站均为第三方，内容与其可用性由各自负责。</p>`;
 }
 
@@ -2796,7 +4602,6 @@ function libsHTML(){
    关系图谱 —— 独立页面（graph.html）
    点击「关系图谱」直接跳转到图谱页，不再弹出中间层
    ===================================================================== */
-function openGraph(){ location.href = 'graph.html'; }
 
 /* ---------- 导出位置（App 内可自选文件夹，零权限） ---------- */
 function chooseExportDir(){
@@ -2836,6 +4641,9 @@ try { syncSelfEditSwitch(); } catch(e){}
 /* 启动：数据装配完成后统一净化一次（覆盖层每次合并后也会再调一次） */
 try { window.yzCleanData(); } catch (e) {}
 try { albumBoot(); } catch(e){}
+
+/* 启动完成打点：这一行之后首屏就不该再有同步大计算了 */
+try { if (window.__YZTiming) __YZTiming.mark('boot'); } catch (e) {}
 
 /* 本机存储自检（见 storageSelfTest）：不可用时明确告知，别让用户以为保存成功 */
 try { if (!storageSelfTest()) setTimeout(function(){ try { toast('本机存储不可用：阅读进度、书签、主题等设置可能在重启后丢失'); } catch(e){} }, 3200); } catch(e){}

@@ -32,7 +32,10 @@
     font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
   /* 3D 画布专用容器：3d-force-graph 挂载时会清空“传入容器”的子节点，
      因此必须传这个空 div，绝不能传 document.body（否则会抹掉本页 UI 与后续脚本）。 */
-  #stage{position:fixed;inset:0;z-index:1}
+  #stage{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1}
+  /* WebGL canvas 必须显式沉到最底：某些 Android WebView 会把它提升为硬件合成层，
+     不写 z-index 时可能盖住上层的 DOM 名字浮层。 */
+  #stage canvas{position:absolute !important;left:0;top:0;z-index:0 !important;display:block}
   #bar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;row-gap:6px;
     padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:linear-gradient(#000011ee,#00001100)}
   #bar .brand{font-weight:700;font-size:0.9375rem;margin-right:2px;white-space:nowrap}
@@ -43,18 +46,23 @@
     padding:6px 12px;font-size:0.8125rem;cursor:pointer;text-decoration:none;white-space:nowrap}
   #hint{position:fixed;left:12px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:15;font-size:0.75rem;opacity:.6;pointer-events:none}
   /* 底部工具条：时间筛选 */
-  #tools{position:fixed;left:50%;bottom:calc(44px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:16;
-    display:flex;align-items:center;gap:8px;padding:5px 9px;border:1px solid #ffffff1f;border-radius:999px;
-    background:var(--panel);font-size:0.75rem;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 14px)}
-  #tools button{background:#ffffff14;color:#cfd2e6;border:1px solid #ffffff1f;border-radius:999px;padding:4px 10px;
-    font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap}
-  #tools button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-  #tools #ybar{display:none;align-items:center;gap:6px}
-  #tools #ybar input{width:min(30vw,150px)}
+  /* 与 2D 关系图谱（graph.html 的 #ops）保持同一套视觉：每个按钮独立圆角 + 独立底色，
+     年份滑条单独占一行。原来所有控件塞进一个 999px 圆角胶囊，换行后挤成一坨。 */
+  #tools{position:fixed;left:0;right:0;bottom:calc(6px + env(safe-area-inset-bottom));z-index:16;
+    display:flex;align-items:center;gap:6px;padding:0 9px;border:0;background:none;
+    font-size:.74rem;flex-wrap:wrap;justify-content:center;max-width:none;transform:none}
+  #tools button{background:rgba(12,12,24,.84);color:#e6e3f2;border:1px solid #ffffff26;border-radius:9px;
+    padding:8px 11px;min-height:36px;font-size:.74rem;cursor:pointer;font-family:inherit;white-space:nowrap}
+  #tools button.on{background:var(--accent);color:#1a1208;border-color:var(--accent);font-weight:700}
+  #tools #ybar{display:none;align-items:center;gap:8px;flex-basis:100%;justify-content:center;
+    background:rgba(12,12,24,.84);border:1px solid #ffffff26;border-radius:10px;padding:7px 12px;margin-top:2px}
+  #tools #ybar input{width:min(58vw,240px)}
+  body.light #tools button{background:rgba(255,255,255,.92);color:#2a2320;border-color:rgba(0,0,0,.16)}
+  body.light #tools #ybar{background:rgba(255,255,255,.92);border-color:rgba(0,0,0,.16)}
   #tools #yval{color:var(--accent);font-variant-numeric:tabular-nums}
   #legend .lnt{flex-basis:100%;text-align:right;opacity:.78}
 
-  #legend{position:fixed;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:15;font-size:0.75rem;
+  #legend{position:fixed;right:12px;bottom:calc(120px + env(safe-area-inset-bottom));z-index:15;font-size:0.75rem;
     display:flex;gap:9px;flex-wrap:wrap;max-width:min(92vw,540px);justify-content:flex-end;opacity:.85;pointer-events:none}
   #legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
   /* 搜索 + 列表（与 2D 图谱页一致的操作方式） */
@@ -112,7 +120,7 @@
   #panel .rel b{color:#e8e8ea;font-weight:600}
   #panel .close{position:absolute;top:calc(10px + env(safe-area-inset-top));right:14px;background:none;border:0;
     color:#9aa0c6;font-size:1.375rem;cursor:pointer}
-  #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:40;
+  #loading{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;z-index:40;
     background:var(--bg);color:#7f83a3;font-size:0.8438rem;text-align:left;padding:0 22px;line-height:1.9}
   #loading .box{max-width:560px;word-break:break-word}
   #loading b{color:#cfd2e6}
@@ -130,10 +138,69 @@
   font-family:inherit;font-size:.83rem;border-radius:8px;white-space:normal;word-break:break-word;min-height:40px}
 #dataMenu button:hover,#dataMenu button:focus-visible{background:#ffffff14;outline:none}
 body.clean #dataMenu{display:none !important}
+
+  /* ---------- 新增节点 / 关系表单（写入主图谱，2D 关系图谱同步可见） ---------- */
+  #ebox{position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;display:none;background:rgba(8,3,3,.55);
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px}
+  #ebox.open{display:flex}
+  #ebox .eb{width:min(420px,94vw);max-height:86vh;overflow:auto;background:var(--panel);
+    border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:16px 16px 14px;
+    box-shadow:0 18px 50px rgba(0,0,0,.45)}
+  #ebox h3{margin:0 0 8px;font-size:.95rem;font-weight:600}
+  #ebox label{display:block;font-size:.74rem;opacity:.82;margin:10px 0 4px}
+  #ebox input,#ebox select,#ebox textarea{width:100%;box-sizing:border-box;padding:8px 10px;border-radius:9px;
+    border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit;font:inherit;font-size:.82rem}
+  #ebox textarea{min-height:72px;resize:vertical}
+  #ebox .row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+  #ebox button{padding:8px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.2);
+    background:rgba(255,255,255,.06);color:inherit;font:inherit;font-size:.82rem;cursor:pointer}
+  #ebox button.pri{background:var(--accent);color:#2b0505;border-color:transparent;font-weight:600}
+  #ebox .tip{font-size:.7rem;opacity:.62;margin-top:8px;line-height:1.6}
+  #ebox .swrow{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
+  #ebox .sw{width:30px;height:30px;border-radius:9px;cursor:pointer;border:2px solid rgba(255,255,255,.22);display:inline-block}
+  #ebox .sw.on{border-color:#fff;box-shadow:0 0 0 2px rgba(245,197,24,.55)}
+  #ebox button.dgr{background:rgba(200,60,60,.9);color:#fff;border-color:transparent}
+  #panel .pacts button.dgr{background:rgba(200,60,60,.16);border-color:rgba(220,90,90,.5);color:#ffb3b3}
+  body.light #panel .pacts button.dgr{color:#a01d1d;border-color:rgba(160,30,30,.4);background:rgba(200,60,60,.08)}
+  #panel .rel b.rlink{cursor:pointer;border-bottom:1px dashed rgba(245,197,24,.55);padding-bottom:1px}
+  body.light #ebox .eb{background:#f7efe9;color:#2a2320;border-color:rgba(0,0,0,.12)}
+  body.light #ebox input,body.light #ebox select,body.light #ebox textarea{background:#fff;border-color:rgba(0,0,0,.16);color:#2a2320}
+  #panel .pacts{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+  #panel .pacts button{padding:7px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.22);
+    background:rgba(255,255,255,.07);color:inherit;font:inherit;font-size:.78rem;cursor:pointer}
+  body.light #panel .pacts button{border-color:rgba(0,0,0,.16)}
+
+/* ===== 节点名字叠加层（3D 引擎不暴露 THREE，改用屏幕投影跟随） ===== */
+#yzLabels{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;pointer-events:none;z-index:12;
+  overflow:visible;isolation:isolate;transform:translateZ(0);-webkit-transform:translateZ(0);
+  -webkit-backface-visibility:hidden;backface-visibility:hidden}
+#yzLabels .yl{position:absolute;left:0;top:0;transform:translate(-50%,-50%);-webkit-transform:translate(-50%,-50%);
+  font-size:11px;line-height:1.2;padding:1px 5px;border-radius:6px;white-space:nowrap;
+  color:#e9e7f4;background:rgba(8,8,20,.52);border:1px solid rgba(255,255,255,.13);
+  will-change:transform;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+/* 名字层可见性兜底：万一投影 API 或容器尺寸异常，按钮上会显式报出来 */
+#yzLabels .ylwarn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-size:12px;padding:8px 14px;border-radius:10px;background:rgba(245,197,24,.95);color:#2b1d00;
+  font-weight:600;white-space:normal;max-width:80vw;text-align:center;line-height:1.6}
+body.light #yzLabels .yl{color:#2a2320;background:rgba(255,255,255,.8);border-color:rgba(0,0,0,.12);text-shadow:none}
+/* ===== 3D 管理面板 ===== */
+#mg3{position:fixed;right:0;top:0;bottom:0;width:min(78vw,300px);z-index:60;
+  background:rgba(12,12,24,.97);border-left:1px solid #ffffff1f;padding:14px;
+  transform:translateX(102%);transition:transform .22s;overflow:auto;color:#cfd2e6}
+#mg3.open{transform:none}
+#mg3 .mgh{font-size:.92rem;color:var(--accent);margin:6px 0 10px}
+#mg3 button{display:block;width:100%;text-align:left;margin:6px 0;padding:9px 11px;border-radius:10px;
+  border:1px solid #ffffff1f;background:#ffffff10;color:#cfd2e6;font-size:.8rem;font-family:inherit;cursor:pointer}
+#mg3 button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+#mg3 p{font-size:.72rem;line-height:1.7;opacity:.7;margin:10px 0 0}
+body.light #mg3{background:rgba(255,255,255,.98);color:#2a2320;border-left-color:rgba(0,0,0,.14)}
+body.light #mg3 button{background:rgba(0,0,0,.05);color:#3a322c;border-color:rgba(0,0,0,.14)}
 </style>
+<script src="assets/custom.js"></script><script src="assets/crash.js"></script><script src="assets/diag.js"></script>
 </head>
 <body>
 <a class="skip" href="#hint">跳到操作提示</a>
+<div id="yzLabels" aria-hidden="true"></div>
 <div id="stage"></div>
 <div id="bar">
   <span class="brand">🧊 3D 关系图谱</span>
@@ -155,7 +222,10 @@ body.clean #dataMenu{display:none !important}
 <button id="ptab" onclick="yz3d.expandPanel()">📖 展开介绍</button>
 <div id="tools">
   <button id="ybtn" onclick="yz3d.toggleYears()" title="按年代筛选：只保留活跃于该年前后的节点与关系">⏳ 时间</button>
+  <button id="ndb" onclick="yz3d.addNodeUI()" title="在当前图谱里新增节点（写入主图谱，2D 关系图谱同步可见）">＋ 节点</button>
   <button id="dtb" onclick="yz3d.openDataMenu(event)" title="导出 / 导入图谱数据（JSON · CSV · GraphML）" aria-haspopup="menu" aria-expanded="false">⬇ 数据</button>
+  <button id="lb3" onclick="yz3d.toggleLabels()" title="在每个节点球上显示名字">🏷 名字</button>
+  <button id="mgb3" onclick="yz3d.toggleMgr3()" title="显示设置">⚙ 管理</button>
   <span id="ybar"><input id="yr" type="range" aria-label="年份" oninput="yz3d.yearSet(this.value)"><b id="yval">—</b></span>
 </div>
 <div id="hint">拖动旋转 · 双指/滚轮缩放 · 点击节点查看</div>
@@ -167,6 +237,7 @@ body.clean #dataMenu{display:none !important}
   <button role="menuitem" onclick="yz3d.exportData3D('graphml')">GraphML（Gephi / yEd 可读）</button>
   <button role="menuitem" onclick="yz3d.importData3D()">📥 导入图谱（JSON）</button>
 </div>
+<div id="ebox" role="dialog" aria-modal="true" aria-label="新增节点或关系"><div class="eb" id="ebBody"></div></div>
 <div id="loading"><div class="box" id="lbox">正在加载 3D 图谱…</div></div>
 
 <script>
@@ -175,7 +246,10 @@ window.__3dErrs = [];
 window.yz3d = window.yz3d || { toggleList:function(){}, renderList:function(){}, pick:function(){}, fit:function(){},
   toggleYears:function(){}, yearSet:function(){}, exportData3D:function(){}, importData3D:function(){},
   openDataMenu:function(){}, closeDataMenu:function(){},
-  collapsePanel:function(){}, expandPanel:function(){}, togglePanel:function(){} };
+  collapsePanel:function(){}, expandPanel:function(){}, togglePanel:function(){},
+  addNodeUI:function(){}, addEdgeUI:function(){}, closeEdit:function(){}, saveNode:function(){}, saveEdge:function(){},
+  toggleLabels:function(){ var w=document.getElementById('yzLabels'); if(w){ w.style.display=(w.style.display==='none'?'':'none'); } },
+  toggleMgr3:function(){ var p=document.getElementById('mg3'); if(p){ p.classList.toggle('open'); var b=document.getElementById('mgb3'); if(b) b.classList.toggle('on', p.classList.contains('open')); } } };
 window.addEventListener('error', function (ev) {
   try {
     var t = ev.target;
@@ -192,6 +266,8 @@ window.addEventListener('error', function (ev) {
 
   function loadScript(src, cb) {
     var s = document.createElement('script');
+    /* 带构建号：升级换 URL，避免读到旧脚本；同时能吃到长缓存 */
+    if (window.__YZV && src.indexOf('?') < 0) src += '?v=' + window.__YZV;
     s.src = src; s.async = false;
     s.onload = function () { cb(); };
     s.onerror = function () { window.__3dErrs.push('资源加载失败：' + src.split('/').slice(-1)[0]); cb(); };
@@ -265,6 +341,12 @@ window.addEventListener('error', function (ev) {
       .onNodeClick(function (n) { pickNode(n.id); })
       .onBackgroundClick(function () { clearSel(); });
 
+    /* ★ 闭包钩子：G 与 NODES 是 start() 的局部变量，外层名字层拿不到。
+       这里把「用当前的 G/NODES 做一件事」暴露成全局函数，彻底绕开作用域问题。 */
+    window.__yz3dWith = function (fn) {
+      try { return fn(G, NODES, typeof nodeVisible === 'function' ? nodeVisible : null); } catch (e) { return null; }
+    };
+
     /* ---------- 省电：布局收敛后停止持续渲染 ----------
        3d-force-graph 内部用 requestAnimationFrame 无限循环（_animationCycle → tickFrame + renderObjs.tick）
        逐帧重绘；即使力导向已冷却、画面完全静止，也照画不误 → 空闲时仍产生海量 WebGL 调用、耗电发热。
@@ -302,7 +384,7 @@ window.addEventListener('error', function (ev) {
     function endId(v) { return (v && typeof v === 'object') ? v.id : v; }
     function isHot(id) { return !selId || id === selId || !!nbSet[id]; }
     function linkHot(l) { return selId && (endId(l.source) === selId || endId(l.target) === selId); }
-    function nodeColor(n) { if (selId && !isHot(n.id)) return LIGHT ? '#d8d2c6' : '#2a2d44'; return n.color || CMAP[n.type] || '#9aa0a6'; }
+    function nodeColor(n) { if (selId && !isHot(n.id)) return LIGHT ? '#d8d2c6' : '#2a2d44'; return n.color || CMAP[n.type] || (n.type === 'concept' ? '#C77DFF' : '#9aa0a6'); }
     function linkColor(l) {
       if (linkHot(l)) return '#f5c518';
       if (selId && !(nbSet[endId(l.source)] || nbSet[endId(l.target)])) return LIGHT ? 'rgba(80,70,60,.14)' : 'rgba(90,95,130,.15)';
@@ -465,11 +547,21 @@ window.addEventListener('error', function (ev) {
               if (n.works && n.works.length) m.works = n.works;
               if (n.tags && n.tags.length) m.tags = n.tags;
               if (n.crit) m.crit = true;
+              if (n.source) m.source = n.source;
+              if (n.prov) m.prov = n.prov;
+              if (n.place) m.place = n.place;
+              if (Array.isArray(n.geo) && n.geo.length === 2) m.geo = [n.geo[0], n.geo[1]];
+              else { if (typeof n.lng === 'number' && isFinite(n.lng)) m.lng = n.lng;
+                     if (typeof n.lat === 'number' && isFinite(n.lat)) m.lat = n.lat; }
               if (n.val != null) m.val = n.val;                              /* 3D 专有：节点大小 */
               if (typeof n.color === 'string' && n.color) m.color = n.color; /* 3D 专有：节点颜色 */
               return m;
             }),
-            links: links.map(function (l) { return { source: eid(l.source), target: eid(l.target), rel: l.rel }; }) };
+            links: links.map(function (l) {
+              var e = { source: eid(l.source), target: eid(l.target), rel: l.rel };
+              if (l.src) e.src = l.src;          /* 关系依据 */
+              return e;
+            }) };
           name = '学通-3D图谱-' + datasetKey + '-' + stamp + '.json';
           mime = 'application/json'; txt = JSON.stringify(o, null, 2);
         }
@@ -529,6 +621,12 @@ window.addEventListener('error', function (ev) {
         if (Array.isArray(n.works) && n.works.length) o.works = n.works.slice();
         if (Array.isArray(n.tags) && n.tags.length) o.tags = n.tags.slice();
         if (n.crit) o.crit = true;
+        if (n.source) o.source = String(n.source);
+        if (n.prov) o.prov = String(n.prov);
+        if (n.place) o.place = String(n.place);
+        if (Array.isArray(n.geo) && n.geo.length === 2) o.geo = [Number(n.geo[0]), Number(n.geo[1])];
+        else { if (isFinite(Number(n.lng)) && n.lng != null) o.lng = Number(n.lng);
+               if (isFinite(Number(n.lat)) && n.lat != null) o.lat = Number(n.lat); }
         if (n.val != null && isFinite(Number(n.val))) o.val = Number(n.val);
         if (typeof n.color === 'string' && n.color) o.color = n.color;
         return o;
@@ -617,14 +715,108 @@ window.addEventListener('error', function (ev) {
     /* 连续 10 秒渲染正常 → 重置自动恢复次数，避免无限重载 */
     setTimeout(function () { try { sessionStorage.removeItem('yz3dCtx'); } catch (e) {} }, 10000);
 
+    /* ---------- 主图谱增量：3D 的「全景星云」就是主图谱的 3D 视图 ----------
+       2D 关系图谱与 3D 共用同一份自助编辑覆盖层（localStorage: yzy_ov_v1）。
+       这里把覆盖层里针对主图谱（gid=main）的增删叠加到 base 数据集上，
+       从而做到「2D 里改的，3D 立刻能看到；3D 里加的，2D 也立刻能看到」。 */
+    var DS_BASE = {};
+    function dsBase(k) {
+      if (!DS_BASE[k]) {
+        var d = D.datasets[k] || { nodes: [], links: [] };
+        DS_BASE[k] = { nodes: (d.nodes || []).slice(), links: (d.links || []).slice() };
+      }
+      return DS_BASE[k];
+    }
+    function mainDelta() {
+      try {
+        if (window.YZY && YZY.state) {
+          var g = (YZY.state() || {}).graphs || {};
+          return { rmN: (g.nodeRemove && g.nodeRemove.main) || [], rmE: (g.edgeRemove && g.edgeRemove.main) || [],
+                   addN: (g.nodeAdd && g.nodeAdd.main) || [], addE: (g.edgeAdd && g.edgeAdd.main) || [] };
+        }
+      } catch (e) {}
+      return { rmN: [], rmE: [], addN: [], addE: [] };
+    }
+    /* 主图谱的「关系样式」覆盖（关系名 / 颜色） */
+    function mainEdgeStyle() {
+      try {
+        var g = (YZY.state() || {}).graphs || {};
+        return (g.edgeStyle && g.edgeStyle.main) || {};
+      } catch (e) { return {}; }
+    }
+    /* 主图谱的「节点样式/内容」覆盖（改名、改类型、改介绍）——与 2D 同一份数据 */
+    function mainNodeStyle() {
+      try {
+        var g = (YZY.state() || {}).graphs || {};
+        return (g.nodeStyle && g.nodeStyle.main) || {};
+      } catch (e) { return {}; }
+    }
+    function applyNodeStyle(n, st) {
+      if (!st) return n;
+      var c = {};
+      for (var k2 in n) { if (Object.prototype.hasOwnProperty.call(n, k2)) c[k2] = n[k2]; }
+      if (st.name) c.name = st.name;
+      if (st.type) c.type = st.type;
+      if (st.years !== undefined) c.years = st.years;
+      if (st.role !== undefined) c.role = st.role;
+      if (st.desc !== undefined) c.desc = st.desc;
+      if (st.points !== undefined) c.points = st.points;
+      if (st.color) c.color = st.color;
+      return c;
+    }
+    function withDelta(k) {
+      var b = dsBase(k), nodes = b.nodes.slice(), links = b.links.slice();
+      if (k !== 'nebula') return { nodes: nodes, links: links };   /* 另两个是衍生视图，不加增量 */
+      var d = mainDelta(), byId = {}, seen = {}, out = [];
+      nodes = nodes.filter(function (n) { return d.rmN.indexOf(n.id) < 0; });
+      d.addN.forEach(function (n) { if (n && n.id) nodes.push(n); });
+      var nst = mainNodeStyle();
+      nodes = nodes.map(function (n) { return applyNodeStyle(n, nst[n.id]); });
+      nodes.forEach(function (n) { byId[n.id] = n; });
+      links.forEach(function (l) {
+        var sid = (l.source && l.source.id) || l.source, tid = (l.target && l.target.id) || l.target;
+        if (d.rmN.indexOf(sid) >= 0 || d.rmN.indexOf(tid) >= 0) return;
+        var key = sid + '|' + tid + '|' + (l.rel || '');
+        if (d.rmE.indexOf(key) >= 0 || seen[key]) return;
+        seen[key] = 1; out.push(l);
+      });
+      d.addE.forEach(function (e) {
+        if (!e || !byId[e.source] || !byId[e.target]) return;
+        var key = e.source + '|' + e.target + '|' + (e.rel || '');
+        if (seen[key]) return;
+        seen[key] = 1; out.push({ source: e.source, target: e.target, rel: e.rel || '关联' });
+      });
+      /* 关系名 / 颜色覆盖（key 用「原 rel」，与 setEdgeStyle 写入时一致） */
+      var est = mainEdgeStyle();
+      out = out.map(function (l) {
+        var sid = endId(l.source), tid = endId(l.target);
+        var st = est[sid + '|' + tid + '|' + (l.rel || '')];
+        if (!st) return l;
+        var c = { source: l.source, target: l.target, rel: l.rel };
+        c.rel0 = l.rel0 || l.rel;   /* 改名后仍保留原始关系名，供再次编辑定位 */
+        ['color', 'src', 'width'].forEach(function (k) { if (l[k] !== undefined) c[k] = l[k]; });
+        if (st.label) c.rel = st.label;
+        if (st.color) c.color = st.color;
+        return c;
+      });
+      return { nodes: nodes, links: out };
+    }
+    function setTab(k) {
+      Array.prototype.forEach.call(document.querySelectorAll('.tab[data-ds]'), function (x) {
+        x.classList.toggle('on', x.getAttribute('data-ds') === k);
+      });
+    }
+
     function load(k) {
       var ds = D.datasets[k]; if (!ds) return;
       datasetKey = k;
       selId = null; nbSet = {}; engineRunning = true; /* 换数据集会重置倒计时、引擎重新运行 */
-      NODES = ds.nodes; LINKS = ds.links;
+      var vd = withDelta(k);
+      NODES = vd.nodes; LINKS = vd.links;
+      window.__yzN = NODES; window.__yzG = G;   /* ★ 供名字层使用：它们原本是 start() 的局部变量 */
       /* 必须把“同一批对象”交给引擎：引擎会把 x/y/z 写在传入的节点上，
          若这里传副本，页面里的 NODES 就永远拿不到坐标（曾经导致「列表→跳转」飞到原点）。 */
-      G.graphData({ nodes: ds.nodes, links: ds.links });
+      G.graphData({ nodes: vd.nodes, links: vd.links });
       scheduleFit();
       legend();
       try { renderList((document.getElementById('q3') || {}).value || ''); } catch (e) {}
@@ -633,7 +825,8 @@ window.addEventListener('error', function (ev) {
       var p = document.getElementById('panel'), c = document.getElementById('pc'), rels = [];
       LINKS.forEach(function (l) {
         var s = typeof l.source === 'object' ? l.source.id : l.source, t = typeof l.target === 'object' ? l.target.id : l.target;
-        if (s === n.id) rels.push({ rel: l.rel, to: t, src: l.src }); else if (t === n.id) rels.push({ rel: l.rel, to: s, src: l.src });
+        if (s === n.id) rels.push({ rel: l.rel, rel0: l.rel0 || l.rel, to: t, src: l.src, sid: s, tid: t });
+        else if (t === n.id) rels.push({ rel: l.rel, rel0: l.rel0 || l.rel, to: s, src: l.src, sid: s, tid: t });
       });
       var nameOf = function (id) { var f = NODES.filter(function (x) { return x.id === id; })[0]; return f ? f.name : id; };
       c.innerHTML =
@@ -642,8 +835,14 @@ window.addEventListener('error', function (ev) {
         (n.years ? '<div class="yr">' + esc3(n.years) + '</div>' : '') +
         (n.role ? '<div class="role">' + esc3(n.role) + '</div>' : '') +
         (n.desc ? '<div class="desc">' + esc3(n.desc) + '</div>' : '') +
-        (rels.length ? '<div class="rel">关系（' + rels.length + '）：<br>' + rels.map(function (r) {
-          return '· <b>' + esc3(r.rel || '关联') + '</b> — ' + esc3(nameOf(r.to)) + (r.src ? '　<span style="opacity:.72">依据：' + esc3(r.src) + '</span>' : ''); }).join('<br>') + '</div>' : '');
+        '<div class="pacts"><button type="button" onclick="yz3d.addEdgeUI()">＋ 以此为起点加关系</button>' +
+        '<button type="button" onclick="yz3d.editNodeUI()">✏️ 编辑内容</button>' +
+        '<button type="button" onclick="yz3d.addNodeUI()">＋ 新节点</button>' +
+        '<button type="button" class="dgr" onclick="yz3d.deleteNodeUI()">🗑 删除节点</button></div>' +
+        (rels.length ? '<div class="rel">关系（' + rels.length + '，点关系名可改）：<br>' + rels.map(function (r) {
+          return '· <b class="rlink" onclick="yz3d.editEdgeUI(\'' + esc3(r.sid) + '\',\'' + esc3(r.tid) + '\',\'' + escAttr3(r.rel0 || r.rel || '') + '\')">' +
+            esc3(r.rel || '关联') + '</b> — ' + esc3(nameOf(r.to)) +
+            (r.src ? '　<span style="opacity:.72">依据：' + esc3(r.src) + '</span>' : ''); }).join('<br>') + '</div>' : '');
       selName = n.name || '';
       try { if (p) p.setAttribute('aria-label', '节点详情：' + selName); } catch (e) {}
       p.classList.add('open');
@@ -704,15 +903,487 @@ window.addEventListener('error', function (ev) {
       wake(1400); /* 相机 tween 约 900ms，飞行结束再等一会才允许暂停 */
       if ((window.innerWidth || 999) < 720) toggleList(false);
     }
+    /* ---------- 新增节点 / 关系（写进主图谱的覆盖层，2D 同步可见） ---------- */
+    var EDIT_TYPES = [['person','👤 人物'], ['idea','💡 思想'], ['org','🏛 组织'], ['event','📅 事件'], ['work','📕 著作']];
+    var TYPE_CN = { person:'人物', idea:'思想', org:'组织', event:'事件', work:'著作' };
+    function eboxEl() { return document.getElementById('ebox'); }
+    function closeEdit() { var b = eboxEl(); if (b) b.classList.remove('open'); }
+    function openEdit(html) {
+      var b = eboxEl(), body = document.getElementById('ebBody');
+      if (!b || !body) return;
+      body.innerHTML = html; b.classList.add('open');
+      setTimeout(function () { var f = body.querySelector('input:not([readonly]),select,textarea'); if (f) try { f.focus(); } catch (e) {} }, 60);
+    }
+    /* ---------- 编辑已有节点（改名 / 改类型 / 改年份 / 改定位 / 改介绍 / 改要点） ---------- */
+    function escAttr3(s) {
+      return esc3(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function findNodeById(id) {
+      var a = NODES || [];
+      for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i];
+      return null;
+    }
+    function nodeInMain(id) {
+      try { if ((window.SITE_GRAPH.nodes || []).some(function (x) { return x.id === id; })) return true; } catch (e) {}
+      try {
+        var st = YZY.state() || {};
+        var addN = (st.graphs && st.graphs.nodeAdd && st.graphs.nodeAdd.main) || [];
+        if (addN.some(function (x) { return x.id === id; })) return true;
+      } catch (e) {}
+      return false;
+    }
+    /* ---------- 改关系：关系名 / 颜色 / 删除 / 反向 ---------- */
+    var EDGE_PAL = ['#f5c518', '#8de6a1', '#7ec8ff', '#ff8b8b', '#d7aef2', '#ffd166', '#63e6be', '#ffffff'];
+    var edgeEditKey = null;
+    function findLink(sid, tid, rel0) {
+      var a = LINKS || [];
+      for (var i = 0; i < a.length; i++) {
+        var l = a[i];
+        if (endId(l.source) !== sid || endId(l.target) !== tid) continue;
+        if (String(l.rel0 || l.rel || '') === String(rel0 || '')) return l;   /* 用原始关系名定位 */
+      }
+      return null;
+    }
+    function editEdgeUI(sid, tid, rel0) {
+      if (!(window.YZY && YZY.setEdgeStyle)) { flash('本版本不支持改关系', 3000); return; }
+      var l = findLink(sid, tid, rel0);
+      var a = findNodeById(sid), b = findNodeById(tid);
+      var an = a ? (a.name || sid) : sid, bn = b ? (b.name || tid) : tid;
+      var cur = (l && typeof l.color === 'string' && l.color.charAt(0) === '#') ? l.color : '#f5c518';
+      var relVal = String((l && l.rel) || rel0 || '');
+      edgeEditKey = { sid: sid, tid: tid, rel: String(rel0) };
+      openEdit('<h3>关系：' + esc3(an) + ' → ' + esc3(bn) + '</h3>' +
+        '<label for="er_name">关系名</label><input id="er_name" maxlength="20" value="' + escAttr3(relVal) + '" placeholder="如 师承 / 批判 / 战友">' +
+        '<label>颜色</label><div id="er_pal" class="swrow">' +
+          EDGE_PAL.map(function (c) {
+            return '<span class="sw' + (c === cur ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></span>';
+          }).join('') + '</div>' +
+        '<input id="er_color" value="' + cur + '" readonly>' +
+        '<div class="tip">关系名与颜色写入主图谱覆盖层：2D 关系图谱、图谱导出同步；「反向」会把这层方向掉过来。</div>' +
+        '<div class="row"><button type="button" onclick="yz3d.closeEdit()">取消</button>' +
+        '<button type="button" onclick="yz3d.reverseEdgeUI()">⇄ 反向</button>' +
+        '<button type="button" class="dgr" onclick="yz3d.deleteEdgeUI()">删除</button>' +
+        '<button type="button" class="pri" onclick="yz3d.saveEdgeEdit()">保存</button></div>');
+      setTimeout(function () {
+        var box = document.getElementById('er_pal');
+        if (!box) return;
+        Array.prototype.forEach.call(box.children, function (sp) {
+          sp.onclick = function () {
+            Array.prototype.forEach.call(box.children, function (x) { x.classList.remove('on'); });
+            sp.classList.add('on');
+            var ci = document.getElementById('er_color');
+            if (ci) ci.value = sp.getAttribute('data-c');
+          };
+        });
+      }, 60);
+    }
+    function saveEdgeEdit() {
+      var k = edgeEditKey; if (!k) { flash('关系已失效，请重新点选', 2600); return; }
+      var nm = String(((document.getElementById('er_name') || {}).value) || '').trim() || '关联';
+      var co = String(((document.getElementById('er_color') || {}).value) || '').trim();
+      var key = k.sid + '|' + k.tid + '|' + k.rel;
+      var r = YZY.setEdgeStyle('main', key, { label: nm, color: co });
+      if (!r || r.ok === false) { flash('保存失败：' + ((r && r.msg) || '未知原因'), 3400); return; }
+      closeEdit(); load('nebula');
+      setTimeout(function () { var n = findNodeById(k.sid); if (n) { openPanel(n); pickNode(k.sid); } }, 700);
+      flash('关系已更新为「' + nm + '」', 3000);
+    }
+    function deleteEdgeUI() {
+      var k = edgeEditKey; if (!k) return;
+      var key = k.sid + '|' + k.tid + '|' + k.rel;
+      openEdit('<h3>删除这条关系？</h3>' +
+        '<p style="font-size:.82rem;line-height:1.8;opacity:.85;margin:6px 0 0">' +
+          esc3((findNodeById(k.sid) || {}).name || k.sid) + ' → ' + esc3((findNodeById(k.tid) || {}).name || k.tid) +
+          '（' + esc3(k.rel || '关联') + '）</p>' +
+        '<div class="tip">只删这一条关系，不删节点。</div>' +
+        '<div class="row"><button type="button" onclick="yz3d.closeEdit()">取消</button>' +
+        '<button type="button" class="dgr" onclick="yz3d.doDeleteEdge()">确定删除</button></div>');
+    }
+    function doDeleteEdge() {
+      var k = edgeEditKey; if (!k) return;
+      var r = YZY.removeGraphEdge('main', k.sid + '|' + k.tid + '|' + k.rel);
+      if (!r || r.ok === false) { flash('删除失败：' + ((r && r.msg) || '未知原因'), 3200); return; }
+      closeEdit(); load('nebula');
+      setTimeout(function () { var n = findNodeById(k.sid); if (n) { openPanel(n); pickNode(k.sid); } }, 700);
+      flash('关系已删除', 2600);
+    }
+    function reverseEdgeUI() {
+      var k = edgeEditKey; if (!k) return;
+      var nm = String(((document.getElementById('er_name') || {}).value) || '').trim() || k.rel || '关联';
+      var co = String(((document.getElementById('er_color') || {}).value) || '').trim() || '#f5c518';
+      var rm = YZY.removeGraphEdge('main', k.sid + '|' + k.tid + '|' + k.rel);
+      if (!rm || rm.ok === false) { flash('反向失败：原关系删除失败', 3200); return; }
+      var ad = YZY.addGraphEdge('main', { source: k.tid, target: k.sid, rel: nm, color: co });
+      if (!ad || ad.ok === false) { flash('反向失败：' + ((ad && ad.msg) || ''), 3400); return; }
+      closeEdit(); load('nebula');
+      setTimeout(function () { var n = findNodeById(k.tid); if (n) { openPanel(n); pickNode(k.tid); } }, 700);
+      flash('已反向：' + esc3((findNodeById(k.tid) || {}).name || k.tid) + ' → ' + esc3((findNodeById(k.sid) || {}).name || k.sid), 3400);
+    }
+    /* ---------- 删除节点（二次确认） ---------- */
+    function deleteNodeUI() {
+      if (!(window.YZY && YZY.removeGraphNode)) { flash('本版本不支持删除节点', 3000); return; }
+      var n = findNodeById(selId);
+      if (!n) { flash('请先点一个节点', 2400); return; }
+      if (!nodeInMain(n.id)) { flash('「' + (n.name || n.id) + '」不在主图谱，无法在这里删除', 3600); return; }
+      openEdit('<h3>删除节点「' + esc3(n.name || n.id) + '」？</h3>' +
+        '<div class="tip">与它相连的关系线会一起删除。删除写入主图谱，2D 图谱同步；可用 2D 编辑台的「撤销」恢复。</div>' +
+        '<div class="row"><button type="button" onclick="yz3d.closeEdit()">取消</button>' +
+        '<button type="button" class="dgr" onclick="yz3d.doDeleteNode()">确定删除</button></div>');
+    }
+    function doDeleteNode() {
+      var n = findNodeById(selId);
+      if (!n) { closeEdit(); return; }
+      var id = n.id;
+      var r = YZY.removeGraphNode('main', id);
+      if (!r || r.ok === false) { flash('删除失败：' + ((r && r.msg) || '未知原因'), 3200); return; }
+      closeEdit(); clearSel(); load('nebula');
+      flash('已删除「' + (n.name || id) + '」', 3000);
+    }
+
+    function editNodeUI() {
+      if (!(window.YZY && YZY.setNodeStyle)) { flash('本版本不支持在图谱里改节点', 3000); return; }
+      var n = findNodeById(selId);
+      if (!n) { flash('请先点一个节点', 2400); return; }
+      if (!nodeInMain(n.id)) { flash('「' + (n.name || n.id) + '」不在主图谱（属于文献/著作视图），改名请到 2D 图谱的编辑台', 4200); return; }
+      openEdit('<h3>✏️ 编辑「' + esc3(n.name || n.id) + '」</h3>' +
+        '<label for="ed_name">名称（改名后 3D / 2D / 导出一起变）</label><input id="ed_name" maxlength="40" value="' + escAttr3(n.name || '') + '">' +
+        '<label for="ed_type">类型</label><select id="ed_type">' +
+          EDIT_TYPES.map(function (t) {
+            return '<option value="' + t[0] + '"' + (t[0] === (n.type || 'person') ? ' selected' : '') + '>' + t[1] + '</option>';
+          }).join('') + '</select>' +
+        '<label for="ed_years">年份 / 生卒（可空）</label><input id="ed_years" maxlength="40" value="' + escAttr3(n.years || '') + '" placeholder="如 1894—1971">' +
+        '<label for="ed_role">一句话定位（可空）</label><input id="ed_role" maxlength="200" value="' + escAttr3(n.role || '') + '">' +
+        '<label for="ed_desc">介绍</label><textarea id="ed_desc" maxlength="1200">' + esc3(n.desc || '') + '</textarea>' +
+        '<label for="ed_points">要点（每行一条，可空）</label><textarea id="ed_points" maxlength="1200">' + esc3((n.points || []).join('\n')) + '</textarea>' +
+        '<div class="tip">保存后写入主图谱覆盖层：2D 关系图谱、图谱导出、问一问都同步。</div>' +
+        '<div class="row"><button type="button" onclick="yz3d.closeEdit()">取消</button>' +
+        '<button type="button" class="pri" onclick="yz3d.saveNodeEdit()">保存</button></div>');
+    }
+    function saveNodeEdit() {
+      var n = findNodeById(selId);
+      if (!n) { flash('节点已失效，请重新点选', 2600); return; }
+      var name = String(((document.getElementById('ed_name') || {}).value) || '').trim();
+      if (!name) { flash('名称不能为空', 2500); return; }
+      var patch = {
+        name: name,
+        type: ((document.getElementById('ed_type') || {}).value) || n.type || 'person',
+        years: String(((document.getElementById('ed_years') || {}).value) || '').trim(),
+        role: String(((document.getElementById('ed_role') || {}).value) || '').trim(),
+        desc: String(((document.getElementById('ed_desc') || {}).value) || ''),
+        points: String(((document.getElementById('ed_points') || {}).value) || '')
+          .split(/[\r\n]+/).map(function (x) { return x.trim(); }).filter(Boolean)
+      };
+      var r = YZY.setNodeStyle('main', n.id, patch);
+      if (!r || !r.ok) { flash('保存失败：' + ((r && r.msg) || '未知原因'), 3600); return; }
+      closeEdit();
+      var keep = n.id;
+      setTab('nebula'); load('nebula');
+      setTimeout(function () {
+        var nn = findNodeById(keep);
+        if (nn) { openPanel(nn); pickNode(keep); }
+      }, 700);
+      flash('已保存「' + name + '」（写入主图谱）', 3200);
+    }
+
+    function addNodeUI() {
+      if (!(window.YZY && YZY.addGraphNode)) { flash('本版本不支持在图谱里新增节点', 3000); return; }
+      openEdit('<h3>＋ 新增节点</h3>' +
+        '<label for="en_name">名称（必填）</label><input id="en_name" maxlength="40" placeholder="如：李大钊">' +
+        '<label for="en_type">类型</label><select id="en_type">' +
+          EDIT_TYPES.map(function (t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('') + '</select>' +
+        '<label for="en_role">一句话定位</label><input id="en_role" maxlength="60" placeholder="如：中国最早的马克思主义传播者">' +
+        '<label for="en_desc">简介（可选）</label><textarea id="en_desc" maxlength="600" placeholder="两三句话介绍"></textarea>' +
+        '<div class="tip">保存后写入主图谱：2D 关系图谱、图谱导出、问一问都能看到，本视图立即出现。</div>' +
+        '<div class="row"><button type="button" onclick="yz3d.closeEdit()">取消</button>' +
+        '<button type="button" class="pri" onclick="yz3d.saveNode()">保存</button></div>');
+    }
+    function saveNode() {
+      var nm = String(((document.getElementById('en_name') || {}).value) || '').trim();
+      if (!nm) { flash('名称不能为空', 2500); return; }
+      var ty = ((document.getElementById('en_type') || {}).value) || 'person';
+      var role = String(((document.getElementById('en_role') || {}).value) || '').trim();
+      var desc = String(((document.getElementById('en_desc') || {}).value) || '').trim();
+      var r = YZY.addGraphNode('main', { name: nm, type: ty, role: role, desc: desc });
+      if (!r || !r.ok) { flash('保存失败：' + ((r && r.msg) || '未知原因'), 3400); return; }
+      closeEdit();
+      setTab('nebula'); load('nebula');
+      setTimeout(function () { pickNode(r.id); }, 600);
+      flash('已新增节点「' + nm + '」（已写入主图谱）', 3400);
+    }
+    function addEdgeUI() {
+      if (!(window.YZY && YZY.addGraphEdge)) { flash('本版本不支持在图谱里加关系', 3000); return; }
+      if (!selId) { flash('请先点一个节点作为起点', 2600); return; }
+      var from = selId;
+      var self = (NODES || []).filter(function (n) { return n.id === from; })[0] || {};
+      edgeCand = (NODES || []).filter(function (n) { return n.id !== from; })
+        .sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || ''), 'zh'); })
+        .map(function (n) { return { id: n.id, name: n.name || n.id, type: n.type }; });
+      var opts = edgeCand.map(function (n) {
+        return '<option value="' + esc3(n.id) + '">' + esc3(n.name) +
+          (n.type ? '（' + (TYPE_CN[n.type] || n.type) + '）' : '') + '</option>';
+      }).join('');
+      openEdit('<h3>＋ 加关系</h3>' +
+        '<label>起点</label><input value="' + esc3(self.name || from) + '" readonly>' +
+        '<label for="ee_q">筛选终点（输入名称可缩小范围，可留空）</label><input id="ee_q" placeholder="如：毛 / 赫鲁 / 斯大林">' +
+        '<label for="ee_target">终点（连到谁）</label><select id="ee_target">' + opts + '</select>' +
+        '<label for="ee_rel">关系名（如：师承 / 影响了 / 参与创立 / 批判）</label><input id="ee_rel" maxlength="20" placeholder="关联">' +
+        '<div class="tip">关系写入主图谱：2D 关系图谱与图谱导出都能看到。</div>' +
+        '<div class="row"><button type="button" onclick="yz3d.closeEdit()">取消</button>' +
+        '<button type="button" class="pri" onclick="yz3d.saveEdge()">保存</button></div>');
+      setTimeout(function () {
+        var q = document.getElementById('ee_q');
+        if (q) q.oninput = function () { filterEdgeTargets(); };
+      }, 80);
+    }
+    var edgeCand = [];
+    function filterEdgeTargets() {
+      var q = String(((document.getElementById('ee_q') || {}).value) || '').trim().toLowerCase();
+      var sel = document.getElementById('ee_target');
+      if (!sel) return;
+      var cur = sel.value;
+      var list = edgeCand.filter(function (n) {
+        return !q || String(n.name).toLowerCase().indexOf(q) >= 0 || String(n.id).toLowerCase().indexOf(q) >= 0;
+      });
+      sel.innerHTML = list.map(function (n) {
+        return '<option value="' + esc3(n.id) + '">' + esc3(n.name) +
+          (n.type ? '（' + (TYPE_CN[n.type] || n.type) + '）' : '') + '</option>';
+      }).join('');
+      if (list.some(function (n) { return n.id === cur; })) sel.value = cur;
+    }
+    function saveEdge() {
+      var from = selId, to = ((document.getElementById('ee_target') || {}).value) || '';
+      var rel = String(((document.getElementById('ee_rel') || {}).value) || '').trim() || '关联';
+      if (!from || !to) { flash('请选择起点与终点', 2600); return; }
+      /* 端点若不在主图谱（例如「文献·著作」视图里的著作节点），先补进主图谱再连，否则会被拒 */
+      var have = {};
+      try { (window.SITE_GRAPH.nodes || []).forEach(function (n) { have[n.id] = 1; }); } catch (e) {}
+      try { var st = YZY.state() || {}; ((st.graphs && st.graphs.nodeAdd && st.graphs.nodeAdd.main) || []).forEach(function (n) { have[n.id] = 1; }); } catch (e) {}
+      var added = [];
+      [from, to].forEach(function (id) {
+        if (have[id]) return;
+        var n = (NODES || []).filter(function (x) { return x.id === id; })[0];
+        if (!n) return;
+        var rr = YZY.addGraphNode('main', { id: n.id, name: n.name, type: n.type, role: n.role, desc: n.desc });
+        if (rr && rr.ok) { have[id] = 1; added.push(n.name); }
+      });
+      var r = YZY.addGraphEdge('main', { source: from, target: to, rel: rel });
+      if (!r || !r.ok) { flash('保存失败：' + ((r && r.msg) || '未知原因'), 3400); return; }
+      closeEdit();
+      setTab('nebula'); load('nebula');
+      setTimeout(function () { pickNode(from); }, 600);
+      flash('已加关系「' + rel + '」（写入主图谱）' + (added.length ? '，并把 ' + added.join('、') + ' 一并加入' : ''), 3600);
+    }
+
+    /* ===== 节点名字：DOM 叠加层，用 graph2ScreenCoords 跟随投影 ===== */
+    var LB_KEY = 'yz3dLabelsOn', LB_ON = true;
+    try { if (localStorage.getItem(LB_KEY) === '0') LB_ON = false; } catch (e) {}
+    var LB_BOX = null, LB_ITEMS = [];
+    function lbBox() {
+      if (!LB_BOX) {
+        LB_BOX = document.getElementById('yzLabels');
+        if (!LB_BOX) { LB_BOX = document.createElement('div'); LB_BOX.id = 'yzLabels'; document.body.appendChild(LB_BOX); }
+      }
+      return LB_BOX;
+    }
+    /* 取「真正在动的那些节点」。
+       ⚠️ 原来直接用 NODES（传给 graphData 的原数组）：3d-force-graph 会把节点复制成内部对象，
+       原数组元素可能根本没有 x/y/z → 全部按 (0,0,0) 投影到屏幕正中，看上去就是「没有名字」。
+       这里优先取 G.graphData().nodes（引擎内部那份，一定带坐标），拿不到才退回原数组。 */
+    var LB_SRC = [];
+    function lbLive() {
+      var out = [];
+      try {
+        window.__yz3dWith(function (g, ns) {
+          var src = null;
+          try {
+            if (g && typeof g.graphData === 'function') {
+              var d = g.graphData();
+              if (d && d.nodes && d.nodes.length) src = d.nodes;
+            }
+          } catch (e) { }
+          if (!src) src = ns || [];
+          for (var i = 0; i < src.length; i++) {
+            var n = src[i];
+            if (n && n.name && (typeof n.x === 'number' || typeof n.y === 'number')) out.push(n);
+          }
+          if (!out.length) {                      /* 全部没有坐标：退回原数组，至少把名字建出来 */
+            for (var j = 0; j < src.length; j++) if (src[j] && src[j].name) out.push(src[j]);
+          }
+        });
+      } catch (e) { }
+      if (!out.length) out = window.__yzN || [];
+      return out;
+    }
+    function lbBuild() {
+      var box = lbBox(); box.innerHTML = ''; LB_ITEMS = [];
+      box.style.display = LB_ON ? '' : 'none';
+      if (!LB_ON) return;
+      var NS = lbLive(); LB_SRC = NS;
+      for (var i = 0; i < NS.length; i++) {
+        var n = NS[i]; if (!n || !n.name) continue;
+        var sp = document.createElement('span'); sp.className = 'yl';
+        sp.style.display = 'none';   /* 先藏起来，等拿到屏幕坐标再显示，避免全堆在左上角 */
+        sp.textContent = n.name.length > 12 ? n.name.slice(0, 12) + '…' : n.name;
+        box.appendChild(sp); LB_ITEMS.push({ el: sp, n: n });
+      }
+      syncLbBtn();
+    }
+    function lbConv() {
+      /* 通过闭包钩子取一次 G，避免外层拿到的 G 是 undefined */
+      var GG = null;
+      try { window.__yz3dWith(function (g) { GG = g; }); } catch (e) {}
+      if (!GG || typeof GG.graph2ScreenCoords !== 'function') return null;
+      return function (n) { try { return GG.graph2ScreenCoords(n.x || 0, n.y || 0, n.z || 0); } catch (e) { return null; } };
+    }
+    var _lbTick = 0;
+    function lbUpdate() {
+      if (!LB_ON) return;
+      /* ★ 关键：标签要跟着当前数据走（数据异步载入 / 切图谱后数量会变）。
+         每 ~1 秒核对一次数量，不一致才重建，避免每个 tick 都重排 DOM。 */
+      if (++_lbTick % 8 === 1) {
+        var nowN = 0;
+        try { nowN = lbLive().length; } catch (e) { nowN = 0; }
+        if (!LB_ITEMS.length || nowN !== LB_ITEMS.length) { try { lbBuild(); } catch (e) { } }
+      }
+      var conv = lbConv();
+      if (!conv) return;
+      var W = window.innerWidth || 360, H = window.innerHeight || 640;
+      for (var i = 0; i < LB_ITEMS.length; i++) {
+        var it = LB_ITEMS[i], n = it.n, el = it.el;
+        if (typeof nodeVisible === 'function' && !nodeVisible(n)) { el.style.display = 'none'; continue; }
+        var c = null; try { c = conv(n); } catch (e) { continue; }
+        if (!c) continue;
+        var out = c.x < -30 || c.y < -30 || c.x > W + 30 || c.y > H + 30;
+        el.style.display = out ? 'none' : '';
+        if (!out) { el.style.left = Math.round(c.x) + 'px'; el.style.top = Math.round(c.y) + 'px'; }
+      }
+      /* 把「可见/总数」显到按钮上：用户不用打开管理面板就能看出名字层是否在干活 */
+      if (++_lbSyncTick % 8 === 1) { try { syncLbBtn(); } catch (e) { } }
+      /* 连续 ~4 秒一个都看不见 → 说明不是「节点在视野外」，而是渲染层出了问题 */
+      var _visN = 0;
+      for (var q = 0; q < LB_ITEMS.length; q++) if (LB_ITEMS[q].el.style.display !== 'none') _visN++;
+      if (LB_ITEMS.length && !_visN) { if (++_lbDead === 30) { try { lbWarn(); } catch (e) { } } }
+      else { _lbDead = 0; _lbWarned = false; }
+    }
+    var _lbSyncTick = 0, _lbDead = 0, _lbWarned = false;
+    /* 兜底告警：标签都建出来了却一个都显示不出来时，把原因直接画在屏幕中央。
+       这类问题过去只能靠猜，现在现场就能看到容器尺寸 / 投影 API / 节点数量。 */
+    function lbWarn() {
+      if (_lbWarned) return; _lbWarned = true;
+      var box = lbBox(); if (!box) return;
+      var msg = '名字层没有显示。';
+      try {
+        var st = (window.yz3d && window.yz3d.labelState) ? window.yz3d.labelState() : null;
+        if (st) msg += '容器 ' + st.boxW + '×' + st.boxH + '；' + (st.api ? '投影API正常' : '投影API缺失') +
+          '；节点 ' + st.nodes + '；标签 ' + st.labels + '。';
+      } catch (e) { }
+      msg += '请把这句话截图发给维护者。';
+      var d = document.createElement('div'); d.className = 'ylwarn'; d.textContent = msg;
+      box.appendChild(d);
+    }
+    function syncLbBtn() {
+      var vis = 0, i;
+      for (i = 0; i < LB_ITEMS.length; i++) if (LB_ITEMS[i].el.style.display !== 'none') vis++;
+      var txt, warn = false;
+      if (!LB_ON) txt = '🏷 名字关';
+      else if (!LB_ITEMS.length) { txt = '🏷 名字 ⚠0'; warn = true; }
+      else if (!vis) { txt = '🏷 名字 0/' + LB_ITEMS.length; }
+      else txt = '🏷 名字 ' + vis + '/' + LB_ITEMS.length;
+      ['lb3', 'lb4'].forEach(function (id) {
+        var b = document.getElementById(id);
+        if (!b) return;
+        b.classList.toggle('on', LB_ON);
+        b.textContent = txt;
+        b.title = warn ? '名字层没拿到节点数据（请把这条状态告诉维护者）' : '在每个节点球上显示名字（点一次切换）';
+      });
+    }
+    function toggleLabels() {
+      LB_ON = !LB_ON;
+      try { localStorage.setItem(LB_KEY, LB_ON ? '1' : '0'); } catch (e) {}
+      lbBuild();
+      if (typeof flash === 'function') flash(LB_ON ? '已显示节点名字' : '已隐藏节点名字', 1500);
+    }
+    function toggleMgr3() {
+      var p = document.getElementById('mg3'); if (p) p.classList.toggle('open');
+      var b = document.getElementById('mgb3'); if (b) b.classList.toggle('on', p && p.classList.contains('open'));
+    }
+    var _lbLast = 0;
+    (function lbLoop(ts) {
+      if (!document.hidden && LB_ON && (!ts || ts - _lbLast > 120)) { _lbLast = ts || 0; try { lbUpdate(); } catch (e) {} }
+      requestAnimationFrame(lbLoop);
+    })(0);
+    /* 数据是异步载入的：早中晚各尝试一次建标签 */
+    [300, 1200, 2600].forEach(function (t) { setTimeout(function () { try { lbBuild(); } catch (e) {} }, t); });
+    /* 图例避让：让「关系图例」始终停在按钮组上方，互不遮挡 */
+    function syncLegendPos() {
+      try {
+        var t = document.getElementById('tools'), l = document.getElementById('legend');
+        if (!t || !l) return;
+        var r = t.getBoundingClientRect();
+        var gap = (window.innerHeight - r.top) + 10;
+        l.style.bottom = gap + 'px';
+      } catch (e) {}
+    }
+    setInterval(function () {
+      var el = document.getElementById('mg3stat'); if (!el) return;
+      var nn = 0, hasApi = false, conv = false, first = '';
+      try {
+        window.__yz3dWith(function (g, ns) {
+          nn = (ns || []).length;
+          hasApi = !!(g && typeof g.graph2ScreenCoords === 'function');
+          if (hasApi && ns && ns[0]) {
+            var c = g.graph2ScreenCoords(ns[0].x || 0, ns[0].y || 0, ns[0].z || 0);
+            conv = !!(c && isFinite(c.x) && isFinite(c.y));
+            first = c ? (Math.round(c.x) + ',' + Math.round(c.y)) : '';
+          }
+        });
+      } catch (e) {}
+      var vis = 0;
+      for (var i = 0; i < LB_ITEMS.length; i++) if (LB_ITEMS[i].el.style.display !== 'none') vis++;
+      var why = '';
+      if (!LB_ON) why = '（名字层已关闭，点「🏷 名字」打开）';
+      else if (!nn) why = '（还没拿到节点数据）';
+      else if (!LB_ITEMS.length) why = '（节点里没有可用对象——请把此状态告知维护者）';
+      else if (!vis) why = '（节点都在视野外，转一下或点「⤢ 适应窗口」）';
+      el.textContent = '状态：节点 ' + nn + ' · 标签 ' + LB_ITEMS.length + ' · 已显示 ' + vis +
+        ' · 坐标API ' + (hasApi ? '有' : '无') + (conv ? (' · 示例 ' + first) : '') + why;
+    }, 800);
+    window.addEventListener('resize', function () { setTimeout(syncLegendPos, 60); });
+    window.addEventListener('orientationchange', function () { setTimeout(syncLegendPos, 260); });
+    [400, 1500, 3000].forEach(function (t) { setTimeout(syncLegendPos, t); });
+
     window.yz3d = { toggleList: toggleList, renderList: renderList, pick: pickNode, fit: fitView,
+      toggleLabels: toggleLabels, toggleMgr3: toggleMgr3,
+      /* 名字层自检：给「为什么看不到名字」提供可核对的数据 */
+      labelState: function () {
+        var vis = 0, i;
+        for (i = 0; i < LB_ITEMS.length; i++) if (LB_ITEMS[i].el && LB_ITEMS[i].el.style.display !== 'none') vis++;
+        var hasApi = false, nn = 0, boxW = 0, boxH = 0;
+        try {
+          window.__yz3dWith(function (g, ns) {
+            nn = (ns || []).length;
+            hasApi = !!(g && typeof g.graph2ScreenCoords === 'function');
+          });
+        } catch (e) { }
+        try { var bx = document.getElementById('yzLabels'); if (bx) { boxW = bx.offsetWidth; boxH = bx.offsetHeight; } } catch (e) { }
+        return { on: LB_ON, nodes: nn, labels: LB_ITEMS.length, visible: vis, api: hasApi, boxW: boxW, boxH: boxH };
+      },
+      relayout: function () { try { lbBuild(); syncLegendPos(); } catch (e) {} },
       toggleYears: toggleYears, yearSet: yearSet, exportData3D: exportData3D, importData3D: importData3D,
       openDataMenu: openDataMenu, closeDataMenu: closeDataMenu, flash: flash,
-      collapsePanel: collapsePanel, expandPanel: expandPanel, togglePanel: togglePanel };
+      collapsePanel: collapsePanel, expandPanel: expandPanel, togglePanel: togglePanel,
+      addNodeUI: addNodeUI, addEdgeUI: addEdgeUI, closeEdit: closeEdit, saveNode: saveNode, saveEdge: saveEdge,
+      editNodeUI: editNodeUI, saveNodeEdit: saveNodeEdit, filterEdgeTargets: filterEdgeTargets,
+      editEdgeUI: editEdgeUI, saveEdgeEdit: saveEdgeEdit, deleteEdgeUI: deleteEdgeUI,
+      doDeleteEdge: doDeleteEdge, reverseEdgeUI: reverseEdgeUI,
+      deleteNodeUI: deleteNodeUI, doDeleteNode: doDeleteNode };
     /* Esc 关闭最上层浮层（列表抽屉 → 详情面板），与 2D 图谱页一致 */
     document.addEventListener("keydown", function (e) {
       if (e.key !== "Escape") return;
       var lp = document.getElementById("listPanel");
       if (lp && lp.classList.contains("open")) { toggleList(false); return; }
+      var eb = document.getElementById("ebox");
+      if (eb && eb.classList.contains("open")) { closeEdit(); return; }
       var pn = document.getElementById("panel");
       if (pn && pn.classList.contains("open")) { clearSel(); return; }
     });
@@ -759,10 +1430,25 @@ window.addEventListener('error', function (ev) {
   /* 引擎先于数据加载（任一失败都能给出“到底缺哪一个 + 具体报错”） */
   loadScript('lib/3d-force-graph.min.js', function () {
     loadScript('assets/cite.js', function () {
-      loadScript('data/graph3d.js', function () { boot(); });
+      /* 主图谱 + 自助编辑覆盖层：3D 里新增的节点/关系要写进同一份覆盖层（yzy_ov_v1），
+         这样 2D 关系图谱、图谱导出、问一问都能看到。缺任一文件时下面的能力自动降级。 */
+      loadScript('data/graph.js', function () {
+        loadScript('assets/overlay.js', function () {
+          loadScript('data/graph3d.js', function () { boot(); });
+        });
+      });
     });
   });
 })();
 </script>
+<aside id="mg3" aria-label="3D 显示管理">
+ <button type="button" onclick="yz3d.toggleMgr3()">▾ 收起</button>
+ <div class="mgh">⚙ 3D 显示管理</div>
+ <button type="button" id="lb4" onclick="yz3d.toggleLabels()">🏷 节点名字</button>
+ <button type="button" onclick="yz3d.fit()">⤢ 适应窗口</button>
+ <button type="button" onclick="yz3d.toggleList()">📋 节点列表</button>
+ <p id="mg3stat" style="color:#8fd3ff">状态：检测中…</p>
+ <p>节点名字是叠加在画布上的文字，100 个以上节点时可能略费电；点一次即关。设置存在本机。</p>
+</aside>
 </body>
 </html>

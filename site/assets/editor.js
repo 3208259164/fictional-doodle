@@ -47,44 +47,46 @@
 
   /* ================= 样式（兼容旧 WebView：不用 inset，env 带 fallback） ================= */
   var CSS = '' +
-    '#zzyBtn{display:none;position:fixed;left:10px;bottom:96px;z-index:9998;width:44px;height:44px;border-radius:50%;border:1px solid #7a2b2b;background:rgba(43,5,5,.9);color:#f0d8a8;font-size:19px;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5);padding:0}' +
-    '#zzyBtn:active{background:#7a1f1f}' +
-    '#zzyWrap{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;z-index:99999;display:none;background:#0d0202;color:#eadfce;overflow:auto;-webkit-overflow-scrolling:touch}' +
+    '#zzyBtn{display:none;position:fixed;left:10px;bottom:96px;z-index:9998;width:44px;height:44px;border-radius:50%;border:1px solid var(--panel-line);background:var(--panel-glass);color:var(--panel-accent);font-size:19px;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5);padding:0}' +
+    '#zzyBtn:active{background:var(--panel-btn)}' +
+    '#zzyWrap{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;z-index:99999;display:none;background:var(--panel-bg);color:var(--panel-text);overflow:auto;-webkit-overflow-scrolling:touch}' +
     '#zzyWrap.open{display:block}' +
     '#zzyWrap .zx{max-width:860px;margin:0 auto;padding:12px 14px 64px}' +
-    '#zzyWrap h3{margin:8px 0 10px;font-size:1.05rem;color:#f3c98b}' +
-    '#zzyWrap h4{margin:14px 0 6px;font-size:.9rem;color:#f3c98b}' +
+    '#zzyWrap h3{margin:8px 0 10px;font-size:1.05rem;color:var(--panel-accent)}' +
+    '#zzyWrap h4{margin:14px 0 6px;font-size:.9rem;color:var(--panel-accent)}' +
     '#zzyWrap .ztabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}' +
-    '#zzyWrap .ztab{padding:8px 14px;border:1px solid #5c2b2b;border-radius:20px;background:transparent;color:#e6d6c0;font-size:.86rem;cursor:pointer;font-family:inherit}' +
-    '#zzyWrap .ztab.on{background:#7a1f1f;border-color:#a33;color:#ffe9c2}' +
+    '#zzyWrap .ztab{padding:8px 14px;border:1px solid var(--panel-line);border-radius:20px;background:transparent;color:var(--panel-text);font-size:.86rem;cursor:pointer;font-family:inherit}' +
+    '#zzyWrap .ztab.on{background:var(--panel-btn);border-color:var(--panel-btn-line);color:var(--panel-btn-text)}' +
     '#zzyWrap label{display:block;font-size:.78rem;opacity:.85;margin:10px 0 4px}' +
-    '#zzyWrap input,#zzyWrap textarea,#zzyWrap select{width:100%;box-sizing:border-box;background:#1a0606;border:1px solid #4a2222;color:#f2e7d8;border-radius:8px;padding:9px 10px;font-size:.9rem;font-family:inherit}' +
+    '#zzyWrap input,#zzyWrap textarea,#zzyWrap select{width:100%;box-sizing:border-box;background:var(--panel-bg2);border:1px solid var(--panel-line);color:var(--panel-text);border-radius:8px;padding:9px 10px;font-size:.9rem;font-family:inherit}' +
     '#zzyWrap textarea{min-height:96px;resize:vertical}' +
     '#zzyWrap .zrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}' +
     '#zzyWrap .zrow>*{flex:1;min-width:120px}' +
     '#zzyWrap .zrow>button{flex:0 0 auto;min-width:0}' +
-    '#zzyWrap .zbtn{padding:9px 15px;border-radius:8px;border:1px solid #8a3a3a;background:#7a1f1f;color:#ffeccb;font-size:.86rem;cursor:pointer;margin:4px 6px 4px 0;font-family:inherit}' +
+    '#zzyWrap .zbtn{padding:9px 15px;border-radius:8px;border:1px solid var(--panel-btn-line);background:var(--panel-btn);color:var(--panel-btn-text);font-size:.86rem;cursor:pointer;margin:4px 6px 4px 0;font-family:inherit}' +
     '#zzyWrap .zbtn.ghost{background:transparent;border-color:#7a3a3a;color:#e8d8c0}' +
-    '#zzyWrap .zbtn.danger{background:#4a0f0f;border-color:#a33}' +
-    '#zzyWrap .zitem{border:1px solid #401d1d;border-radius:10px;padding:10px;margin:8px 0;background:rgba(255,255,255,.02);display:flex;gap:10px;align-items:flex-start}' +
+    '#zzyWrap .zbtn.danger{background:#4a0f0f;border-color:var(--panel-btn-line)}' +
+    '#zzyWrap .zitem{border:1px solid var(--panel-line);border-radius:10px;padding:10px;margin:8px 0;background:rgba(255,255,255,.02);display:flex;gap:10px;align-items:flex-start}' +
     '#zzyWrap .zitem .zbody{flex:1;min-width:0}' +
     '#zzyWrap .zitem .t{font-size:.92rem;color:#f6d7a0;word-break:break-word}' +
     '#zzyWrap .zitem .s{font-size:.76rem;opacity:.72;margin-top:3px;word-break:break-word}' +
-    '#zzyWrap .zava{width:52px;height:52px;flex:0 0 52px;border-radius:50%;overflow:hidden;border:1px solid #5c2b2b;background:#1a0606;display:flex;align-items:center;justify-content:center;font-size:1.2rem}' +
+    '#zzyWrap .zava{width:52px;height:52px;flex:0 0 52px;border-radius:50%;overflow:hidden;border:1px solid var(--panel-line);background:var(--panel-bg2);display:flex;align-items:center;justify-content:center;font-size:1.2rem}' +
     '#zzyWrap .zava img{width:100%;height:100%;object-fit:cover;display:block}' +
-    '#zzyWrap .znote{font-size:.76rem;opacity:.8;line-height:1.7;background:rgba(255,255,255,.04);border-left:3px solid #8a3a3a;padding:8px 10px;border-radius:6px;margin:8px 0}' +
+    '#zzyWrap .znote{font-size:.76rem;opacity:.8;line-height:1.7;background:rgba(255,255,255,.04);border-left:3px solid var(--panel-btn-line);padding:8px 10px;border-radius:6px;margin:8px 0}' +
     '#zzyWrap .zwarn{border-left-color:#d9a300;color:#ffd98a}' +
-    '#zzyWrap .zclose{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#2b0505;padding:10px 2px;border-bottom:1px solid #401d1d}' +
+    '#zzyWrap .zclose{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--panel-bg);padding:10px 2px;border-bottom:1px solid var(--panel-line)}' +
     '#zzyWrap .zsearch{margin-bottom:8px}' +
-    '#zzyToast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:100001;background:#2b0505;color:#ffeccb;border:1px solid #8a3a3a;border-radius:10px;padding:10px 16px;font-size:.84rem;max-width:86%;box-shadow:0 4px 18px rgba(0,0,0,.6);display:none}' +
+    '#zzyToast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:100001;background:var(--panel-bg);color:var(--panel-btn-text);border:1px solid var(--panel-btn-line);border-radius:10px;padding:10px 16px;font-size:.84rem;max-width:86%;box-shadow:0 4px 18px rgba(0,0,0,.6);display:none}' +
     '#zzyToast.show{display:block}#zzyToast.err{border-color:#e05555;color:#ffc9c9}' +
     '#zzyDlg{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100000;background:rgba(8,2,2,.86);display:none;align-items:center;justify-content:center;padding:16px}' +
     '#zzyDlg.open{display:flex}' +
-    '#zzyDlg .box{background:#1c0606;border:1px solid #5c2b2b;border-radius:12px;padding:16px;width:100%;max-width:440px;max-height:84%;overflow:auto;box-shadow:0 8px 40px rgba(0,0,0,.7)}' +
-    '#zzyDlg .dt{font-size:1rem;color:#f3c98b;margin:0 0 10px}' +
+    '#zzyDlg .box{background:var(--panel-bg);border:1px solid var(--panel-line);border-radius:12px;padding:16px;width:100%;max-width:440px;max-height:84%;overflow:auto;box-shadow:0 8px 40px rgba(0,0,0,.7)}' +
+    '#zzyDlg .dt{font-size:1rem;color:var(--panel-accent);margin:0 0 10px}' +
     '#zzyDlg .dm{font-size:.82rem;opacity:.85;line-height:1.7;margin:0 0 10px;white-space:pre-wrap;word-break:break-word}' +
-    '#zzyDlg .sw{width:30px;height:30px;border-radius:8px;border:2px solid #6b3a3a;cursor:pointer;display:inline-block;margin:3px}' +
-    '#zzyDlg .sw.on{border-color:#ffe9c2;transform:scale(1.08)}' +
+    '#zzyDlg .sw{width:30px;height:30px;border-radius:8px;border:2px solid var(--panel-line);cursor:pointer;display:inline-block;margin:3px}' +
+    '#zzyDlg .sw.on{border-color:var(--panel-btn-text);transform:scale(1.08)}' +
+    '#zzyWrap #zzyTop{position:fixed;right:12px;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:auto;width:auto;z-index:3;display:none;background:#2a0808;border-color:#8a4040;box-shadow:0 6px 18px rgba(0,0,0,.55);font-size:.82rem;padding:8px 14px}' +
+    '#zzyWrap #zzyTop.show{display:block}' +
     '#zzyErr{position:fixed;left:0;right:0;bottom:0;z-index:100002;background:#5a0d0d;color:#ffdede;font:12px monospace;padding:8px 10px;white-space:pre-wrap;display:none}';
 
   function mount() {
@@ -291,6 +293,15 @@
       else box.appendChild(dataTab());
     } catch (e) { box.appendChild(el('div', 'znote zwarn', '该页渲染出错：' + esc(e && e.message))); }
     wrap.appendChild(box);
+    /* 回到顶部按钮：编辑面板很长，保存/切换后就停在原地很难受 */
+    var topBtn = el('button', 'zbtn ghost', '⤒ 回到顶部'); topBtn.id = 'zzyTop'; topBtn.type = 'button';
+    topBtn.onclick = function () { try { wrap.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { wrap.scrollTop = 0; } };
+    wrap.appendChild(topBtn);
+    wrap.onscroll = function () { topBtn.classList.toggle('show', (wrap.scrollTop || 0) > 320); };
+    /* ★ 每次重绘都回到最上面：以前 innerHTML 重建但 scrollTop 保留，
+       于是「退出重进还在底部」。 */
+    try { wrap.scrollTop = 0; } catch (e) {}
+    topBtn.classList.toggle('show', false);
   }
 
   /* ---------------- 资源 ---------------- */
@@ -505,8 +516,12 @@
     var f = el('div');
     f.appendChild(el('h3', '', '新增人物'));
     f.appendChild(el('div', 'znote', '新增的人物只存在本机。请只补充你有依据的内容——本站不编造史料。'));
-    var d = { name: '', group: 'comrades', years: '', role: '', intro: '' };
-    f.appendChild(form([['name', '姓名', 'input'], ['years', '生卒年', 'input'], ['role', '职务/定位', 'input'], ['intro', '介绍', 'textarea']], d, 'zzyNewP'));
+    var d = { name: '', group: 'comrades', years: '', role: '', intro: '', works: '', chrono: '', wchrono: '', related: '' };
+    f.appendChild(form([['name', '姓名', 'input'], ['years', '生卒年', 'input'], ['role', '职务/定位', 'input'],
+      ['intro', '介绍', 'textarea'], ['works', '代表作（每行一条）', 'textarea'],
+      ['chrono', '生平年表（每行：年份｜事件）', 'textarea'],
+      ['wchrono', '著作年表（每行：年份｜著作）', 'textarea'],
+      ['related', '相关推荐书目（每行一个书名）', 'textarea']], d, 'zzyNewP'));
     f.appendChild(el('label', '', '目录'));
     var sel = el('select'); sel.id = 'zzyNewP_group';
     /* 目录选项排除「革命导师」：内置固定五位，不可新增 */
@@ -522,7 +537,11 @@
       try {
         var g = function (k) { var e = $('zzyNewP_' + k); return e ? e.value : ''; };
         var s = $('zzyNewP_group');
-        var r = YZY.addPerson({ name: g('name'), group: s ? s.value : 'comrades', years: g('years'), role: g('role'), intro: g('intro'), avatar: av.v });
+        var pc = function (t) { return (typeof parseChrono === 'function') ? parseChrono(t) : []; };
+        var lines = function (t) { return String(t || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); };
+        var r = YZY.addPerson({ name: g('name'), group: s ? s.value : 'comrades', years: g('years'), role: g('role'),
+          intro: g('intro'), works: lines(g('works')).join(' '), avatar: av.v,
+          timelines: pc(g('chrono')), worksTimeline: pc(g('wchrono')), related: lines(g('related')) });
         if (r && r.ok === false) { toast(r.msg || '添加失败', true); return; }
         applyNow('已新增人物'); render();
       } catch (e) { showErr('添加失败：' + (e && e.message)); }
@@ -642,6 +661,155 @@
     return f;
   }
 
+  /* ================= 批量导入：书壳 / 人物介绍 =================
+     格式：一行一条，字段用 | 分隔。# 开头的行与空行会被忽略。
+     书壳： 书名 | 作者 | 分类 | 简介
+     人物： 姓名 | 分组 | 年份 | 一句话定位 | 介绍
+     ★ 姓名若在软件里已存在 → 直接更新其介绍/定位/年份（不必先删再建）；
+       不存在才新增。分组：革命导师 / 革命同志 / 被批判人物（可留空，默认革命同志）。 */
+  var GMAP = { '革命导师':'leaders', '导师':'leaders', '导师组':'leaders', 'leaders':'leaders',
+               '革命同志':'comrades', '同志':'comrades', 'comrades':'comrades',
+               '被批判人物':'critics', '被批判':'critics', '批判人物':'critics', 'critics':'critics' };
+
+  /* 一行一条；分隔符自动识别（优先 | ，其次 Tab，最后逗号），兼容 CSV / TSV 导出文件 */
+  function bulkLines(txt) {
+    var s = String(txt || '').replace(/^\uFEFF/, '');
+    var lines = s.split(/\r?\n/)
+      .map(function (l) { return l.trim(); })
+      .filter(function (l) { return l && l.charAt(0) !== '#'; });
+    if (!lines.length) return [];
+    var sep = '|';
+    if (!lines.some(function (l) { return l.indexOf('|') >= 0; })) {
+      if (lines.some(function (l) { return l.indexOf('\t') >= 0; })) sep = '\t';
+      else if (lines.some(function (l) { return l.indexOf(',') >= 0; })) sep = ',';
+    }
+    return lines.map(function (l) { return l.split(sep).map(function (x) { return x.trim(); }); });
+  }
+  /* JSON → 「一行一条」文本：接受 [{...}] 或 {items|list|data|rows:[...]} */
+  function bulkFromJSON(txt, kind) {
+    var o = JSON.parse(txt);
+    var arr = Array.isArray(o) ? o : (o && (o.items || o.list || o.data || o.rows));
+    if (!Array.isArray(arr)) throw new Error('JSON 需为数组，或含 items / list / data / rows 数组');
+    var one = function (v) { return String(v == null ? '' : v).replace(/\|/g, '／').replace(/[\r\n]+/g, ' ').trim(); };
+    if (kind === 'res') return arr.map(function (x) {
+      return [one(x.title || x.name), one(x.author), one(x.cat || x.category || '原著'), one(x.intro || x.desc)].join(' | ');
+    }).join('\n');
+    return arr.map(function (x) {
+      return [one(x.name || x.title), one(x.group || x.g), one(x.years), one(x.role), one(x.intro || x.desc)].join(' | ');
+    }).join('\n');
+  }
+  /* 从文件批量导入书壳 / 人物介绍：.txt .csv .tsv .json */
+  function pickBulkFile(kind) {
+    var inp = el('input'); inp.type = 'file';
+    inp.accept = '.txt,.csv,.tsv,.json,text/plain,application/json';
+    inp.style.display = 'none';
+    document.body.appendChild(inp);
+    inp.onchange = function () {
+      var file = inp.files && inp.files[0];
+      var done = function () { try { inp.remove(); } catch (e) {} };
+      if (!file) { done(); return; }
+      var fr = new FileReader();
+      /* 注意：input 元素必须留到读取结束再移除，提前 remove 会让部分内核 FileReader 报「读取文件失败」 */
+      fr.onerror = function () { toast('读取文件失败', true); done(); };
+      fr.onload = function () {
+        var txt = String(fr.result || ''), name = file.name || '';
+        try {
+          if (/^\s*[\[{]/.test(txt) || /\.json$/i.test(name)) txt = bulkFromJSON(txt, kind);
+        } catch (e) { showErr('「' + name + '」不是可用的 JSON：' + (e && e.message)); return; }
+        var ta = document.getElementById(kind === 'res' ? 'zzyBulkRes' : 'zzyBulkPpl');
+        if (ta) ta.value = txt;
+        var rows = bulkLines(txt).length;
+        if (!rows) { toast('文件里没有可导入的行（空行与 # 开头的会被忽略）', true); return; }
+        toast('已读入 ' + rows + ' 行，开始导入…');
+        try { if (kind === 'res') doBulkRes(txt); else doBulkPerson(txt); } catch (e) { showErr('导入失败：' + (e && e.message)); }
+        done();
+      };
+      fr.readAsText(file, 'utf-8');
+    };
+    inp.click();
+  }
+  function findPersonByName(name) {
+    var gs = ['leaders', 'comrades', 'critics'];
+    for (var i = 0; i < gs.length; i++) {
+      var arr = groupArr(gs[i]) || [];
+      for (var j = 0; j < arr.length; j++) {
+        if (arr[j] && String(arr[j].name || '').trim() === name) return { group: gs[i], item: arr[j] };
+      }
+    }
+    return null;
+  }
+  function demoResText() {
+    var out = [], a = RES();
+    [a[0], a[1]].forEach(function (x) {
+      if (!x || !x.title) return;
+      out.push([x.title, x.author || '', x.cat || '原著',
+        String(x.intro || x.desc || '').replace(/\|/g, '／').slice(0, 80)].join(' | '));
+    });
+    out.push('# ↑ 上面是软件里真实存在的条目（原样可用）；照这个格式，一行加一本');
+    return out.join('\n');
+  }
+  function demoPplText() {
+    var g = (CT().leaders && CT().leaders[0]) ? 'leaders' : 'comrades';
+    var n = groupArr(g)[0];
+    var out = [];
+    if (n) out.push([n.name, g === 'leaders' ? '革命导师' : '革命同志', n.years || '', n.role || '',
+      String(n.intro || n.desc || '').replace(/\|/g, '／').slice(0, 80)].join(' | '));
+    out.push('# ↑ 这一行是软件里真实存在的人物；照这个格式，一行改一个或加一个（姓名已存在=改介绍）');
+    return out.join('\n');
+  }
+  function doBulkRes(txt) {
+    var rows = bulkLines(txt);
+    if (!rows.length) { toast('没有可导入的行（空行与 # 开头的行会被忽略）', true); return; }
+    var valid = cats(), okN = 0, dup = 0, missCat = 0, bad = [];   /* cats() 返回的是分类名数组 */
+    var have = {};
+    RES().forEach(function (r) { have[String(r.title || '').trim()] = 1; });
+    rows.forEach(function (c, i) {
+      var title = c[0] || '';
+      if (!title) { bad.push('第 ' + (i + 1) + ' 行：书名为空'); return; }
+      if (have[title]) { dup++; return; }
+      var cat = c[2] || '原著';
+      if (valid.indexOf(cat) < 0) { cat = '原著'; missCat++; }
+      var r = YZY.addResource({ title: title, author: c[1] || '', cat: cat, intro: c[3] || '',
+        desc: c[3] || '批量导入', src: '批量导入', url: '#' });
+      if (r && r.ok) { okN++; have[title] = 1; } else { bad.push('第 ' + (i + 1) + ' 行：' + ((r && r.msg) || '写入失败')); }
+    });
+    var msg = '书壳：成功 ' + okN + ' 条' + (dup ? '，跳过重复 ' + dup + ' 条' : '') +
+      (missCat ? '，' + missCat + ' 条分类不认识已归入「原著」' : '') + (bad.length ? '，失败 ' + bad.length + ' 条' : '');
+    toast(msg, bad.length > 0);
+    if (bad.length) showErr('批量导入书壳：\n' + bad.slice(0, 12).join('\n'));
+    if (okN) { applyNow('已导入 ' + okN + ' 本书'); tab = 'res'; render(); }
+  }
+  function doBulkPerson(txt) {
+    var rows = bulkLines(txt);
+    if (!rows.length) { toast('没有可导入的行（空行与 # 开头的行会被忽略）', true); return; }
+    var okN = 0, upd = 0, add = 0, bad = [];
+    rows.forEach(function (c, i) {
+      var name = c[0] || '';
+      if (!name) { bad.push('第 ' + (i + 1) + ' 行：姓名为空'); return; }
+      var g = GMAP[c[1] || ''] || '';
+      var years = c[2] || '', role = c[3] || '', intro = c[4] || '';
+      var hit = findPersonByName(name);
+      if (hit) {
+        var patch = {};
+        if (intro) patch.intro = intro;
+        if (role) patch.role = role;
+        if (years) patch.years = years;
+        if (!Object.keys(patch).length) { bad.push('第 ' + (i + 1) + ' 行：「' + name + '」已存在，但这一行没给新内容'); return; }
+        var r = YZY.editPerson(hit.group, name, patch);
+        if (r && r.ok) { okN++; upd++; } else { bad.push('第 ' + (i + 1) + ' 行：' + ((r && r.msg) || '更新失败')); }
+        return;
+      }
+      if (!g) g = 'comrades';
+      if (g === 'leaders') { bad.push('第 ' + (i + 1) + ' 行：「革命导师」只有固定五位，不能新增「' + name + '」；要改介绍请用已有姓名'); return; }
+      var r2 = YZY.addPerson({ name: name, group: g, years: years, role: role, intro: intro });
+      if (r2 && r2.ok) { okN++; add++; } else { bad.push('第 ' + (i + 1) + ' 行：' + ((r2 && r2.msg) || '新增失败')); }
+    });
+    var msg = '人物：成功 ' + okN + ' 条（更新 ' + upd + ' / 新增 ' + add + '）' + (bad.length ? '，失败 ' + bad.length + ' 条' : '');
+    toast(msg, bad.length > 0);
+    if (bad.length) showErr('批量导入人物：\n' + bad.slice(0, 12).join('\n'));
+    if (okN) { applyNow('已导入 ' + okN + ' 位人物'); tab = 'ppl'; render(); }
+  }
+
   /* ---------------- 数据 ---------------- */
   function dataTab() {
     var f = el('div');
@@ -694,6 +862,41 @@
     var imp2 = el('button', 'zbtn ghost', '导入粘贴内容'); imp2.type = 'button';
     imp2.onclick = function () { try { var r = YZY.importJSON(paste.value, 'merge'); toast(r.msg, !r.ok); if (r.ok) render(); } catch (e) { showErr(e && e.message); } };
     f.appendChild(imp2);
+
+    /* ---------- 批量导入：书壳 / 人物介绍 ---------- */
+    f.appendChild(el('h3', '', '批量导入（书壳 / 人物介绍）'));
+    f.appendChild(el('div', 'znote',
+      '一行一条，字段用 <b>|</b> 分隔；空行与 <b>#</b> 开头的行会被忽略。导入后立刻出现在「资源」/「人物」页，可直接点开核对。' +
+      '<br>书壳：<code>书名 | 作者 | 分类 | 简介</code>' +
+      '<br>人物：<code>姓名 | 分组 | 年份 | 定位 | 介绍</code>　　（姓名已存在＝改介绍，不存在＝新增；分组可留空）'));
+
+    f.appendChild(el('label', '', '① 书壳'));
+    var taR = el('textarea'); taR.id = 'zzyBulkRes';
+    taR.placeholder = '实践论 | 毛泽东 | 原著 | 1937 年讲稿，认识论与辩证法的重要文献';
+    f.appendChild(taR);
+    var rowR = el('div', 'zrow');
+    var demoR = el('button', 'zbtn ghost', '载入真实示例'); demoR.type = 'button';
+    demoR.onclick = function () { try { taR.value = demoResText(); toast('已填入软件内置的真实条目，可照着改'); } catch (e) { showErr(e && e.message); } };
+    var goR = el('button', 'zbtn', '导入这些书壳'); goR.type = 'button';
+    goR.onclick = function () { try { doBulkRes(taR.value); } catch (e) { showErr('导入失败：' + (e && e.message)); } };
+    var fileR = el('button', 'zbtn ghost', '📄 从文件导入（书壳）'); fileR.type = 'button';
+    fileR.onclick = function () { pickBulkFile('res'); };
+    rowR.appendChild(demoR); rowR.appendChild(fileR); rowR.appendChild(goR); f.appendChild(rowR);
+    f.appendChild(el('div', 'znote', '可用分类：' + cats().join(' / ') + '（写错会自动归入「原著」并提示）'));
+
+    f.appendChild(el('label', '', '② 人物介绍'));
+    var taP = el('textarea'); taP.id = 'zzyBulkPpl';
+    taP.placeholder = '李大钊 | 革命同志 | 1889—1927 | 中国最早的马克思主义传播者 | 两三句话介绍…';
+    f.appendChild(taP);
+    var rowP = el('div', 'zrow');
+    var demoP = el('button', 'zbtn ghost', '载入真实示例'); demoP.type = 'button';
+    demoP.onclick = function () { try { taP.value = demoPplText(); toast('已填入软件内置的真实人物，可照着改'); } catch (e) { showErr(e && e.message); } };
+    var goP = el('button', 'zbtn', '导入人物介绍'); goP.type = 'button';
+    goP.onclick = function () { try { doBulkPerson(taP.value); } catch (e) { showErr('导入失败：' + (e && e.message)); } };
+    var fileP = el('button', 'zbtn ghost', '📄 从文件导入（人物）'); fileP.type = 'button';
+    fileP.onclick = function () { pickBulkFile('ppl'); };
+    rowP.appendChild(demoP); rowP.appendChild(fileP); rowP.appendChild(goP); f.appendChild(rowP);
+    f.appendChild(el('div', 'znote', '分组：革命导师 / 革命同志 / 被批判人物（「革命导师」为固定五位，只能改介绍不能新增）'));
 
     var rst = el('button', 'zbtn danger', '清空本机全部改动'); rst.type = 'button';
     rst.onclick = function () { askConfirm('确定清空本机所有改动？', '不影响线上站点。此操作不可撤销。').then(function (y) { if (y) { YZY.reset(); applyNow('已清空'); render(); } }); };

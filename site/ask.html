@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>问一问 · 学通</title>
+<meta name="theme-color" content="#2b0505">
+<style>
+:root{
+  /* 与主站同一套色：浅色 */
+  --bg:#f5e9e2; --fg:#3a0d0d; --sub:#8a5a4a; --line:rgba(120,10,10,.20);
+  --accent:#7a4e00; --card:rgba(120,10,10,.06); --ev:rgba(120,10,10,.10);
+  --me:#7a4e00; --me-fg:#fff8ec;
+}
+/* 深色：跟随 App 里的主题设置（html.dark），不再只听系统。
+   取色与主站 style.css 完全一致（深红底 + 金色强调 + 米白字），
+   否则会出现「问一问是冷黑、主站是深红」的违和。 */
+html.dark{
+  --bg:#2b0505; --fg:#f2e8d8; --sub:#c8ab90; --line:rgba(255,255,255,.18);
+  --accent:#f5c518; --card:rgba(255,255,255,.08); --ev:rgba(255,255,255,.05);
+  --me:#f5c518; --me-fg:#2b0505;
+  color-scheme:dark;
+}
+html.light{ color-scheme:light; }
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+html,body{margin:0;height:100%}
+body{
+  color:var(--fg);
+  font:15px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255,80,60,.25), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(200,30,30,.30), transparent 50%),
+    linear-gradient(160deg,#4a0808 0%,#2b0505 55%,#170303 100%);
+  background-attachment:fixed;
+}
+html.light body{
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255,150,120,.35), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(200,60,40,.25), transparent 50%),
+    linear-gradient(160deg,#f5e9e2 0%,#edd9cf 55%,#e5ccc2 100%);
+  background-attachment:fixed;
+}
+header{
+  flex:none;display:flex;align-items:center;gap:10px;
+  padding:14px 16px;border-bottom:1px solid var(--line);
+  /* 与正文同一片颜色：inherit + fixed（和主站底栏同一做法），不出现色块分层 */
+  background:inherit;background-attachment:fixed;
+  position:sticky;top:0;z-index:5;
+}
+header a{
+  color:var(--fg);text-decoration:none;font-size:20px;line-height:1;
+  width:32px;height:32px;display:grid;place-items:center;border-radius:8px;
+}
+header a:active{background:var(--line)}
+header h1{font-size:16px;margin:0;font-weight:600;flex:1}
+header .ico{
+  width:32px;height:32px;border:1px solid var(--line);border-radius:8px;
+  background:var(--card);color:var(--fg);font-size:15px;cursor:pointer;
+  display:grid;place-items:center;padding:0;
+}
+header .ico:active{background:var(--ev)}
+header .tag{
+  font-size:11px;color:var(--sub);border:1px solid var(--line);
+  border-radius:999px;padding:2px 8px;white-space:nowrap;
+}
+main{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:16px 16px 8px;
+}
+.msg{margin-bottom:16px;display:flex;flex-direction:column}
+.msg.q{align-items:flex-end}
+.bubble{
+  max-width:88%;padding:10px 14px;border-radius:14px;
+  white-space:pre-wrap;word-break:break-word;
+}
+.msg.q .bubble{background:var(--me);color:var(--me-fg);border-bottom-right-radius:4px}
+.msg.a .bubble{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.sys{align-items:center}
+  .msg.sys .bubble{background:transparent;border:1px dashed var(--line);color:var(--fg);
+    opacity:.78;font-size:.78rem;text-align:center}
+.note{
+  margin-top:6px;font-size:12.5px;color:var(--sub);
+  padding-left:2px;max-width:88%;
+}
+details.ev{
+  margin-top:6px;max-width:88%;font-size:12.5px;color:var(--sub);
+  background:var(--ev);border-radius:8px;padding:6px 10px;
+}
+details.ev summary{cursor:pointer;outline:none}
+details.ev ul{margin:6px 0 0;padding-left:18px}
+details.ev li{margin:2px 0}
+.empty{
+  text-align:center;color:var(--sub);font-size:14px;padding:40px 10px 20px;
+}
+.empty .big{font-size:34px;display:block;margin-bottom:10px;opacity:.5}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;justify-content:center}
+.chip{
+  font-size:13px;padding:7px 13px;border-radius:999px;
+  border:1px solid var(--line);background:var(--card);color:var(--fg);
+  cursor:pointer;
+}
+.chip:active{background:var(--ev)}
+form{
+  flex:none;display:flex;gap:8px;padding:10px 12px;
+  border-top:1px solid var(--line);
+  /* 页面背景是渐变，底部条若用实色 var(--bg) 就会变成一条色块（用户反馈的
+     「输入框那块颜色不一致」）。与顶栏同一做法：继承 + fixed。 */
+  background:inherit;background-attachment:fixed;
+}
+#q{
+  /* 与主站搜索框一致：透明底 + 细边框，直接透出页面背景，不再叠一块灰 */
+  flex:1;font:inherit;color:var(--fg);background:transparent;
+  border:1px solid var(--line);border-radius:22px;
+  padding:11px 16px;outline:none;min-width:0;
+}
+#q:focus{border-color:var(--accent)}
+form button{
+  flex:none;width:46px;height:46px;border-radius:50%;border:0;
+  background:var(--me);color:var(--me-fg);font-size:15px;
+}
+form button:disabled{opacity:.4}
+.ev-g{font-style:normal;font-size:10.5px;color:var(--sub);border:1px solid var(--line);
+  border-radius:6px;padding:0 5px;margin-left:6px;white-space:nowrap}
+.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.lnk{display:inline-flex;align-items:center;gap:4px;padding:7px 13px;border-radius:999px;
+  border:1px solid var(--line);background:var(--card);color:var(--accent);
+  text-decoration:none;font-size:12.5px;font-weight:600}
+.lnk:active{background:var(--ev)}
+.books{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.book{display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--line);
+  border-radius:10px;background:var(--card);text-decoration:none;color:var(--fg)}
+.book:active{background:var(--ev)}
+.bk-t{font-size:13.5px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bk-s{font-size:11.5px;color:var(--sub);white-space:nowrap}
+.bk-go{font-size:12px;color:var(--accent);white-space:nowrap}
+.foot{
+  flex:none;font-size:11.5px;color:var(--sub);text-align:center;
+  padding:0 12px 8px;
+}
+</style>
+<script>
+/* 尽早决定深浅色，避免先画浅色再跳深色的闪烁 */
+(function(){
+  /* 从主站跳进来时 URL 带 ?theme=dark|light（最准）；否则读本机设置；再否则跟随系统 */
+  function mode(){
+    try { var u = /[?&]theme=(dark|light)/.exec(location.search); if (u) return u[1]; } catch(e){}
+    try { return localStorage.getItem('theme') || 'auto'; } catch(e){ return 'auto'; }
+  }
+  function sysDark(){ try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); } catch(e){ return false; } }
+  function apply(){
+    var m = mode(), dark = (m === 'dark') || (m === 'auto' && sysDark()) || (m === 'sepia' && sysDark());
+    var r = document.documentElement;
+    r.classList.toggle('dark', dark);
+    r.classList.toggle('light', !dark);
+    var mt = document.querySelector('meta[name="theme-color"]');
+    if (mt) mt.setAttribute('content', dark ? '#2b0505' : '#f5e9e2');
+    try { if (window.AndroidApp && typeof AndroidApp.setBarColor === 'function') AndroidApp.setBarColor(dark ? '#170303' : '#f5e9e2'); } catch(e){}
+  }
+  apply();
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', apply); } catch(e){}
+  window.addEventListener('storage', function(e){ if (!e.key || e.key === 'theme') apply(); });
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) apply(); });
+})();
+</script>
+<script src="assets/custom.js"></script><script src="assets/crash.js"></script><script src="assets/diag.js"></script>
+</head>
+<body>
+
+<header>
+  <a href="index.html" aria-label="返回">←</a>
+  <h1>问一问</h1>
+  <span class="tag">离线</span>
+  <button id="btnIO" class="ico" title="导入 / 导出" aria-label="导入导出">⇅</button>
+</header>
+
+<main id="main">
+  <div class="empty" id="empty">
+    <span class="big">📖</span>
+    这里是图谱问答。<br>
+    不联网、不调大模型，答案全部来自本机图谱。
+    <div class="chips" id="chips"></div>
+  </div>
+</main>
+
+<div class="chips" id="histChips" style="margin:0 12px 6px;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;gap:6px"></div>
+<form id="f" autocomplete="off">
+  <input id="q" type="text" placeholder="问一句：马克思和恩格斯什么关系？" enterkeyhint="send">
+  <button type="submit" aria-label="提问">问</button>
+</form>
+<input type="file" id="impFile" hidden accept=".json,.jsonl,.md,.txt">
+<div class="foot">答案来自本机图谱；查不到会直说。</div>
+
+<script src="data/graph.js"></script>
+<script src="data/concepts.js"></script>
+<script src="data/graph-wenge.js"></script>
+<script src="data/graph-world.js"></script>
+<script src="data/content.js"></script>
+<script src="data/resources.js"></script>
+<script src="data/knowledge.js"></script>
+<script src="data/answers.js"></script>
+<script src="data/glossary.js"></script>
+<script src="assets/booksearch.js"></script>
+<script src="assets/study.js"></script>
+<script src="assets/qa-engine.js"></script>
+<script src="assets/layers.js"></script>
+<script>
+(function(){
+  var main  = document.getElementById('main');
+  var empty = document.getElementById('empty');
+  var input = document.getElementById('q');
+  var form  = document.getElementById('f');
+
+  var SUGGEST = [
+    '马克思和恩格斯什么关系',
+    '毛泽东是谁',
+    '马克思写过什么',
+    '马列毛思想的主要观点',
+    '有哪些组织',
+    '马克思批判过谁'
+  ];
+
+  var chips = document.getElementById('chips');
+  SUGGEST.forEach(function(t){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = t;
+    b.setAttribute('data-q', t);
+    chips.appendChild(b);
+  });
+  chips.addEventListener('click', function(e){
+    var b = e.target.closest('.chip');
+    if (b) ask(b.getAttribute('data-q'));
+  });
+
+  /* ---------- 最近问答（只存本机，最多 30 条，可清空；随「导出我的数据」一起走） ---------- */
+  var HIST_KEY = 'askHistory';
+  function histLoad(){
+    try { var a = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+    catch (e) { return []; }
+  }
+  function histSave(q, a){
+    try {
+      var arr = histLoad().filter(function (x) { return x && x.q !== q; });
+      arr.unshift({ q: String(q).slice(0, 120), a: String(a || '').slice(0, 200), t: Date.now() });
+      if (arr.length > 30) arr = arr.slice(0, 30);
+      localStorage.setItem(HIST_KEY, JSON.stringify(arr));
+    } catch (e) {}
+  }
+  function histRender(){
+    var box = document.getElementById('histChips'); if (!box) return;
+    var arr = histLoad();
+    if (!arr.length) { box.innerHTML = ''; return; }
+    box.innerHTML = '<span style="font-size:.74rem;opacity:.6;align-self:center">最近问过</span>' +
+      arr.slice(0, 6).map(function (x, i) {
+        return '<button type="button" class="chip" data-h="' + i + '" title="' + esc(x.a || '') + '">' + esc(x.q) + '</button>';
+      }).join('') +
+      '<button type="button" class="chip" data-hc="1" style="opacity:.7">清空记录</button>';
+    box.onclick = function (e) {
+      var t = e.target.closest ? e.target.closest('button') : null; if (!t) return;
+      if (t.getAttribute('data-hc')) {
+        try { localStorage.removeItem(HIST_KEY); } catch (e) {}
+        histRender(); return;
+      }
+      var i = t.getAttribute('data-h');
+      if (i != null) { var it = histLoad()[+i]; if (it && it.q) ask(it.q); }
+    };
+  }
+  histRender();
+
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /* 系统提示（导入/导出/清空的结果反馈）。
+     ★ 0.17.2 修：模块管理中 9 处调用了 addSystem()，但本页从未定义过，
+       导致「问一问」里导入/导出/清空完成后没有任何提示，且抛 ReferenceError。 */
+  function addSystem(text){
+    try{
+      var d = document.createElement('div');
+      d.className = 'msg sys';
+      d.innerHTML = '<div class="bubble">' + esc(text) + '</div>';
+      main.appendChild(d);
+      try { main.scrollTop = main.scrollHeight; } catch(e){}
+    }catch(e){}
+  }
+
+  function addQ(text){
+    var d = document.createElement('div');
+    d.className = 'msg q';
+    d.innerHTML = '<div class="bubble">' + esc(text) + '</div>';
+    main.appendChild(d);
+  }
+
+  function addA(res){
+    var d = document.createElement('div');
+    d.className = 'msg a';
+    var badge = '';
+    if (res.mode === 'llm') badge = '<div class="note">· 由本机模型组织语言，事实取自本机图谱</div>';
+    var html = '<div class="bubble">' + esc(res.answer) + '</div>' + badge;
+    if (res.notes && res.notes.length){
+      html += res.notes.map(function(n){
+        return '<div class="note">· ' + esc(n) + '</div>';
+      }).join('');
+    }
+    if (res.books && res.books.length){
+      html += '<div class="books">' + res.books.map(function(b){
+        return '<a class="book" href="' + b.href + '">' +
+          '<span class="bk-t">' + esc(b.title) + '</span>' +
+          (b.sub ? '<span class="bk-s">' + esc(b.sub) + '</span>' : '') +
+          '<span class="bk-go">打开 ›</span></a>';
+      }).join('') + '</div>';
+    }
+    if (res.links && res.links.length){
+      html += '<div class="links">' + res.links.map(function(l){
+        return '<a class="lnk' + (l.kind ? ' lnk-' + l.kind : '') + '" href="' + l.href + '">' + esc(l.label) + ' ›</a>';
+      }).join('') + '</div>';
+    }
+    if (res.evidence && res.evidence.length){
+      var lis = res.evidence.slice(0, 40).map(function(e){
+        var s = e.rel ? (e.from + ' —[' + e.rel + ']→ ' + e.to) : (e.from + '：' + e.to);
+        return '<li>' + esc(s) + (e.g ? '<i class="ev-g">' + esc(e.g) + '</i>' : '') + '</li>';
+      }).join('');
+      html += '<details class="ev"><summary>依据 ' + res.evidence.length + ' 条（可核对）</summary><ul>' + lis + '</ul></details>';
+    }
+    d.innerHTML = html;
+    main.appendChild(d);
+  }
+
+  function ask(text){
+    text = String(text || '').trim();
+    if (!text) return;
+    if (empty && empty.parentNode) empty.parentNode.removeChild(empty);
+    addQ(text);
+    input.value = '';
+    var pending = addPending();
+
+    Promise.resolve(YZQA.ask(text))
+      .then(function(res){ pending.remove(); addA(res); try { histSave(text, res && res.answer); } catch (e) {} })
+      .catch(function(err){
+        pending.remove();
+        addA({ answer: '出错了：' + (err && err.message), notes: [], evidence: [] });
+      })
+      .then(function(){
+        main.scrollTop = main.scrollHeight;
+        input.focus();
+      });
+  }
+
+  function addPending(){
+    var d = document.createElement('div');
+    d.className = 'msg a';
+    d.innerHTML = '<div class="bubble" style="opacity:.55">· 正在查图谱…</div>';
+    main.appendChild(d);
+    main.scrollTop = main.scrollHeight;
+    return { remove: function(){ if (d.parentNode) d.parentNode.removeChild(d); } };
+  }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    ask(input.value);
+  });
+
+  /* ---------- 导入 / 导出 ---------- */
+  (function(){
+    var btn = document.getElementById('btnIO');
+    var file = document.getElementById('impFile');
+    if (!btn || !file || !window.YZ_LAYERS) return;
+    var L = window.YZ_LAYERS;
+
+    btn.addEventListener('click', function(){
+      var st = L.stats();
+      var choice = prompt(
+        '当前：官方 ' + st.base + ' 条，本人补充 ' + st.user + ' 条\n\n' +
+        '输入数字选择：\n' +
+        '1 = 导入知识（JSON / JSONL / Markdown）\n' +
+        '2 = 导出备份（JSON，含本人补充）\n' +
+        '3 = 导出训练语料（JSONL，不含未核对）\n' +
+        '4 = 清空本人补充',
+        '1'
+      );
+      if (!choice) return;
+      choice = choice.trim();
+
+      if (choice === '1') { file.value = ''; file.click(); }
+
+      if (choice === '2') {
+        download(L.exportJSON({}), 'xuetong-graph-export.json', 'application/json');
+        addSystem('已导出备份：' + (L.stats().base + L.stats().user) + ' 条。');
+      }
+
+      if (choice === '3') {
+        var s = L.exportJSONL({ includeBase: true, includeUser: true });
+        var n = s.split('\n').filter(Boolean).length;
+        download(s, 'xuetong-train.jsonl', 'application/x-ndjson');
+        addSystem('已导出训练语料 ' + n + ' 条（未核对内容已排除，每条带 source 与 layer）。');
+      }
+
+      if (choice === '4') {
+        if (confirm('确定清空本人补充的 ' + L.stats().user + ' 条？官方内容不受影响。')) {
+          L.clear();
+          addSystem('已清空本人补充，官方内容完好。');
+        }
+      }
+    });
+
+    file.addEventListener('change', function(){
+      var f = file.files && file.files[0];
+      if (!f) return;
+      var r = new FileReader();
+      r.onload = function(){
+        var parsed = L.parse(r.result, f.name);
+        if (!parsed.nodes.length && !(parsed.errors || []).length) {
+          addSystem('文件里没有可导入的条目。');
+          return;
+        }
+        var pv = L.preview(parsed);
+        var msg = '文件：' + f.name + '\n' +
+          '将导入 ' + parsed.nodes.length + ' 条、关系 ' + pv.links + ' 条\n\n' +
+          '新增 ' + pv.added + ' 条\n' +
+          '与官方重复/冲突 ' + pv.dupBase + ' 条\n' +
+          '与已有补充重复 ' + pv.dupUser + ' 条\n' +
+          '未注明来源 ' + pv.noSource + ' 条\n';
+        if (pv.errors && pv.errors.length) msg += '\n无法识别 ' + pv.errors.length + ' 处：\n' + pv.errors.slice(0, 5).join('\n');
+        msg += '\n确认导入？';
+        if (!confirm(msg)) { addSystem('已取消导入。'); return; }
+        var r2 = L.commit(parsed, { origin: 'import' });
+        addSystem('导入完成：新增 ' + r2.added + ' 条，更新 ' + r2.updated + ' 条，跳过 ' + r2.skipped + ' 条。现在共有 ' + L.stats().merged + ' 条可查。');
+      };
+      r.readAsText(f);
+    });
+
+    function download(text, name, type){
+      /* WebView 里 <a download> 不工作（点了没反应），必须走 App 的保存桥 */
+      try {
+        if (window.AndroidApp && typeof window.AndroidApp.saveBase64 === 'function') {
+          var b64 = btoa(unescape(encodeURIComponent(String(text))));
+          window.AndroidApp.saveBase64(name, b64, type || 'text/plain');
+          return;
+        }
+      } catch (e) {
+        addSystem('App 保存失败，改用浏览器方式：' + (e && e.message));
+      }
+      /* 浏览器兜底 */
+      try {
+        var blob = new Blob([text], { type: type || 'text/plain' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+        addSystem('已开始下载：' + name);
+      } catch (e) {
+        addSystem('导出失败：' + (e && e.message));
+      }
+    }
+  })();
+
+  /* ---------- 收录规模：告诉用户现在能问到多少，而不是让他选 ---------- */
+  (function(){
+    var st = window.YZQA && YZQA.stats ? YZQA.stats() : null;
+    var foot = document.querySelector('.foot');
+    var bk = (window.YZBOOK && YZBOOK.stats) ? YZBOOK.stats() : null;
+    if (st && foot) foot.textContent = '答案来自 ' + st.nodes + ' 个节点、' + st.links + ' 条关系' +
+      (bk ? '、' + bk.total + ' 条书库记录' : '') + '；不联网、不编造，查不到会直说。';
+  })();
+
+})();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
    在 style.css / extra.css 之后加载
    ===================================================================== */
 
-/* ---------- 意见反馈页 ---------- */
+/* ---------- 反馈页样式（页面已移除，规则保留给 faq / 列表复用） ---------- */
 .fb-card { display:flex; gap:12px; padding:14px; border:1px solid var(--card-border); border-radius:12px;
   background:var(--card); margin:10px 0; }
 .fb-ico { font-size:1.6rem; flex:none; line-height:1; }
@@ -18,10 +18,6 @@
 .drawer-head b { flex:1; }
 #acctBack { background:transparent; border:1px solid var(--card-border); color:var(--text);
   border-radius:8px; padding:5px 10px; cursor:pointer; }
-.acct-head { display:flex; align-items:center; gap:12px; padding:6px 0 12px; border-bottom:1px dashed var(--card-border); }
-.acct-ava { width:46px; height:46px; border-radius:50%; display:grid; place-items:center; font-size:1.4rem;
-  background:linear-gradient(135deg,var(--accent),#c8102e); color:#2b0505; flex:none; }
-.acct-name { font-size:.95rem; color:var(--accent); }
 .acct-sub { font-size:.72rem; opacity:.6; margin-top:2px; }
 .acct-note { font-size:.72rem; opacity:.55; line-height:1.75; margin:12px 0 14px; }
 .acct-menu { display:flex; flex-direction:column; gap:8px; }

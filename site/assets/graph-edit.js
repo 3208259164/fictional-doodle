@@ -36,13 +36,13 @@
     var t = document.getElementById('geToast');
     if (!t) {
       t = document.createElement('div'); t.id = 'geToast';
-      t.style.cssText = 'position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:99998;background:#101010;color:#ffeccb;' +
-        'border:1px solid #6b3a3a;border-radius:10px;padding:10px 16px;font-size:.82rem;max-width:86%;box-shadow:0 4px 18px rgba(0,0,0,.6);display:none;pointer-events:none';
+      t.style.cssText = 'position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:99998;background:#101010;color:var(--panel-btn-text);' +
+        'border:1px solid var(--panel-line);border-radius:10px;padding:10px 16px;font-size:.82rem;max-width:86%;box-shadow:0 4px 18px rgba(0,0,0,.6);display:none;pointer-events:none';
       document.body.appendChild(t);
     }
     t.textContent = String(msg);
     t.style.display = 'block';
-    t.style.borderColor = err ? '#e05555' : '#6b3a3a';
+    t.style.borderColor = err ? '#e05555' : 'var(--panel-line)';
     clearTimeout(t._h); t._h = setTimeout(function () { t.style.display = 'none'; }, err ? 6000 : 2600);
   }
   window.addEventListener('error', function (ev) { if (ev && ev.message) toast('脚本错误：' + ev.message, true); }, true);
@@ -54,8 +54,8 @@
       d = document.createElement('div'); d.id = 'geDlg';
       d.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;z-index:100000;' +
         'background:rgba(6,6,10,.86);display:none;align-items:flex-end;justify-content:center;padding:0';
-      d.innerHTML = '<div class="box" style="background:#141218;border:1px solid #4a3a2a;border-radius:16px 16px 0 0;padding:16px;' +
-        'width:100%;max-width:560px;max-height:86%;overflow:auto;color:#eadfce;font-family:inherit;box-shadow:0 -8px 40px rgba(0,0,0,.7)"></div>';
+      d.innerHTML = '<div class="box" style="background:var(--panel-bg);border:1px solid var(--panel-line);border-radius:16px 16px 0 0;padding:16px;' +
+        'width:100%;max-width:560px;max-height:86%;overflow:auto;color:var(--panel-text);font-family:inherit;box-shadow:0 -8px 40px rgba(0,0,0,.7)"></div>';
       d.onclick = function (e) { if (e.target === d) closeD(); };
       document.body.appendChild(d);
     }
@@ -71,16 +71,16 @@
   function styleBtn(b, kind) {
     var base = 'padding:11px 16px;border-radius:10px;font-size:.9rem;cursor:pointer;font-family:inherit;' +
       'min-height:44px;box-sizing:border-box;touch-action:manipulation;';
-    if (kind === 'g') b.style.cssText = base + 'border:1px solid #5a4a2a;background:transparent;color:#eadfce;flex:1';
-    else if (kind === 'd') b.style.cssText = base + 'border:1px solid #7a2b2b;background:#3a0d0d;color:#ffc9c9;flex:1';
-    else b.style.cssText = base + 'border:1px solid #8a3a3a;background:#7a1f1f;color:#ffeccb;flex:1';
+    if (kind === 'g') b.style.cssText = base + 'border:1px solid var(--panel-line);background:transparent;color:var(--panel-text);flex:1';
+    else if (kind === 'd') b.style.cssText = base + 'border:1px solid var(--panel-line);background:#3a0d0d;color:#ffc9c9;flex:1';
+    else b.style.cssText = base + 'border:1px solid var(--panel-btn-line);background:var(--panel-btn);color:var(--panel-btn-text);flex:1';
     return b;
   }
   function btn(txt, kind) { var b = el('button', '', txt); b.type = 'button'; return styleBtn(b, kind); }
   function btnRow() { var d = el('div'); d.style.cssText = 'display:flex;gap:8px;margin-top:14px;flex-wrap:wrap'; return d; }
   function inp(val, ph, id) {
     var i = el('input'); i.type = 'text'; i.value = val || ''; if (ph) i.placeholder = ph;
-    i.style.cssText = 'width:100%;box-sizing:border-box;background:#0d0b10;border:1px solid #4a3a2a;color:#f2e7d8;' +
+    i.style.cssText = 'width:100%;box-sizing:border-box;background:var(--panel-bg2);border:1px solid var(--panel-line);color:var(--panel-text);' +
       'border-radius:10px;padding:11px;font-size:.9rem;font-family:inherit;margin-top:6px';
     if (id) i.id = id;
     return i;
@@ -91,7 +91,7 @@
     r.style.cssText = 'display:flex;align-items:center;gap:10px;width:100%;text-align:left;min-height:52px;box-sizing:border-box;' +
       'padding:10px 12px;margin:6px 0;border-radius:12px;font-family:inherit;font-size:.9rem;cursor:pointer;touch-action:manipulation;' +
       'border:1px solid ' + (active ? '#f5c518' : '#3a2e22') + ';background:' + (active ? 'rgba(245,197,24,.10)' : 'rgba(255,255,255,.03)') +
-      ';color:' + (active ? '#f5c518' : '#eadfce');
+      ';color:' + (active ? '#f5c518' : 'var(--panel-text)');
     var t = el('span', '', txt); t.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
     r.appendChild(t);
     if (sub) { var s = el('span', '', sub); s.style.cssText = 'font-size:.72rem;opacity:.65;flex:none'; r.appendChild(s); }
@@ -100,7 +100,7 @@
 
   function askText(title, def, ph) {
     return new Promise(function (res) {
-      openD('<h4 style="margin:0 0 4px;color:#f3c98b;font-size:1rem">' + title + '</h4>', function (box) {
+      openD('<h4 style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">' + title + '</h4>', function (box) {
         var i = inp(def, ph, 'ge_text'); box.appendChild(i);
         var b = btnRow();
         var ok = btn('确定'), no = btn('取消', 'g');
@@ -113,7 +113,7 @@
   }
   function askConfirm(title, text) {
     return new Promise(function (res) {
-      openD('<h4 style="margin:0 0 4px;color:#f3c98b;font-size:1rem">' + title + '</h4>' +
+      openD('<h4 style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">' + title + '</h4>' +
         (text ? '<p style="font-size:.82rem;opacity:.85;line-height:1.7;margin:0">' + text + '</p>' : ''), function (box) {
           var b = btnRow();
           var ok = btn('确定'), no = btn('取消', 'g');
@@ -308,10 +308,10 @@
   function pickerSheet(opts) {
     /* opts: {title, hint, groups:[{label, items:[{id,name,sub,node}]}], allowNone, noneText} */
     return new Promise(function (res) {
-      openD('<h4 id="ge_pick_title" style="margin:0 0 4px;color:#f3c98b;font-size:1rem">' + opts.title + '</h4>' +
+      openD('<h4 id="ge_pick_title" style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">' + opts.title + '</h4>' +
         (opts.hint ? '<p style="font-size:.76rem;opacity:.75;line-height:1.6;margin:0 0 6px">' + opts.hint + '</p>' : ''), function (box) {
           var si = el('input'); si.type = 'search'; si.id = 'ge_pick_q'; si.placeholder = '输入名称筛选…'; si.setAttribute('inputmode', 'search');
-          si.style.cssText = 'width:100%;box-sizing:border-box;background:#0d0b10;border:1px solid #4a3a2a;color:#f2e7d8;' +
+          si.style.cssText = 'width:100%;box-sizing:border-box;background:var(--panel-bg2);border:1px solid var(--panel-line);color:var(--panel-text);' +
             'border-radius:10px;padding:11px;font-size:.9rem;font-family:inherit;margin-bottom:6px';
           box.appendChild(si);
           var listBox = el('div'); listBox.id = 'ge_pick_list'; listBox.style.cssText = 'max-height:52vh;overflow:auto';
@@ -387,7 +387,7 @@
   function askNodeForm(state) {
     state = state || { ref: '', refName: '', name: '', type: 'person', desc: '' };
     return new Promise(function (res) {
-      openD('<h4 style="margin:0 0 4px;color:#f3c98b;font-size:1rem">新建节点</h4>', function (box) {
+      openD('<h4 style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">新建节点</h4>', function (box) {
         box.appendChild(lab('① 引用已有节点（可选；来自内置主图谱或我的其他图谱）'));
         var refB = btn(state.ref ? ('已引用：' + state.refName) : '— 不引用，新建 —', 'g');
         refB.id = 'ge_refpick'; refB.style.width = '100%'; refB.style.flex = 'none';
@@ -412,7 +412,7 @@
         box.appendChild(inp(state.name, '如：某人物 / 某思想', 'ge_name'));
         box.appendChild(lab('③ 类型'));
         var sel = el('select'); sel.id = 'ge_type';
-        sel.style.cssText = 'width:100%;box-sizing:border-box;background:#0d0b10;border:1px solid #4a3a2a;color:#f2e7d8;border-radius:10px;padding:11px;margin-top:6px;font-size:.9rem';
+        sel.style.cssText = 'width:100%;box-sizing:border-box;background:var(--panel-bg2);border:1px solid var(--panel-line);color:var(--panel-text);border-radius:10px;padding:11px;margin-top:6px;font-size:.9rem';
         [['person', '人物'], ['idea', '思想'], ['org', '组织'], ['event', '事件']].forEach(function (o) {
           var op = el('option', '', o[1]); op.value = o[0]; if (o[0] === state.type) op.selected = true; sel.appendChild(op);
         });
@@ -481,10 +481,10 @@
       toast('已建立关系：' + (r.rel || '关联'));
     });
   }
-  function askEdge(title, relVal, colorVal, allowDelete) {
+  function askEdge(title, relVal, colorVal, allowDelete, allowSwap) {
     var PALETTE = ['#f5c518', '#8de6a1', '#7ec8ff', '#ff8b8b', '#d7aef2', '#ffd166', '#63e6be', '#a5d8ff', '#ffffff', '#9aa0a6'];
     return new Promise(function (res) {
-      openD('<h4 style="margin:0 0 4px;color:#f3c98b;font-size:1rem">' + title + '</h4>', function (box) {
+      openD('<h4 style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">' + title + '</h4>', function (box) {
         box.appendChild(lab('关系名称'));
         var rel = inp(relVal, '师从 / 批判 / 战友 / 亲属…', 'ge_edge_rel'); box.appendChild(rel);
         box.appendChild(lab('关系线颜色'));
@@ -492,8 +492,8 @@
         var sw = el('div'), cur = colorVal || PALETTE[0];
         PALETTE.forEach(function (c) {
           var s = el('span'); s.style.cssText = 'display:inline-block;width:34px;height:34px;border-radius:9px;margin:4px 4px 0 0;cursor:pointer;background:' + c +
-            ';border:2px solid ' + (c === cur ? '#ffe9c2' : '#5a4a2a');
-          s.onclick = function () { [].forEach.call(sw.children, function (x) { x.style.borderColor = '#5a4a2a'; }); s.style.borderColor = '#ffe9c2'; hex.value = c; };
+            ';border:2px solid ' + (c === cur ? 'var(--panel-btn-text)' : 'var(--panel-line)');
+          s.onclick = function () { [].forEach.call(sw.children, function (x) { x.style.borderColor = 'var(--panel-line)'; }); s.style.borderColor = 'var(--panel-btn-text)'; hex.value = c; };
           sw.appendChild(s);
         });
         box.appendChild(sw); box.appendChild(hex);
@@ -506,6 +506,11 @@
           del.onclick = function () { closeD(); res({ del: true }); };
           b.appendChild(del);
         }
+        if (allowSwap) {
+          var sw = btn('⇄ 反向这条关系', 'g');
+          sw.onclick = function () { closeD(); res({ swap: true, rel: rel.value, color: hex.value }); };
+          b.appendChild(sw);
+        }
         var no = btn('取消', 'g'); no.onclick = function () { closeD(); res(null); };
         b.appendChild(no); box.appendChild(b);
       });
@@ -513,10 +518,18 @@
   }
   function editEdge(e) {
     var key = e.s.d.id + '|' + e.t.d.id + '|' + (e.r || '');
-    askEdge('关系：' + e.s.d.name + ' → ' + e.t.d.name, e.r || '', e.color || '#f5c518', true).then(function (r) {
+    askEdge('关系：' + e.s.d.name + ' → ' + e.t.d.name, e.r || '', e.color || '#f5c518', true, true).then(function (r) {
       if (!r) return;
       snapshot();
       if (r.del) { YZY.removeGraphEdge(undefined, key); rebuild(false, true); toast('关系已删除'); return; }
+      if (r.swap) {
+        YZY.removeGraphEdge(undefined, key);
+        var x2 = YZY.addGraphEdge(undefined, { source: e.t.d.id, target: e.s.d.id, rel: r.rel || e.r || '关联', color: r.color || e.color });
+        if (x2 && x2.ok === false) { toast(x2.msg || '反向失败', true); return; }
+        rebuild(false, true);
+        toast('已反向：' + (e.t.d.name || e.t.d.id) + ' → ' + (e.s.d.name || e.s.d.id));
+        return;
+      }
       YZY.setEdgeStyle(undefined, key, { label: r.rel || '关联', color: r.color || '#f5c518' });
       rebuild(false, false);
       toast('关系已更新');
@@ -534,6 +547,121 @@
     }
     return best;
   }
+  /* ---------- 节点操作面板（长按节点打开）：编辑内容 / 加关系（可搜索） / 删除 ---------- */
+  function nodeSheet(o) {
+    var d = (o && o.d) ? o.d : o;
+    if (!d || !d.id) { toast('节点信息缺失', true); return; }
+    var TN = { person: '人物', idea: '思想', org: '组织', event: '事件', work: '著作' };
+    openD('<h4 style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">' + (d.name || d.id) + '</h4>', function (box) {
+      var t = el('p', '', (TN[d.type] || '节点') + (d.role ? ' · ' + d.role : '') + (d.years ? ' · ' + d.years : ''));
+      t.style.cssText = 'font-size:.76rem;opacity:.72;margin:0 0 8px;line-height:1.6';
+      box.appendChild(t);
+      var b1 = btnRow();
+      var e1 = btn('📝 编辑内容 / 重命名');
+      e1.onclick = function () { closeD(); askEditNode(d); };
+      var e2 = btn('🔗 加一条关系');
+      e2.onclick = function () { closeD(); addRelationFrom(d); };
+      b1.appendChild(e1); b1.appendChild(e2);
+      box.appendChild(b1);
+      var b2 = btnRow();
+      var dm = btn('排在最前（固定）', 'g');
+      dm.onclick = function () {
+        closeD(); snapshot();
+        YZY.setNodePos(undefined, d.id, { x: (d.x || 0), y: (d.y || 0) });
+        toast('已固定当前坐标（拖动可再调整）');
+      };
+      var e3 = btn('🗑 删除节点', 'd');
+      e3.onclick = function () { closeD(); deleteNode({ d: d }); };
+      b2.appendChild(dm); b2.appendChild(e3);
+      box.appendChild(b2);
+      var b3 = btnRow(); var no = btn('关闭', 'g'); no.onclick = function () { closeD(); };
+      b3.appendChild(no); box.appendChild(b3);
+    });
+  }
+
+  /* ---------- 编辑节点内容（含重命名） ---------- */
+  function askEditNode(d) {
+    openD('<h4 style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">编辑「' + (d.name || d.id) + '」</h4>', function (box) {
+      box.appendChild(lab('① 名称（改名后图谱标签与详情标题一起变）'));
+      box.appendChild(inp(d.name || '', '节点名称', 'ge_ed_name'));
+      box.appendChild(lab('② 类型'));
+      var sel = el('select'); sel.id = 'ge_ed_type';
+      sel.style.cssText = 'width:100%;box-sizing:border-box;background:var(--panel-bg2);border:1px solid var(--panel-line);color:var(--panel-text);border-radius:10px;padding:11px;margin-top:6px;font-size:.9rem';
+      [['person', '人物'], ['idea', '思想'], ['org', '组织'], ['event', '事件'], ['work', '著作']].forEach(function (o) {
+        var op = el('option', '', o[1]); op.value = o[0]; if (o[0] === (d.type || 'person')) op.selected = true; sel.appendChild(op);
+      });
+      box.appendChild(sel);
+      box.appendChild(lab('③ 年份 / 生卒（可空）'));
+      box.appendChild(inp(d.years || '', '如 1894—1971', 'ge_ed_years'));
+      box.appendChild(lab('④ 一句话定位（可空）'));
+      box.appendChild(inp(d.role || '', '如 苏共中央第一书记', 'ge_ed_role'));
+      box.appendChild(lab('⑤ 介绍'));
+      var ta = el('textarea'); ta.id = 'ge_ed_desc'; ta.value = d.desc || ''; ta.rows = 5;
+      box.appendChild(ta);
+      box.appendChild(lab('⑥ 要点（每行一条，可空）'));
+      var tp = el('textarea'); tp.id = 'ge_ed_points'; tp.value = (d.points || []).join('\n'); tp.rows = 3;
+      box.appendChild(tp);
+      var b = btnRow();
+      var ok = btn('保存');
+      ok.onclick = function () {
+        var name = String((document.getElementById('ge_ed_name') || {}).value || '').trim();
+        if (!name) { toast('名称不能为空', true); return; }
+        var patch = {
+          name: name,
+          type: (document.getElementById('ge_ed_type') || {}).value || d.type || 'person',
+          years: String((document.getElementById('ge_ed_years') || {}).value || '').trim(),
+          role: String((document.getElementById('ge_ed_role') || {}).value || '').trim(),
+          desc: String((document.getElementById('ge_ed_desc') || {}).value || ''),
+          points: String((document.getElementById('ge_ed_points') || {}).value || '')
+            .split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean)
+        };
+        closeD(); snapshot();
+        var r = YZY.setNodeStyle(undefined, d.id, patch);
+        if (!r || r.ok === false) { toast((r && r.msg) || '保存失败', true); return; }
+        rebuild(false, false);
+        toast('已保存「' + name + '」');
+      };
+      b.appendChild(ok);
+      var no = btn('取消', 'g'); no.onclick = function () { closeD(); };
+      b.appendChild(no); box.appendChild(b);
+    });
+  }
+
+  /* ---------- 加关系：另一端可搜索（图谱太大点不中时用这个） ---------- */
+  function connectPickerGroups(excludeId) {
+    var cur = YZY.graphData() || {};
+    var nodes = cur.nodes || [];
+    var byId = {}; nodes.forEach(function (n) { byId[n.id] = n; });
+    var TN = { person: '人物', idea: '思想', org: '组织', event: '事件', work: '著作' };
+    var gs = buildGroups(cur.id === 'main');
+    var out = [], known = {};
+    gs.forEach(function (g) {
+      var items = [];
+      (g.ids || []).forEach(function (id) {
+        known[id] = 1;
+        var n = byId[id]; if (!n || id === excludeId) return;
+        items.push({ id: id, name: n.name || id, sub: (TN[n.type] || '节点') + (n.role ? ' · ' + n.role : ''), node: n });
+      });
+      if (items.length) out.push({ label: g.label, items: items });
+    });
+    var rest = nodes.filter(function (n) { return !known[n.id] && n.id !== excludeId; })
+      .map(function (n) { return { id: n.id, name: n.name || n.id, sub: (TN[n.type] || '节点') + (n.role ? ' · ' + n.role : ''), node: n }; });
+    if (rest.length) out.push({ label: '其它', items: rest });
+    return out;
+  }
+  function addRelationFrom(d) {
+    pickerSheet({
+      title: '给「' + (d.name || d.id) + '」加一条关系',
+      hint: '输入名称可筛选（如「毛」）。点中的节点会成为关系的另一端，方向为「' + (d.name || d.id) + ' → 它」。',
+      groups: connectPickerGroups(d.id), allowNone: true, noneText: '— 取消 —'
+    }).then(function (picked) {
+      if (picked === undefined || !picked) return;
+      var other = (picked && picked.node) ? picked.node : picked;
+      if (!other || !other.id) { toast('没有选中节点', true); return; }
+      connectDialog({ d: d }, { d: other });
+    });
+  }
+
   function deleteNode(o) {
     askConfirm('删除节点「' + (o.d.name || o.d.id) + '」？', '与它相连的所有关系线也会一并删除。').then(function (y) {
       if (!y) return;
@@ -545,7 +673,7 @@
   function openGraphSheet() {
     var list = YZY.listGraphs(), act = YZY.activeGraphId();
     var cur = (list.filter(function (g) { return g.id === act; })[0]) || {};
-    openD('<h4 id="ge_sheet_title" style="margin:0 0 4px;color:#f3c98b;font-size:1rem">🗂 图谱</h4>' +
+    openD('<h4 id="ge_sheet_title" style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">🗂 图谱</h4>' +
       '<p style="font-size:.76rem;opacity:.75;line-height:1.6;margin:0 0 6px">点一行即可切换。「＋ 新建 / ✎ 重命名 / 🗑 删除」只作用于你自建的图谱。</p>', function (box) {
         var listBox = el('div'); listBox.id = 'ge_graph_list'; listBox.style.cssText = 'max-height:46vh;overflow:auto';
         list.forEach(function (g) {
@@ -638,7 +766,7 @@
       dragNode = h; moved = false;
       clearTimeout(lpTimer);
       lpTimer = setTimeout(function () {
-        if (down && !down.moved && down.hit) { var o = down.hit; down = null; dragNode = null; deleteNode(o); }
+        if (down && !down.moved && down.hit) { var o = down.hit; down = null; dragNode = null; nodeSheet(o); }
       }, LONG_PRESS);
     } catch (e) { toast('按下出错：' + e.message, true); }
   }, { passive: false });
@@ -791,17 +919,17 @@
   var cs = document.createElement('style'); cs.id = 'geStyle';
   cs.textContent = [
     '#geBar{position:fixed;right:10px;bottom:10px;z-index:99997;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:inherit}',
-    '#geBar .ge-btn{padding:11px 15px;border-radius:11px;border:1px solid #5a4a2a;background:rgba(10,9,14,.92);color:#eadfce;' +
+    '#geBar .ge-btn{padding:11px 15px;border-radius:11px;border:1px solid var(--panel-line);background:var(--panel-glass);color:var(--panel-text);' +
       'font-size:.78rem;cursor:pointer;font-family:inherit;white-space:nowrap;min-height:44px;touch-action:manipulation}',
     '#geBar .ge-btn.on{border-color:#f5c518;color:#f5c518}',
     '#geTag{position:fixed;right:8px;top:calc(8px + env(safe-area-inset-top,0px));left:auto;bottom:auto;z-index:6;padding:5px 9px;' +
-      'border-radius:9px;background:rgba(10,9,14,.82);border:1px solid #5a4a2a;color:#e6dccb;font-size:.62rem;line-height:1.45;font-family:inherit;' +
+      'border-radius:9px;background:var(--panel-glass);border:1px solid var(--panel-line);color:var(--panel-text);font-size:.62rem;line-height:1.45;font-family:inherit;' +
       'max-width:min(74vw,320px);white-space:normal;word-break:break-word;text-align:right;pointer-events:none;opacity:.94}',
     '#geEmpty{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;max-width:80vw;text-align:center;' +
-      'background:rgba(10,9,14,.72);border:1px dashed #5a4a2a;border-radius:14px;padding:18px 36px 18px 20px;color:#eadfce;' +
+      'background:var(--panel-glass);border:1px dashed var(--panel-line);border-radius:14px;padding:18px 36px 18px 20px;color:var(--panel-text);' +
       'font-size:.82rem;line-height:1.9;pointer-events:auto;font-family:inherit}',
     '#geEmpty .ge-x{position:absolute;top:6px;right:6px;width:26px;height:26px;padding:0;border-radius:50%;' +
-      'border:1px solid #5a4a2a;background:rgba(10,9,14,.92);color:#eadfce;font:inherit;font-size:.78rem;line-height:1;cursor:pointer}',
+      'border:1px solid var(--panel-line);background:var(--panel-glass);color:var(--panel-text);font:inherit;font-size:.78rem;line-height:1;cursor:pointer}',
     'body.clean #geBar,body.clean #geTag,body.clean #geEmpty,body.clean #geDlg{display:none!important}',
     /* 窄屏（手机）：工具栏移到屏幕右侧、竖向居中并收紧，避免压住底部搜索/筛选面板 */
     '@media(max-width:620px){',
@@ -857,7 +985,9 @@
   window.__geBoot = boot;
   window.__ge = {
     rebuild: rebuild, setMode: setMode, createNodeAt: createNodeAt, connectDialog: connectDialog,
-    editEdge: editEdge, deleteNode: deleteNode, undo: undo, snapshot: snapshot,
+    editEdge: editEdge, deleteNode: deleteNode, nodeSheet: nodeSheet, askEditNode: askEditNode,
+    addRelationFrom: addRelationFrom, connectPickerGroups: connectPickerGroups,
+    undo: undo, snapshot: snapshot,
     isEdit: function () { return editMode; }, stepLayout: stepLayout, runSettle: runSettle,
     updateEmptyHint: updateEmptyHint, layer: function () { return layer; }, bar: function () { return bar; },
     openGraphSheet: openGraphSheet, pickerSheet: pickerSheet, refCandidates: refCandidates,

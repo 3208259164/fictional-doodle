@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.yuanziyuan.app"
-    android:versionCode="131"
-    android:versionName="0.16.65">
+    android:versionCode="201"
+    android:versionName="0.17.22">
 
     <!-- 2026 合规：Google Play 自 2026-08-31 起要求 targetSdk >= 36 (Android 16) -->
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />
+
+    <!-- Android 11+ 包可见性：不声明就枚举不到系统 TTS 引擎（朗读功能会误判为「无引擎」）。
+         只声明 TTS_SERVICE 这一种 intent，不扩大可见范围。 -->
+    <queries>
+        <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
+    </queries>
 
     <!-- 权限：总共只声明一条可选存储权限。
          · 无网络权限（内容全部随 APK 分发，外链交由系统浏览器打开），完全离线；

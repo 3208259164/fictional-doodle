@@ -30,3 +30,8 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# 编辑器/打包残留
+*.bak
+*.bak_*
+*.bak.*

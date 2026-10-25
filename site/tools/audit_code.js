@@ -29,7 +29,9 @@ const read = p => { try { return fs.readFileSync(path.join(root, p), 'utf8'); } 
 const exists = p => { try { return fs.statSync(path.join(root, p)).isFile(); } catch (e) { return false; } };
 
 let acorn = null, acornVer = '';
-for (const c of ['acorn', path.join(root, 'node_modules/acorn'), path.join(root, '../node_modules/acorn')]) {
+for (const c of ['acorn', path.join(root, 'node_modules/acorn'), '/sandbox/workspace/qa/node_modules/acorn',
+  '/sandbox/workspace/toolchain/js/node_modules/acorn',
+  '/sandbox/workspace/output/yuanziyuan-modern/node_modules/acorn']) {
   try {
     const m = require(c);
     if (m && m.parse) {
@@ -47,10 +49,16 @@ for (const c of ['acorn', path.join(root, 'node_modules/acorn'), path.join(root,
   } catch (e) {}
 }
 
+/* ★ 清单必须覆盖全部自研脚本与页面：漏一个就会把「被它引用的东西」误报成死代码，
+   也会漏掉它里面的悬空调用（2026-10-24 修：此前漏了 books/booksearch/challenge/layers/qa-engine 与 ask/challenge 页）。 */
 const JS_FILES = ['assets/app.js', 'assets/overlay.js', 'assets/editor.js', 'assets/graph-edit.js',
-  'data/config.js', 'data/content.js', 'data/graph.js', 'data/graph-wenge.js', 'data/graph-world.js', 'data/knowledge.js', 'data/libraries.js',
-  'data/overrides.js', 'data/resources.js', 'data/avatars.js'].filter(exists);
-const HTML_FILES = ['index.html', 'graph.html', 'graph3d.html', 'card.html', '404.html', 'offline.html', 'privacy.html', 'licenses.html'].filter(exists);
+  'assets/books.js', 'assets/booksearch.js', 'assets/challenge.js', 'assets/layers.js', 'assets/qa-engine.js',
+  'assets/cite.js', 'assets/diag.js', 'assets/crash.js', 'assets/custom.js', 'assets/reading.js', 'assets/paths.js', 'assets/backup.js', 'assets/mine.js', 'assets/study.js',
+  'data/config.js', 'data/content.js', 'data/graph.js', 'data/graph-wenge.js', 'data/graph-world.js', 'data/graph-geo.js',
+  'data/knowledge.js', 'data/libraries.js', 'data/concepts.js', 'data/channel.js', 'data/mentors.js', 'data/album.js',
+  'data/intro-short.js', 'data/py.js', 'data/overrides.js', 'data/resources.js', 'data/avatars.js'].filter(exists);
+const HTML_FILES = ['index.html', 'graph.html', 'graph3d.html', 'card.html', 'ask.html', 'challenge.html',
+  '404.html', 'offline.html', 'privacy.html', 'licenses.html'].filter(exists);
 
 const VENDOR = new Set();            /* vendor 库导出的全局名（qrcode / JSZip …） */
 ['assets/vendor/qrcode.min.js', 'assets/vendor/jszip.min.js'].filter(exists).forEach(f => {
@@ -140,7 +148,11 @@ Object.entries(SRC).forEach(([f, src]) => {
 
   walk(ast, (n, p) => {
     if (n.type === 'FunctionDeclaration') { if (n.id) { declared.add(n.id.name); declaredFn.add(n.id.name); } (n.params || []).forEach(pat); return; }
-    if (n.type === 'FunctionExpression' || n.type === 'ArrowFunctionExpression') { (n.params || []).forEach(pat); return; }
+    if (n.type === 'FunctionExpression' || n.type === 'ArrowFunctionExpression') {
+      /* 具名函数表达式：(function next(){ ... next() ... }) —— 名字本身是合法的自引用，不算"未定义" */
+      if (n.type === 'FunctionExpression' && n.id) declared.add(n.id.name);
+      (n.params || []).forEach(pat); return;
+    }
     if (n.type === 'ClassDeclaration') { if (n.id) declared.add(n.id.name); return; }
     if (n.type === 'VariableDeclarator') { if (n.id && n.id.type === 'Identifier') declared.add(n.id.name); pat(n.id); return; }
     if (n.type === 'CatchClause' && n.param) { pat(n.param); return; }
@@ -172,7 +184,7 @@ const bad = [];
 called.forEach((c, n) => { if (!declared.has(n) && !BUILTIN.has(n) && !VENDOR.has(n)) bad.push(n); });
 if (!acorn) {
   console.log('  ⚠️⚠️ 严重：未找到 acorn → 已降级为「正则粗测」，下面 A/C/D 项全是误报，请勿据此改代码！');
-  console.log('     修复：在本目录执行 npm i acorn，或把 acorn 放进 node_modules。');
+  console.log('     修复：npm i --prefix /sandbox/workspace/qa acorn，或把 acorn 放进任一搜索路径。');
   console.log('  · 以下仅为粗测结果：');
   const re = /(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g;
   const found = new Map();

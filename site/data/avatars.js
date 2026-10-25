@@ -11,4 +11,3 @@ window.AVATAR_FILES = {
 };
 
 /* 兼容保留：旧的生成式线稿头像已废弃，调用它永远返回空串。 */
-window.LINE_AVATAR_URI = function () { return ''; };

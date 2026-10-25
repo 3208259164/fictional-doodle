@@ -7,7 +7,7 @@ window.SITE_CONFIG = {
   /* 站点基本信息 */
   siteName : '学通',
   siteUrl  : 'https://chimerical-peony-793bf1.netlify.app/',   // 站点正式地址（RSS / 分享链接 / JSON-LD 用）；绑自定义域名时改这一行
-  version  : '0.34.61',
+  version  : '0.34.87',
 
   /* 「正文文件清单」：把实体电子书放进站点目录（如 books/xxx.pdf）后，把相对路径填进这个数组，
      该条目才会显示「已收录 ✅」并出现阅读/预览按钮。留空 = 站内没有任何原文（只有条目/书壳）。 */
@@ -29,7 +29,6 @@ window.SITE_CONFIG = {
   /* 对外链接 */
   tgChannel  : '',                                 // 未添加：填 Telegram 频道链接，如 https://t.me/xxx
   email      : '',                                 // 未添加：填联系邮箱
-  requestForm: 'https://wj.qq.com/s2/28091671/hw7m/',   // 意见反馈（腾讯问卷）
 
   /* 备用入口 / 镜像（防失联）。留空数组则显示提示 */
   mirrors : [

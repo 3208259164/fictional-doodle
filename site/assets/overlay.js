@@ -21,7 +21,7 @@
   var MAX = 4000;              // 单条文本上限
   var AV_MAX = 400000;         // 头像 dataURL 上限（约 300KB 二进制）
   var GID_MAIN = 'main';
-  var GROUPS_PERSON = ['leaders', 'comrades', 'critics'];
+  var GROUPS_PERSON = ['leaders', 'comrades', 'critics', 'figures'];
   /* 内置图谱注册表（随站点/App 发布，不可删除 / 改名；仍可被本地覆盖层编辑） */
   function builtinGraphs() {
     var m = {};
@@ -149,6 +149,16 @@
       editor: { enabled: false, userSet: false },   // ★ 默认关闭：需用户手动开启
       resources: { added: [], edited: {}, removed: [], catLabels: {}, catAdded: [], catRemoved: [] },
       people: { edited: {}, moved: {}, added: [], avatars: {} },
+      /* 概念 / 事件的本机改动（通用条目编辑）：id 或 name → 字段覆盖 */
+      concepts: { edited: {} },
+      events: { edited: {} },
+      /* 史料补充内容：推荐人物 / 思想组织 / 答疑（键 = 人物名 / 条目名 / 答疑 id） */
+      edu: { rec: { edited: {}, added: [], removed: [] },
+             sch: { edited: {}, added: [], removed: [] },
+             qa:  { edited: {}, added: [], removed: [] } },
+      /* 自定义字段（「我的标注」）：键 = "<kind>:<id>"，值 = [{k,v}]。
+         kind 取 book / person / concept / event；跟着个人覆盖层走，随导出一起带走。 */
+      meta: {},
       hubLabels: {}, hubName: '',
       graphs: {
         created: {},            // gid -> {id,name,createdAt,nodes:[],links:[]}
@@ -182,11 +192,36 @@
     });
     if (p.url !== undefined) q.url = cleanUrl(p.url);
     if (p.tags !== undefined) q.tags = cleanList(p.tags, 30, 12);
+    /* 元信息与章节目录：详情页「✏️ 编辑」要能改，否则被这里过滤掉、保存等于白做 */
+    ['publisher', 'pubyear', 'translator', 'pages', 'size', 'fmt', 'src'].forEach(function (k) {
+      if (p[k] !== undefined) q[k] = clean(p[k], 120);
+    });
+    if (p.chapters !== undefined) {
+      var arr = Array.isArray(p.chapters) ? p.chapters : [];
+      q.chapters = arr.slice(0, 80).map(function (c) {
+        c = c || {};
+        return { t: clean(c.t, 120), d: clean(c.d, 800) };
+      }).filter(function (c) { return c.t || c.d; });
+    }
+    /* 手动指定的相关推荐（书名 / id 都行），会排到详情页「相关推荐」最前面 */
+    if (p.related !== undefined) q.related = cleanList(p.related, 80, 40);
     return q;
+  }
+  /* 年表：每项 {y:年, t:事件}；生平年表与著作年表同构 */
+  function normChrono(a) {
+    if (!Array.isArray(a)) return [];
+    return a.slice(0, 120).map(function (x) {
+      x = x || {};
+      return { y: clean(x.y, 24), t: clean(x.t, 400) };
+    }).filter(function (x) { return x.y || x.t; });
   }
   function normPerson(p) {
     p = p || {}; var q = {};
     if (p.intro !== undefined) q.intro = clean(p.intro, MAX);
+    if (p.desc !== undefined) q.desc = clean(p.desc, MAX);
+    if (p.related !== undefined) q.related = cleanList(p.related, 80, 40);
+    if (p.timelines !== undefined) q.timelines = normChrono(p.timelines);
+    if (p.worksTimeline !== undefined) q.worksTimeline = normChrono(p.worksTimeline);
     if (p.role !== undefined) q.role = clean(p.role, 200);
     if (p.works !== undefined) q.works = clean(p.works, 600);
     if (p.years !== undefined) q.years = clean(p.years, 40);
@@ -194,19 +229,68 @@
     if (p.avatar !== undefined) q.avatar = cleanAvatar(p.avatar);
     return q;
   }
+  /* ---- 史料补充内容 ---- */
+  function normRec(p) {
+    p = p || {}; var q = {};
+    ['name', 'account', 'fans', 'uid', 'img'].forEach(function (k) {
+      if (p[k] !== undefined) q[k] = clean(p[k], 120);
+    });
+    if (p.intro !== undefined) q.intro = clean(p.intro, MAX);
+    if (p.url !== undefined) q.url = cleanUrl(p.url);
+    return q;
+  }
+  function normSch(p) {
+    p = p || {}; var q = {};
+    ['name', 'meta', 'works', 'group'].forEach(function (k) {
+      if (p[k] !== undefined) q[k] = clean(p[k], 400);
+    });
+    ['desc', 'opposed'].forEach(function (k) {
+      if (p[k] !== undefined) q[k] = clean(p[k], MAX);
+    });
+    if (p.people !== undefined) q.people = cleanList(p.people, 60, 30);
+    return q;
+  }
+  function normQa(p) {
+    p = p || {}; var q = {};
+    if (p.q !== undefined) q.q = clean(p.q, 300);
+    ['a', 'why'].forEach(function (k) {
+      if (p[k] !== undefined) q[k] = clean(p[k], MAX);
+    });
+    if (p.basis !== undefined) q.basis = cleanList(p.basis, 200, 20);
+    if (p.tags !== undefined) q.tags = cleanList(p.tags, 30, 12);
+    return q;
+  }
   function normNode(n) {
     n = n || {};
-    var t = (n.type === 'idea' || n.type === 'org' || n.type === 'event') ? n.type : 'person';
-    return {
+    var TYPES = ['person', 'idea', 'org', 'event', 'work'];
+    var t = TYPES.indexOf(n.type) >= 0 ? n.type : 'person';
+    var o = {
       id: clean(n.id, 60) || uid('n'), name: clean(n.name, 80), type: t,
       years: clean(n.years, 40), role: clean(n.role, 200), desc: clean(n.desc, MAX),
       img: cleanAvatar(n.img), crit: !!n.crit, color: cleanColor(n.color)
     };
+    /* ★ 业务字段：这里是「导出 → 导入」的唯一收口，不能裁掉，
+       否则图谱导出再导入会丢要点 / 代表文献 / 标签 / 出处 / 地理坐标。 */
+    if (n.points && n.points.length) o.points = cleanList(n.points, 300, 30);
+    if (n.works && n.works.length) o.works = cleanList(n.works, 120, 40);
+    if (n.tags && n.tags.length) o.tags = cleanList(n.tags, 30, 20);
+    if (n.source) o.source = clean(n.source, 200);
+    if (n.prov) o.prov = clean(n.prov, 40);
+    if (n.place) o.place = clean(n.place, 80);
+    if (Array.isArray(n.geo) && n.geo.length === 2 && isFinite(+n.geo[0]) && isFinite(+n.geo[1])) {
+      o.geo = [+n.geo[0], +n.geo[1]];
+    } else {
+      if (typeof n.lng === 'number' && isFinite(n.lng)) o.lng = n.lng;
+      if (typeof n.lat === 'number' && isFinite(n.lat)) o.lat = n.lat;
+    }
+    return o;
   }
   function normEdge(e) {
     e = e || {};
     var key = clean(e.source, 60) + '|' + clean(e.target, 60) + '|' + clean(e.rel, 40);
-    return { source: clean(e.source, 60), target: clean(e.target, 60), rel: clean(e.rel, 40), color: cleanColor(e.color), key: key };
+    var out = { source: clean(e.source, 60), target: clean(e.target, 60), rel: clean(e.rel, 40), color: cleanColor(e.color), key: key };
+    if (e.src) out.src = clean(e.src, 200);        /* 关系依据，导出/导入要能往返 */
+    return out;
   }
   /* 原型污染防护：任何外部 JSON（导入/存储）进入 apply 前，剔除 __proto__/constructor/prototype */
   function stripProto(o) {
@@ -241,6 +325,25 @@
     R.catLabels = cl;
     R.catAdded = cleanList(R.catAdded, 40, 60);
     R.catRemoved = cleanList(R.catRemoved, 40, 60);
+
+    sub(OV, 'edu', {});
+    var ED = OV.edu, NORMEDU = { rec: normRec, sch: normSch, qa: normQa };
+    Object.keys(NORMEDU).forEach(function (k) {
+      sub(ED, k, {}); var B = ED[k];
+      sub(B, 'edited', {}); sub(B, 'added', []); sub(B, 'removed', []);
+      var e = {}, eo = B.edited || {};
+      Object.keys(eo).forEach(function (kk) {
+        var id = clean(kk, 120);
+        if (id) e[id] = NORMEDU[k](eo[kk]);
+      });
+      B.edited = e;
+      B.added = (Array.isArray(B.added) ? B.added : []).map(NORMEDU[k]).filter(function (x) {
+        return x.name || x.q;
+      });
+      B.removed = (Array.isArray(B.removed) ? B.removed : []).map(function (x) {
+        return clean(x, 120);
+      }).filter(Boolean);
+    });
 
     sub(OV, 'people', {});
     var P = OV.people;
@@ -306,6 +409,41 @@
       });
       G[k] = m;
     });
+
+    /* 自定义字段：键形如 book:ma-eng-xuanji / person:mao；每条最多 20 个字段，值 300 字 */
+    var mm = {}, mo = (OV.meta && typeof OV.meta === 'object') ? OV.meta : {};
+    Object.keys(mo).forEach(function (key) {
+      var kk = clean(key, 80);
+      if (!kk || !/^(book|person|concept|event):/.test(kk)) return;
+      var arr = Array.isArray(mo[key]) ? mo[key] : [];
+      var list = [];
+      arr.slice(0, 20).forEach(function (f) {
+        if (!f) return;
+        var k = clean(f.k, 30), v = clean(f.v, 300);
+        if (k) list.push({ k: k, v: v });
+      });
+      if (list.length) mm[kk] = list;
+    });
+    OV.meta = mm;
+
+    /* 概念 / 事件的本机改动 */
+    sub(OV, 'concepts', {}); sub(OV, 'events', {});
+    function normEdits(obj, allow) {
+      var out = {}, src = (obj && typeof obj === 'object') ? obj : {};
+      Object.keys(src).forEach(function (k) {
+        var kk = clean(k, 80); if (!kk) return;
+        var v = src[k] || {}, o2 = {};
+        allow.forEach(function (f) {
+          if (v[f] === undefined || v[f] === null) return;
+          if (f === 'points') { var l = cleanList(v[f], 300, 12); if (l.length) o2.points = l; }
+          else { var t = clean(v[f], MAX); if (t) o2[f] = t; }
+        });
+        if (Object.keys(o2).length) out[kk] = o2;
+      });
+      return out;
+    }
+    OV.concepts.edited = normEdits(OV.concepts.edited, ['name', 'role', 'desc', 'points']);
+    OV.events.edited = normEdits(OV.events.edited, ['name', 'year', 'desc', 'points']);
     return OV;
   }
 
@@ -337,6 +475,23 @@
     r.people.moved = Object.assign({}, r.people.moved || {}, pb.moved || {});
     r.people.added = (r.people.added || []).concat(pb.added || []);
     r.people.avatars = Object.assign({}, r.people.avatars || {}, pb.avatars || {});
+    // 史料补充内容（个人后写覆盖官方）
+    r.edu = r.edu || {};
+    ['rec', 'sch', 'qa'].forEach(function (k) {
+      var a2 = r.edu[k] || {}, b2 = (b.edu || {})[k] || {};
+      r.edu[k] = {
+        edited: Object.assign({}, a2.edited || {}, b2.edited || {}),
+        added: (a2.added || []).concat(b2.added || []),
+        removed: (a2.removed || []).concat(b2.removed || [])
+      };
+    });
+    // 概念 / 事件的本机改动（个人后写覆盖官方）
+    r.concepts = r.concepts || { edited: {} };
+    r.concepts.edited = Object.assign({}, (r.concepts.edited || {}), ((b.concepts || {}).edited) || {});
+    r.events = r.events || { edited: {} };
+    r.events.edited = Object.assign({}, (r.events.edited || {}), ((b.events || {}).edited) || {});
+    // meta（自定义字段）：按条目合并，个人后写覆盖官方
+    r.meta = Object.assign({}, r.meta || {}, b.meta || {});
     // hub
     r.hubLabels = Object.assign({}, r.hubLabels || {}, b.hubLabels || {});
     if (b.hubName) r.hubName = b.hubName;
@@ -383,7 +538,7 @@
 
   function personGroups() {
     var CT = window.SITE_CONTENT || {}, EX = window.SITE_EXTRA || {};
-    return { leaders: CT.leaders, comrades: CT.comrades, critics: EX.critics };
+    return { leaders: CT.leaders, comrades: CT.comrades, critics: EX.critics, figures: CT.figures };
   }
   function applyPeople(OV) {
     var groups = personGroups();
@@ -392,10 +547,19 @@
       var arr = groups[p.group];
       if (!Array.isArray(arr)) return;
       if (arr.some(function (x) { return x && x.name === p.name; })) return;
-      var rec = { name: p.name, years: p.years, role: p.role, intro: p.intro, desc: p.intro,
-        works: p.works, points: p.points, src: '读者补充' };
+      var rec = { name: p.name, years: p.years, role: p.role, intro: p.intro, desc: p.desc || p.intro,
+        works: p.works, points: p.points, related: p.related, src: '读者补充' };
       if (p.avatar) rec.img = p.avatar;
       arr.push(rec);
+      /* 年表存 SITE_EXTRA，不在人物数组里 */
+      try {
+        if (window.SITE_EXTRA) {
+          if (!SITE_EXTRA.timelines) SITE_EXTRA.timelines = {};
+          if (!SITE_EXTRA.worksTimeline) SITE_EXTRA.worksTimeline = {};
+          if (p.timelines && p.timelines.length) SITE_EXTRA.timelines[p.name] = normChrono(p.timelines);
+          if (p.worksTimeline && p.worksTimeline.length) SITE_EXTRA.worksTimeline[p.name] = normChrono(p.worksTimeline);
+        }
+      } catch (e2) { }
     });
     // ② 移动
     Object.keys(OV.people.moved).forEach(function (key) {
@@ -521,7 +685,9 @@
   var S = null;
   function load() {
     var off = normalize(official());
-    var per = normalize(stored());
+    /* 安全模式（crash.js 设置）：连续两次启动未成功时跳过「本机个人改动」，
+       先用官方内容把界面打开；用户可在横条里导出/清除本机改动后退出安全模式。 */
+    var per = window.__yzSafeMode ? normalize(null) : normalize(stored());
     var base = merge(off, per);
     S = normalize(base);
     return S;
@@ -531,11 +697,205 @@
     if (!ok && window.console) console.warn('[YZY] 存储降级：', S_warn);
     return ok;
   }
+  /* 概念 / 事件：把本机改动直接写回页面正在用的数据对象（就地覆盖，宁可少改不弄坏结构） */
+  function applyConcepts(OV) {
+    try {
+      var nodes = (window.SITE_CONCEPTS && window.SITE_CONCEPTS.nodes) || [];
+      var ed = (OV.concepts && OV.concepts.edited) || {};
+      Object.keys(ed).forEach(function (id) {
+        var n = nodes.find(function (x) { return x.id === id; });
+        if (!n) return;
+        var e = ed[id];
+        ['name', 'role', 'desc'].forEach(function (f) { if (e[f]) n[f] = e[f]; });
+        if (e.points && e.points.length) n.points = e.points.slice();
+      });
+      /* 支持「新增概念」：直接 push（id 由用户给，重复则跳过） */
+      ((OV.concepts && OV.concepts.added) || []).forEach(function (c) {
+        if (!c || !c.id || nodes.some(function (x) { return x.id === c.id; })) return;
+        nodes.push(c);
+      });
+    } catch (e) {}
+  }
+  function applyEvents(OV) {
+    try {
+      var list = (window.SITE_EXTRA && window.SITE_EXTRA.events) || [];
+      var ed = (OV.events && OV.events.edited) || {};
+      Object.keys(ed).forEach(function (name) {
+        var n = list.find(function (x) { return x.name === name; });
+        if (!n) return;
+        var e = ed[name];
+        ['year', 'desc'].forEach(function (f) { if (e[f]) n[f] = e[f]; });
+        if (e.name) n.name = e.name;
+        if (e.points && e.points.length) n.points = e.points.slice();
+      });
+    } catch (e) {}
+  }
+
+  /* 人物库（leaders/comrades/critics）的编辑 → 同步到图谱节点 desc。
+     原因：人物详情页 openFigure() 读的是 SITE_GRAPH.nodes[].desc，
+           而 editPerson 写的是 SITE_CONTENT 里的 intro，两份数据互不相通。
+     做法：applyGraphToSiteGraph 每次已从 __YZY_BASE_GRAPH 重建 nodes（幂等），
+           这里在它之后用 edited 的绝对值覆盖 desc，重复执行结果一致。 */
+  function applyPeopleToGraph(OV) {
+    var GR = window.SITE_GRAPH;
+    if (!GR || !Array.isArray(GR.nodes)) return;
+    var ed = (OV && OV.people && OV.people.edited) || {};
+    Object.keys(ed).forEach(function (key) {
+      var pr = key.split('|'), name = pr[1], e = ed[key] || {};
+      if (!name) return;
+      if (e.intro === undefined && e.years === undefined && e.role === undefined) return;
+      for (var i = 0; i < GR.nodes.length; i++) {
+        var n = GR.nodes[i];
+        if (!n || n.name !== name) continue;
+        if (e.intro !== undefined) n.desc = e.intro;
+        if (e.years !== undefined && n.years !== undefined) n.years = e.years;
+        if (e.role !== undefined && n.role !== undefined) n.role = e.role;
+        break;
+      }
+    });
+  }
+
+  /* 史料补充内容的编辑结果写回页面数据。
+     幂等：edited 是「绝对值覆盖」，added 按名称/id 去重，removed 用 filter 生成新数组。
+     顺序固定：先覆盖 → 再新增 → 最后删除。 */
+  function applyEdu(OV) {
+    var ED = (OV && OV.edu) || {};
+    var setf = function (it, e, fields) {
+      fields.forEach(function (f) { if (e[f] !== undefined) it[f] = e[f]; });
+    };
+    try {
+      /* ① 推荐人物 */
+      var CT = window.SITE_CONTENT, R = CT && CT.recommend;
+      if (Array.isArray(R)) {
+        var b = ED.rec || {};
+        var ed = b.edited || {};
+        Object.keys(ed).forEach(function (nm) {
+          for (var i = 0; i < R.length; i++) {
+            if (R[i] && R[i].name === nm) { setf(R[i], ed[nm], ['account', 'fans', 'intro', 'url', 'img']); break; }
+          }
+        });
+        (b.added || []).forEach(function (x) {
+          if (!x || !x.name) return;
+          if (R.some(function (y) { return y && y.name === x.name; })) return;
+          R.push(x);
+        });
+        if (b.removed && b.removed.length) {
+          CT.recommend = R.filter(function (x) { return b.removed.indexOf(x && x.name) < 0; });
+        }
+      }
+      /* ② 思想 / 组织 */
+      var EXO = window.SITE_EXTRA, G = (EXO && EXO.schools) || [];
+      var bs = ED.sch || {}, sed = bs.edited || {};
+      G.forEach(function (g) {
+        (g.items || []).forEach(function (it) {
+          if (!it) return;
+          var e = sed[it.name];
+          if (e) setf(it, e, ['meta', 'desc', 'works', 'opposed']);
+          if (e && e.people) it.people = e.people.slice();
+        });
+      });
+      (bs.added || []).forEach(function (x) {
+        if (!x || !x.name) return;
+        var tgt = null;
+        G.forEach(function (g) {
+          if (tgt) return;
+          if ((g.group || g.name || '') === (x.group || '')) tgt = g;
+        });
+        if (!tgt) tgt = G[0];
+        if (!tgt) return;
+        if ((tgt.items || []).some(function (y) { return y && y.name === x.name; })) return;
+        tgt.items.push(x);
+      });
+      if (bs.removed && bs.removed.length) {
+        G.forEach(function (g) {
+          g.items = (g.items || []).filter(function (y) { return bs.removed.indexOf(y && y.name) < 0; });
+        });
+      }
+      /* ③ 答疑 */
+      var ANS = window.SITE_ANSWERS;
+      var AG = (ANS && ANS.groups) || [];
+      var bq = ED.qa || {}, qed = bq.edited || {};
+      AG.forEach(function (g) {
+        (g.items || []).forEach(function (it) {
+          if (!it) return;
+          var e = qed[it.id];
+          if (!e) return;
+          setf(it, e, ['q', 'a', 'why']);
+          if (e.basis) it.basis = e.basis.slice();
+          if (e.tags) it.tags = e.tags.slice();
+        });
+      });
+      (bq.added || []).forEach(function (x) {
+        if (!x || !x.q) return;
+        var g0 = AG.filter(function (g) { return (g.items || []).some(function (y) { return y && y.q === x.q; }); })[0];
+        if (g0) return;
+        var t = AG[0]; if (!t) return;
+        x.id = x.id || ('a-x' + Math.random().toString(36).slice(2, 7));
+        t.items.push(x);
+      });
+      if (bq.removed && bq.removed.length) {
+        AG.forEach(function (g) {
+          g.items = (g.items || []).filter(function (y) { return bq.removed.indexOf(y && y.id) < 0; });
+        });
+      }
+    } catch (e) {}
+  }
+
+  /* 生平年表 / 著作年表存在 SITE_EXTRA（不在人物数组里），必须单独回写。
+     ⚠️ 必须是「基线 → 删 → 按 id 写回」：只做「有则写」的话，把年表清空保存后旧内容会残留
+     （用户会看到「删了还在」），重置覆盖层后也撤不掉。 */
+  var _chronoBase = null;
+  function chronoBase() {
+    if (_chronoBase) return _chronoBase;
+    var EX = window.SITE_EXTRA || {};
+    _chronoBase = {
+      timelines: JSON.parse(JSON.stringify(EX.timelines || {})),
+      worksTimeline: JSON.parse(JSON.stringify(EX.worksTimeline || {}))
+    };
+    return _chronoBase;
+  }
+  function applyPersonChrono(OV) {
+    var EX = window.SITE_EXTRA;
+    if (!EX) return;
+    var base = chronoBase();
+    /* ① 先整体恢复内置基线（撤销上一次的写入 / 已删除的条目） */
+    EX.timelines = JSON.parse(JSON.stringify(base.timelines));
+    EX.worksTimeline = JSON.parse(JSON.stringify(base.worksTimeline));
+    /* ② 新增人物自带的年表 */
+    (OV.people.added || []).forEach(function (p) {
+      if (!p || !p.name) return;
+      try {
+        var ta = normChrono(p.timelines), tb = normChrono(p.worksTimeline);
+        if (ta.length) EX.timelines[p.name] = ta;
+        if (tb.length) EX.worksTimeline[p.name] = tb;
+      } catch (e) { }
+    });
+    /* ③ 本机编辑的年表 */
+    Object.keys(OV.people.edited || {}).forEach(function (key) {
+      var pr = key.split('|'), name = pr[1], e = OV.people.edited[key] || {};
+      try {
+        if (e.timelines !== undefined) {
+          var a = normChrono(e.timelines);
+          if (a.length) EX.timelines[name] = a; else delete EX.timelines[name];
+        }
+        if (e.worksTimeline !== undefined) {
+          var b = normChrono(e.worksTimeline);
+          if (b.length) EX.worksTimeline[name] = b; else delete EX.worksTimeline[name];
+        }
+      } catch (err) { }
+    });
+  }
+
   function reapply() {
     load();
     applyResources(S);
     applyPeople(S);
     applyGraphToSiteGraph(S);
+    applyPeopleToGraph(S);   /* ★ 人物介绍的编辑结果同步进图谱节点，否则详情页看不到 */
+    applyPersonChrono(S);    /* ★ 生平年表 / 著作年表存在 SITE_EXTRA，单独回写 */
+    applyConcepts(S);
+    applyEvents(S);
+    applyEdu(S);
     applyLabels(S);
     /* 覆盖层（含导入的备份）刚合并完，立刻净化一次，避免把 HTML 带进页面 */
     try { if (window.yzCleanData) window.yzCleanData(); } catch (e) {}
@@ -545,6 +905,8 @@
     version: 2,
     sanitize: clean,
     storage: storageInfo,
+    /* 懒加载图谱数据后，需要重新把本机改动应用一遍（覆盖层是幂等的） */
+    reapply: function () { try { reapply(); return true; } catch (e) { return false; } },
     state: function () { return clone(S); },
 
     /* ---- 总开关 ---- */
@@ -579,6 +941,118 @@
       persist(); return { ok: true };
     },
     moveResource: function (id, toCat) { return this.editResource(id, { cat: clean(toCat, 40) }); },
+
+    /* ---- 史料补充内容：推荐人物 / 思想组织 / 答疑 ---- */
+    editRec: function (name, patch) {
+      name = clean(name, 120);
+      if (!name) return { ok: false, msg: '缺少名称' };
+      var p = normRec(patch);
+      if (!Object.keys(p).length) return { ok: false, msg: '没有可保存的字段' };
+      S.edu.rec.edited[name] = Object.assign(S.edu.rec.edited[name] || {}, p);
+      persist(); return { ok: true };
+    },
+    addRec: function (obj) {
+      var p = normRec(obj);
+      if (!p.name) return { ok: false, msg: '名称不能为空' };
+      S.edu.rec.added.push(p); persist(); return { ok: true, name: p.name };
+    },
+    removeRec: function (name) {
+      name = clean(name, 120); if (!name) return { ok: false };
+      S.edu.rec.removed = (S.edu.rec.removed || []).filter(function (x) { return x !== name; });
+      S.edu.rec.removed.push(name);
+      delete S.edu.rec.edited[name];
+      persist(); return { ok: true };
+    },
+    editSch: function (name, patch) {
+      name = clean(name, 120);
+      if (!name) return { ok: false, msg: '缺少名称' };
+      var p = normSch(patch);
+      if (!Object.keys(p).length) return { ok: false, msg: '没有可保存的字段' };
+      S.edu.sch.edited[name] = Object.assign(S.edu.sch.edited[name] || {}, p);
+      persist(); return { ok: true };
+    },
+    addSch: function (obj) {
+      var p = normSch(obj);
+      if (!p.name) return { ok: false, msg: '名称不能为空' };
+      S.edu.sch.added.push(p); persist(); return { ok: true, name: p.name };
+    },
+    removeSch: function (name) {
+      name = clean(name, 120); if (!name) return { ok: false };
+      S.edu.sch.removed = (S.edu.sch.removed || []).filter(function (x) { return x !== name; });
+      S.edu.sch.removed.push(name);
+      delete S.edu.sch.edited[name];
+      persist(); return { ok: true };
+    },
+    editQa: function (id, patch) {
+      id = clean(id, 120);
+      if (!id) return { ok: false, msg: '缺少编号' };
+      var p = normQa(patch);
+      if (!Object.keys(p).length) return { ok: false, msg: '没有可保存的字段' };
+      S.edu.qa.edited[id] = Object.assign(S.edu.qa.edited[id] || {}, p);
+      persist(); return { ok: true };
+    },
+    addQa: function (obj) {
+      var p = normQa(obj);
+      if (!p.q) return { ok: false, msg: '问题不能为空' };
+      p.id = 'a-' + Math.random().toString(36).slice(2, 8);
+      S.edu.qa.added.push(p); persist(); return { ok: true, id: p.id };
+    },
+    removeQa: function (id) {
+      id = clean(id, 120); if (!id) return { ok: false };
+      S.edu.qa.removed = (S.edu.qa.removed || []).filter(function (x) { return x !== id; });
+      S.edu.qa.removed.push(id);
+      delete S.edu.qa.edited[id];
+      persist(); return { ok: true };
+    },
+
+    /* ---- 自定义字段（我的标注）---- */
+    getMeta: function (key) {
+      var k = clean(key, 80);
+      if (!k || !S.meta || !S.meta[k]) return [];
+      return S.meta[k].map(function (x) { return { k: x.k, v: x.v }; });
+    },
+    setMeta: function (key, arr) {
+      var k = clean(key, 80);
+      if (!k || !/^(book|person|concept|event):/.test(k)) return { ok: false, err: '不支持的条目类型' };
+      var list = [];
+      (Array.isArray(arr) ? arr : []).slice(0, 20).forEach(function (f) {
+        var kk = clean(f && f.k, 30), vv = clean(f && f.v, 300);
+        if (kk) list.push({ k: kk, v: vv });
+      });
+      S.meta = S.meta || {};
+      if (list.length) S.meta[k] = list; else delete S.meta[k];
+      persist();
+      return { ok: true };
+    },
+    addMeta: function (key, k, v) {
+      var list = this.getMeta(key);
+      if (list.length >= 20) return { ok: false, err: '每条约 20 个标注' };
+      list.push({ k: clean(k, 30), v: clean(v, 300) });
+      return this.setMeta(key, list);
+    },
+    delMeta: function (key, i) {
+      var list = this.getMeta(key);
+      if (i < 0 || i >= list.length) return { ok: false };
+      list.splice(i, 1);
+      return this.setMeta(key, list);
+    },
+    allMeta: function () { return clone((S && S.meta) || {}); },
+
+    /* ---- 概念 / 事件：通用条目编辑 ---- */
+    editConcept: function (id, patch) {
+      var k = clean(id, 60); if (!k) return { ok: false };
+      S.concepts = S.concepts || { edited: {} };
+      S.concepts.edited[k] = Object.assign(S.concepts.edited[k] || {}, patch || {});
+      S = normalize(S); persist(); reapply();
+      return { ok: true };
+    },
+    editEvent: function (name, patch) {
+      var k = clean(name, 80); if (!k) return { ok: false };
+      S.events = S.events || { edited: {} };
+      S.events.edited[k] = Object.assign(S.events.edited[k] || {}, patch || {});
+      S = normalize(S); persist(); reapply();
+      return { ok: true };
+    },
 
     /* ---- 目录（分类）---- */
     renameCat: function (from, to) {
@@ -618,7 +1092,10 @@
       var g = GROUPS_PERSON.indexOf(obj.group) >= 0 ? obj.group : 'comrades';
       if (g === 'leaders') return { ok: false, msg: '「革命导师」为内置固定的五位，不接受新增；请改添加到「革命同志」或「被批判人物」' };
       var rec = { key: uid('p'), name: name, group: g, years: clean(obj.years, 40), role: clean(obj.role, 200),
-        intro: clean(obj.intro, MAX), works: clean(obj.works, 600), points: cleanList(obj.points, 300, 20),
+        intro: clean(obj.intro, MAX), desc: clean(obj.desc || obj.intro, MAX),
+        works: clean(obj.works, 600), points: cleanList(obj.points, 300, 20),
+        related: cleanList(obj.related, 80, 40),
+        timelines: normChrono(obj.timelines), worksTimeline: normChrono(obj.worksTimeline),
         avatar: cleanAvatar(obj.avatar) };
       S.people.added.push(rec); persist();
       return { ok: true, key: rec.key, backend: S_backend };
@@ -692,11 +1169,11 @@
           var id = clean(n.id, 60), nm = clean(n.name, 80);
           if (!id || !nm) return;
           if (on.some(function (x) { return x.id === id; })) return;
-          var t = (n.type === 'idea' || n.type === 'org' || n.type === 'event') ? n.type : 'person';
-          on.push({ id: id, name: nm, type: t,
-            years: clean(n.years, 40), role: clean(n.role, 200), desc: clean(n.desc, MAX),
-            img: cleanAvatar(n.img), crit: !!n.crit, color: cleanColor(n.color),
-            points: cleanList(n.points, 300, 20), works: cleanList(n.works, 200, 40), tags: cleanList(n.tags, 40, 20) });
+          /* ★ 统一走 normNode：字段白名单只有一处，避免「导入时又裁一遍」把
+             出处 / 地理 / 代表文献等悄悄丢掉（导入图谱曾因此丢 source 与 geo）。 */
+          var nn = normNode(n);
+          nn.id = id; nn.name = nm;
+          on.push(nn);
         });
         if (!on.length) return { ok: false, msg: '没有可用的节点（每条至少要有 id 与 name）' };
         var ids = {}; on.forEach(function (n) { ids[n.id] = 1; });
@@ -708,7 +1185,9 @@
           var rel = clean(l.rel, 40) || '相关';
           var k = s + '|' + t + '|' + rel;
           if (ol.some(function (x) { return x.key === k; })) return;
-          ol.push({ source: s, target: t, rel: rel, color: cleanColor(l.color), key: k });
+          var ee = normEdge(l);
+          ee.source = s; ee.target = t; ee.rel = rel; ee.key = k;
+          ol.push(ee);
         });
         var name = clean(obj.name, 60) || '导入的图谱';
         var taken = {}; Object.keys(S.graphs.created).forEach(function (g) { taken[S.graphs.created[g].name] = 1; });
@@ -775,7 +1254,16 @@
       var ns2 = S.graphs.nodeStyle[gid] || {};
       var pos = S.graphs.nodePos[gid] || {};
       nodes.forEach(function (n) {
-        var st = ns2[n.id]; if (st) { if (st.color) n.color = st.color; if (st.name) n.name = st.name; }
+        var st = ns2[n.id];
+        if (st) {
+          if (st.color) n.color = st.color;
+          if (st.name) n.name = st.name;
+          if (st.type) n.type = st.type;
+          if (st.years !== undefined) n.years = st.years;
+          if (st.role !== undefined) n.role = st.role;
+          if (st.desc !== undefined) n.desc = st.desc;
+          if (st.points !== undefined) n.points = st.points;
+        }
         if (pos[n.id]) { n.x = pos[n.id].x; n.y = pos[n.id].y; }
       });
       return { id: gid, name: name, nodes: nodes, links: links, kinds: kinds || null, refs: refs || null, mapOnly: mapOnly };
@@ -822,13 +1310,21 @@
     },
     setNodeStyle: function (gid, id, style) {
       gid = clean(gid || S.graphs.active, 40); id = clean(id, 60);
-      var o = {};
+      var o = {}, TYPES = ['person', 'idea', 'org', 'event', 'work'];
       if (style && style.color !== undefined) o.color = cleanColor(style.color);
-      if (style && style.name !== undefined) o.name = clean(style.name, 80);
+      if (style && style.name !== undefined) { if (!clean(style.name, 80)) return { ok: false, msg: '名称不能为空' }; o.name = clean(style.name, 80); }
+      if (style && style.type !== undefined) o.type = TYPES.indexOf(style.type) >= 0 ? style.type : 'person';
+      if (style && style.years !== undefined) o.years = clean(style.years, 40);
+      if (style && style.role !== undefined) o.role = clean(style.role, 200);
+      if (style && style.desc !== undefined) o.desc = clean(style.desc, MAX);
+      if (style && style.points !== undefined) o.points = cleanList(style.points, 300, 30);
       S.graphs.nodeStyle[gid] = S.graphs.nodeStyle[gid] || {};
       S.graphs.nodeStyle[gid][id] = Object.assign(S.graphs.nodeStyle[gid][id] || {}, o);
       if (gid !== GID_MAIN && S.graphs.created[gid]) {
-        S.graphs.created[gid].nodes.forEach(function (n) { if (n.id === id) { if (o.color) n.color = o.color; if (o.name) n.name = o.name; } });
+        S.graphs.created[gid].nodes.forEach(function (n) {
+          if (n.id !== id) return;
+          Object.keys(o).forEach(function (k) { n[k] = o[k]; });
+        });
       }
       persist(); reapply(); return { ok: true };
     },
@@ -919,6 +1415,9 @@
         peopleEdited: Object.keys(Sx.people.edited).length, peopleMoved: Object.keys(Sx.people.moved).length,
         peopleAdded: Sx.people.added.length, avatars: Object.keys(Sx.people.avatars).length,
         hubLabels: Object.keys(Sx.hubLabels).length,
+        meta: Object.keys(Sx.meta || {}).length,
+        concepts: Object.keys((Sx.concepts && Sx.concepts.edited) || {}).length,
+        events: Object.keys((Sx.events && Sx.events.edited) || {}).length,
         graphs: Object.keys(Sx.graphs.created).length,
         graphNodes: Object.keys(Sx.graphs.nodeAdd).reduce(function (a, k) { return a + Sx.graphs.nodeAdd[k].length; }, 0),
         graphEdges: Object.keys(Sx.graphs.edgeAdd).reduce(function (a, k) { return a + Sx.graphs.edgeAdd[k].length; }, 0)

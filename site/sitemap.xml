@@ -947,11 +947,6 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/lun-hezuozhi.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
     <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/tantan-bianzhengfa-wenti.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
@@ -983,11 +978,6 @@
   </url>
   <url>
     <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/gaizao-womende-xuexi.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/zhengdun-dangde-zuofeng.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -1058,11 +1048,6 @@
   </url>
   <url>
     <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/shiliutiao.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/paodasilingbu.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -1167,11 +1152,6 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/lenin-zuopai-youzhibing.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
     <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/lenin-lunliangshi-shui.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
@@ -1212,12 +1192,207 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ai-sizhe-zhexue.html</loc>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/xuanyan-daodu.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/xuanyan-daodu.html</loc>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-kiwix.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-librera.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-koreader.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-secpdf.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-markor.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-joplin.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-logseq.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-mfiles.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-amaze.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-libretorrent.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-trime.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-keepassdx.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-aegis.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-ankidroid.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/fdroid-ossdict.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mks-lunyoutairen.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mks-zzjjx-pipan-dagang.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mks-heigeier-fazhexue-pipan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mks-zuguojishi-bianjibu-xin.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/egs-deguo-geming-he-fangeming.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/egs-falanxi-jieji-douzheng-daoyan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/egs-baoli-zai-lishi-zhong-de-zuoyong.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-lunouzhou-lianbang-kouhao.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-lun-minzu-zijuequan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-minzu-wenti-pipan-yijian.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-buerzhuanweike-baochi-zhengquan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-danan-lintou-chulu-hezai.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-gei-daibiaodahui-de-xin.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-gaizu-gongnong-jianchayuan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/sdl-lun-lianbu-youding.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/sdl-guanyu-sulian-xianfa-caoan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/sdl-shiyue-geming-he-egong-celue.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/sdl-tuoluociji-haishi-lieningzhuyi.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-qijieerzhong-quanhui-baogao.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-minzu-zhanzheng-zhong-de-diwei.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-lun-zhengce.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-xuexi-he-shiju.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-guanyu-nongye-hezuohua.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-qianren-dahui-jianghua.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-guanyu-chongqing-tanpan.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -1267,11 +1442,6 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/tool-everything.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
     <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/tool-motrix.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
@@ -1312,22 +1482,327 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/tool-pdf24.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
     <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/tool-vlc.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/tool-obsidian.html</loc>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mks-guoji-gongren-chengli-xuanyan.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/tool-snipaste.html</loc>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mks-fapu-dierpian-xuanyan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mks-zhi-kugeman-shuxin.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mks-zhi-weidemai-xin.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/egs-zai-makesi-muqian-jianghua.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/egs-gcdxy-1888-yingwen-xuyan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/egs-zhi-borjiusi-xin.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/egs-zhi-shimite-xin.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-shiyue-gem-dangri-zhishi.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-quan-e-shisong-daibiao-dh-baogao.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-shiyue-gem-sinian-jianghua.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-zhi-gaoerqi-shuxin-ji.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/ln-lun-hezuoshu.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/sdl-zai-1941-073-broadcast.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/sdl-19ci-daibiao-dh-zongjie.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/sdl-zhi-zgrmj-hedch-jpd-hedian.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-paoda-silingbu-dazibao.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-youyi-huanshi-qinlue.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-guanyu-liaoshen-zhanyi-fangzhen.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-zhi-leijingtian-xin.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-dui-nie-yuanzi-piyu.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-zhengdun-dangzuofeng-baogao.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-zhentiang-minguodang.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/egs-falanxi-jieji-douzheng-dao.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-guanyu-pingjin-zhanyi-fangzhen.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-funvyushehuizhuyi.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-keaidezhongguo.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-qingpin.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-meilingsanzhang.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-pinkundezhexue.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-buduangeming.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-zhongguodehongsezhengquanweishenmene.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-gongchandangren-fakanci.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-guanyusangeshijiehuafendelilun.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-nongcundiaocha.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yuanzhu-kangrizhanzhengshiqidejingjiwentihec.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/jiuping-lunzhan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/lida-jingjixue-dagang.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-bianzhengfa-jiangshou.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/wenge-gaishu-shuiluzhou.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/wenge-ziliao-shuiluzhou.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/mao-zuihou-shinian.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/xuexi-luxian.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/gongnongbing-xue-zhexue.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/xue-zhexue-yong-zhexue.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/tongsu-zhexue.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/rang-zhexue-wuqi.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/lida-lianglun-jieshuo.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/maodunlun-cankao.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/yichang-zhexue-lunzheng.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/makesizhuyi-zhexue-jianggao.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/bianzhengfa-suitan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/renshilun-cidian.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/zhongguo-geming-maodunlun.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/nuli-xuehao-maozedong-sixiang.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/xiaozichanjieji-wenti.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/youpai-jingji-yanlun.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/xiaozichanjieji-wenyi.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/xiandai-zichanjieji-zhexue.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/xiaozichanjieji-gaizao.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/tantan-faquan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/zhongjianluxian-pipan.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/qingai-fangzong.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://chimerical-peony-793bf1.netlify.app/pages/r/lie-zenyang-xiezuo.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>

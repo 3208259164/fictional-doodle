@@ -15,15 +15,15 @@
 set -e
 NAME="${NAME:?请指定 NAME，如 NAME=0.15.0}"
 CODE="${CODE:?请指定 CODE，如 CODE=56}"
-BT="${BT:-${ANDROID_HOME:-$HOME/Android/Sdk}/build-tools/36.0.0}"
-AJ="${AJ:-${ANDROID_HOME:-$HOME/Android/Sdk}/platforms/android-36/android.jar}"
-R8="${R8:-${ANDROID_HOME:-$HOME/Android/Sdk}/build-tools/36.0.0/lib/r8.jar}"
-P="${P:-$PWD}"
-SITE="${SITE:-$P/../site}"
-KS="${KS:-$P/../release.keystore}"
+BT="${BT:-/sandbox/workspace/android/android-16}"
+AJ="${AJ:-/sandbox/workspace/android/android-36/android.jar}"
+R8="${R8:-/sandbox/workspace/android/r8.jar}"
+P="${P:-$(cd "$(dirname "$0")" && pwd)}"   # 默认取脚本所在目录（原写死 /output/apk 会把站点拷进元资源库工程）
+SITE="${SITE:-$P/../site}"; [ -d "$SITE" ] || SITE="/sandbox/workspace/output/yuanziyuan"
+KS="${KS:-/sandbox/workspace/output/学通-release.keystore}"
 # 签名口令：**不写入仓库**。优先环境变量 KS_PW，其次本地文件 $KS_PW_FILE（默认见下）。仅签名时需要。
 PW="${KS_PW:-}"
-if [ -z "$PW" ]; then PWF="${KS_PW_FILE:-$P/../.ks.pw}"; if [ -f "$PWF" ]; then PW="$(cat "$PWF")"; fi; fi
+if [ -z "$PW" ]; then PWF="${KS_PW_FILE:-/sandbox/workspace/toolchain/ks.pw}"; if [ -f "$PWF" ]; then PW="$(cat "$PWF")"; fi; fi
 B="$P/build"
 OUT="$P/dist"
 MIN_SDK="${MIN_SDK:-29}"
@@ -37,6 +37,22 @@ export TZ=UTC
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1577836800}"   # 2020-01-01T00:00:00Z
 
 SIGNED_TXT=$([ "${UNSIGNED:-0}" = "1" ] && echo "否（F-Droid 用自身密钥签名）" || echo "是")
+# ---- versionCode 只增校验 ----------------------------------------------------
+# 只比较手传的 CODE 这个数字，与 versionName 无关（不按版本名推导，避免
+# "0.10.99=1099 > 0.11.1=111" 那种高级版本号反而更小的情况）。
+# 历史最大值记在 $P/.last_code；文件丢失时从 0 起算（不会误拦，构建成功后会写回）。
+CODE_FILE="$P/.last_code"
+LAST=0
+if [ -f "$CODE_FILE" ]; then LAST="$(cat "$CODE_FILE" 2>/dev/null || echo 0)"; fi
+case "$LAST" in ''|*[!0-9]*) LAST=0 ;; esac
+case "$CODE" in ''|*[!0-9]*) echo "❌ CODE 必须是整数：$CODE" >&2; exit 1 ;; esac
+if [ "$CODE" -le "$LAST" ]; then
+  echo "❌ versionCode 必须递增：本次 CODE=$CODE，历史上用过的最大值是 $LAST" >&2
+  echo "   覆盖安装时新包的 versionCode 必须大于已装的，否则系统会判定为降级、直接拒绝安装。" >&2
+  echo "   如确需重出当前版本，请把 CODE 调大（例如 $((LAST+1))）。" >&2
+  exit 1
+fi
+
 echo "==> 构建 学通 $NAME (versionCode $CODE, minSdk $MIN_SDK, targetSdk $TARGET_SDK, 签名=$SIGNED_TXT)"
 
 echo "[0] 刷新站点资源（站点目录为唯一真源）"
@@ -58,6 +74,9 @@ print('   sw.js VERSION -> v' + code)
 PYEOF
 fi
 
+echo "[0b1] 静态资源版本化（?v=$CODE）—— 让 WebView 敢缓存、也让 V8 编译缓存能复用"
+python3 "$(dirname "$0")/../tools/versionize_html.py" "$P/assets/site" "$CODE"
+
 echo "[0b] 精简安装包（去开发用文件；站点目录已不含 library/epub/pdf/jszip 等下线组件）"
 rm -rf "$P/assets/site/tools" "$P/assets/site/.github"
 rm -f "$P/assets/site/CHANGELOG.md" "$P/assets/site/README.md"
@@ -65,6 +84,9 @@ rm -rf "$P/assets/site/pages"          # 静态快照（SEO 用，仅网页版�
 rm -f "$P/assets/site/sitemap.xml"     # 同上
 rm -f "$P/assets/site/CHANGELOG-archive.md"   # 历史变更记录（仅仓库留档，不进安装包）
 rm -f "$P/assets/site/version.json"
+# 编辑器/脚本的历史备份（.bak_*）绝不进包：曾混入 6 个 resources 备份，APK 白胖 585KB
+find "$P/assets/site" -type f -name "*.bak*" -delete 2>/dev/null || true
+find "$P/assets/site" -type f \( -name "*.orig" -o -name "*.rej" -o -name "*~" \) -delete 2>/dev/null || true
 
 echo "[0a] JS 兼容基线：自动降到 ES2015（无 esbuild 时使用仓库内已降级文件）"
 ESB="${ESBUILD:-$(command -v esbuild 2>/dev/null || true)}"
@@ -129,6 +151,7 @@ if [ -f "$B/dex/mapping.txt" ]; then cp "$B/dex/mapping.txt" "$P/mapping-$NAME.t
 
 echo "[6] dex + zipalign"
 cp "$B/base.apk" "$B/app.apk"; touch -d "@$SOURCE_DATE_EPOCH" "$B/dex/classes.dex"; (cd "$B/dex" && zip -0 -X -q "$B/app.apk" classes.dex)   # -0=STORE：dex 不压缩（Android 惯例 + 更确定）
+
 "$BT/zipalign" -p -f 4 "$B/app.apk" "$B/aligned.apk"
 
 if [ "${UNSIGNED:-0}" = "1" ]; then
@@ -152,7 +175,7 @@ if [ "${UNSIGNED:-0}" = "1" ]; then
   exit 0
 fi
 
-[ -n "$PW" ] || { echo "❌ 缺少签名口令：设置环境变量 KS_PW，或写入 $PWF（或指定 KS_PW_FILE）"; exit 1; }
+[ -n "$PW" ] || { echo "❌ 缺少签名口令：设置环境变量 KS_PW，或写入 $KS_PW_FILE（默认 /sandbox/workspace/toolchain/ks.pw）"; exit 1; }
 echo "[7] 签名（必须在 /tmp 本地盘，virtiofs 上 apksigner 会失败）"
 mkdir -p /tmp/apksign; cp "$B/aligned.apk" /tmp/apksign/a.apk; cp -f "$KS" /tmp/apksign/k.keystore
 cd /tmp/apksign && java -jar "$BT/lib/apksigner.jar" sign --ks k.keystore --ks-key-alias yuanziyuan \
@@ -177,4 +200,5 @@ echo "   ✅ minSdk == $GOTMIN"
   echo "   SHA256：$(sha256sum /tmp/apksign/s.apk | cut -d' ' -f1)"
 
 ls -la "$P/学通-$NAME.apk"
+echo "$CODE" > "$CODE_FILE"
 echo "==> 完成：$P/学通-$NAME.apk"

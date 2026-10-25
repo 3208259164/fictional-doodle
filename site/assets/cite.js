@@ -69,7 +69,7 @@
       if (!ov) {
         ov = document.createElement('div'); ov.id = 'yzExportOv';
         ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', '导出结果');
-        ov.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:18px;box-sizing:border-box';
+        ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483000;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:18px;box-sizing:border-box';
         ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { var o = document.getElementById('yzExportOv'); if (o) o.remove(); } });
         document.body.appendChild(ov);

@@ -8,7 +8,7 @@
      页面导航 = network-first（带超时，失败回退缓存，再失败回退 offline.html）。
    · sw.js 由 _headers 设定 no-cache；注册时 updateViaCache:'none'（见 app.js）。
    ------------------------------------------------------------------ */
-const VERSION = 'v160';
+const VERSION = 'v206';
 const SHELL = 'yuanziyuan-' + VERSION;      // 应用外壳缓存
 const RUNTIME = 'yuanziyuan-rt-' + VERSION; // 运行时缓存
 const OFFLINE = './offline.html';
@@ -19,15 +19,15 @@ const OFFLINE = './offline.html';
    它由下面的"CSS/JS 数据"分支在首次真正请求时按需缓存（stale-while-revalidate）。 */
 const CORE = [
   './', './index.html', './graph.html',
-  './graph3d.html', './card.html', './challenge.html', './assets/challenge.js',
+  './graph3d.html', './card.html', './challenge.html', './ask.html', './assets/challenge.js', './assets/qa-engine.js', './assets/booksearch.js', './assets/layers.js',
   './data/graph3d.js',
   './offline.html', './404.html', './privacy.html', './licenses.html',
   './assets/style.css', './assets/extra.css', './assets/graph-hub.css', './assets/cite.js', './assets/app.js',
-  './assets/overlay.js', './assets/editor.js', './assets/graph-edit.js', './assets/sharecard.js', './assets/books.js', './data/overrides.js',
+  './assets/overlay.js', './assets/editor.js', './assets/graph-edit.js', './assets/sharecard.js', './assets/books.js', './assets/fulltext.js', './assets/speech.js', './assets/exportdata.js', './data/overrides.js',
   './assets/vendor/qrcode.min.js',
-  './data/avatars.js', './data/config.js', './data/libraries.js', './data/graph.js', './data/graph-wenge.js', './data/graph-world.js', './data/graph-geo.js', './data/geo-china.js', './data/geo-world.js', './feed.xml', './feed.xsl',
-  './data/resources.js', './data/intro-short.js', './data/content.js', './data/mentors.js', './data/album.js', './data/channel.js', './data/knowledge.js',
-  './manifest.webmanifest', './favicon.svg', './avatar.svg',
+  './data/avatars.js', './data/config.js', './data/libraries.js', './data/graph.js', './data/concepts.js', './data/graph-wenge.js', './data/graph-world.js', './data/graph-geo.js', './data/geo-china.js', './data/geo-world.js',
+  './data/resources.js', './data/py.js', './data/intro-short.js', './data/content.js', './data/mentors.js', './data/album.js', './data/channel.js', './data/knowledge.js', './data/answers.js', './data/glossary.js', './data/guides.js',
+  './assets/diag.js', './assets/crash.js', './assets/custom.js', './assets/reading.js', './assets/paths.js', './assets/backup.js', './assets/mine.js', './assets/study.js', './manifest.webmanifest', './favicon.svg', './avatar.svg',
   './icons/icon-192.png', './icons/icon-512.png',
   './icons/icon-192-maskable.png', './icons/icon-512-maskable.png'
 ];
@@ -78,7 +78,10 @@ self.addEventListener('fetch', e => {
   /* 2) 图片 / 字体：缓存优先 */
   if (IMG_RE.test(url.pathname)) {
     e.respondWith(
-      caches.match(req).then(hit => hit || fetch(req).then(res => { put(RUNTIME, req, res.clone()); return res; }))
+      /* ignoreSearch：HTML 里的资源引用带 ?v=<构建号>，而预缓存里是不带版本串的同一文件，
+         忽略查询串才能命中，否则每次都得重新读一遍 */
+      caches.match(req, { ignoreSearch: true })
+        .then(hit => hit || fetch(req).then(res => { put(RUNTIME, req, res.clone()); return res; }))
     );
     return;
   }
@@ -86,7 +89,7 @@ self.addEventListener('fetch', e => {
   /* 3) CSS / JS / 数据：先给缓存、后台更新（stale-while-revalidate） */
   if (ASSET_RE.test(url.pathname)) {
     e.respondWith(
-      caches.match(req).then(hit => {
+      caches.match(req, { ignoreSearch: true }).then(hit => {
         const net = fetch(req).then(res => { put(RUNTIME, req, res.clone()); return res; }).catch(() => hit);
         return hit || net;
       })

@@ -18,6 +18,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
@@ -49,7 +51,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -66,7 +70,11 @@ public class MainActivity extends Activity {
 
     private static final String ASSET_HOST = "appassets.androidplatform.net";
     private static final String ASSET_BASE = "https://" + ASSET_HOST + "/";
-    private static final int BAR_COLOR = 0xFF2B0505;   // 与 @color/bg 一致
+    /* 与 @color/bg 一致：站点深色主题的实际主背景色（style.css 的 linear-gradient
+       160deg #4a0808 → #2b0505 → #170303，manifest theme_color 也是 #2b0505）。
+       App 启动时 WebView 还没画出第一帧，露出的就是这一层，必须与站点同色。 */
+    private static final int BAR_COLOR = 0xFF2B0505;
+    private android.widget.FrameLayout root;           // 承载 WebView 的同色容器
 
     private WebView web;
     /* 主框架最近一次真实导航地址：用于来源判定，避免个别 ROM 上 web.getUrl() 取不到值导致误判 */
@@ -80,6 +88,30 @@ public class MainActivity extends Activity {
     private static final int REQ_FILE = 1001;
     private static final int REQ_TREE = 1002;   /* 选择「导出文件夹」（SAF，零权限） */
     private static final int REQ_PERM = 1003;   /* 申请存储权限（直写系统「下载」目录） */
+
+    /* ---------------- 离线朗读（系统 TTS，全部本机）----------------
+       要点（都是踩过的坑）：
+         · TextToSpeech 必须在「主线程」new，初始化回调也在主线程触发；
+         · 初始化是异步的：先在回调里把结论写进 ttsInited / ttsReady / ttsReason，
+           网页轮询 ttsStatus() 拿结论，不能同步等；
+         · 单次朗读上限约 4000 字符（TextToSpeech.getMaxSpeechInputLength()），
+           长文必须自己切段，用 UtteranceProgressListener 一段读完再喂下一段，
+           否则引擎会截断或直接报错；
+         · 只用本机引擎：不联网、不下载语音包、不申请任何权限；
+         · 页面销毁必须 shutdown()，否则引擎连接泄漏、退出后还会继续出声。 */
+    private TextToSpeech tts = null;                // 只在主线程创建/使用
+    private volatile boolean ttsStarting = false;   // 已派发过一次创建（防桥线程重复 new）
+    private volatile boolean ttsInited = false;     // 初始化回调已返回（不论成败）
+    private volatile boolean ttsReady = false;      // 引擎可用且中文语种就绪
+    private volatile String ttsEngine = "";         // 实际使用的引擎包名
+    private volatile String ttsReason = "";         // 不可用时的原因（给诊断报告 / 提示）
+    private volatile boolean ttsBusy = false;       // 正在朗读
+    private volatile boolean ttsStopped = true;     // 用户已停止：队列不再续读
+    private volatile float ttsRate = 1.0f;          // 语速 0.5 ~ 2.0
+    private final List<String> ttsSegs = new ArrayList<String>();   // 当前朗读的段落队列
+    private int ttsSegIdx = 0;                      // 已投喂到第几段
+    private volatile int ttsEngineCount = -1;       // 系统里的引擎个数（-1 = 没查过）
+    private volatile boolean pageLoaded = false;    // 主页面是否已 onPageFinished（用于补记启动成功）
 
     private static final Map<String, String> MIME = new HashMap<String, String>();
     static {
@@ -98,12 +130,22 @@ public class MainActivity extends Activity {
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         setupWindow();
+        /* 启动自检：上次启动若没跑完心跳，说明上一轮异常退出 → 计数，连续两次失败进安全模式 */
+        try { DiagStore.bootStart(this); } catch (Throwable ignored) {}
 
 
+        /* WebView 不能直接 setContentView：edge-to-edge 下导航栏/状态栏区域是
+           “窗口”透出来的部分，WebView 透明时那块会露出系统默认白底（用户看到的
+           “设置下面是白色”）。包一层同色容器，padding 区就与页面同色。 */
+        root = new android.widget.FrameLayout(this);
+        root.setBackgroundColor(BAR_COLOR);
         web = new WebView(this);
-        web.setBackgroundColor(Color.TRANSPARENT);
+        web.setBackgroundColor(BAR_COLOR);
         web.setContentDescription("学通");
-        setContentView(web);
+        root.addView(web, new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+        setContentView(root);
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -158,11 +200,15 @@ public class MainActivity extends Activity {
             }
             @Override public boolean onRenderProcessGone(WebView v, RenderProcessGoneDetail d) {
                 /* WebView 渲染进程崩溃：返回 true 表示已处理，避免系统连带杀掉整个 App；重建 Activity 优雅恢复 */
+                /* 渲染进程崩溃不会走 Java 的未捕获异常处理器，必须在这里自己落盘 */
+                try { DiagStore.writeRenderCrash(MainActivity.this, d == null ? "渲染进程异常终止" : ("didCrash=" + d.didCrash())); } catch (Throwable ignored) {}
                 try { toast("页面渲染进程已重启，正在重新加载…"); } catch (Throwable t) {}
                 if (!isFinishing()) { try { recreate(); } catch (Throwable t) {} }
                 return true;
             }
             @Override public void onPageFinished(WebView v, String url) {
+                pageLoaded = true;   /* 页面真的画出来了：退到后台时可以据此补记「本轮启动成功」 */
+                try { DiagStore.bread(MainActivity.this, "打开页面 " + shortUrl(url)); } catch (Throwable ignored) {}
                 if (pendingPwd != null) { String _p = pendingPwd; pendingPwd = null; autofillPwd(v, _p); }
             }
         });
@@ -316,6 +362,20 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 23) getWindow().getDecorView().setSystemUiVisibility(0);
     }
 
+    /** 按背景亮度决定系统栏图标是深色还是浅色（深底配白图标，浅底配黑图标） */
+    private void applyBarIconTone(int c) {
+        if (Build.VERSION.SDK_INT < 26) return;
+        try {
+            int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+            boolean lightBg = (0.299 * r + 0.587 * g + 0.114 * b) > 160;
+            View dv = getWindow().getDecorView();
+            int f = dv.getSystemUiVisibility();
+            if (lightBg) f |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            else f &= ~(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+            dv.setSystemUiVisibility(f);
+        } catch (Throwable ignored) {}
+    }
+
     private void applyInsets() {
         if (Build.VERSION.SDK_INT < 30) return;
         web.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
@@ -333,6 +393,9 @@ public class MainActivity extends Activity {
     }
 
     /* ---------------- 返回处理（预测性返回） ---------------- */
+    /* 最近一次返回键的处理结果：给网页侧「返回键自检」用，
+       用户按一次返回就能看到到底是应用内层级接住了、还是退到了历史/退出。 */
+    private static volatile String lastBackInfo = "(尚未按过返回键)";
     private void registerPredictiveBack() {
         if (Build.VERSION.SDK_INT >= 33) Api33.registerBack(this);
     }
@@ -347,7 +410,15 @@ public class MainActivity extends Activity {
             "(function(){try{return (window.__appBack&&window.__appBack())?1:0;}catch(e){return 0;}})()",
             new ValueCallback<String>() {
                 @Override public void onReceiveValue(String val) {
-                    if ("1".equals(val)) return;
+                    /* evaluateJavascript 的回调值是 JSON 编码的：数字 1 → "1"，布尔 true → "true"，
+                       字符串 → 带引号。原来只认 "1"，一旦站点返回 true 就会被误判成「没处理」而退历史。 */
+                    String v = val == null ? "" : val.replace("\"", "").trim();
+                    boolean handled = "1".equals(v) || "true".equalsIgnoreCase(v);
+                    /* 落一条面包屑：用户导出诊断报告就能看到每次返回到底走没走应用内层级 */
+                    lastBackInfo = "页面处理=" + (handled ? "是" : "否") + " 原始=" + val
+                        + (handled ? " → 由应用内层级接管" : (web.canGoBack() ? " → 退浏览器历史" : " → 退出应用"));
+                    try { DiagStore.bread(MainActivity.this, "返回键: " + lastBackInfo); } catch (Throwable ignored) {}
+                    if (handled) return;
                     if (web.canGoBack()) web.goBack(); else finish();
                 }
             });
@@ -367,18 +438,37 @@ public class MainActivity extends Activity {
         if (scheme == null) return null;
         scheme = scheme.toLowerCase(Locale.US);
         if (scheme.equals("data") || scheme.equals("blob") || scheme.equals("about")) return null;
-        if (ASSET_HOST.equalsIgnoreCase(u.getHost())) return assetResponse(u.getPath());
+        if (ASSET_HOST.equalsIgnoreCase(u.getHost())) return assetResponse(u);
         return blocked();
     }
 
-    private Map<String, String> respHeaders(String mime) {
+    private Map<String, String> respHeaders(String mime) { return respHeaders(mime, null); }
+
+    /**
+     * 缓存策略（0.17.22 起）：
+     *   · HTML 一律 no-store —— 它永远从这里拿最新的，是「升级后必须立即可见」的那一层；
+     *   · 带 ?v=<当前 versionCode> 的脚本/样式/数据 → 一年长缓存 + immutable。
+     *     因为版本号参与 URL，换版本就是换 URL，旧缓存永远不会被复用；
+     *     同时 WebView 才会为这些脚本生成 V8 编译缓存（no-store 时会禁用），
+     *     第二次打开页面可以跳过重新编译，这是「点进页面卡一下」的主要开销。
+     *   · 不带版本串（或版本串不匹配）→ no-cache，保守回退，不会跑旧代码。
+     */
+    private Map<String, String> respHeaders(String mime, Uri u) {
         Map<String, String> h = new HashMap<String, String>();
         h.put("X-Content-Type-Options", "nosniff");
         h.put("Referrer-Policy", "no-referrer");
-        /* 本地资产一律不走 WebView 的 HTTP 缓存：否则升级 APK 后，页面仍可能是上一版的缓存副本 */
-        h.put("Cache-Control", "no-store, must-revalidate");
-        h.put("Pragma", "no-cache");
-        if (mime != null && mime.startsWith("text/html")) h.put("Content-Security-Policy", CSP);
+        boolean isHtml = (mime != null && mime.startsWith("text/html"));
+        String ver = null;
+        try { ver = (u == null) ? null : u.getQueryParameter("v"); } catch (Throwable ignored) {}
+        if (isHtml || u == null) {
+            h.put("Cache-Control", "no-store, must-revalidate");
+            h.put("Pragma", "no-cache");
+        } else if (ver != null && ver.equals(String.valueOf(appVersionCode()))) {
+            h.put("Cache-Control", "public, max-age=31536000, immutable");
+        } else {
+            h.put("Cache-Control", "no-cache, must-revalidate");
+        }
+        if (isHtml) h.put("Content-Security-Policy", CSP);
         return h;
     }
 
@@ -392,8 +482,9 @@ public class MainActivity extends Activity {
                 respHeaders("text/plain"), new ByteArrayInputStream(new byte[0]));
     }
 
-    private WebResourceResponse assetResponse(String path) {
+    private WebResourceResponse assetResponse(Uri u) {
         try {
+            String path = u.getPath();
             String p = (path == null || path.equals("/")) ? "index.html" : path.substring(1);
             /* 路径加固：拒绝穿越 / 反斜杠 / 空字节 / 绝对路径 / 冒号 */
             if (p.isEmpty() || p.indexOf("..") >= 0 || p.indexOf('\\') >= 0 || p.indexOf('\0') >= 0
@@ -406,7 +497,7 @@ public class MainActivity extends Activity {
 
             /* 内置 assets（全部内容随 APK 分发） */
             InputStream in = getAssets().open("site/" + p);
-            return new WebResourceResponse(mime, enc, 200, "OK", respHeaders(mime), in);
+            return new WebResourceResponse(mime, enc, 200, "OK", respHeaders(mime, u), in);
         } catch (Exception e) {
             return notFound();
         }
@@ -489,9 +580,31 @@ public class MainActivity extends Activity {
         super.onActivityResult(req, res, data);
     }
 
+    @Override protected void onPause() {
+        /* 退到后台时把面包屑落盘：进程若被系统直接杀掉，内存里的记录还在 */
+        try { DiagStore.flushBread(this); } catch (Throwable ignored) {}
+        /* 页面已经画出来了才退到后台 → 这轮其实启动成功。
+           否则「用几秒就退出」会被当成启动失败，累计几次就误进安全模式。 */
+        if (pageLoaded) { try { DiagStore.bootOk(this); } catch (Throwable ignored) {} }
+        super.onPause();
+    }
+
     @Override protected void onDestroy() {
+        /* 朗读引擎必须先关：否则退出后还会继续出声，引擎连接也会泄漏 */
+        try { ttsRelease(); } catch (Throwable ignored) {}
         try { if (web != null) { web.stopLoading(); web.destroy(); } } catch (Exception e) {}
         super.onDestroy();
+    }
+
+    /** 面包屑里只保留页面名，避免日志里塞满长 URL */
+    private static String shortUrl(String u) {
+        try {
+            if (u == null) return "?";
+            int i = u.indexOf("appassets.androidplatform.net/");
+            String s = (i >= 0) ? u.substring(i + "appassets.androidplatform.net/".length()) : u;
+            if (s.length() > 70) s = s.substring(0, 70);
+            return s;
+        } catch (Throwable t) { return "?"; }
     }
 
     private String appVersionName() { try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception e) { return ""; } }
@@ -738,6 +851,272 @@ public class MainActivity extends Activity {
         } catch (Throwable t) { return null; }
     }
 
+    /* =================== 离线朗读（TTS）===================
+       全部方法都在主线程执行（桥线程 / 引擎回调线程都往主线程 post），
+       避免同一个 TextToSpeech 实例被多线程同时使用。 */
+
+    /** 桥线程调用：把「创建引擎」派发到主线程。已经有实例 / 已在创建就不再重复派发。 */
+    private void ttsEnsure() {
+        if (tts != null || ttsStarting) return;
+        ttsStarting = true;
+        runOnUiThread(new Runnable() {
+            public void run() {
+                try { ttsCreate(); } catch (Throwable t) { ttsStarting = false; ttsInited = true; ttsReady = false; ttsReason = "创建语音引擎失败：" + _tmsg(t); }
+            }
+        });
+    }
+
+    /** 主线程：真正 new 一个 TextToSpeech，并把初始化结果记到字段里。 */
+    private void ttsCreate() {
+        if (tts != null) { ttsStarting = false; return; }
+        tts = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+            @Override public void onInit(int status) {
+                ttsStarting = false;
+                ttsInited = true;
+                if (status != TextToSpeech.SUCCESS) {
+                    ttsReady = false;
+                    ttsReason = "系统语音引擎初始化失败（status=" + status + "）";
+                    ttsBusy = false;
+                    ttsSegs.clear();
+                    ttsSegIdx = 0;
+                    return;
+                }
+                try { String e = tts.getDefaultEngine(); if (e != null) ttsEngine = e; } catch (Throwable ignored) {}
+                int lang = ttsSetChinese();
+                if (lang == TextToSpeech.LANG_MISSING_DATA) {
+                    ttsReady = false;
+                    ttsReason = "引擎缺少中文语音数据（手机设置 → 无障碍/语音合成 → 安装中文语音包）";
+                } else if (lang == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    ttsReady = false;
+                    ttsReason = "引擎不支持中文（请安装/启用中文语音引擎）";
+                } else if (lang < 0) {
+                    ttsReady = false;
+                    ttsReason = "设置中文语种失败（code=" + lang + "）";
+                } else {
+                    ttsReady = true;
+                    ttsReason = "";
+                }
+                try { tts.setOnUtteranceProgressListener(ttsListener()); } catch (Throwable ignored) {}
+                /* 初始化前用户就按了朗读：这里补上（异步初始化的关键一步） */
+                if (ttsBusy && !ttsStopped) {
+                    if (ttsReady) { ttsPump(); }
+                    else { ttsBusy = false; toast("本机没有可用的中文语音引擎，请到系统设置安装"); }
+                }
+            }
+        });
+    }
+
+    /** 依次尝试 简体中文 → 中国 → 中文；返回 TextToSpeech 语种状态码（<0 表示不可用）。 */
+    private int ttsSetChinese() {
+        int r = TextToSpeech.LANG_NOT_SUPPORTED;
+        if (tts == null) return TextToSpeech.ERROR;
+        try {
+            r = tts.setLanguage(Locale.SIMPLIFIED_CHINESE);
+            if (r < 0) { int r2 = tts.setLanguage(Locale.CHINA); if (r2 >= 0) r = r2; }
+            if (r < 0) { int r3 = tts.setLanguage(Locale.CHINESE); if (r3 >= 0) r = r3; }
+        } catch (Throwable t) { r = TextToSpeech.ERROR; }
+        return r;
+    }
+
+    /** 分段队列的推进器：一段读完（onDone / onError）再喂下一段，避免引擎截断或拒收长文。 */
+    private UtteranceProgressListener ttsListener() {
+        return new UtteranceProgressListener() {
+            @Override public void onStart(String id) {}
+            @Override public void onDone(String id) { ttsNext(); }
+            @Override public void onError(String id) { ttsNext(); }
+            @Override public void onStop(String id, boolean interrupted) {}
+        };
+    }
+
+    /** 引擎回调线程 → 主线程 */
+    private void ttsNext() {
+        runOnUiThread(new Runnable() { public void run() { ttsPump(); } });
+    }
+
+    /** 主线程：喂下一段。队列空了就把 busy 复位（网页据此把按钮变回「朗读」）。 */
+    private void ttsPump() {
+        if (tts == null || ttsStopped || !ttsReady) { ttsBusy = false; return; }
+        if (ttsSegIdx >= ttsSegs.size()) {
+            ttsBusy = false;
+            ttsSegs.clear();
+            ttsSegIdx = 0;
+            return;
+        }
+        String seg = ttsSegs.get(ttsSegIdx);
+        ttsSegIdx++;
+        try {
+            tts.setSpeechRate(ttsRate);
+            String uid = "yztts-" + ttsSegIdx;
+            int rc = tts.speak(seg, TextToSpeech.QUEUE_FLUSH, null, uid);
+            if (rc == TextToSpeech.ERROR) {
+                ttsReason = "引擎拒绝朗读（第 " + ttsSegIdx + " 段）";
+                ttsBusy = false;
+                ttsSegs.clear();
+                ttsSegIdx = 0;
+                toast("朗读失败：语音引擎拒绝了这段文字");
+            }
+        } catch (Throwable t) {
+            ttsReason = "朗读异常：" + _tmsg(t);
+            ttsBusy = false;
+            ttsSegs.clear();
+            ttsSegIdx = 0;
+            toast("朗读失败：" + _tmsg(t));
+        }
+    }
+
+    /** 主线程：开始朗读一批已经切好的段落。 */
+    private void ttsStart(List<String> segs, float rate) {
+        ttsEnsure();
+        ttsRate = rate;
+        ttsStopped = false;
+        ttsSegs.clear();
+        ttsSegs.addAll(segs);
+        ttsSegIdx = 0;
+        ttsBusy = true;
+        if (tts == null) {          // 还在建（异步）→ 初始化回调里会接着读
+            ttsInited = false;
+            return;
+        }
+        if (ttsInited && !ttsReady) {
+            ttsBusy = false;
+            ttsSegs.clear();
+            ttsSegIdx = 0;
+            toast("本机没有可用的中文语音引擎，请到系统设置安装");
+            return;
+        }
+        if (!ttsInited || !ttsReady) return;   // 等 onInit 回调
+        try { tts.stop(); } catch (Throwable ignored) {}
+        ttsPump();
+    }
+
+    /** 主线程：停止并清队列（可重复调用）。 */
+    private void ttsStopNow() {
+        ttsStopped = true;
+        ttsBusy = false;
+        ttsSegs.clear();
+        ttsSegIdx = 0;
+        if (tts != null) { try { tts.stop(); } catch (Throwable ignored) {} }
+    }
+
+    /** 主线程：销毁引擎（onDestroy 必调，否则连接泄漏、退出后还会出声）。 */
+    private void ttsRelease() {
+        ttsStopped = true;
+        ttsBusy = false;
+        ttsSegs.clear();
+        ttsSegIdx = 0;
+        if (tts != null) {
+            try { tts.stop(); } catch (Throwable ignored) {}
+            try { tts.shutdown(); } catch (Throwable ignored) {}
+            tts = null;
+        }
+        ttsStarting = false;
+        ttsReady = false;
+        ttsInited = false;
+    }
+
+    /** 单段上限：官方上限（一般 4000）再留 200 字符余量，个别引擎贴近上限会报错。 */
+    private static int ttsMaxLen() {
+        int max = 4000;
+        try {
+            int m = TextToSpeech.getMaxSpeechInputLength();
+            if (m > 400) max = m;
+        } catch (Throwable ignored) {}
+        return max - 200;
+    }
+
+    /** 长文切段：优先在句末 / 换行处切（回看最后 1/4 段长），找不到就硬切。 */
+    private static List<String> ttsSplit(String text) {
+        List<String> out = new ArrayList<String>();
+        String t = (text == null) ? "" : text.replace("\r\n", "\n").replace('\r', '\n');
+        int max = ttsMaxLen();
+        int i = 0, n = t.length();
+        while (i < n) {
+            int end = Math.min(n, i + max);
+            if (end < n) {
+                int floor = Math.max(i + 1, end - Math.max(80, max / 4));
+                int cut = -1;
+                for (int p = end - 1; p >= floor; p--) {
+                    char ch = t.charAt(p);
+                    if (ch == '\n' || ch == '。' || ch == '！' || ch == '？' || ch == '；'
+                            || ch == '…' || ch == '!' || ch == '?' || ch == ';') { cut = p + 1; break; }
+                }
+                if (cut > i) end = cut;
+            }
+            String seg = t.substring(i, end).trim();
+            if (seg.length() > 0) out.add(seg);
+            i = end;
+        }
+        return out;
+    }
+
+    /** 语速解析：空 / 非法 → 1.0；超出 0.5~2.0 夹紧。 */
+    private static float ttsParseRate(String s) {
+        float r = 1.0f;
+        try {
+            if (s != null && s.trim().length() > 0) r = Float.parseFloat(s.trim());
+        } catch (Throwable ignored) { r = 1.0f; }
+        if (Float.isNaN(r) || Float.isInfinite(r) || r <= 0f) r = 1.0f;
+        if (r < 0.5f) r = 0.5f;
+        if (r > 2.0f) r = 2.0f;
+        return r;
+    }
+
+    /** 系统里注册的 TTS 引擎个数（只做诊断用；Android 11+ 包可见性受限时可能为 0，
+        所以「能不能读」一律以初始化回调的结论为准，不以这个数字为准）。 */
+    private int ttsEngineCount() {
+        if (ttsEngineCount >= 0) return ttsEngineCount;
+        int n = 0;
+        try {
+            if (tts != null) {
+                List<TextToSpeech.EngineInfo> es = tts.getEngines();
+                if (es != null) n = es.size();
+            }
+        } catch (Throwable ignored) {}
+        ttsEngineCount = n;
+        return n;
+    }
+
+    /** 状态 JSON（手写拼接，避免多引一层 org.json）：网页据此决定是否显示朗读按钮 / 给什么提示。 */
+    private String ttsStatusJson() {
+        StringBuilder sb = new StringBuilder(220);
+        sb.append("{\"ok\":").append(ttsReady ? "true" : "false");
+        sb.append(",\"lang\":\"zh-CN\"");
+        sb.append(",\"engine\":\"").append(_tjson(ttsEngine)).append('"');
+        sb.append(",\"reason\":\"").append(_tjson(ttsReason)).append('"');
+        sb.append(",\"inited\":").append(ttsInited ? "true" : "false");
+        sb.append(",\"busy\":").append(ttsBusy ? "true" : "false");
+        sb.append(",\"rate\":").append(String.format(Locale.US, "%.2f", Float.valueOf(ttsRate)));
+        sb.append(",\"engineCount\":").append(ttsEngineCount());
+        sb.append('}');
+        return sb.toString();
+    }
+
+    /** JSON 字符串转义（与 DiagStore.esc 同一套规则） */
+    private static String _tjson(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder(s.length() + 16);
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            switch (ch) {
+                case '"': sb.append("\\\""); break;
+                case '\\': sb.append("\\\\"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default:
+                    if (ch < 0x20) sb.append(' ');
+                    else sb.append(ch);
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String _tmsg(Throwable t) {
+        if (t == null) return "未知错误";
+        String m = t.getMessage();
+        return (m == null || m.length() == 0) ? t.getClass().getSimpleName() : m;
+    }
+
     /* ---------------- JS 桥 ---------------- */
     public class Bridge {
         /** 仅在「内置站点」页面内允许使用桥；用户导入的 /sites/ 第三方页面一律屏蔽（防任意页面调用本机能力）。 */
@@ -769,6 +1148,38 @@ public class MainActivity extends Activity {
             } catch (Throwable ignored) {}
             return (lastMainUrl == null) ? "(未知)" : lastMainUrl;
         }
+        /* ---------------- 诊断与日志（崩溃落盘 / 面包屑 / 安全模式） ---------------- */
+        /** 启动横幅摘要：最近一次崩溃、启动失败次数、是否安全模式 */
+        @JavascriptInterface public String crashPending() {
+            try { return DiagStore.pendingSummary(MainActivity.this); } catch (Throwable t) { return "{}"; }
+        }
+        /** 全量诊断 JSON（崩溃报告 + 面包屑 + 状态）：由网页导出成 .txt/.json */
+        @JavascriptInterface public String diagRead() {
+            try { return DiagStore.readAll(MainActivity.this); } catch (Throwable t) { return "{}"; }
+        }
+        @JavascriptInterface public void diagClear() { try { DiagStore.clear(MainActivity.this); } catch (Throwable ignored) {} }
+        @JavascriptInterface public void diagSeen() { try { DiagStore.markSeen(MainActivity.this); } catch (Throwable ignored) {} }
+        /** 面包屑：网页每点一下报一条，崩溃报告里会带上最近 60 条 */
+        @JavascriptInterface public void bread(final String s) {
+            try { DiagStore.bread(MainActivity.this, s); } catch (Throwable ignored) {}
+        }
+        @JavascriptInterface public void bootOk() { try { DiagStore.bootOk(MainActivity.this); } catch (Throwable ignored) {} }
+        @JavascriptInterface public boolean safeMode() { try { return DiagStore.safeMode(MainActivity.this); } catch (Throwable t) { return false; } }
+        @JavascriptInterface public void exitSafeMode() { try { DiagStore.exitSafeMode(MainActivity.this); } catch (Throwable ignored) {} }
+        /**
+         * 诊断自测：在「设置 → 诊断与日志」长按触发，制造一次真正的 Java 未捕获异常。
+         * 必须在独立线程抛（桥线程抛异常会被 WebView 吞掉，测不出落盘链路）。
+         * 触发后 App 会退出，重新打开应看到「上次异常退出」提示条 —— 这就是链路的验收标准。
+         */
+        @JavascriptInterface public void diagCrashTest() {
+            try { DiagStore.bread(MainActivity.this, "诊断自测：主动触发崩溃"); DiagStore.flushBread(MainActivity.this); } catch (Throwable ignored) {}
+            new Thread(new Runnable() {
+                @Override public void run() {
+                    throw new RuntimeException("学通诊断自测：这是用户主动触发的测试崩溃，可安全忽略");
+                }
+            }, "diag-selftest").start();
+        }
+
         @JavascriptInterface public String platform() { return "android"; }
         @JavascriptInterface public boolean systemDark() {
             try {
@@ -779,6 +1190,8 @@ public class MainActivity extends Activity {
         @JavascriptInterface public String versionName() { return appVersionName(); }
         @JavascriptInterface public String getVersionName() { return appVersionName(); }
         @JavascriptInterface public int versionCode() { return appVersionCode(); }
+        /** 返回键自检：最近一次按返回键实际发生了什么 */
+        @JavascriptInterface public String backProbe() { return lastBackInfo; }
         /* 内核/环境诊断：便于把线上问题一次性定位到“是不是 WebView 版本问题” */
         @JavascriptInterface public String webviewVersion() {
             try {
@@ -992,6 +1405,61 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface public void toast(String s) { MainActivity.this.toast(s); }
+
+        /* 网页切换深浅色时调用，让状态栏/导航栏/容器背景跟着变，
+           否则系统栏区域会一直是启动时的颜色（深色页面配深红条、浅色页面更突兀）。 */
+        @JavascriptInterface public void setBarColor(final String hex) {
+            MainActivity.this.runOnUiThread(new Runnable() { public void run() {
+                try {
+                    int c = Color.parseColor(hex);
+                    if (root != null) root.setBackgroundColor(c);
+                    if (web != null) web.setBackgroundColor(c);
+                    applyBarIconTone(c);
+                } catch (Throwable ignored) {}
+            }});
+        }
+
+        /* ---------------- 离线朗读（系统 TTS）----------------
+           网页：assets/speech.js。全部本机、无权限、无网络。 */
+
+        /** 引擎状态：{"ok":true/false,"lang":"zh-CN","engine":"包名","reason":"…","inited":…,"busy":…}。
+            初始化是异步的：首次调用会顺手开始初始化并返回 inited=false，轮询几次即可拿到结论。 */
+        @JavascriptInterface public String ttsStatus() {
+            ttsEnsure();
+            return ttsStatusJson();
+        }
+
+        /** 朗读。rate 为 float 字符串（0.5~2.0，空/非法按 1.0）。长文在原生侧再切段排队。
+            返回 {"ok":true,"seg":N} 表示已受理（异步播放），{"ok":false,"reason":"…"} 表示拒绝。 */
+        @JavascriptInterface public String ttsSpeak(final String text, final String rate) {
+            try {
+                final List<String> segs = ttsSplit(text);
+                if (segs.isEmpty()) return "{\"ok\":false,\"reason\":\"没有可朗读的文字\"}";
+                final float r = ttsParseRate(rate);
+                final String back = "{\"ok\":true,\"seg\":" + segs.size() + "}";
+                ttsEnsure();
+                runOnUiThread(new Runnable() {
+                    public void run() { ttsStart(segs, r); }
+                });
+                return back;
+            } catch (Throwable t) {
+                return "{\"ok\":false,\"reason\":\"" + _tjson(_tmsg(t)) + "\"}";
+            }
+        }
+
+        /** 停止并清空队列（可重复调用）。 */
+        @JavascriptInterface public void ttsStop() {
+            try {
+                runOnUiThread(new Runnable() { public void run() { ttsStopNow(); } });
+            } catch (Throwable ignored) {}
+        }
+
+        /** 是否还在朗读：网页据此把按钮从「停止」复位回「朗读」。
+            （TextToSpeech 没有「整段读完了」的回调出口，轮询这个最可靠） */
+        @JavascriptInterface public boolean ttsBusy() { return ttsBusy; }
+
+        /** 当前语速（只读，用于诊断）；设置语速请直接传 ttsSpeak 的第二个参数。 */
+        @JavascriptInterface public String ttsRate() { return String.format(Locale.US, "%.2f", Float.valueOf(ttsRate)); }
     }
 
     /* ---------------- 版本分支隔离（避免旧系统类校验问题） ---------------- */

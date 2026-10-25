@@ -72,7 +72,7 @@ ul.timeline li b { color:var(--text); font-weight:normal; margin-right:8px; }
 .changelog li b { display:inline-block; min-width:78px; }
 
 /* ---------- 外链确认弹窗 ---------- */
-.leave { position:fixed; inset:0; z-index:90; display:none; align-items:center; justify-content:center;
+.leave { position:fixed; top:0;left:0;right:0;bottom:0; z-index:90; display:none; align-items:center; justify-content:center;
   background:rgba(0,0,0,.6); padding:20px; }
 .leave.open { display:flex; }
 .leave-card { width:min(400px,100%); max-height:88vh; overflow-y:auto; border-radius:16px; padding:22px; line-height:1.9; font-size:0.83rem;
@@ -87,7 +87,7 @@ body.light .leave-card { background:linear-gradient(160deg,#fff8f3,#f3e3d8); box
 .leave-note { font-size:0.7rem; opacity:.6; margin-top:10px; }
 
 /* ---------- 底部标签栏（仅移动端显示） ---------- */
-.tabbar { position:fixed; left:0; right:0; bottom:0; z-index:45; display:none;
+.tabbar { position:fixed; left:0; right:0; bottom:0; z-index:55; display:none;
   /* 与主页共用同一套背景：原来用半透明深色 rgba(28,3,3,.86)，深色主题下会缩成一块「黑色」，
      与正文不符（用户反馈）。改用 inherit + fixed 附着，让底栏和它上方的内容严格同色。 */
   background:inherit; background-attachment:fixed;
@@ -222,11 +222,7 @@ body { line-height:var(--lh); }
 .toolbar, .res-top, .filterbox, .group, nav.nav { max-width:var(--maxw); }
 
 /* ---------- 每日一句（首页；无边框、无底色，与背景齐平） ---------- */
-.daily { max-width:var(--maxw); margin:12px auto 2px; padding:4px 2px; font-size:.8rem; line-height:1.85; text-align:left;
   border:0; background:transparent; cursor:pointer; opacity:.92; touch-action:manipulation; -webkit-text-size-adjust:100%; text-size-adjust:100%; }
-.daily:hover { background:transparent; opacity:1; }
-.daily b { color:var(--text); font-weight:normal; }
-.daily:empty { display:none; }
 
 /* ---------- 本页目录锚点 ---------- */
 .toc { margin:6px 0 8px; padding:9px 12px; border:1px dashed var(--card-border); border-radius:10px; font-size:.72rem; line-height:2; }
@@ -292,7 +288,7 @@ body.light .qtop {
 .qtop .qplus { width:34px; height:34px; border-radius:50%; flex:none; cursor:pointer; border:1px solid var(--card-border);
   background:rgba(255,255,255,.06); color:var(--text); font-size:20px; line-height:1; display:flex; align-items:center; justify-content:center; }
 .qtop .qplus:hover { border-color:var(--text); }
-.qpanel-scrim { position:fixed; inset:0; z-index:67; background:rgba(0,0,0,.28); }
+.qpanel-scrim { position:fixed; top:0;left:0;right:0;bottom:0; z-index:67; background:rgba(0,0,0,.28); }
 .qpanel { position:fixed; top:calc(54px + env(safe-area-inset-top, 0px)); right:10px; z-index:68; min-width:180px; max-height:74vh; overflow-y:auto;
   background:var(--card); border:0; border-radius:14px; padding:6px; box-shadow:0 14px 40px rgba(0,0,0,.32); }
 .qpanel .qitem { display:flex; align-items:center; gap:10px; width:100%; padding:11px 12px; border:0; background:transparent;
@@ -347,36 +343,54 @@ body.light .qtop {
 /* 抽屉两种形态：.drawer.page = 整页推进（底栏三栏/子页）；.drawer:not(.page) = 左侧抽屉（个人中心） */
 .drawer { padding-bottom:calc(90px + env(safe-area-inset-bottom, 0px)); }
 .drawer-head { display:none !important; }
-.tabbar { z-index:55; }
 /* 页模式：整页淡入，底栏常驻；上方留出常驻顶栏 */
 .drawer.page { top:calc(50px + env(safe-area-inset-top, 0px)); left:0; right:0; bottom:0; width:100%; border-right:0; z-index:40;
   transform:none; opacity:0; visibility:hidden;
   transition:opacity .16s ease, visibility .16s ease; }
 .drawer.page.open { transform:none; opacity:1; visibility:visible; }
 /* 抽屉模式：从左滑出 */
-.drawer:not(.page){ width:100%; z-index:96; padding:calc(14px + env(safe-area-inset-top, 0px)) 18px calc(18px + env(safe-area-inset-bottom, 0px)); visibility:hidden; transition:transform .25s ease, visibility 0s .25s; }
+/* 个人中心（左侧抽屉）：底部不留白 —— 底栏自己带 safe-area，抽屉再留就会
+   在「设置 / 夜间」下方多出一条不同色的空隙（用户反复反馈的色差来源之一）。
+   自身也不滚动：滚动交给中间的 .pc-list。 */
+.drawer:not(.page){ width:100%; z-index:96; padding:calc(14px + env(safe-area-inset-top, 0px)) 18px 0; overflow:hidden; visibility:hidden; transition:transform .25s ease, visibility 0s .25s; }
 .drawer:not(.page).open{ visibility:visible; transition:transform .25s ease, visibility 0s; }
 .scrim { z-index:65; }
 
 /* ---------- 个人中心（仿 QQ「我的」） ---------- */
-.pc-head { display:flex; align-items:center; gap:14px; padding:10px 4px 16px; border-bottom:1px solid var(--card-border); }
+/* ---------- 个人中心（抽屉）：对齐 QQ「我的」结构 ----------
+   上：用户卡片（独立圆角块）
+   中：功能列表 —— 无分隔线；每行通栏，左右屏幕边界都能点到；行高收紧
+   下：设置 / 夜间 —— 与中间隔开，滑动时固定不动（sticky bottom）
+   抽屉自带 padding:0 18px，用负 margin 抵消才能真的通到屏幕边缘。 */
+.pc-head { display:flex; align-items:center; gap:14px; padding:14px 12px; margin:4px 2px 12px;
+  border:1px solid var(--card-border); border-radius:16px; background:var(--card); }
 .pc-ava { width:58px; height:58px; border-radius:50%; overflow:hidden; flex:none; padding:0; cursor:pointer;
   border:1.5px solid rgba(245,197,24,.5); background:rgba(255,255,255,.06); display:flex; align-items:center; justify-content:center; font-size:1.6rem; }
 .pc-ava img { width:100%; height:100%; object-fit:cover; }
 .pc-meta { flex:1; min-width:0; }
 .pc-name { font-size:1.05rem; font-weight:600; }
 .pc-sign { font-size:.76rem; opacity:.6; margin-top:3px; }
-.pc-list { margin:8px 0 0; }
-.pc-row { display:flex; align-items:center; gap:12px; padding:13px 6px; cursor:pointer; border-bottom:1px solid var(--card-border); }
-.pc-row:hover { background:rgba(255,255,255,.04); }
+.pc-list { flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  margin:2px -18px 0; display:flex; flex-direction:column; }
+.pc-row { display:flex; align-items:center; gap:11px; padding:8px 18px; cursor:pointer;
+  border-bottom:0; border-radius:0; }
+.pc-row:hover, .pc-row:active { background:rgba(127,127,127,.14); }
 .pc-ic { font-size:1.15rem; width:24px; text-align:center; flex:none; }
 .pc-tx { flex:1; min-width:0; display:flex; flex-direction:column; }
 .pc-t { font-size:.92rem; }
 .pc-s { font-size:.72rem; opacity:.55; margin-top:2px; }
 .pc-ar { opacity:.35; }
-#pcView { display:flex; flex-direction:column; min-height:calc(100vh - 44px); }
-.pc-bottom { display:flex; gap:8px; margin-top:auto; padding-top:12px; border-top:1px solid var(--card-border); justify-content:flex-start; }
-.pc-bottom .pc-b { flex:0 0 auto; padding:8px 14px; border-radius:10px; border:1px solid var(--card-border); background:rgba(255,255,255,.05); color:var(--text); font:inherit; font-size:.82rem; cursor:pointer; }
+/* 个人中心三段式：头（固定）＋ 列表（唯一滚动区）＋ 底栏（固定）。
+   底栏背景设为 transparent，直接透出抽屉自身的渐变 —— 不再复制一份渐变去
+   「对齐」，因为 Android WebView 对 background-attachment:fixed 支持不稳，
+   复制出来的渐变会被当成小块铺，颜色永远对不上（用户反复反馈的那块色差）。 */
+#pcView { display:flex; flex-direction:column; height:100%; min-height:0; overflow:hidden; }
+.pc-bottom { display:flex; gap:10px; justify-content:flex-start; flex:none;
+  margin:0 -18px; padding:14px 18px calc(14px + env(safe-area-inset-bottom, 0px));
+  background:transparent;                     /* 透出抽屉渐变，颜色必然一致 */
+  border-top:1px solid var(--card-border); }
+.pc-bottom .pc-b { flex:0 0 auto; padding:9px 16px; border-radius:10px; border:1px solid var(--card-border); background:var(--card); color:var(--text); font:inherit; font-size:.82rem; cursor:pointer; }
+.pc-bottom .pc-b:active { background:var(--ev); }
 /* 相册 */
 .album-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr)); gap:10px; margin:6px 0 16px; }
 .album-item { margin:0; cursor:pointer; }
@@ -405,8 +419,7 @@ body.light .qtop {
 /* ===================== 频道（信息流） ===================== */
 .ch-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:2px 0 4px; }
 .ch-top-t { font-size:.9rem; font-weight:600; }
-.ch-post { border:1px solid var(--card-border); border-radius:12px; padding:12px; margin:10px 0; background:var(--card); }
-.ch-post.ch-crit { border-color:rgba(220,80,60,.5); }
+/* 频道信息流为列表样式，见下方 .ch-post（单处定义） */
 .ch-head { display:flex; gap:10px; align-items:center; }
 .ch-ava { width:36px; height:36px; border-radius:50%; overflow:hidden; flex:none; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.06); border:1px solid var(--card-border); }
 .ch-ava img { width:100%; height:100%; object-fit:cover; }
@@ -419,7 +432,7 @@ body.light .qtop {
 .ch-books { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
 .ch-book { font-size:.7rem; padding:3px 8px; border-radius:8px; border:1px solid var(--card-border); opacity:.9; }
 /* 相册单张查看 */
-.photo-view { position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.92); display:flex; flex-direction:column; }
+.photo-view { position:fixed; top:0;left:0;right:0;bottom:0; z-index:90; background:rgba(0,0,0,.92); display:flex; flex-direction:column; }
 .pv-bar { display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px; color:#fff; }
 .pv-name { flex:1; min-width:0; font-size:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pv-btn { color:#fff; text-decoration:none; border:1px solid rgba(255,255,255,.4); border-radius:8px; padding:5px 10px; font-size:.8rem; background:transparent; cursor:pointer; }
@@ -433,6 +446,8 @@ body.light .qtop {
 
 /* ---------- 频道（QQ 信息流 / 详情 / 评论） ---------- */
 .ch-post { border-bottom:1px solid var(--card-border); padding:11px 2px; cursor:pointer; }
+/* 被批判的发言：用左侧红条标记（列表样式下没有卡片边框可用） */
+.ch-post.ch-crit { border-left:3px solid rgba(220,80,60,.55); padding-left:10px; }
 .ch-post:active { background:rgba(255,255,255,.05); }
 .ch-detail { cursor:default; }
 .ch-foot { display:flex; align-items:center; justify-content:flex-end; gap:20px; margin-top:7px; }
@@ -486,3 +501,97 @@ body.light .qtop {
 .qsearchbar[hidden] { display:none !important; }
 /* 页面滚动后搜索条被内容带走时，给它一点透明度过渡，滚回顶部自然浮现 */
 @media (prefers-reduced-motion: reduce) { .qsearchbar { transition:none; } }
+
+.cc-post { cursor:pointer; }
+.cc-head { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; }
+.cc-ic { font-size:.95rem; }
+.cc-name { font-weight:700; font-size:.98rem; }
+.cc-role { font-size:.72rem; opacity:.62; }
+.cc-desc { margin-top:5px; font-size:.83rem; line-height:1.75; opacity:.86; }
+.cc-foot { margin-top:7px; }
+.cc-foot .ch-book {
+  font-size:.72rem; opacity:.75; border:1px solid var(--card-border);
+  border-radius:6px; padding:1px 6px; display:inline-block;
+}
+.cdetail h3 { margin:6px 0 2px; font-size:1.15rem; }
+.cdetail .prole { font-size:.78rem; opacity:.66; margin-bottom:10px; }
+.cdetail p { font-size:.88rem; line-height:1.85; opacity:.94; }
+
+/* ---------- 频道切换弹层 ---------- */
+.qact2 { margin-right:6px; }
+.chp-scrim { position:fixed; top:0; left:0; right:0; bottom:0; z-index:69; background:rgba(0,0,0,.35);
+  display:flex; align-items:flex-start; justify-content:flex-end; padding:calc(56px + env(safe-area-inset-top, 0px)) 10px 0; }
+.chp-box { width:min(240px,86vw); background:var(--card); border:1px solid var(--card-border);
+  border-radius:14px; padding:8px; box-shadow:0 12px 34px rgba(0,0,0,.4); }
+.chp-t { font-size:.72rem; opacity:.55; padding:4px 8px 8px; }
+.chp-item { display:flex; align-items:center; gap:9px; width:100%; padding:11px 10px; border:0;
+  border-radius:10px; background:transparent; color:var(--text); font:inherit; font-size:.88rem; cursor:pointer; text-align:left; }
+.chp-item > span { font-size:1.05rem; }
+.chp-item i { font-style:normal; margin-left:auto; font-size:.7rem; opacity:.5; }
+.chp-item.on { background:rgba(200,60,40,.12); color:var(--accent); font-weight:700; }
+.chp-item:active { background:var(--ev); }
+
+/* ---------- 书库：链接编辑弹层 ---------- */
+.le-scrim { position:fixed; top:0; left:0; right:0; bottom:0; z-index:120;
+  background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:20px; }
+.le-box { width:min(420px,100%); background:var(--card); border:1px solid var(--card-border);
+  border-radius:16px; padding:16px; box-shadow:0 16px 44px rgba(0,0,0,.45);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+.le-t { font-size:.94rem; font-weight:700; color:var(--accent); margin-bottom:12px; }
+.le-in { width:100%; padding:11px 13px; border-radius:10px; border:1px solid var(--card-border);
+  background:rgba(127,127,127,.12); color:var(--text); font:inherit; font-size:.86rem; outline:none; }
+.le-in:focus { border-color:var(--accent); }
+.le-hint { font-size:.72rem; opacity:.62; line-height:1.7; margin:9px 0 14px; }
+.le-ops { display:flex; gap:9px; flex-wrap:wrap; }
+.le-ops .go { flex:1; }
+.le-ops button { padding:9px 15px; border-radius:9px; border:1px solid var(--card-border);
+  background:transparent; color:var(--text); font:inherit; font-size:.82rem; cursor:pointer; }
+.lk-tag { font-size:.62rem; border:1px solid var(--accent); color:var(--accent);
+  border-radius:5px; padding:0 4px; margin-left:4px; }
+
+/* ---------- 最近搜索 ---------- */
+.rs-box { margin:2px 0 10px; }
+.rs-h { display:flex; align-items:center; justify-content:space-between; font-size:.72rem; opacity:.6; padding:0 2px 6px; }
+.rs-clear { background:none; border:0; color:inherit; font:inherit; font-size:.72rem; cursor:pointer; text-decoration:underline; opacity:.8; }
+.rs-row { display:flex; flex-wrap:wrap; gap:8px; }
+.rs-chip { display:inline-flex; align-items:center; gap:5px; padding:6px 10px 6px 12px;
+  border:1px solid var(--card-border); border-radius:999px; background:var(--card);
+  color:var(--text); font:inherit; font-size:.78rem; cursor:pointer; max-width:70vw; }
+.rs-chip:active { background:rgba(127,127,127,.14); }
+.rs-x { font-style:normal; opacity:.45; font-size:.85rem; line-height:1; padding:2px 3px; border-radius:50%; }
+.rs-x:active { opacity:1; background:rgba(127,127,127,.25); }
+
+
+/* ---------- 书库链接标记 ---------- */
+.badge-link { font-style:normal; font-size:.66rem; margin-left:5px; opacity:.6; }
+.lk-edit { background:none; border:1px solid var(--card-border); color:var(--accent);
+  border-radius:6px; padding:1px 7px; font-size:.72rem; font-family:inherit; cursor:pointer; margin-left:6px; }
+.lk-btn { border-color:rgba(245,197,24,.45) !important; }
+
+/* ---------- 首页每日一句 ---------- */
+.daily { max-width:var(--maxw); margin:12px auto 2px; padding:4px 2px; font-size:.8rem; line-height:1.85;
+  text-align:left; opacity:.74; cursor:pointer; min-height:2.9em; }
+.daily:hover { opacity:1; }
+.daily b { color:var(--text); font-weight:normal; }
+.daily:empty { display:none; }
+
+/* ---------- 图书馆（分类 → 图书馆）：可跳转 + 可改链接 ---------- */
+.libcard { align-items:center; }
+.libbody { flex:1; min-width:0; cursor:pointer; }
+.liburl { font-size:.7rem; opacity:.62; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.libedit { flex:none; background:none; border:1px solid var(--card-border); border-radius:8px;
+  padding:5px 9px; font-size:.85rem; cursor:pointer; color:var(--text); }
+.libedit:active { background:rgba(127,127,127,.18); }
+
+/* 专题导言（反修防修等长文专题） */
+.fintro { margin:6px 0 10px; }
+.fintro p { font-size:.86rem; line-height:1.95; margin:0 0 9px; text-indent:2em; opacity:.94; }
+.fintro p:first-child { text-indent:2em; }
+.fintro b, .fintro strong { color:var(--accent); }
+
+/* 专题「关键论断」原文引文 */
+.fquote { margin:4px 0 10px; }
+.fquote blockquote { margin:0 0 10px; padding:9px 12px 8px; border-left:3px solid var(--accent);
+  background:rgba(245,197,24,.06); border-radius:0 8px 8px 0; }
+.fquote blockquote p { margin:0; font-size:.86rem; line-height:1.95; text-indent:0; font-style:normal; }
+.fquote blockquote cite { display:block; margin-top:5px; font-size:.72rem; opacity:.68; font-style:normal; }

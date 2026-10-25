@@ -11,7 +11,10 @@
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.resolve(__dirname, '..');
-const OUT = path.join(root, 'pages');
+/* 产物放到站点目录之外：pages/ 只用于网页版 SEO，不进 APK，
+   也不该污染站点源码目录（否则体检工具会把它当成重复代码）。
+   发布网站时再把 ../pages_seo 拷回站点根、改名 pages/ 即可。 */
+const OUT = path.join(root, '..', 'pages_seo');
 
 /* ---- 读取站点数据（与 tools/gen_feed.js 同一套做法） ---- */
 const ctx = { window: {}, console };
