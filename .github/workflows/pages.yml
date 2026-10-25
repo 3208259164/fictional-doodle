@@ -27,6 +27,16 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      # 网页版唯一的缓存刷新机制：Service Worker 的 VERSION 必须每次部署都变。
+      # 否则老访客的 SW 会一直返回旧缓存，改了也看不到（Pages 不支持自定义 Cache-Control）。
+      # 用 commit sha 而不用时间戳：同一次提交重复部署不会让所有人重新下载 4.5 MB。
+      - name: Stamp Service Worker version
+        run: |
+          VER="v${GITHUB_SHA::8}"
+          sed -i "s/^const VERSION = '.*';/const VERSION = '$VER';/" site/sw.js
+          echo "sw.js VERSION -> $VER"
+          grep -m1 "const VERSION" site/sw.js
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
