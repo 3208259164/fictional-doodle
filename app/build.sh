@@ -15,15 +15,15 @@
 set -e
 NAME="${NAME:?请指定 NAME，如 NAME=0.15.0}"
 CODE="${CODE:?请指定 CODE，如 CODE=56}"
-BT="${BT:-/sandbox/workspace/android/android-16}"
-AJ="${AJ:-/sandbox/workspace/android/android-36/android.jar}"
-R8="${R8:-/sandbox/workspace/android/r8.jar}"
+BT="${BT:?请指定 BT（Android build-tools 目录，含 aapt2/zipalign/apksigner）}"
+AJ="${AJ:?请指定 AJ（platform 的 android.jar，targetSdk 36）}"
+R8="${R8:?请指定 R8（r8.jar 路径）}"
 P="${P:-$(cd "$(dirname "$0")" && pwd)}"   # 默认取脚本所在目录（原写死 /output/apk 会把站点拷进元资源库工程）
-SITE="${SITE:-$P/../site}"; [ -d "$SITE" ] || SITE="/sandbox/workspace/output/yuanziyuan"
-KS="${KS:-/sandbox/workspace/output/学通-release.keystore}"
+SITE="${SITE:-$P/../site}"; [ -d "$SITE" ] || { echo "❌ 站点目录不存在：$SITE（用 SITE= 指定）" >&2; exit 1; }
+KS="${KS:?请指定 KS（签名 keystore 路径）}"
 # 签名口令：**不写入仓库**。优先环境变量 KS_PW，其次本地文件 $KS_PW_FILE（默认见下）。仅签名时需要。
 PW="${KS_PW:-}"
-if [ -z "$PW" ]; then PWF="${KS_PW_FILE:-/sandbox/workspace/toolchain/ks.pw}"; if [ -f "$PWF" ]; then PW="$(cat "$PWF")"; fi; fi
+if [ -z "$PW" ]; then PWF="${KS_PW_FILE:-$P/ks.pw}"; if [ -f "$PWF" ]; then PW="$(cat "$PWF")"; fi; fi
 B="$P/build"
 OUT="$P/dist"
 MIN_SDK="${MIN_SDK:-29}"
@@ -175,7 +175,7 @@ if [ "${UNSIGNED:-0}" = "1" ]; then
   exit 0
 fi
 
-[ -n "$PW" ] || { echo "❌ 缺少签名口令：设置环境变量 KS_PW，或写入 $KS_PW_FILE（默认 /sandbox/workspace/toolchain/ks.pw）"; exit 1; }
+[ -n "$PW" ] || { echo "❌ 缺少签名口令：设置环境变量 KS_PW，或把它写进 $KS_PW_FILE（默认 <工程>/ks.pw，已在 .gitignore 里排除）"; exit 1; }
 echo "[7] 签名（必须在 /tmp 本地盘，virtiofs 上 apksigner 会失败）"
 mkdir -p /tmp/apksign; cp "$B/aligned.apk" /tmp/apksign/a.apk; cp -f "$KS" /tmp/apksign/k.keystore
 cd /tmp/apksign && java -jar "$BT/lib/apksigner.jar" sign --ks k.keystore --ks-key-alias yuanziyuan \
