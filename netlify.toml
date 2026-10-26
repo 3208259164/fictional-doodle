@@ -1,0 +1,14 @@
+# Netlify 部署配置（放在仓库根，Netlify 会自动读取，优先级高于后台 UI 设置）
+#
+# 背景：站点在 site/ 子目录里。之前没设 publish，Netlify 把整个仓库当成站点根，
+# 于是访问 https://xuetone.netlify.app/ 得到 404，站点被埋在 /site/ 下。
+# 这个文件把发布目录指到 site/，根路径就正常了。
+
+[build]
+  # 站点是纯静态，没有任何构建步骤，直接把 site/ 当发布目录
+  publish = "site"
+
+  # 网页版唯一的缓存刷新手段：Service Worker 的 VERSION 必须每次构建都变。
+  # 不改的话，老访客的 SW 会一直返回旧缓存，你更新了他也看不到
+  # （GitHub Pages 那边用的是 commit sha，见 .github/workflows/pages.yml）。
+  command = "sed -i \"s/^const VERSION = '[^']*';/const VERSION = 'v$(date -u +%Y%m%d%H%M)';/\" site/sw.js; grep -m1 'const VERSION' site/sw.js"
