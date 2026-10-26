@@ -7,7 +7,7 @@
 # =====================================================================
 set -e
 APK="${1:?用法: bash tools/verify_apk.sh <apk> [build-tools目录]}"
-BT="${2:-/sandbox/workspace/android/android-16}"
+BT="${2:?用法: bash tools/verify_apk.sh <apk> <build-tools 目录>}"
 [ -f "$APK" ] || { echo "找不到 APK: $APK"; exit 1; }
 T=/tmp/verify_apk_$$; mkdir -p "$T"; cp "$APK" "$T/a.apk"
 ok=0; fail=0
