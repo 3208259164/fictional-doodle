@@ -1716,7 +1716,10 @@ function panel(id){var n=P[id];if(!n)return;
  var cm=CMAP[n.name];
  document.getElementById('prelic').innerHTML=cm?('<div class="sub2">革命史料 · 简介</div><div style="font-size:.83rem;line-height:1.95;opacity:.9">'+esc2(cm.intro||'')+'</div>'+(cm.works?('<div style="font-size:.75rem;opacity:.72;margin-top:6px">代表作：'+esc2(cm.works)+'</div>'):'')):'';
  var pts=n.points||[];
- document.getElementById('ppts').innerHTML=pts.length?'<div class="sub2">要点</div><ul class="pts">'+pts.map(function(x){return '<li>'+esc2(x)+'</li>';}).join('')+'</ul>':'';
+ /* 事件类节点：把「背景」与「影响 · 意义」也显示出来（数据在 data/graph-world.js） */
+ var _bg=n.bg?'<div class="sub2">背景</div><div style="font-size:.84rem;line-height:1.95;opacity:.9">'+esc2(n.bg)+'</div>':'';
+ var _imp=n.impact?'<div class="sub2">影响 · 意义</div><div style="font-size:.84rem;line-height:1.95;opacity:.9">'+esc2(n.impact)+'</div>':'';
+ document.getElementById('ppts').innerHTML=_bg+(pts.length?'<div class="sub2">要点</div><ul class="pts">'+pts.map(function(x){return '<li>'+esc2(x)+'</li>';}).join('')+'</ul>':'')+_imp;
  var w=n.works||[];
  document.getElementById('pw').innerHTML=w.length?'<div class="sub2">代表文献 <span style="font-size:.72em;opacity:.6;font-weight:normal">· 点书名到书库查看／阅读</span></div><div class="wrap">'+w.map(function(x){return '<button type="button" title="到书库查看《'+esc2(x)+'》——有原文可直接阅读，没有可导入本机文件" onclick="openBook(\''+String(x).replace(/'/g,'')+'\')">'+esc2(x)+'</button>';}).join('')+'</div>':'';
  /* 书库联动：按作者名动态查（不依赖手写的 works 列表） */
