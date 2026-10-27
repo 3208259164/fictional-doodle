@@ -191,14 +191,24 @@
   function sectionHTML(g, s, i) {
     var t = textOf(g.id, i);
     var has = !!t.trim();
+    var bg = (s.bg && String(s.bg).trim()) ? String(s.bg).trim() : '';
+    /* 背景材料：客观事实与脉络（谁在什么背景下写、这一节讲什么、原文怎么走）。
+       写作提示：把「该说什么」拆成具体问题。正文 t 仍由读者自己填，软件不代下结论。 */
+    var bgHTML = bg
+      ? '<details class="yzGBg" open style="margin:2px 0 4px">' +
+          '<summary style="cursor:pointer;font-size:.79rem;color:var(--accent);opacity:.9;padding:2px 0;list-style:none">📎 背景材料<span style="opacity:.5;font-weight:400">（点此收起）</span></summary>' +
+          '<div style="font-size:.84rem;line-height:2;white-space:pre-line;margin-top:4px;padding:10px 12px;background:rgba(255,255,255,.035);border-left:3px solid rgba(255,255,255,.18);border-radius:0 8px 8px 0">' + esc(bg) + '</div>' +
+        '</details>'
+      : '';
     return '<div class="lcard" style="align-items:flex-start;flex-direction:column;gap:8px;margin:10px 0">' +
       '<div class="pname" style="font-size:.9rem">' + esc(s.h) + (has ? '<span style="font-size:.72rem;opacity:.55;font-weight:400"> · 已填</span>' : '') + '</div>' +
-      '<div style="font-size:.79rem;line-height:1.8;opacity:.62">写作提示：' + esc(s.hint) + '</div>' +
+      bgHTML +
+      '<div style="font-size:.79rem;line-height:1.8;opacity:.62">✍️ 待你想清楚：' + esc(s.hint) + '</div>' +
       (has
         ? '<div style="font-size:.85rem;line-height:1.95;white-space:pre-line">' + esc(t) + '</div>'
-        : '<div style="font-size:.8rem;opacity:.45">（还没写）</div>') +
+        : '<div style="font-size:.8rem;opacity:.45">（这一节你还没写）</div>') +
       '<div style="display:flex;gap:8px"><button class="aslink" style="font-size:.78rem" onclick="YZStudy.editSection(\'' + g.id + '\',' + i + ')">' +
-        (has ? '✏️ 修改这段' : '＋ 填写这段') + '</button></div>' +
+        (has ? '✏️ 修改' : '＋ 写下你的答案') + '</button></div>' +
       '</div>';
   }
   function editSection(gid, i) {
