@@ -120,7 +120,10 @@
   function glossaryHTML() {
     var L = gls(), groups = {}, order = [];
     L.forEach(function (t) { var g = t.group || '其他'; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(t); });
-    return '<p class="sub" style="margin:0 0 10px;line-height:1.8">' + L.length +
+    return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px">' +
+        '<button class="lk-btn" style="font-size:.82rem" onclick="YZSELFTEST.open()">🎯 来 10 道自测</button>' +
+        '<span style="font-size:.76rem;opacity:.6;align-self:center">题目由术语卡 / 图谱年份 / 导读 / 引文自动生成</span></div>' +
+      '<p class="sub" style="margin:0 0 10px;line-height:1.8">' + L.length +
       ' 张术语卡，按四层拆开：一句话定义、出处、容易混的地方、一句话辨析。概念详情页里也会直接显示对应的术语卡。</p>' +
       order.map(function (g) {
         return '<h2 class="sub-title" style="margin-top:16px">' + esc(g) + '（' + groups[g].length + '）</h2>' +
