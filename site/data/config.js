@@ -7,7 +7,7 @@ window.SITE_CONFIG = {
   /* 站点基本信息 */
   siteName : '学通',
   siteUrl  : 'https://chimerical-peony-793bf1.netlify.app/',   // 站点正式地址（RSS / 分享链接 / JSON-LD 用）；绑自定义域名时改这一行
-  version  : '0.34.87',
+  version  : '0.34.88',
 
   /* 「正文文件清单」：把实体电子书放进站点目录（如 books/xxx.pdf）后，把相对路径填进这个数组，
      该条目才会显示「已收录 ✅」并出现阅读/预览按钮。留空 = 站内没有任何原文（只有条目/书壳）。 */
