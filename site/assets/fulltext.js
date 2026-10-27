@@ -473,6 +473,8 @@
 
   window.YZFULLTEXT = {
     snip: snip, snipText: snipText, segs: segs,
+    /* 给「引文比对」用：暴露全部段落（含 text / cat / t / resIndex），只读不改 */
+    all: function () { try { return corpus().segs || []; } catch (e) { return []; } },
     search: search, searchLocal: searchLocal, indexLocal: indexLocal, stats: stats,
     show: show, showLocal: showLocal,
     _reset: function () { _corpus = null; _local = null; }
