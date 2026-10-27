@@ -23,7 +23,7 @@ const CORE = [
   './data/graph3d.js',
   './offline.html', './404.html', './privacy.html', './licenses.html',
   './assets/style.css', './assets/extra.css', './assets/graph-hub.css', './assets/cite.js', './assets/app.js',
-  './assets/overlay.js', './assets/editor.js', './assets/graph-edit.js', './assets/sharecard.js', './assets/books.js', './assets/fulltext.js', './assets/speech.js', './assets/exportdata.js', './data/overrides.js',
+  './assets/overlay.js', './assets/editor.js', './assets/graph-edit.js', './assets/sharecard.js', './assets/books.js', './assets/fulltext.js', './assets/quote-match.js', './assets/selftest.js', './assets/speech.js', './assets/exportdata.js', './data/overrides.js',
   './assets/vendor/qrcode.min.js',
   './data/avatars.js', './data/config.js', './data/libraries.js', './data/graph.js', './data/concepts.js', './data/graph-wenge.js', './data/graph-world.js', './data/graph-geo.js', './data/geo-china.js', './data/geo-world.js',
   './data/resources.js', './data/py.js', './data/intro-short.js', './data/content.js', './data/mentors.js', './data/album.js', './data/channel.js', './data/knowledge.js', './data/answers.js', './data/glossary.js', './data/guides.js',
