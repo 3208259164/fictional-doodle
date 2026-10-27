@@ -1383,7 +1383,12 @@ function omniSearchRaw(q){
     if (window.YZFULLTEXT) {
       window.__yzftQ = q;
       /* 直接 push，交给下面统一的「同类同名去重」处理，避免依赖尚未创建的 _seen */
-      YZFULLTEXT.search(q).forEach(h => out.push(h));
+      const _ft = YZFULLTEXT.search(q);
+      _ft.forEach(h => out.push(h));
+      /* 精确检索一条都没有 → 很可能是记错了几个字，用「引文比对」兜底（3-gram 模糊） */
+      if (!_ft.length && window.YZQUOTE && String(q).replace(/\s/g, '').length >= 6) {
+        try { window.YZQUOTE.match(q, { limit: 3, thresh: 0.55 }).forEach(h => out.push(h)); } catch (e) {}
+      }
     }
   } catch (e) { }
 
@@ -2954,13 +2959,17 @@ function openFigure(id, fromRoute){
   var _fe = { k:'p:'+p.id, name:p.name, img:imgOf(p), sub:[p.years, p.role].filter(Boolean).join(' · '), act:"openFigure('"+p.id+"')" };
   var pts = (p.points && p.points.length) ? `<h2 class="sub-title" style="margin-top:16px">📌 要点</h2><ul style="list-style:none;padding:0;font-size:.85rem;line-height:1.95;opacity:.92">${p.points.map(function(x){return '<li style="padding-left:16px;position:relative">▸ '+x+'</li>';}).join('')}</ul>` : '';
   var works = (p.works && p.works.length) ? `<h2 class="sub-title" style="margin-top:16px">📚 代表文献</h2><div class="tagrow">${p.works.map(function(w){return '<span class="tag">'+w+'</span>';}).join('')}</div>` : '';
+  /* 资料来源：主图谱节点用单条 source，文革图谱等用数组 sources，两者都显示 */
+  var src = (p.sources && p.sources.length)
+    ? `<h2 class="sub-title" style="margin-top:16px">🗃 资料来源</h2><div class="tagrow">${p.sources.map(function(x){return '<span class="tag">'+x+'</span>';}).join('')}</div>`
+    : (p.source ? `<h2 class="sub-title" style="margin-top:16px">🗃 资料来源</h2><p style="margin:0;font-size:.8rem;line-height:1.85;opacity:.75">${p.source}${p.yearBasis ? '　·　年份依据：' + p.yearBasis : ''}</p>` : '');
   openContent('👤 ' + p.name,
     crumbFrom(hubTrail('figures').concat([{ t:p.name, fn:function(){ openFigure(id); } }])) +
     `<div class="ldetail">
        ${faceHTML(p, true)}
        <h3>${p.name}</h3><div class="prole">${[p.years, p.role].filter(Boolean).join(' · ')}</div>
        <p>${p.desc || ''}</p>
-     </div>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + pts + works +
+     </div>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + pts + works + src +
     `<p style="margin-top:18px"><a href="graph.html#${p.id}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在关系图谱中查看 →</a></p>`,
     { right: (window.YZY && typeof YZY.editPerson === 'function')
         ? { text:'✏️', act:"openPersonEdit('" + p.id + "')" } : null });
@@ -3408,6 +3417,7 @@ function openItemDetail(idx, fromRoute){
          <dt>大小</dt><dd>${it.size && it.size !== '—' ? it.size : '—'}</dd>
          ${hasBody(it) ? `<dt>更新</dt><dd>${it.date || '—'}</dd>` : ''}
          <dt>获取</dt><dd>${it.src || '本站整理'}</dd>
+         ${it.firstYear ? `<dt>原著首版</dt><dd>${it.firstYear}${it.firstYearNote ? `<span style="opacity:.6;font-size:.92em">（${it.firstYearNote}）</span>` : ''}</dd>` : ''}
          ${it.publisher ? `<dt>出版社</dt><dd>${it.publisher}</dd>` : ''}
          ${it.pubyear ? `<dt>出版年</dt><dd>${it.pubyear}</dd>` : ''}
          ${it.translator ? `<dt>译者</dt><dd>${it.translator}</dd>` : ''}
