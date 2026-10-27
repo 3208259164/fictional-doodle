@@ -140,7 +140,7 @@
       if (d.sections && d.sections.length) {
         for (j = 0; j < d.sections.length; j++) {
           var sc2 = d.sections[j] || {};
-          secs += ' ' + S(sc2.h) + ' ' + S(sc2.hint);
+          secs += ' ' + S(sc2.h) + ' ' + S(sc2.hint) + ' ' + S(sc2.bg || '');
         }
       }
       push(out, {
