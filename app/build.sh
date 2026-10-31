@@ -26,8 +26,8 @@ export LC_ALL=C.UTF-8 TZ=UTC
 NAME="${NAME:?需要 NAME（如 NAME=0.17.52）}"
 CODE="${CODE:?需要 CODE（如 CODE=231）}"
 P="${P:-$(cd "$(dirname "$0")" && pwd)}"
-SITE="${SITE:-$P/../site_new}"
-TC="${TC:-/sandbox/workspace/toolchain}"
+SITE="${SITE:-$P/../site}"
+TC="${TC:-$P/../toolchain}"      # 也可以显式传 BT / AJ / R8 / KS
 BT="${BT:-$TC/build-tools-36}"
 AJ="${AJ:-$TC/android-sdk/platforms/android-36/android.jar}"
 R8="${R8:-$TC/r8.jar}"

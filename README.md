@@ -2,7 +2,7 @@
 
 > 一个离线的马克思主义理论学习 App：书库 + 关系图谱 + 史料 + 离线问答，全部本地运行，不联网、不注册、不上传。
 
-**当前版本：v0.17.22（versionCode 201）｜ 站点 0.34.87 ｜ 要求 Android 10+**
+**当前版本：v0.17.66（versionCode 245）｜ 站点 0.36.10 ｜ 要求 Android 10+**
 
 学通把「读原著、看关系、考理解」三件事放在同一个离线应用里。站点用纯静态 HTML/CSS/JS（无框架、无构建依赖），Android 客户端用原生 WebView 壳，Java 侧零第三方依赖（仅 Android framework）。
 
@@ -12,7 +12,7 @@
 
 | 方式 | 地址 | 说明 |
 |---|---|---|
-| **Android 安装包** | [Releases](../../releases/latest) | 下载 `学通-<版本>.apk`，覆盖安装即可，**不要卸载**（会清空本机数据） |
+| **Android 安装包** | [Releases](../../releases/latest) | 下载 `xuetong-<版本>.apk`，覆盖安装即可，**不要卸载**（会清空本机数据） |
 | **网页版（GitHub Pages）** | https://3208259164.github.io/fictional-doodle/ | 免安装直接浏览全部资料；数据存在你的浏览器里，与 App 内的数据互不相通 |
 | **网页版（备用）** | https://xuetone.netlify.app/ | 同上 |
 | **Komi Store** | 在 Komi Store 内搜索「学通」 | 收录自本仓库的 Release，可直接安装并自动更新 |
@@ -26,14 +26,14 @@
 
 ```bash
 # 任选其一
-curl -L -o xuetong.apk "https://ghproxy.net/https://github.com/3208259164/fictional-doodle/releases/download/v0.17.22/xuetong-0.17.22.apk"
-curl -L -o xuetong.apk "https://gh-proxy.com/https://github.com/3208259164/fictional-doodle/releases/download/v0.17.22/xuetong-0.17.22.apk"
+curl -L -o xuetong.apk "https://ghproxy.net/https://github.com/3208259164/fictional-doodle/releases/download/v0.17.66/xuetong-0.17.66.apk"
+curl -L -o xuetong.apk "https://gh-proxy.com/https://github.com/3208259164/fictional-doodle/releases/download/v0.17.66/xuetong-0.17.66.apk"
 
 # 校验（应与 Release 说明里的 SHA-256 一致）
 sha256sum xuetong.apk
 ```
 
-> 第三方代理存在被篡改的可能，**只认 SHA-256，不看来源**。已实测 v0.17.22 经 `ghproxy.net` 下载后与官方逐字节一致。
+> 第三方代理存在被篡改的可能，**只认 SHA-256，不看来源**。已实测 v0.17.66 经 `ghproxy.net` 下载后与官方逐字节一致。
 
 > **升级提示**：versionCode 严格递增（构建脚本会拒绝小于历史最大值的构建），因此新包总能覆盖旧包。
 > 应用不申请 INTERNET 权限，无法联网上传任何东西。
@@ -42,7 +42,7 @@ sha256sum xuetong.apk
 
 ## 功能
 
-### 书库（431 本条目）
+### 书库（456 条：书目 / 讲堂正文 / 网络扫盲 / 导读 / 词典）
 - 分类：原著 / 导读 / 词典 / 有声书 / 歌曲 / 影像 / 工具 / 参考 / 对公文献
 - **书壳与正文分离**：预置的是「书壳」（书名、作者、简介、封面），正文由用户自己导入本地文件后挂到对应书壳上
 - 导入的正文只存在设备本地（IndexedDB），不上传任何服务器
@@ -74,7 +74,8 @@ xuetong/
 │   ├── graph3d.html           # 3D 图谱
 │   ├── challenge.html         # 闯关地图
 │   ├── assets/                # app.js / books.js / challenge.js / 样式
-│   ├── data/                  # 书库元数据、图谱数据、配置
+│   ├── data/                  # 书库元数据、图谱数据、配置（含 jtfull.js 全文索引）
+│   ├── books/                 # 讲堂正文（站内 .txt，内置阅读器直接打开）
 │   ├── lib/                   # 第三方库（3d-force-graph 等）
 │   ├── images/ icons/         # 站点图形资源
 │   ├── sw.js                  # Service Worker 离线缓存
@@ -82,7 +83,7 @@ xuetong/
 └── app/                       # Android 工程
     ├── build.sh               # 一键构建（aapt2 + javac + R8 + zipalign + apksigner）
     ├── AndroidManifest.xml
-    ├── proguard-rules.pro
+    ├── r8.pro                 # R8 保留规则（混淆配置）
     ├── java/                  # MainActivity 等（零第三方依赖）
     ├── res/                   # 图标、主题
     └── tools/verify_apk.sh    # 产物自检（62 项）
@@ -117,6 +118,9 @@ python3 -m http.server 8080
 | `r8.jar` | 代码压缩与混淆 |
 | `apksigner` | 随 build-tools 提供 |
 | 签名密钥 | 你自己的 keystore |
+
+> 也可以把工具链放在仓库同级目录 `toolchain/`（`build-tools-36`、`android-sdk/platforms/android-36/android.jar`、`r8.jar`、`release.keystore` + `ks.pw`），
+> 这样不传 `TC` 也能找到；`SITE` 默认取 `../site`。
 
 ```bash
 cd app
