@@ -127,7 +127,6 @@ details.fold[open] > summary.fold-t { border-bottom-color:transparent; }
 .reader-bar button { min-width:46px; min-height:38px; border-radius:9px; border:1px solid var(--card-border);
   background:var(--card); color:var(--text); font-family:inherit; font-size:.86rem; cursor:pointer; }
 .reader-bar button:hover { border-color:var(--text); }
-.reader-bar .rfs { min-width:2.2em; text-align:center; opacity:.7; font-size:.8rem; font-variant-numeric:tabular-nums; }
 .reader-body { line-height:1.98; letter-spacing:.01em; text-align:justify; word-break:break-word; }
 .reader-body p { margin:0 0 1.05em; text-indent:2em; }
 .reader-body p:first-child { margin-top:0; }
@@ -140,7 +139,7 @@ details.fold[open] > summary.fold-t { border-bottom-color:transparent; }
 /* ---------- 回到顶部 ---------- */
 #toTop { position:fixed; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); z-index:60; width:38px; height:38px; border-radius:50%;
   border:1px solid var(--card-border); background:var(--card); color:var(--text); font-size:1rem; cursor:pointer;
-  backdrop-filter:blur(10px); opacity:0; pointer-events:none; transform:translateY(6px);
+  backdrop-filter:blur(4px); opacity:0; pointer-events:none; transform:translateY(6px);
   transition:opacity .25s, transform .25s; }
 #toTop.show { opacity:.5; pointer-events:auto; transform:translateY(0); }
 #toTop:hover { opacity:.9; }
@@ -478,9 +477,11 @@ body.light .qtop {
 
 /* ---------- 分类页管理（下拉面板，样式同「＋」） ---------- */
 .cls-tt { font-size:.78rem; font-weight:700; opacity:.85; padding:6px 10px 8px; border-bottom:1px solid var(--card-border); margin-bottom:3px; }
-.qpanel .cls-row { padding:9px 10px; border-radius:8px; border-bottom:0; }
+.qpanel .cls-row { padding:7px 10px; border-radius:8px; border-bottom:0; }
 .qpanel .cls-row:hover { background:rgba(245,197,24,.14); }
-.qpanel .cls-ok { justify-content:center; color:var(--accent); font-weight:700; margin-top:5px; }
+.qpanel .cls-ok { justify-content:center; color:var(--accent); font-weight:700; margin-top:5px;
+  /* 面板可能比一屏高（快捷分类 12 项），「完成」要一直贴在可视区底部，否则要滚到最下面才点得到 */
+  position:sticky; bottom:0; background:var(--card); box-shadow:0 -8px 12px -8px rgba(0,0,0,.35); }
 
 /* ===== 抽屉（整页推进 / 左侧个人中心）都与首页共用同一套页面背景 =====
    原先 .drawer 自带 #3a0606→#1c0303（浅色下是 #f7efe9→#ecd9cf）渐变，与首页 body 背景不是一套，
@@ -536,7 +537,7 @@ body.light .qtop {
   background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:20px; }
 .le-box { width:min(420px,100%); background:var(--card); border:1px solid var(--card-border);
   border-radius:16px; padding:16px; box-shadow:0 16px 44px rgba(0,0,0,.45);
-  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
 .le-t { font-size:.94rem; font-weight:700; color:var(--accent); margin-bottom:12px; }
 .le-in { width:100%; padding:11px 13px; border-radius:10px; border:1px solid var(--card-border);
   background:rgba(127,127,127,.12); color:var(--text); font:inherit; font-size:.86rem; outline:none; }
@@ -595,3 +596,81 @@ body.light .qtop {
   background:rgba(245,197,24,.06); border-radius:0 8px 8px 0; }
 .fquote blockquote p { margin:0; font-size:.86rem; line-height:1.95; text-indent:0; font-style:normal; }
 .fquote blockquote cite { display:block; margin-top:5px; font-size:.72rem; opacity:.68; font-style:normal; }
+
+/* ===== 阅读器升级（0.17.54）：三档配色 / 排版面板 / 底部翻页与进度 ===== */
+#yzReader.th-night { background:#141416; color:#d9d5cc; border-radius:12px; }
+#yzReader.th-night .reader-bar button,
+#yzReader.th-night .reader-foot .rnav,
+#yzReader.th-night .aa-panel button { border-color:rgba(255,255,255,.22); background:rgba(255,255,255,.08); color:#d9d5cc; }
+#yzReader.th-night .aa-panel { background:#1c1c1f; border-color:rgba(255,255,255,.14); }
+#yzReader.th-night .aa-row + .aa-row { border-top-color:rgba(255,255,255,.14); }
+#yzReader.th-black { background:#000; color:#cbc6bd; border-radius:12px; }
+#yzReader.th-black .reader-bar button,
+#yzReader.th-black .reader-foot .rnav,
+#yzReader.th-black .aa-panel button { border-color:rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#cbc6bd; }
+#yzReader.th-black .aa-panel { background:#0a0a0a; border-color:rgba(255,255,255,.12); }
+#yzReader.th-black .aa-row + .aa-row { border-top-color:rgba(255,255,255,.12); }
+.reader-foot { display:flex; align-items:center; gap:10px; padding:10px 2px 14px; margin-top:6px; }
+.reader-foot .rnav { min-width:46px; min-height:38px; border-radius:9px; border:1px solid var(--card-border);
+  background:var(--card); color:inherit; font-size:1.15rem; line-height:1; }
+.reader-foot .rseek { flex:1; height:28px; accent-color:var(--accent); }
+.aa-panel { margin:2px 0 10px; padding:10px 12px; border:1px solid var(--card-border);
+  border-radius:12px; background:var(--card); }
+.aa-row { display:flex; align-items:center; gap:8px; padding:5px 0; font-size:.82rem; }
+.aa-row + .aa-row { border-top:1px dashed var(--card-border); }
+.aa-lb { min-width:2.6em; opacity:.7; }
+.aa-panel button { min-width:42px; min-height:32px; border-radius:8px; border:1px solid var(--card-border);
+  background:transparent; color:inherit; font-size:.82rem; }
+.aa-panel button.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
+.aa-panel b { min-width:2.6em; text-align:center; font-variant-numeric:tabular-nums; opacity:.85; }
+
+/* 阅读模式：底栏粘住、藏掉底导与「安装到桌面」 */
+.reader-foot { position:sticky; bottom:0; z-index:3; background:var(--bg); }
+body.yzreading .tabbar, body.yzreading #installBtn, body.yzreading #toTop { display:none !important; }
+#yzReader.th-night .reader-foot, #yzReader.th-black .reader-foot { background:transparent; }
+body.yzreading #drawer { padding-bottom: 0 !important; }
+
+/* 搜索栏下方的分类快捷条 */
+.qcats { display:flex; gap:8px; overflow-x:auto; padding:2px 12px 10px; scrollbar-width:none;
+  /* 父级 .view 是 flex column + align-items:center，子项宽度按内容收缩
+     → 12 项全显示时容器被撑到 989px，整页横向溢出。这里显式限宽才能让 overflow-x 生效。 */
+  width:100%; max-width:100%; box-sizing:border-box; }
+.qcats::-webkit-scrollbar { display:none; }
+.qcat { flex:none; font-size:.72rem; padding:3px 10px; border-radius:14px;
+  border:1px solid var(--card-border); background:var(--card); color:var(--text); white-space:nowrap; }
+.qcat:active { border-color:var(--accent); color:var(--accent); }
+.qcat.qadd { padding:6px 10px; opacity:.75; }
+/* 结果页里紧贴大搜索框下方，左右不要额外缩进（与 .res-top / .catrow 对齐） */
+.qcats-res { padding:10px 0 0; width:100%; max-width:460px; box-sizing:border-box; }
+
+/* ===== 网络扫盲（词条页） ===== */
+.netwrap { padding-bottom:24px; }
+.netlead { font-size:.82rem; line-height:1.8; opacity:.8; margin:2px 0 12px; }
+.netsearch { position:sticky; top:0; z-index:2; padding:6px 0 8px; background:linear-gradient(var(--bg,#1a0505) 70%,transparent); }
+.netsearch input { width:100%; box-sizing:border-box; padding:11px 14px; border-radius:12px;
+  border:1px solid var(--card-border); background:var(--card); color:var(--text); font-size:.88rem; font-family:inherit; }
+.netg-t { display:flex; align-items:center; gap:8px; font-size:.78rem; font-weight:700; letter-spacing:.5px;
+  color:var(--accent); margin:16px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--card-border); }
+.netg-n { font-weight:400; opacity:.6; font-size:.72rem; }
+.netc { display:block; width:100%; text-align:left; box-sizing:border-box; margin:0 0 8px; padding:11px 13px;
+  background:var(--card); border:1px solid var(--card-border); border-radius:12px; color:var(--text);
+  font-family:inherit; cursor:pointer; }
+.netc-h { display:flex; align-items:baseline; gap:8px; }
+.netc-h b { font-size:.92rem; font-weight:700; }
+.netc-h i { font-style:normal; font-size:.72rem; opacity:.55; flex:1; min-width:0; }
+.netc-x { opacity:.45; transform:rotate(90deg); transition:transform .15s ease; }
+.netc.on .netc-x { transform:rotate(-90deg); }
+.netc-b { display:none; margin-top:9px; }
+.netc.on .netc-b { display:block; }
+.netc-t, .netc-d { display:block; font-size:.84rem; line-height:1.85; }
+.netc-t { padding-bottom:8px; margin-bottom:8px; border-bottom:1px dashed rgba(255,255,255,.14); }
+.netc-t b, .netc-d b { display:inline-block; margin-right:6px; font-size:.72rem; font-weight:700; color:var(--accent); opacity:.9; }
+.netc-l, .netc-m { display:block; margin-top:7px; font-size:.8rem; line-height:1.75; opacity:.88; }
+.netc-l b, .netc-m b { display:inline-block; margin-right:6px; font-size:.72rem; font-weight:700;
+  color:var(--accent); opacity:.9; }
+.netempty { font-size:.84rem; opacity:.7; padding:18px 4px; line-height:1.8; }
+
+.netops { display:flex; gap:8px; margin:2px 0 10px; }
+.netall { font-size:.76rem; padding:6px 12px; border-radius:10px; border:1px solid var(--card-border);
+  background:var(--card); color:var(--text); font-family:inherit; cursor:pointer; }
+.netall:active { border-color:var(--accent); color:var(--accent); }

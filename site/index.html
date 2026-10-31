@@ -18,7 +18,8 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="assets/style.css">
-<script src="assets/custom.js"></script>
+<script>window.SITE_GRAPH=window.SITE_GRAPH||{nodes:[],links:[]};window.NET_BASICS=window.NET_BASICS||[];window.NET_T=window.NET_T||{};</script>
+<script src="assets/store.js"></script><script src="assets/custom.js"></script>
 <script src="assets/crash.js"></script>
 <link rel="stylesheet" href="assets/extra.css">
 <link rel="stylesheet" href="assets/graph-hub.css">
@@ -46,6 +47,7 @@
   <button class="qitem" onclick="openSection(secIdx('使用指南'));closePlus()"><span class="qi">📘</span>使用指南</button>
   <button class="qitem" onclick="openSection(secIdx('阅读与手册'));closePlus()"><span class="qi">📖</span>阅读与手册</button>
   <button class="qitem" data-act="openQA"><span class="qi">🗣️</span>问一问（离线问答）</button>
+  <button class="qitem" onclick="openNetBasics()"><span class="qi">🌐</span>网络扫盲</button>
 </div>
 
 <!-- ============ 首页 ============ -->
@@ -76,6 +78,8 @@
       <input id="search" type="search" placeholder="搜索书名 / 作者 / 简介关键词…" aria-label="搜索" oninput="render()">
     </div>
   </div>
+
+  <div class="qcats qcats-res" id="qCats" aria-label="分类快捷"></div>
 
   <div id="recentBox" hidden></div>
 
@@ -245,7 +249,6 @@
 
     <div class="set-group">
       <div class="set-title">诊 断</div>
-      <div class="set-row"><span>备份与恢复</span><button class="sbtn" data-act="openBackup">打开</button></div>
       <div class="set-row"><span>导出诊断报告</span><button class="sbtn" data-act="exportDiag">导出 JSON</button></div>
       <div class="set-row"><span>崩溃日志</span><button class="sbtn" data-act="openCrashLog" data-arg="">查看</button></div>
       <div class="set-row"><span>清空本机错误日志</span><button class="sbtn" data-act="yzDiagClearAsk">清空</button></div>
@@ -272,30 +275,22 @@
 
 <!-- 关系图谱已独立为 graph.html -->
 
+<script src="assets/lazydata.js"></script>
 <script src="data/config.js"></script>
 <script src="data/resources.js"></script>
-<script src="data/py.js"></script>
-<script src="data/intro-short.js"></script>
 <script src="data/content.js"></script>
-<script src="data/mentors.js"></script>
-<script src="data/album.js"></script>
-<script src="data/channel.js"></script>
 <script src="data/knowledge.js"></script>
-<script src="data/answers.js"></script>
-<script src="data/glossary.js"></script>
-<script src="data/guides.js"></script>
 <script src="data/libraries.js"></script>
-<script src="data/graph.js"></script>
-<script src="data/concepts.js"></script>
 <script src="assets/vendor/qrcode.min.js"></script>
-<script src="data/avatars.js"></script>
 <script src="data/overrides.js"></script>
 <script src="assets/overlay.js"></script>
 <script src="assets/cite.js"></script>
+<script src="assets/booknote.js"></script>
+<script src="assets/netbasics.js"></script>
 <script src="assets/app.js"></script>
 <script src="assets/reading.js"></script>
 <script src="assets/paths.js"></script>
-<script src="assets/backup.js"></script>
+<script src="assets/keys.js"></script>
 <script src="assets/mine.js"></script>
 <script src="assets/study.js"></script>
 <script src="assets/books.js"></script>
@@ -304,6 +299,10 @@
 <script src="assets/fulltext.js"></script>
 <script src="assets/quote-match.js"></script>
 <script src="assets/selftest.js"></script>
+<script src="assets/yearbook.js"></script>
 <script src="assets/speech.js"></script>
+<script src="assets/zoompane.js"></script>
+<script src="assets/photo.js"></script>
+<script src="assets/appbooks.js"></script>
 </body>
 </html>

@@ -293,8 +293,26 @@
   }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
+  /* 允许的电子书格式。别看 input 上有 accept——安卓的文件选择器经常无视它
+     （从相册、QQ、微信「发送到」进来的文件会绕过 accept），所以真正把关必须在这里。
+     以前一张 235KB 的 JPG 就是这么被当成「书」导入的，点开又按文本去读二进制，直接卡死。 */
+  var BOOK_OK = /^(TXT|MD|MARKDOWN|EPUB|PDF)$/;
+  function isBookName(name, type) { return BOOK_OK.test(fmtOf(name, type)); }
+
   function importOne(file, done) {
     var fmt = fmtOf(file.name, file.type);
+    if (!BOOK_OK.test(fmt)) {
+      try { toast('「' + file.name + '」不是电子书（只收 TXT / MD / EPUB / PDF），已跳过'); } catch (e) { }
+      return done();
+    }
+    /* 同一个文件反复导入会出现两条一模一样的条目（截图里就重复了两条）。
+       按「书名 + 字节数」判重，够用且不会被同名不同书误杀。 */
+    var base = String(file.name).replace(/\.[^.]+$/, '');
+    var dup = metaAll().filter(function (m) { return m && m.title === base && Number(m.size) === file.size; });
+    if (dup.length) {
+      try { toast('「' + base + '」已经导入过了，跳过'); } catch (e) { }
+      return done();
+    }
     if (file.size > MAX_MB * 1048576) { try { toast('「' + file.name + '」超过 ' + MAX_MB + 'MB，已跳过'); } catch (e) { } return done(); }
     var id = uid();
     dbPut(id, file, function (ok) {
@@ -345,7 +363,17 @@
   }
 
   /* ---------------- 「我的书」书架 ---------------- */
+  /* 原来这里有第二套书架界面（带面包屑 / 提示文字 / 「导入书籍」按钮那套），
+     而「我的藏书」入口走的是 YZAppBooks 的全屏书架，于是同一个功能有两个长得不一样的界面，
+     用户看到的就是「有时候是第一张图，有时候跳到第二张图」。
+     现在统一到全屏那套（它能读 EPUB 分章、PDF 逐页、适宽/整页切换），旧界面只作兜底。 */
   function openLocalShelf() {
+    if (window.YZAppBooks && typeof YZAppBooks.shelf === 'function') {
+      try { YZAppBooks.shelf(); return; } catch (e) { }
+    }
+    legacyShelf();
+  }
+  function legacyShelf() {
     var arr = metaAll();
     var body = arr.length
       ? arr.map(function (m) {
@@ -388,8 +416,35 @@
     });
   }
 
-  function renderUnsupported(title, id, fmt) {
-    if (typeof openContent !== 'function') return;
+  /* ---------------- 站内正文（books/xxx.txt）也走这套阅读器 ----------------
+     背景：资源库里 fmt=TXT 的条目（讲堂 27 篇）原先是 openBookLink 直接
+     location.href 跳到 .txt，结果是 WebView 裸显示纯文本——字小、无排版、
+     无目录、无进度，看起来"不知道是什么内容"。
+     这里 fetch 回来交给 renderReader：分段、字号可调、目录、进度、摘录全部可用。 */
+  function readUrl(path, title, id, backT, backF, anchor) {
+    if (typeof openContent !== 'function') { location.href = path; return; }
+    var bid = 'u:' + path;                 /* 进度键：按路径，换入口也能续读 */
+    /* 不要先推一个「正在载入」页：openContent 会往 _pageStack 压一页，
+       等真正正文再压一页，于是「返回」第一次只会退到那个空壳，卡在「正在载入」——
+       0.17.52/53/54 三版的返回 bug 就是这个。本地文件几十毫秒返回，直接等结果。 */
+    try { if (typeof toast === 'function') toast('正在打开…'); } catch (e) { }
+    fetch(path, { cache: 'force-cache' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(function (t) {
+      renderReader(title, t, bid, {
+        backT: backT || '返回',
+        backF: backF || openLocalShelf,
+        selfF: function () { var d = drawerEl(); if (d) { try { d.scrollTop = 0; } catch (e) { } } },
+        anchor: (typeof anchor === 'number') ? anchor : null
+      });
+    }).catch(function () {
+      try { toast('载入失败，改用原始页面打开'); } catch (e) { }
+      setTimeout(function () { location.href = path; }, 500);
+    });
+  }
+
+  function renderUnsupported(title, id, fmt) {    if (typeof openContent !== 'function') return;
     openContent('📖 ' + title,
       (typeof crumbFrom === 'function' ? crumbFrom([{ t: '我的书', fn: openLocalShelf }, { t: title, fn: function () { read(id, title); } }]) : '') +
       '<h3 style="color:var(--accent);font-size:1rem">' + esc(title) + '</h3>' +
@@ -413,35 +468,174 @@
     return chs;
   }
 
-  function renderReader(title, text, id) {
+  function renderReader(title, text, id, opt) {
     if (typeof openContent !== 'function') return;
+    opt = opt || {};
+    var backT = opt.backT || '我的书';
+    var backF = opt.backF || openLocalShelf;
+    var selfF = opt.selfF || function () { read(id, title); };
     var paras = String(text).replace(/\r\n?/g, '\n').split(/\n{2,}/).map(function (s) { return s.replace(/[ \t]+$/g, ''); }).filter(function (s) { return s.trim().length > 0; });
     if (!paras.length) paras = ['（空文件）'];
-    var fs = parseInt(localStorage.getItem('readerFS') || '17', 10) || 17;
+    var c = readCfg();
     var chs = splitChapters(paras), chAt = {}, ci;
     for (ci = 0; ci < chs.length; ci++) chAt[chs[ci].pi] = ci;
     var body = paras.map(function (p, i) {
       var inner = (chAt[i] != null)
-        ? '<h3 class="rch" id="yzch-' + chAt[i] + '" data-ch="' + chAt[i] + '">' + esc(p).replace(/\n/g, '<br>') + '</h3>'
+        ? '<h3 class="rch" id="yzch-' + chAt[i] + '" data-ch="' + chAt[i] + '" data-i="' + i + '">' + esc(p).replace(/\n/g, '<br>') + '</h3>'
         : '<p data-i="' + i + '">' + esc(p).replace(/\n/g, '<br>') + '</p>';
       return inner;
     }).join('');
+    var thIcon = { day: '🌙', night: '🌓', black: '☀' }[c.th] || '🌙';
     openContent('📖 ' + title,
-      (typeof crumbFrom === 'function' ? crumbFrom([{ t: '我的书', fn: openLocalShelf }, { t: title, fn: function () { read(id, title); } }]) : '') +
-      '<div id="yzReader" data-book="' + esc(id) + '">' +
+      (typeof crumbFrom === 'function' ? crumbFrom([{ t: backT, fn: backF }, { t: title, fn: selfF }]) : '') +
+      '<div id="yzReader" class="th-' + c.th + '" data-book="' + esc(id) + '">' +
         '<div class="reader-bar">' +
-          '<button onclick="yzBooks.setFS(-1)" aria-label="缩小字号">A−</button>' +
-          '<span class="rfs">' + fs + '</span>' +
-          '<button onclick="yzBooks.setFS(1)" aria-label="放大字号">A＋</button>' +
-          (chs.length ? '<button onclick="yzBooks.toc()" aria-label="目录">📑 目录</button>' : '') +
+          '<button onclick="yzBooks.aa()" aria-label="排版设置">Aa</button>' +
+          '<button onclick="yzBooks.theme()" aria-label="配色">' + thIcon + '</button>' +
+          (chs.length ? '<button onclick="yzBooks.toc()" aria-label="目录">📑</button>' : '') +
           '<span style="flex:1"></span>' +
-          '<span class="rpos" style="opacity:.6;font-size:.72rem;margin-right:6px"></span>' +
-          '<span style="opacity:.6;font-size:.74rem">共 ' + paras.length + ' 段' + (chs.length ? ' · ' + chs.length + ' 章' : '') + '</span>' +
+          '<span class="rpos"></span>' +
         '</div>' +
-        '<article class="reader-body" style="font-size:' + fs + 'px">' + body + '</article>' +
+        '<div class="aa-panel" id="yzAAPanel" hidden></div>' +
+        '<article class="reader-body" style="font-size:' + c.fs + 'px;line-height:' + c.lh +
+          ';padding:0 ' + c.pd + 'px 76px;text-align:' + (c.jc ? 'justify' : 'left') + '">' + body + '</article>' +
+        '<div class="reader-foot">' +
+          '<button class="rnav" onclick="yzBooks.page(-1)" aria-label="上一屏">‹</button>' +
+          '<input class="rseek" type="range" min="0" max="1000" value="0" aria-label="阅读进度" oninput="yzBooks.seek(this.value)">' +
+          '<button class="rnav" onclick="yzBooks.page(1)" aria-label="下一屏">›</button>' +
+        '</div>' +
       '</div>');
-    restorePos(id);
+    bindSeek();
+    /* 从搜索命中点进来：直接跳到那一句并高亮一下；否则恢复上次进度 */
+    if (opt.anchor != null) {
+      setTimeout(function () {
+        var d = drawerEl();
+        var el = document.querySelector('#yzReader .reader-body [data-i="' + opt.anchor + '"]');
+        if (el && d) {
+          var y = el.getBoundingClientRect().top - d.getBoundingClientRect().top + d.scrollTop - 74;
+          try { d.scrollTop = Math.max(0, y); } catch (e) { }
+          try {
+            el.style.transition = 'background .35s';
+            el.style.background = 'rgba(255,214,102,.30)';
+            el.style.borderRadius = '4px';
+            setTimeout(function () { el.style.background = ''; }, 1800);
+          } catch (e) { }
+          updatePosLabel();
+          return;
+        }
+        restorePos(id); updatePosLabel();
+      }, 120);
+    } else {
+      restorePos(id);
+      updatePosLabel();
+    }
+  }
+
+  /* ---------------- 阅读器设置（字号/行距/边距/对齐/配色） ----------------
+     与 appbooks.js 里 EPUB/PDF 那套保持同一套选项，只是这边作用在网页侧阅读器上。 */
+  var RC_KEY = 'readerCfg';
+  function readCfg() {
+    var d = { fs: 17, lh: 1.95, pd: 2, jc: 1, th: 'day' };
+    var raw = null;
+    try { raw = localStorage.getItem(RC_KEY); } catch (e) { }
+    if (raw) {
+      try {
+        var c = JSON.parse(raw);
+        if (c && typeof c === 'object') {
+          if (c.fs) d.fs = Math.max(13, Math.min(26, c.fs | 0));
+          if (c.lh) d.lh = Math.max(1.5, Math.min(2.4, +c.lh));
+          if (typeof c.pd === 'number') d.pd = Math.max(0, Math.min(40, c.pd));
+          if (typeof c.jc === 'number') d.jc = c.jc ? 1 : 0;
+          if (c.th === 'day' || c.th === 'night' || c.th === 'black') d.th = c.th;
+        }
+      } catch (e) { }
+    } else {
+      var old = parseInt(localStorage.getItem('readerFS') || '0', 10);   /* 兼容旧键 */
+      if (old) d.fs = Math.max(13, Math.min(26, old));
+    }
+    return d;
+  }
+  function saveCfg(c) {
+    try { localStorage.setItem(RC_KEY, JSON.stringify(c)); localStorage.setItem('readerFS', String(c.fs)); } catch (e) { }
+  }
+  function applyCfg() {
+    var c = readCfg();
+    var art = document.querySelector('#yzReader .reader-body');
+    if (art) {
+      art.style.fontSize = c.fs + 'px';
+      art.style.lineHeight = String(c.lh);
+      art.style.padding = '0 ' + c.pd + 'px 76px';
+      art.style.textAlign = c.jc ? 'justify' : 'left';
+    }
+    var r = document.getElementById('yzReader');
+    if (r) {
+      r.classList.remove('th-day', 'th-night', 'th-black');
+      r.classList.add('th-' + c.th);
+      var tb = r.querySelector('.reader-bar button[aria-label="配色"]');
+      if (tb) tb.textContent = ({ day: '🌙', night: '🌓', black: '☀' })[c.th] || '🌙';
+    }
+  }
+  function renderAA() {
+    var p = document.getElementById('yzAAPanel'); if (!p) return;
+    var c = readCfg();
+    var row = function (label, body) { return '<div class="aa-row"><span class="aa-lb">' + label + '</span>' + body + '</div>'; };
+    p.innerHTML =
+      row('字号', '<button data-aa="fs-">A−</button><b>' + c.fs + '</b><button data-aa="fs+">A＋</button>') +
+      row('行距', '<button data-aa="lh-">紧</button><b>' + c.lh.toFixed(2) + '</b><button data-aa="lh+">松</button>') +
+      row('边距', '<button data-aa="pd-">窄</button><b>' + c.pd + '</b><button data-aa="pd+">宽</button>') +
+      row('对齐', '<button data-aa="jc" class="' + (c.jc ? 'on' : '') + '">' + (c.jc ? '两端对齐' : '左对齐') + '</button>') +
+      row('配色', '<button data-aa="th-day" class="' + (c.th === 'day' ? 'on' : '') + '">日间</button>' +
+        '<button data-aa="th-night" class="' + (c.th === 'night' ? 'on' : '') + '">夜间</button>' +
+        '<button data-aa="th-black" class="' + (c.th === 'black' ? 'on' : '') + '">纯黑</button>');
+    p.onclick = function (e) {
+      var b = e.target.closest ? e.target.closest('[data-aa]') : null;
+      if (!b) return;
+      var a = b.getAttribute('data-aa'), n = readCfg();
+      if (a === 'fs-') n.fs = Math.max(13, n.fs - 1);
+      else if (a === 'fs+') n.fs = Math.min(26, n.fs + 1);
+      else if (a === 'lh-') n.lh = Math.max(1.5, +(n.lh - 0.1).toFixed(2));
+      else if (a === 'lh+') n.lh = Math.min(2.4, +(n.lh + 0.1).toFixed(2));
+      else if (a === 'pd-') n.pd = Math.max(0, n.pd - 4);
+      else if (a === 'pd+') n.pd = Math.min(40, n.pd + 4);
+      else if (a === 'jc') n.jc = n.jc ? 0 : 1;
+      else if (a.indexOf('th-') === 0) n.th = a.slice(3);
+      saveCfg(n); applyCfg(); renderAA();
+      e.stopPropagation();
+    };
+  }
+  function aa() {
+    var p = document.getElementById('yzAAPanel'); if (!p) return;
+    if (!p.hidden) { p.hidden = true; return; }
+    renderAA(); p.hidden = false;
+  }
+  function theme() {
+    var c = readCfg();
+    var seq = ['day', 'night', 'black'];
+    c.th = seq[(seq.indexOf(c.th) + 1) % seq.length];
+    saveCfg(c); applyCfg();
+  }
+  function page(d) {
+    var el = drawerEl(); if (!el) return;
+    var h = el.clientHeight || window.innerHeight || 600;
+    el.scrollTop = Math.max(0, el.scrollTop + d * h * 0.88);
     updatePosLabel();
+  }
+  function seek(v) {
+    var el = drawerEl(); if (!el) return;
+    var max = el.scrollHeight - el.clientHeight;
+    if (max > 0) el.scrollTop = Math.round(max * (Number(v) / 1000));
+    updatePosLabel();
+  }
+  /* 滚动时把底部滑块同步到当前位置（只绑一次，重开书不重复绑） */
+  function bindSeek() {
+    var el = drawerEl(); if (!el || el.__yzSeekBound) return;
+    el.__yzSeekBound = true;
+    el.addEventListener('scroll', function () {
+      var sk = document.querySelector('#yzReader .rseek');
+      if (!sk) return;
+      var max = el.scrollHeight - el.clientHeight;
+      if (max > 0) { try { sk.value = String(Math.round(el.scrollTop / max * 1000)); } catch (e) { } }
+    }, { passive: true });
   }
 
   /* 进度记忆：记在 #drawer 的滚动位置上 */
@@ -552,13 +746,9 @@
     savePos();
   }
   function setFS(delta) {
-    var fs = parseInt(localStorage.getItem('readerFS') || '17', 10) || 17;
-    fs = Math.max(12, Math.min(30, fs + delta));
-    try { localStorage.setItem('readerFS', String(fs)); } catch (e) { }
-    var r = document.getElementById('yzReader');
-    if (!r) return;
-    var b = r.querySelector('.reader-body'); if (b) b.style.fontSize = fs + 'px';
-    var s = r.querySelector('.rfs'); if (s) s.textContent = String(fs);
+    var c = readCfg();
+    c.fs = Math.max(13, Math.min(26, c.fs + delta));
+    saveCfg(c); applyCfg(); renderAA();
   }
 
   function remove(id) {
@@ -606,7 +796,7 @@
   }
 
   /* 阅读时把「我的书」入口也挂到详情页按钮上（供 openItemDetail 调用） */
-  window.yzBooks = { load: loadAll, pick: pick, read: read, remove: remove, setFS: setFS, savePos: savePos, openShelf: openLocalShelf, openExternal: openExternal, importInto: importInto, findShell: findShell, findShellInfo: findShellInfo, decideShell: decideShell, simScore: simScore, meta: metaAll,
+  window.yzBooks = { load: loadAll, pick: pick, read: read, readUrl: readUrl, remove: remove, setFS: setFS, aa: aa, theme: theme, page: page, seek: seek, savePos: savePos, openShelf: openLocalShelf, openExternal: openExternal, importInto: importInto, findShell: findShell, findShellInfo: findShellInfo, decideShell: decideShell, simScore: simScore, meta: metaAll,
     toc: toc, closeToc: closeToc, jumpCh: jumpCh, splitChapters: splitChapters, curCh: curCh };
   /* 滚动时保存进度（节流） */
   var _t = 0;

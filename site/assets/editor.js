@@ -272,7 +272,7 @@
     box.appendChild(head);
 
     var tabs = el('div', 'ztabs');
-    [['res', '资源'], ['ppl', '人物'], ['cat', '目录'], ['graph', '图谱'], ['data', '数据']].forEach(function (t) {
+    [['res', '资源'], ['ppl', '人物'], ['cat', '目录'], ['graph', '图谱 · 关系'], ['data', '数据']].forEach(function (t) {
       var b = el('button', 'ztab' + (tab === t[0] ? ' on' : ''), t[1]); b.type = 'button';
       b.onclick = function () { tab = t[0]; render(); };
       tabs.appendChild(b);
@@ -619,6 +619,8 @@
     open.href = 'graph.html?edit=1'; open.style.display = 'inline-block'; open.style.textDecoration = 'none';
     f.appendChild(open);
 
+    relTab(f);
+
     f.appendChild(el('h4', '', '新建图谱'));
     var row = el('div', 'zrow');
     var ni = el('input'); ni.id = 'zzyNewGraph'; ni.placeholder = '图谱名称，如：早期建党关系';
@@ -811,6 +813,117 @@
   }
 
   /* ---------------- 数据 ---------------- */
+  /* ---------------- 关系清单（0.17.40）----------------
+     为什么要这块：改「关系」原本只有一条路——跳到 graph.html 的画布上长按节点。
+     但改关系名、删一条错关系、补一条漏关系，本质是「改数据」，不该强迫用户去打画布。
+     现在两套编辑分工明确：这里改数据，画布改布局与位置。二者写的是同一份覆盖层。 */
+  function relNodeMap(gid){
+    var d = YZY.graphData(gid) || { nodes: [], links: [] };
+    var nm = {};
+    (d.nodes || []).forEach(function (n) { nm[n.id] = n.name || n.id; });
+    return { d: d, nm: nm };
+  }
+  function relRowsHTML(q){
+    var gid = YZY.activeGraphId();
+    var t = relNodeMap(gid), d = t.d, nm = t.nm;
+    var ql = String(q || '').toLowerCase();
+    var out = '', n = 0, total = 0;
+    /* 倒序：刚新增的关系排在最前。否则 300 条以后的新关系根本看不见（332 条关系时会立刻踩到） */
+    (d.links || []).slice().reverse().forEach(function (l) {
+      var a = nm[l.source] || l.source, b = nm[l.target] || l.target, rel = l.rel || '关联';
+      if (ql && (a + b + rel).toLowerCase().indexOf(ql) < 0) return;
+      total++;
+      if (n++ > 300) return;
+      var key = l.source + '|' + l.target + '|' + rel;
+      out += '<div class="zitem"><div class="zbody">' +
+        '<div class="t">' + esc(a) + ' <span style="opacity:.55">—' + esc(rel) + '→</span> ' + esc(b) + '</div>' +
+        '</div><div style="display:flex;gap:6px">' +
+        '<button class="zbtn ghost" type="button" data-rel="' + esc(key) + '" data-act="edit">改名</button>' +
+        '<button class="zbtn danger" type="button" data-rel="' + esc(key) + '" data-act="del">删除</button>' +
+        '</div></div>';
+    });
+    if (!total) return '<div class="znote">当前图谱还没有关系，或在筛选里没有匹配。</div>';
+    return '<div class="znote" style="margin-bottom:6px">共 ' + total + ' 条' + (total > 300 ? '，只显示前 300 条，可用筛选缩小' : '') + '</div>' + out;
+  }
+
+  function relTab(f){
+    f.appendChild(el('h4', '', '关系清单'));
+    f.appendChild(el('div', 'znote', '这里改的是「数据」：关系名、增删。要看连线走向、拖动位置，再点上面的「打开图谱编辑」。两处写的是同一份本机改动。'));
+
+    var qi = el('input'); qi.id = 'zzyRelQ'; qi.placeholder = '筛选：节点名或关系名';
+    f.appendChild(qi);
+    var list = el('div'); list.id = 'zzyRelList';
+    list.innerHTML = relRowsHTML('');
+    f.appendChild(list);
+    qi.oninput = function () { list.innerHTML = relRowsHTML(qi.value); };
+
+    /* 事件委托必须绑在 #zzyWrap 上，不能绑在这个列表上：
+       render() 会 wrap.innerHTML='' 重建整棵子树，绑在列表上的监听器当场丢失 ——
+       表现就是「第一次点有效、保存后又点不动」。wrap 元素本身不会被替换，所以绑它能活。 */
+    var wrapEl = document.getElementById('zzyWrap');
+    if (wrapEl && !wrapEl.__zRelBound) {
+      wrapEl.__zRelBound = true;
+      wrapEl.addEventListener('click', function (ev) {
+        var b = ev.target;
+        while (b && b !== wrapEl && !b.getAttribute('data-rel')) b = b.parentNode;
+        if (!b || b === wrapEl) return;
+        var key = b.getAttribute('data-rel'), act = b.getAttribute('data-act');
+        if (!key || !act) return;
+        var gid = YZY.activeGraphId();
+        if (act === 'del') {
+          askConfirm('删除这条关系？', String(key).split('|').join(' ／ ')).then(function (y) {
+            if (!y) return;
+            YZY.removeGraphEdge(gid, key); applyNow('已删除关系'); render();
+          });
+        } else if (act === 'edit') {
+          var parts = key.split('|'), old = parts[2];
+          askText('关系名改成什么？（如：影响 / 师承 / 批判 / 参与）', old).then(function (v) {
+            v = String(v || '').trim();
+            if (!v || v === old) return;
+            /* 改名 = 删旧 + 加新，不走 setEdgeStyle 的 label。
+               原因：label 只改「显示名」不改数据，改完之后用新名字去删就删不掉（key 里还是旧名），
+               导出、画布、删除三方会各说各话。删旧加新能让 key 始终自洽。 */
+            YZY.removeGraphEdge(gid, key);
+            var r = YZY.addGraphEdge(gid, { source: parts[0], target: parts[1], rel: v });
+            if (r && r.ok === false) { toast(r.msg || '改名失败', true); return; }
+            applyNow('关系名已改为「' + v + '」'); render();
+          });
+        }
+      });
+    }
+
+    /* 新增关系 */
+    f.appendChild(el('h4', '', '新增关系'));
+    var t = relNodeMap(YZY.activeGraphId());
+    var dl = el('datalist'); dl.id = 'zzyRelNames';
+    (t.d.nodes || []).slice(0, 400).forEach(function (n) {
+      var o = document.createElement('option'); o.value = n.name || n.id; dl.appendChild(o);
+    });
+    f.appendChild(dl);
+
+    var row = el('div', 'zrow');
+    var ia = el('input'); ia.id = 'zzyRelA'; ia.setAttribute('list', 'zzyRelNames'); ia.placeholder = '起点（输名字）';
+    var ir = el('input'); ir.id = 'zzyRelR'; ir.placeholder = '关系名'; ir.value = '关联';
+    var ib = el('input'); ib.id = 'zzyRelB'; ib.setAttribute('list', 'zzyRelNames'); ib.placeholder = '终点（输名字）';
+    var go = el('button', 'zbtn', '＋ 添加'); go.type = 'button';
+    go.onclick = function () {
+      try {
+        var t2 = relNodeMap(YZY.activeGraphId()), nm = t2.nm, byName = {};
+        (t2.d.nodes || []).forEach(function (n) { byName[String(n.name || '').trim()] = n.id; });
+        var an = String($('zzyRelA').value || '').trim(), bn = String($('zzyRelB').value || '').trim();
+        var rel = String($('zzyRelR').value || '').trim() || '关联';
+        var aid = byName[an] || an, bid = byName[bn] || bn;
+        if (!aid || !bid) { toast('起点和终点都要填（可输名字）', true); return; }
+        var r = YZY.addGraphEdge(YZY.activeGraphId(), { source: aid, target: bid, rel: rel });
+        if (r && r.ok === false) { toast(r.msg || '添加失败', true); return; }
+        applyNow('已添加关系'); render();
+      } catch (e) { showErr('添加失败：' + (e && e.message)); }
+    };
+    row.appendChild(ia); row.appendChild(ir); row.appendChild(ib); row.appendChild(go);
+    f.appendChild(row);
+    f.appendChild(el('div', 'znote', '关系名不限字数，但建议用短词：影响 / 师承 / 批判 / 参与 / 创立。'));
+  }
+
   function dataTab() {
     var f = el('div');
     var st = YZY.stats(), si = YZY.storage();

@@ -351,21 +351,19 @@
 
   function isTextLike(name) { return /\.(txt|md|markdown|text)$/i.test(S(name)); }
 
-  function indexLocal(cb) {
-    if (_local) return isFn(cb) && cb(_local);
+  function indexWeb(cb) {
     readBooks(function (list) {
       var out = [], pending = 0, total = 0, finished = false;
       withDB(function (d) {
-        if (!d) { _local = []; return isFn(cb) && cb(_local); }
+        if (!d) { return isFn(cb) && cb([]); }
         var st = null;
         try { st = d.transaction(LOCAL_STORE, 'readonly').objectStore(LOCAL_STORE); } catch (e) { st = null; }
-        if (!st) { _local = []; return isFn(cb) && cb(_local); }
+        if (!st) { return isFn(cb) && cb([]); }
 
         function fin() {
           if (--pending > 0) return;
           if (finished) return;
           finished = true;
-          _local = out;
           isFn(cb) && cb(out);
         }
         function build(x, id, m, fp) {
@@ -401,9 +399,167 @@
           };
           g.onerror = function () { fin(); };
         });
-        if (!total) { _local = []; isFn(cb) && cb(_local); }
+        if (!total) { isFn(cb) && cb([]); }
       });
     });
+  }
+
+
+  /* ---------------- App 侧导入的书（Java 私有目录） ----------------
+     为什么单独一路：App 里导入的 EPUB / TXT / MD 存在应用私有目录，
+     元数据在 AndroidApp.bookList()，正文只有 Java 取得到
+     （EPUB 走 bookChapter(id,idx)，TXT/MD 走 bookTextUrl(id)）。
+     网页侧 IndexedDB 里没有它们 —— 所以「App 里读得到、搜不到」。
+     PDF 不进来：页是位图，没有文字层。 */
+
+  function AndroidBridge() { try { return window.AndroidApp || null; } catch (e) { return null; } }
+
+  function appBooks() {
+    var a = AndroidBridge();
+    if (!a || typeof a.bookList !== 'function') return [];
+    var arr = [];
+    try { arr = JSON.parse(a.bookList() || '[]') || []; } catch (e) { return []; }
+    return arr.filter(function (b) {
+      return b && b.id && (b.type === 'epub' || b.type === 'txt' || b.type === 'md');
+    });
+  }
+
+  /* EPUB 章节是 HTML，去掉标签但保留段落边界，否则整章会粘成一坨搜不准 */
+  function stripHTML(h) {
+    return S(h)
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&amp;/gi, '&')
+      .replace(/\n{3,}/g, '\n\n');
+  }
+
+  function appFp(m) { return S(m.size) + ':' + S(m.at) + ':' + S(m.name); }
+
+  function saveAppIdx(d, key, rec, done) {
+    try {
+      var tx = d.transaction(LOCAL_STORE, 'readwrite');
+      tx.objectStore(LOCAL_STORE).put(rec, key);
+      tx.oncomplete = done; tx.onerror = done;
+    } catch (e) { done(); }
+  }
+
+  /* 建一本的索引：TXT/MD 整篇取；EPUB 逐章取（分片，别把主线程堵死） */
+  function buildApp(m, fp, d, done) {
+    var a = AndroidBridge();
+    if (!a) return done(null);
+
+    if (m.type === 'txt' || m.type === 'md') {
+      var url = '';
+      try { url = a.bookTextUrl ? (a.bookTextUrl(m.id) || '') : ''; } catch (e) { url = ''; }
+      if (!url) return done(null);
+      fetch(url).then(function (r) { return r.ok ? r.text() : ''; }).then(function (txt) {
+        var sgs = segs(S(txt).slice(0, 3000000));
+        if (!sgs.length) return done(null);
+        var rec = { fp: fp, segs: sgs, chapOf: null, t: Date.now() };
+        saveAppIdx(d, 'app:' + m.id, rec, function () {
+          done({ id: m.id, meta: m, segs: sgs, chapOf: null, from: 'app' });
+        });
+      }).catch(function () { done(null); });
+      return;
+    }
+
+    /* EPUB */
+    var n = (m.chapters && m.chapters.length) ? m.chapters.length : (m.count || 0);
+    if (!n) return done(null);
+    var all = [], chapOf = [], ci = 0, CHUNK = 3, stopped = false;
+    function step() {
+      if (stopped) return;
+      var end = Math.min(n, ci + CHUNK), k, j;
+      try {
+        for (k = ci; k < end; k++) {
+          var h = '';
+          try { h = a.bookChapter ? (a.bookChapter(m.id, k) || '') : ''; } catch (e) { h = ''; }
+          var txt = stripHTML(h).replace(/^[\s\u3000]+|[\s\u3000]+$/g, '');
+          if (!txt) continue;
+          var sgs = segs(txt.slice(0, 200000));
+          for (j = 0; j < sgs.length; j++) { all.push(sgs[j]); chapOf.push(k); }
+          /* 上限保护：单本最多 2 万段，超了就不再往后读 */
+          if (all.length >= 20000) { stopped = true; break; }
+        }
+      } catch (e) { }
+      ci = end;
+      if (stopped || ci >= n) {
+        if (!all.length) return done(null);
+        var rec = { fp: fp, segs: all, chapOf: chapOf, t: Date.now() };
+        return saveAppIdx(d, 'app:' + m.id, rec, function () {
+          done({ id: m.id, meta: m, segs: all, chapOf: chapOf, from: 'app' });
+        });
+      }
+      setTimeout(step, 12);      /* 让出主线程，滚动/点击不卡 */
+    }
+    step();
+  }
+
+  var _app = null, _appBusy = false, _appWait = [];
+  function indexApp(cb) {
+    if (_app) return isFn(cb) && cb(_app);
+    if (isFn(cb)) _appWait.push(cb);
+    if (_appBusy) return;
+    _appBusy = true;
+
+    var books = appBooks();
+    if (!books.length) { _app = []; _appBusy = false; return flushApp(); }
+
+    withDB(function (d) {
+      if (!d) { _app = []; _appBusy = false; return flushApp(); }
+      var st = null;
+      try { st = d.transaction(LOCAL_STORE, 'readonly').objectStore(LOCAL_STORE); } catch (e) { st = null; }
+      if (!st) { _app = []; _appBusy = false; return flushApp(); }
+
+      var out = [], pending = books.length, finished = false;
+      function fin() {
+        if (--pending > 0 || finished) return;
+        finished = true;
+        _app = out; _appBusy = false; flushApp();
+      }
+      books.forEach(function (m) {
+        var key = 'app:' + m.id, fp = appFp(m), g;
+        try { g = st.get(key); } catch (e) { return fin(); }
+        g.onsuccess = function () {
+          var rec = g.result;
+          if (rec && rec.fp === fp && rec.segs) {
+            out.push({ id: m.id, meta: m, segs: rec.segs, chapOf: rec.chapOf || null, from: 'app' });
+            return fin();
+          }
+          buildApp(m, fp, d, function (item) { if (item) out.push(item); fin(); });
+        };
+        g.onerror = function () { fin(); };
+      });
+    });
+  }
+  function flushApp() {
+    var w = _appWait; _appWait = [];
+    for (var i = 0; i < w.length; i++) { try { w[i](_app || []); } catch (e) { } }
+  }
+
+  /* 对外：合并「网页侧 TXT/MD」+「App 侧导入的书」 */
+  function indexLocal(cb) {
+    if (_local) return isFn(cb) && cb(_local);
+    indexWeb(function (web) {
+      indexApp(function (app) {
+        _local = (web || []).concat(app || []);
+        isFn(cb) && cb(_local);
+      });
+    });
+  }
+
+  /* 后台预热：页面空闲时开始建索引，用户真去搜的时候基本已经好了 */
+  function warmApp(delay) {
+    setTimeout(function () {
+      try {
+        if (!appBooks().length) return;
+        indexApp(function () { });
+      } catch (e) { }
+    }, delay || 3000);
   }
 
   function searchLocal(q, cb) {
@@ -412,7 +568,7 @@
     indexLocal(function (list) {
       var out = [];
       (list || []).forEach(function (bk) {
-        var best = null, bestScore = -1, hits = 0, i, k;
+        var best = null, bestScore = -1, hits = 0, i, k, bestIdx = -1;
         var sgs = bk.segs || [];
         for (i = 0; i < sgs.length; i++) {
           var tx = low(sgs[i]), ok = true, sc = 0;
@@ -422,16 +578,20 @@
           }
           if (!ok) continue;
           hits++;
-          if (sc > bestScore) { bestScore = sc; best = sgs[i]; }
+          if (sc > bestScore) { bestScore = sc; best = sgs[i]; bestIdx = i; }
         }
         if (!best) return;
         var m = bk.meta || {};
+        var chap = (bk.chapOf && typeof bk.chapOf[bestIdx] === 'number') ? bk.chapOf[bestIdx] : null;
         out.push({
-          cat: '本机正文', t: S(m.title || m.name || '未命名'),
+          cat: bk.from === 'app' ? '本机正文' : '本机正文',
+          t: S(m.title || m.name || '未命名'),
           sub: snipText(best, q, SNIP_W) || S(best).slice(0, 60),
           snip: snipText(best, q, SNIP_W),
           fn: 'yzftLocal(\'' + esc(S(bk.id)) + '\')',
-          score: 50 + Math.min(hits, 20), hits: hits
+          score: (bk.from === 'app' ? 54 : 50) + Math.min(hits, 20), hits: hits,
+          id: S(bk.id), app: bk.from === 'app', chap: chap,
+          chapTitle: (chap !== null && m.chapters && m.chapters[chap]) ? S(m.chapters[chap].title || '') : ''
         });
       });
       out.sort(function (a, b) { return b.score - a.score; });
@@ -466,16 +626,74 @@
   }
 
   function stats() {
-    var C = corpus(), ln = 0, ls = 0, i;
-    if (_local) { ln = _local.length; for (i = 0; i < _local.length; i++) ls += (_local[i].segs || []).length; }
-    return { seg: C.segs.length, chars: C.chars, local: { books: ln, segs: ls } };
+    var C = corpus(), ln = 0, ls = 0, i, an = 0, as = 0;
+    if (_local) {
+      ln = _local.length;
+      for (i = 0; i < _local.length; i++) {
+        ls += (_local[i].segs || []).length;
+        if (_local[i].from === 'app') { an++; as += (_local[i].segs || []).length; }
+      }
+    }
+    return {
+      seg: C.segs.length, chars: C.chars,
+      local: { books: ln, segs: ls },
+      app: { books: an, segs: as, available: appBooks().length, busy: _appBusy }
+    };
+  }
+
+  /* ---------------- 站内正文（讲堂 books/*.txt）检索 ----------------
+     索引由 gen_jtfull.py 预生成（data/jtfull.js，约 370 KB / 27 篇 / 1500+ 段），
+     懒加载：首屏不下载，第一次搜正文时才拉一次，之后常驻内存。
+     命中给段落序号，点开直接滚到那一句（阅读器 [data-i] 与索引同一切段规则）。 */
+  var _jt = null, _jtLoading = false, _jtQ = [];
+  function loadJT(cb) {
+    if (_jt) { if (isFn(cb)) cb(_jt); return; }
+    if (isFn(cb)) _jtQ.push(cb);
+    if (_jtLoading) return;
+    _jtLoading = true;
+    function done(list) {
+      _jt = list || []; _jtLoading = false;
+      var q = _jtQ.slice(); _jtQ = [];
+      for (var i = 0; i < q.length; i++) { try { q[i](_jt); } catch (e) { } }
+    }
+    try {
+      var s = document.createElement('script');
+      s.src = 'data/jtfull.js';
+      s.async = true;
+      s.onload = function () { done(window.JT_FULL); };
+      s.onerror = function () { done([]); };
+      document.head.appendChild(s);
+    } catch (e) { done([]); }
+  }
+  function searchStation(q, cb) {
+    loadJT(function (list) {
+      var ts = terms(q), out = [], i, j, k;
+      if (!ts.length || !list.length) { cb(out); return; }
+      for (i = 0; i < list.length; i++) {
+        var b = list[i], hit = -1, hits = 0, first = '';
+        for (j = 0; j < b.t.length; j++) {
+          var low = String(b.t[j]).toLowerCase(), ok = true;
+          for (k = 0; k < ts.length; k++) { if (low.indexOf(ts[k]) < 0) { ok = false; break; } }
+          if (ok) { hits++; if (hit < 0) { hit = j; first = b.t[j]; } }
+        }
+        if (hit < 0) continue;
+        out.push({
+          cat: '讲堂正文', t: b.title, id: b.id, url: b.url, para: hit, hits: hits,
+          sub: String(first).replace(/\s+/g, ' ').slice(0, 90), score: 100 + hits
+        });
+      }
+      out.sort(function (a, b) { return b.hits - a.hits; });
+      cb(out.slice(0, 12));
+    });
   }
 
   window.YZFULLTEXT = {
     snip: snip, snipText: snipText, segs: segs,
+    searchStation: searchStation, preloadStation: function () { loadJT(function () { }); },
     /* 给「引文比对」用：暴露全部段落（含 text / cat / t / resIndex），只读不改 */
     all: function () { try { return corpus().segs || []; } catch (e) { return []; } },
     search: search, searchLocal: searchLocal, indexLocal: indexLocal, stats: stats,
+    indexApp: indexApp, warmApp: warmApp,
     show: show, showLocal: showLocal,
     _reset: function () { _corpus = null; _local = null; }
   };

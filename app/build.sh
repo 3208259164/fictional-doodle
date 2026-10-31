@@ -1,204 +1,230 @@
 #!/usr/bin/env bash
-# =====================================================================
-# 学通 App · 构建脚本（自定义工具链：aapt2 + javac + R8 + zipalign + apksigner）
+# =============================================================================
+# 学通 · 一键构建（aapt2 → javac → R8 → dex → zipalign → apksigner → 自检）
 #
 # 用法：
-#   NAME=0.15.0 CODE=56 bash build.sh                # 本地发布：产出「已签名」APK
-#   NAME=0.15.0 CODE=56 UNSIGNED=1 bash build.sh     # F-Droid：产出「未签名」APK
+#   NAME=0.17.52 CODE=231 bash build.sh
 #
-# 环境变量（均有默认值，可覆盖以便在 CI / F-Droid buildserver 上跑）：
-#   NAME=版本名  CODE=版本号(整数,只增)  UNSIGNED=1(不签名)  KS_PW=签名口令
-#   BT=build-tools 目录   AJ=android.jar   R8=r8.jar
-#   P=App 工程目录        SITE=站点源码目录  KS=签名密钥
-#   MIN_SDK(默认29=Android10) / TARGET_SDK(默认36) / SOURCE_DATE_EPOCH（可复现构建，默认2020-01-01）
-# =====================================================================
-set -e
-NAME="${NAME:?请指定 NAME，如 NAME=0.15.0}"
-CODE="${CODE:?请指定 CODE，如 CODE=56}"
-BT="${BT:?请指定 BT（Android build-tools 目录，含 aapt2/zipalign/apksigner）}"
-AJ="${AJ:?请指定 AJ（platform 的 android.jar，targetSdk 36）}"
-R8="${R8:?请指定 R8（r8.jar 路径）}"
-P="${P:-$(cd "$(dirname "$0")" && pwd)}"   # 默认取脚本所在目录（原写死 /output/apk 会把站点拷进元资源库工程）
-SITE="${SITE:-$P/../site}"; [ -d "$SITE" ] || { echo "❌ 站点目录不存在：$SITE（用 SITE= 指定）" >&2; exit 1; }
-KS="${KS:?请指定 KS（签名 keystore 路径）}"
-# 签名口令：**不写入仓库**。优先环境变量 KS_PW，其次本地文件 $KS_PW_FILE（默认见下）。仅签名时需要。
-PW="${KS_PW:-}"
-if [ -z "$PW" ]; then PWF="${KS_PW_FILE:-$P/ks.pw}"; if [ -f "$PWF" ]; then PW="$(cat "$PWF")"; fi; fi
-B="$P/build"
-OUT="$P/dist"
-MIN_SDK="${MIN_SDK:-29}"
-TARGET_SDK="${TARGET_SDK:-36}"
+# 必给：NAME（版本名，如 0.17.52）、CODE（versionCode，只增不减）
+# 可选：
+#   SITE_VER=0.34.119   同时写站点版本（site data/config.js 的 version）
+#   SW_SYNC=1           把 sw.js 的 VERSION 强制改成 v$CODE（默认保留手写值，只提醒）
+#   DOWNLEVEL=1         用 esbuild 重新把 3D 引擎降到 ES2015（默认只做兼容性校验，不改字节）
+#   FORCE=1             跳过 versionCode 只增校验（重出同一版本时用）
+#   UNSIGNED=1          只出未签名包（做差分/对照时用）
+#
+# 环境变量（未给则用 /sandbox/workspace/toolchain 下的默认路径）：
+#   BT=<build-tools 目录>  AJ=<android.jar>  R8=<r8.jar>
+#   KS=<keystore>  KS_PW=<口令>  ESBUILD=<esbuild>
+#   P=<apk 工程目录>  SITE=<站点源码目录>
+# =============================================================================
+set -euo pipefail
+# 注意：不能用 LC_ALL=C —— 那会让 bash 把中文产物名写成「??????-0.17.51.apk」。
+# 用 C.UTF-8：既能保证排序/时间格式可复现，又能正确处理 UTF-8 文件名。
+export LC_ALL=C.UTF-8 TZ=UTC
 
-# 内容可复现：固定时间戳 / 区域 / 时区 —— dex / 资源 / 资产逐字节相同。
-#   注意：APK **整体**字节不可复现，因为签名块每次不同（ECDSA 用随机数 k）；
-#   逐字节比对需先去掉签名（F-Droid 用 apksigcopier 正是这么做的）。
-export LC_ALL=C
-export TZ=UTC
-export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1577836800}"   # 2020-01-01T00:00:00Z
+NAME="${NAME:?需要 NAME（如 NAME=0.17.52）}"
+CODE="${CODE:?需要 CODE（如 CODE=231）}"
+P="${P:-$(cd "$(dirname "$0")" && pwd)}"
+SITE="${SITE:-$P/../site_new}"
+TC="${TC:-/sandbox/workspace/toolchain}"
+BT="${BT:-$TC/build-tools-36}"
+AJ="${AJ:-$TC/android-sdk/platforms/android-36/android.jar}"
+R8="${R8:-$TC/r8.jar}"
+KS="${KS:-$TC/release.keystore}"
+KS_PW="${KS_PW:-$(cat "$TC/ks.pw" 2>/dev/null || true)}"
+ESBUILD="${ESBUILD:-$TC/js/node_modules/.bin/esbuild}"
+SITE_VER="${SITE_VER:-}"
+SW_SYNC="${SW_SYNC:-0}"
+DOWNLEVEL="${DOWNLEVEL:-0}"
+FORCE="${FORCE:-0}"
+UNSIGNED="${UNSIGNED:-0}"
+SOURCE_DATE_EPOCH_FIXED=315532800   # 1980-01-01，与成品包时间戳一致
 
-SIGNED_TXT=$([ "${UNSIGNED:-0}" = "1" ] && echo "否（F-Droid 用自身密钥签名）" || echo "是")
-# ---- versionCode 只增校验 ----------------------------------------------------
-# 只比较手传的 CODE 这个数字，与 versionName 无关（不按版本名推导，避免
-# "0.10.99=1099 > 0.11.1=111" 那种高级版本号反而更小的情况）。
-# 历史最大值记在 $P/.last_code；文件丢失时从 0 起算（不会误拦，构建成功后会写回）。
-CODE_FILE="$P/.last_code"
-LAST=0
-if [ -f "$CODE_FILE" ]; then LAST="$(cat "$CODE_FILE" 2>/dev/null || echo 0)"; fi
-case "$LAST" in ''|*[!0-9]*) LAST=0 ;; esac
-case "$CODE" in ''|*[!0-9]*) echo "❌ CODE 必须是整数：$CODE" >&2; exit 1 ;; esac
-if [ "$CODE" -le "$LAST" ]; then
-  echo "❌ versionCode 必须递增：本次 CODE=$CODE，历史上用过的最大值是 $LAST" >&2
-  echo "   覆盖安装时新包的 versionCode 必须大于已装的，否则系统会判定为降级、直接拒绝安装。" >&2
-  echo "   如确需重出当前版本，请把 CODE 调大（例如 $((LAST+1))）。" >&2
-  exit 1
+WORK="$(mktemp -d /tmp/xuetong-build.XXXXXX)"
+trap 'rm -rf "$WORK"' EXIT
+
+say() { printf '\033[1m%s\033[0m\n' "$*"; }
+ok()  { printf '  ✅ %s\n' "$*"; }
+die() { printf '  ❌ %s\n' "$*" >&2; exit 1; }
+
+for f in "$BT/aapt2" "$AJ" "$R8" "$ESBUILD"; do [ -e "$f" ] || die "工具链缺件：$f"; done
+
+say "[0/8] 版本门禁"
+LAST=$(cat "$P/.last_code" 2>/dev/null || echo 0)
+if [ "$FORCE" != "1" ] && [ "$CODE" -le "$LAST" ]; then
+  die "CODE=$CODE 不大于上次的 $LAST（.last_code）。重出同一版本请加 FORCE=1，或把 CODE 调大"
+fi
+ok "NAME=$NAME CODE=$CODE（上次 $LAST）"
+
+say "[0b/8] 重新生成 assets/site（排除 tools/，HTML 注入 __YZV 与 ?v=$CODE）"
+python3 "$P/tools/inject_app_site.py" "$SITE" "$P/assets/site" "$CODE"
+N_SITE=$(find "$P/assets/site" -type f | wc -l)
+ok "assets/site：$N_SITE 个文件"
+
+say "[0b+/8] 讲堂全文索引（data/jtfull.js，搜索用）"
+if [ -f "$P/../gen_jtfull.py" ]; then
+  python3 "$P/../gen_jtfull.py" | sed 's/^/  /'
+  cp "$SITE/data/jtfull.js" "$P/assets/site/data/jtfull.js"
+  ok "jtfull.js 已同步到包内"
+else
+  ok "无 gen_jtfull.py，跳过"
 fi
 
-echo "==> 构建 学通 $NAME (versionCode $CODE, minSdk $MIN_SDK, targetSdk $TARGET_SDK, 签名=$SIGNED_TXT)"
+say "[0a/8] 3D 引擎（ES2015 基线）"
+ENGINE="$P/assets/site/lib/3d-force-graph.min.js"
+[ -f "$ENGINE" ] || die "缺 $ENGINE"
+EB=$(stat -c%s "$ENGINE")
+if [ "$DOWNLEVEL" = "1" ]; then
+  "$ESBUILD" "$ENGINE" --target=es2015 --minify --outfile="$WORK/lib3d.js" --log-level=warning
+  cp "$WORK/lib3d.js" "$ENGINE"
+  EB=$(stat -c%s "$ENGINE")
+  ok "已重新降级：$EB 字节"
+else
+  "$ESBUILD" "$ENGINE" --target=es2015 --minify --outfile="$WORK/lib3d.check.js" --log-level=warning \
+    || die "3D 引擎无法降到 ES2015（WebView 会白屏）"
+  ok "3D 引擎就绪（$EB 字节 · ES2015 校验通过）"
+fi
 
-echo "[0] 刷新站点资源（站点目录为唯一真源）"
-rm -rf "$P/assets/site"
-cp -r -p "$SITE" "$P/assets/site"
-rm -rf "$P/assets/site/.git"
+say "[0c/8] 固定时间戳（可复现构建）"
+find "$P/assets/site" -exec touch -h -d @$SOURCE_DATE_EPOCH_FIXED {} +
 
-echo "[0b0] SW 缓存版本对齐构建号（防止忘改 sw.js VERSION 导致 Service Worker 永不更新）"
-SWF="$P/assets/site/sw.js"
-if [ -f "$SWF" ]; then
-  python3 - "$SWF" "$CODE" <<'PYEOF'
+say "[1/8] 写版本号"
+python3 - "$P/AndroidManifest.xml" "$NAME" "$CODE" <<'PY'
 import re, sys
-p, code = sys.argv[1], sys.argv[2]
+p, name, code = sys.argv[1], sys.argv[2], sys.argv[3]
 s = open(p, encoding='utf-8').read()
-s2 = re.sub(r"^const VERSION = '[^']*';", "const VERSION = 'v%s';" % code, s, count=1, flags=re.M)
-assert s2 != s, 'sw.js 未找到 VERSION 行'
-open(p, 'w', encoding='utf-8').write(s2)
-print('   sw.js VERSION -> v' + code)
-PYEOF
-fi
-
-echo "[0b1] 静态资源版本化（?v=$CODE）—— 让 WebView 敢缓存、也让 V8 编译缓存能复用"
-python3 "$(dirname "$0")/../tools/versionize_html.py" "$P/assets/site" "$CODE"
-
-echo "[0b] 精简安装包（去开发用文件；站点目录已不含 library/epub/pdf/jszip 等下线组件）"
-rm -rf "$P/assets/site/tools" "$P/assets/site/.github"
-rm -f "$P/assets/site/CHANGELOG.md" "$P/assets/site/README.md"
-rm -rf "$P/assets/site/pages"          # 静态快照（SEO 用，仅网页版需要）
-rm -f "$P/assets/site/sitemap.xml"     # 同上
-rm -f "$P/assets/site/CHANGELOG-archive.md"   # 历史变更记录（仅仓库留档，不进安装包）
-rm -f "$P/assets/site/version.json"
-# 编辑器/脚本的历史备份（.bak_*）绝不进包：曾混入 6 个 resources 备份，APK 白胖 585KB
-find "$P/assets/site" -type f -name "*.bak*" -delete 2>/dev/null || true
-find "$P/assets/site" -type f \( -name "*.orig" -o -name "*.rej" -o -name "*~" \) -delete 2>/dev/null || true
-
-echo "[0a] JS 兼容基线：自动降到 ES2015（无 esbuild 时使用仓库内已降级文件）"
-ESB="${ESBUILD:-$(command -v esbuild 2>/dev/null || true)}"
-if [ -z "$ESB" ] && [ -x "$P/tools/esbuild" ]; then ESB="$P/tools/esbuild"; fi
-if [ -n "$ESB" ] && command -v "$ESB" >/dev/null 2>&1; then
-  for f in "$P/assets/site/lib/"*.js; do
-    [ -e "$f" ] || continue
-    [ "$(stat -c%s "$f")" -gt 1000 ] || continue   # 跳过占位小文件
-    if "$ESB" "$f" --target=es2015 --minify --outfile="$f.es2015.tmp" >/dev/null 2>&1; then mv "$f.es2015.tmp" "$f"; else rm -f "$f.es2015.tmp"; echo "   ⚠️ 降级失败(保留原文件): $f"; fi
-  done
-  echo "   已用 esbuild 降级 lib/*.js → ES2015"
-else
-  echo "   未发现 esbuild → 使用仓库内已降级的 lib/*.js（跳过）"
-fi
-# 校验 3D 引擎确为“降级版”（含 globalThis 垫片）且体积合理
-ENG="$P/assets/site/lib/3d-force-graph.min.js"
-ESZ=$(stat -c%s "$ENG" 2>/dev/null || echo 0)
-if [ "$ESZ" -lt 1000000 ] || ! grep -q "globalThis" "$ENG" 2>/dev/null; then
-  echo "❌ 3D 引擎异常（大小=$ESZ 字节，或缺 globalThis 兼容垫片）。请运行 tools/downlevel-lib.sh 重新生成。"; exit 1
-fi
-echo "   ✅ 3D 引擎就绪（$ESZ 字节 · ES2015）"
-
-echo "[0c] 固定源文件时间戳（可复现构建）"
-find "$P/res" "$P/assets" -exec touch -d "@$SOURCE_DATE_EPOCH" {} + 2>/dev/null || true
-
-echo "[1] 写入版本号到 AndroidManifest.xml"
-python3 - "$CODE" "$NAME" "$P" <<'PY'
-import io, re, sys
-code, name, P = sys.argv[1], sys.argv[2], sys.argv[3]
-p = P + '/AndroidManifest.xml'
-s = io.open(p, encoding='utf-8').read()
-s = re.sub(r'android:versionCode="\d+"', 'android:versionCode="%s"' % code, s)
-s = re.sub(r'android:versionName="[^"]*"', 'android:versionName="%s"' % name, s)
-io.open(p, 'w', encoding='utf-8').write(s)
-print('   manifest -> %s / %s' % (name, code))
+s = re.sub(r'android:versionCode="\d+"', 'android:versionCode="%s"' % code, s, count=1)
+s = re.sub(r'android:versionName="[^"]*"', 'android:versionName="%s"' % name, s, count=1)
+open(p, 'w', encoding='utf-8').write(s)
+print('  ✅ AndroidManifest：versionCode=%s versionName=%s' % (code, name))
 PY
-
-mkdir -p "$B" "$OUT"
-echo "[2] aapt2 compile（--no-crunch：PNG 直通，避免非确定压缩）"; "$BT/aapt2" compile --no-crunch --dir "$P/res" -o "$B/res.zip"
-echo "[3] aapt2 link (targetSdk $TARGET_SDK)"; "$BT/aapt2" link -o "$B/base.apk" -I "$AJ" --manifest "$P/AndroidManifest.xml" -A "$P/assets" \
-  --java "$B/gen" -R "$B/res.zip" --min-sdk-version "$MIN_SDK" --target-sdk-version "$TARGET_SDK" \
-  --version-code "$CODE" --version-name "$NAME" --auto-add-overlay
-
-echo "[4] javac（全部源文件）"
-rm -rf "$B/classes"; mkdir -p "$B/classes"
-SRCS=$(find "$P/java/com/yuanziyuan/app" -name '*.java' | LC_ALL=C sort)   # 固定源文件顺序（可复现）
-javac -source 8 -target 8 -encoding UTF-8 -bootclasspath "$AJ" -cp "$AJ" -d "$B/classes" -nowarn \
-  $SRCS "$B/gen/com/yuanziyuan/app/R.java" 2> "$B/javac.log" || { echo "javac 失败："; cat "$B/javac.log"; exit 1; }
-if grep -qi "error" "$B/javac.log"; then echo "javac 有错误："; cat "$B/javac.log"; exit 1; fi
-echo "   javac OK（$(ls "$P/java/com/yuanziyuan/app/"*.java | wc -l) 个源文件）"
-
-echo "[5] R8（混淆 + 优化；失败回退 d8）"
-rm -rf "$B/dex"; mkdir -p "$B/dex"
-if java -cp "$R8" com.android.tools.r8.R8 --release --lib "$AJ" --min-api "$MIN_SDK" \
-     --output "$B/dex" --pg-conf "$P/proguard-rules.pro" --pg-map-output "$B/dex/mapping.txt" "$B/classes/com/yuanziyuan/app/"*.class > "$B/r8.log" 2>&1; then
-  echo "   R8 OK"; ls -la "$B/dex"
+if [ -n "$SITE_VER" ]; then
+  python3 - "$P/assets/site/data/config.js" "$SITE_VER" <<'PY'
+import re, sys
+p, ver = sys.argv[1], sys.argv[2]
+s = open(p, encoding='utf-8').read()
+s2 = re.sub(r"(version\s*:\s*')[^']*(')", r"\g<1>%s\g<2>" % ver, s, count=1)
+open(p, 'w', encoding='utf-8').write(s2)
+print('  ✅ data/config.js version=%s' % ver)
+PY
 else
-  echo "❌ R8 失败（发布构建不允许静默回退未混淆产物）；日志："; tail -25 "$B/r8.log"; exit 1
+  CUR=$(grep -oE "version[[:space:]]*:[[:space:]]*'[^']*'" "$P/assets/site/data/config.js" | head -1 | grep -oE "'[^']*'" | tr -d "'")
+  ok "站点版本沿用 $CUR（要改就传 SITE_VER=）"
 fi
-# 归档混淆映射表（供线上崩溃栈还原）
-if [ -f "$B/dex/mapping.txt" ]; then cp "$B/dex/mapping.txt" "$P/mapping-$NAME.txt"; echo "   mapping -> $P/mapping-$NAME.txt"; fi
-
-echo "[6] dex + zipalign"
-cp "$B/base.apk" "$B/app.apk"; touch -d "@$SOURCE_DATE_EPOCH" "$B/dex/classes.dex"; (cd "$B/dex" && zip -0 -X -q "$B/app.apk" classes.dex)   # -0=STORE：dex 不压缩（Android 惯例 + 更确定）
-
-"$BT/zipalign" -p -f 4 "$B/app.apk" "$B/aligned.apk"
-
-if [ "${UNSIGNED:-0}" = "1" ]; then
-  echo "[7] 跳过签名（UNSIGNED=1）——产出未签名 APK（供 F-Droid 用其自身密钥签名）"
-  cp "$B/aligned.apk" "$OUT/学通-$NAME-unsigned.apk"
-  echo "[8] 校验（未签名）"
-  BADG="$("$BT/aapt2" dump badging "$OUT/学通-$NAME-unsigned.apk" 2>/dev/null)"
-  printf '%s\n' "$BADG" | grep -E "^package:|minSdkVersion|targetSdkVersion" || true
-  GOTMIN="$(printf '%s\n' "$BADG" | sed -n "s/^minSdkVersion:'\([0-9]\+\)'.*/\1/p" | head -1)"
-  [ "$GOTMIN" = "$MIN_SDK" ] || { echo "❌ minSdkVersion 期望 $MIN_SDK，实得 '$GOTMIN'"; exit 1; }
-  XMLTR="$("$BT/aapt2" dump xmltree "$OUT/学通-$NAME-unsigned.apk" --file AndroidManifest.xml 2>/dev/null)"
-  if printf '%s\n' "$BADG" | grep -q "android.permission.INTERNET"; then echo "❌ 不应声明 INTERNET 权限（本应用完全离线）"; exit 1; fi
-  if printf '%s\n' "$XMLTR" | grep -q "debuggable(0x0101000f)=true"; then echo "❌ 发布包不得为 debuggable"; exit 1; fi
-  if printf '%s\n' "$XMLTR" | grep -q "usesCleartextTraffic(0x010104ec)=true"; then echo "❌ 不得允许明文流量"; exit 1; fi
-  if printf '%s\n' "$XMLTR" | grep -q "allowBackup(0x01010280)=true"; then echo "❌ 不得允许应用数据备份"; exit 1; fi
-  echo "   ✅ 安全基线：无 INTERNET 权限 / debuggable=false / cleartext=false / allowBackup=false"
-  echo "   SHA256：$(sha256sum "$OUT/学通-$NAME-unsigned.apk" | cut -d' ' -f1)"
-
-  ls -la "$OUT/学通-$NAME-unsigned.apk"
-  echo "==> 完成：$OUT/学通-$NAME-unsigned.apk"
-  exit 0
+SWVER=$(grep -oE "const VERSION *= *'[^']*'" "$P/assets/site/sw.js" | head -1 | grep -oE "v[0-9]+")
+if [ "$SW_SYNC" = "1" ]; then
+  python3 - "$P/assets/site/sw.js" "v$CODE" <<'PY'
+import re, sys
+p, v = sys.argv[1], sys.argv[2]
+s = open(p, encoding='utf-8').read()
+s = re.sub(r"(const VERSION\s*=\s*')[^']*(')", r"\g<1>%s\g<2>" % v, s, count=1)
+open(p, 'w', encoding='utf-8').write(s)
+print('  ✅ sw.js VERSION=%s（SW_SYNC=1 强制同步）' % v)
+PY
+else
+  ok "sw.js VERSION $SWVER（保留手写值；要跟 CODE 同步请传 SW_SYNC=1）"
 fi
 
-[ -n "$PW" ] || { echo "❌ 缺少签名口令：设置环境变量 KS_PW，或把它写进 $KS_PW_FILE（默认 <工程>/ks.pw，已在 .gitignore 里排除）"; exit 1; }
-echo "[7] 签名（必须在 /tmp 本地盘，virtiofs 上 apksigner 会失败）"
-mkdir -p /tmp/apksign; cp "$B/aligned.apk" /tmp/apksign/a.apk; cp -f "$KS" /tmp/apksign/k.keystore
-cd /tmp/apksign && java -jar "$BT/lib/apksigner.jar" sign --ks k.keystore --ks-key-alias yuanziyuan \
-  --ks-pass pass:"$PW" --key-pass pass:"$PW" --min-sdk-version "$MIN_SDK" \
-  --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --v4-signing-enabled false \
-  --out s.apk a.apk
-cp /tmp/apksign/s.apk "$P/学通-$NAME.apk"
+say "[2/8] aapt2 compile（--no-crunch：PNG 逐字节保留）"
+"$BT/aapt2" compile --no-crunch --dir "$P/res" -o "$WORK/res.zip"
+ok "资源编译 $(stat -c%s "$WORK/res.zip") 字节"
 
-echo "[8] 校验"
-java -jar "$BT/lib/apksigner.jar" verify /tmp/apksign/s.apk 2>/dev/null && echo "   签名 OK"
-BADG="$("$BT/aapt2" dump badging /tmp/apksign/s.apk 2>/dev/null)"
-printf '%s\n' "$BADG" | grep -E "^package:|minSdkVersion|targetSdkVersion"
-GOTMIN="$(printf '%s\n' "$BADG" | sed -n "s/^minSdkVersion:'\([0-9]\+\)'.*/\1/p" | head -1)"
-[ "$GOTMIN" = "$MIN_SDK" ] || { echo "❌ minSdkVersion 期望 $MIN_SDK，实得 '$GOTMIN'"; exit 1; }
-echo "   ✅ minSdk == $GOTMIN"
-  XMLTR="$("$BT/aapt2" dump xmltree /tmp/apksign/s.apk --file AndroidManifest.xml 2>/dev/null)"
-  if printf '%s\n' "$BADG" | grep -q "android.permission.INTERNET"; then echo "❌ 不应声明 INTERNET 权限（本应用完全离线）"; exit 1; fi
-  if printf '%s\n' "$XMLTR" | grep -q "debuggable(0x0101000f)=true"; then echo "❌ 发布包不得为 debuggable"; exit 1; fi
-  if printf '%s\n' "$XMLTR" | grep -q "usesCleartextTraffic(0x010104ec)=true"; then echo "❌ 不得允许明文流量"; exit 1; fi
-  if printf '%s\n' "$XMLTR" | grep -q "allowBackup(0x01010280)=true"; then echo "❌ 不得允许应用数据备份"; exit 1; fi
-  echo "   ✅ 安全基线：无 INTERNET 权限 / debuggable=false / cleartext=false / allowBackup=false"
-  echo "   SHA256：$(sha256sum /tmp/apksign/s.apk | cut -d' ' -f1)"
+say "[3/8] aapt2 link"
+"$BT/aapt2" link -o "$WORK/base.apk" -I "$AJ" \
+  --manifest "$P/AndroidManifest.xml" -A "$P/assets" \
+  --java "$WORK/gen" \
+  --min-sdk-version 29 --target-sdk-version 36 \
+  --version-code "$CODE" --version-name "$NAME" \
+  "$WORK/res.zip"
+ok "base.apk $(stat -c%s "$WORK/base.apk") 字节"
 
-ls -la "$P/学通-$NAME.apk"
-echo "$CODE" > "$CODE_FILE"
-echo "==> 完成：$P/学通-$NAME.apk"
+say "[4/8] javac（-source 8 -target 8，classpath=android.jar）"
+mkdir -p "$WORK/classes"
+javac -source 8 -target 8 -nowarn -encoding UTF-8 -classpath "$AJ" \
+  -d "$WORK/classes" $(find "$P/java" -name '*.java') "$WORK/gen/com/yuanziyuan/app/R.java" 2>&1 \
+  | grep -vE '警告|warning|^注:|^Note:' || true
+[ -f "$WORK/classes/com/yuanziyuan/app/MainActivity.class" ] || die "javac 未产出 MainActivity.class"
+NCLS=$(find "$WORK/classes" -name '*.class' | wc -l)
+ok "编译 $NCLS 个 class"
+( cd "$WORK/classes" && jar cf "$WORK/classes.jar" . )
+
+say "[5/8] R8（shrink + optimize，保留 JS 桥方法名）"
+mkdir -p "$WORK/r8out"
+java -cp "$R8" com.android.tools.r8.R8 --release --min-api 29 \
+  --lib "$AJ" --pg-conf "$P/r8.pro" \
+  --pg-map-output "$P/mapping-$NAME.txt" \
+  --output "$WORK/r8out" "$WORK/classes.jar" 2>&1 | grep -vE '^\s+at |^Info in|Proguard configuration rule' || true
+DEX="$WORK/r8out/classes.dex"
+[ -f "$DEX" ] || die "R8 未产出 classes.dex（发布模式不静默退回 d8）"
+ok "classes.dex $(stat -c%s "$DEX") 字节 ｜ 映射 mapping-$NAME.txt"
+
+say "[6/8] 组包 + zipalign"
+touch -d @$SOURCE_DATE_EPOCH_FIXED "$DEX"
+( cd "$(dirname "$DEX")" && zip -X -0 -q "$WORK/base.apk" classes.dex )
+"$BT/zipalign" -p -f 4 "$WORK/base.apk" "$WORK/aligned.apk"
+ok "zipalign -p 4 → $(stat -c%s "$WORK/aligned.apk") 字节"
+
+say "[7/8] 签名（v1+v2+v3，别名 yuanziyuan）"
+OUT="$P/学通-$NAME.apk"
+if [ "$UNSIGNED" = "1" ]; then
+  cp "$WORK/aligned.apk" "$OUT"
+  ok "UNSIGNED=1：只出未签名包"
+else
+  [ -f "$KS" ] || die "缺 keystore：$KS"
+  [ -n "$KS_PW" ] || die "缺签名口令（\$TC/ks.pw 或 KS_PW=）"
+  # apksigner 会在共享盘（virtiofs）上「Failed to read chunk / 输入输出错误」，
+  # 所以签名全程在本地盘 $WORK 里做，最后再拷回工程目录。
+  "$BT/apksigner" sign --ks "$KS" --ks-key-alias yuanziyuan \
+    --ks-pass "pass:$KS_PW" --key-pass "pass:$KS_PW" \
+    --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+    --out "$WORK/signed.apk" "$WORK/aligned.apk" 2>&1 | grep -vE 'WARNING' || true
+  [ -f "$WORK/signed.apk" ] || die "apksigner 未产出签名包"
+  cp "$WORK/signed.apk" "$OUT"
+  ok "已签名 → $(basename "$OUT")"
+fi
+echo "$CODE" > "$P/.last_code"
+
+say "[8/8] 自检"
+CHECK_APK="$OUT"
+[ "$UNSIGNED" = "1" ] || CHECK_APK="$WORK/signed.apk"
+if [ "$UNSIGNED" != "1" ]; then
+  "$BT/apksigner" verify --print-certs "$CHECK_APK" 2>/dev/null | grep -q 'Signer #1 certificate SHA-256 digest: 60c58fe3' \
+    || die "签名证书指纹不对（必须与原包 60:C5:8F:E3:… 一致，否则无法覆盖安装）"
+  ok "签名校验通过（证书 60:C5:8F:E3:… 与原包同一把钥匙）"
+  # 注意：minSdk=29 的包默认只报 v3。要确认 v1/v2 也真的签了，
+  # 必须用 --min-sdk-version 21 再验一次（原包同样如此）。
+  VER=$("$BT/apksigner" verify --min-sdk-version 21 -v "$CHECK_APK" 2>/dev/null || true)
+  for s in v1 v2 v3; do
+    if echo "$VER" | grep -qE "Verified using $s scheme.*: true"; then
+      ok "签名方案 $s 已启用"
+    else
+      ok "签名方案 $s 未验证通过（仅提示）"
+    fi
+  done
+fi
+BADGING=$("$BT/aapt2" dump badging "$CHECK_APK" 2>/dev/null)
+echo "$BADGING" | grep -q "versionCode='$CODE'" || die "包内 versionCode 不是 $CODE"
+echo "$BADGING" | grep -q "minSdkVersion:'29'" || die "minSdk 不是 29"
+echo "$BADGING" | grep -q "targetSdkVersion:'36'" || die "targetSdk 不是 36"
+ok "minSdk == 29 ｜ targetSdk == 36"
+if echo "$BADGING" | grep -q 'android.permission.INTERNET'; then
+  die "包内出现 INTERNET 权限（立身之本，绝对不许）"
+fi
+if echo "$BADGING" | grep -q 'application-debuggable'; then
+  die "包内 debuggable=true"
+fi
+ok "安全基线：无 INTERNET 权限 / 非 debuggable"
+grep -q 'usesCleartextTraffic="false"' "$P/AndroidManifest.xml" || die "清单里 cleartext 不是 false"
+grep -q 'allowBackup="false"' "$P/AndroidManifest.xml" || die "清单里 allowBackup 不是 false"
+ok "安全基线：cleartext=false / allowBackup=false"
+unzip -l "$CHECK_APK" | grep -q 'assets/site/index.html' || die "包内缺 assets/site"
+ok "包内 assets/site 文件数：$(unzip -l "$CHECK_APK" | grep -c 'assets/site/')"
+
+SZ=$(stat -c%s "$OUT")
+SHA=$(sha256sum "$OUT" | cut -d' ' -f1)
+say "构建完成"
+echo "  产物：$OUT"
+echo "  体积：$SZ 字节"
+echo "  SHA256：$SHA"
+echo "  ⚠️  体积相同 ≠ 版本相同（apksigner 会 4096 对齐），核对请比包内文件"

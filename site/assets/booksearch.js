@@ -198,7 +198,7 @@
 
     var cats = {};
     idx.forEach(function (it) { var c = it.r.cat || '其他'; cats[c] = (cats[c] || 0) + 1; });
-    var catName = ['原著', '导读', '词典', '参考', '对公文献', '有声书', '影像', '歌曲', '工具', '当代']
+    var catName = ['原著', '导读', '词典', '参考', '对公文献', '有声书', '讲堂', '影像', '歌曲', '工具', '当代']
       .filter(function (c) { return cats[c]; });
     var res = { ok: true, intent: 'booklist', answer: '', notes: [], evidence: [], books: [] };
 

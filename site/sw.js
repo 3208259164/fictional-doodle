@@ -8,7 +8,7 @@
      页面导航 = network-first（带超时，失败回退缓存，再失败回退 offline.html）。
    · sw.js 由 _headers 设定 no-cache；注册时 updateViaCache:'none'（见 app.js）。
    ------------------------------------------------------------------ */
-const VERSION = 'v206';
+const VERSION = 'v245';
 const SHELL = 'yuanziyuan-' + VERSION;      // 应用外壳缓存
 const RUNTIME = 'yuanziyuan-rt-' + VERSION; // 运行时缓存
 const OFFLINE = './offline.html';
@@ -23,11 +23,11 @@ const CORE = [
   './data/graph3d.js',
   './offline.html', './404.html', './privacy.html', './licenses.html',
   './assets/style.css', './assets/extra.css', './assets/graph-hub.css', './assets/cite.js', './assets/app.js',
-  './assets/overlay.js', './assets/editor.js', './assets/graph-edit.js', './assets/sharecard.js', './assets/books.js', './assets/fulltext.js', './assets/quote-match.js', './assets/selftest.js', './assets/speech.js', './assets/exportdata.js', './data/overrides.js',
+  './assets/overlay.js', './assets/editor.js', './assets/graph-edit.js', './assets/sharecard.js', './assets/books.js', './assets/fulltext.js', './assets/quote-match.js', './assets/selftest.js', './assets/yearbook.js', './assets/speech.js', './assets/lazydata.js', './assets/appbooks.js', './assets/booknote.js', './assets/zoompane.js', './assets/photo.js', './data/booknotes.js', './assets/exportdata.js', './data/author-alias.js', './data/authors-bio.js', './data/overrides.js',
   './assets/vendor/qrcode.min.js',
-  './data/avatars.js', './data/config.js', './data/libraries.js', './data/graph.js', './data/concepts.js', './data/graph-wenge.js', './data/graph-world.js', './data/graph-geo.js', './data/geo-china.js', './data/geo-world.js',
+  './data/avatars.js', './data/config.js', './data/libraries.js', './data/graph.js', './data/concepts.js', './data/graph-wenge.js', './data/graph-world.js', './data/graph-geo.js', './data/graph-geo-extra.js', './data/geo-china.js', './data/geo-world.js',
   './data/resources.js', './data/py.js', './data/intro-short.js', './data/content.js', './data/mentors.js', './data/album.js', './data/channel.js', './data/knowledge.js', './data/answers.js', './data/glossary.js', './data/guides.js',
-  './assets/diag.js', './assets/crash.js', './assets/custom.js', './assets/reading.js', './assets/paths.js', './assets/backup.js', './assets/mine.js', './assets/study.js', './manifest.webmanifest', './favicon.svg', './avatar.svg',
+  './assets/diag.js', './assets/crash.js', './assets/custom.js', './assets/reading.js', './assets/paths.js', './assets/keys.js', './assets/mine.js', './assets/study.js', './manifest.webmanifest', './favicon.svg', './avatar.svg',
   './icons/icon-192.png', './icons/icon-512.png',
   './icons/icon-192-maskable.png', './icons/icon-512-maskable.png'
 ];

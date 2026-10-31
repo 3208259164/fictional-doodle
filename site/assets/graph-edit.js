@@ -301,7 +301,7 @@
     if (!YZY.replaceGraphData) { toast('撤销不可用', true); return; }
     undoLock = true;
     try { YZY.replaceGraphData(s.id, s.data); } finally { undoLock = false; }
-    rebuild(false, true); toast('已撤销');
+    rebuild(false, false); toast('已撤销');
   }
 
   /* ================= 可搜索列表弹层（替代原生 select；支持 100+ 项） ================= */
@@ -521,12 +521,14 @@
     askEdge('关系：' + e.s.d.name + ' → ' + e.t.d.name, e.r || '', e.color || '#f5c518', true, true).then(function (r) {
       if (!r) return;
       snapshot();
-      if (r.del) { YZY.removeGraphEdge(undefined, key); rebuild(false, true); toast('关系已删除'); return; }
+      /* 删线只删线：原来这里 rebuild(false, true) 会整图重排，节点全换了位置，
+       看起来就像「把节点也删了」。改样式用的是 false，这里跟它对齐。 */
+      if (r.del) { YZY.removeGraphEdge(undefined, key); rebuild(false, false); toast('关系已删除'); return; }
       if (r.swap) {
         YZY.removeGraphEdge(undefined, key);
         var x2 = YZY.addGraphEdge(undefined, { source: e.t.d.id, target: e.s.d.id, rel: r.rel || e.r || '关联', color: r.color || e.color });
         if (x2 && x2.ok === false) { toast(x2.msg || '反向失败', true); return; }
-        rebuild(false, true);
+        rebuild(false, false);
         toast('已反向：' + (e.t.d.name || e.t.d.id) + ' → ' + (e.s.d.name || e.s.d.id));
         return;
       }
@@ -665,7 +667,10 @@
   function deleteNode(o) {
     askConfirm('删除节点「' + (o.d.name || o.d.id) + '」？', '与它相连的所有关系线也会一并删除。').then(function (y) {
       if (!y) return;
-      snapshot(); YZY.removeGraphNode(undefined, o.d.id); rebuild(false, true); toast('已删除节点');
+      /* 删节点只删节点：rebuild 会优先复用每个节点已有的 x/y（prevPos），
+         传 true 会跑一遍力导向收敛 = 剩下节点全被重新排布，看起来「整张图都乱了」。
+         力导向图增量删除的标准做法就是「只重绘、不重算布局」。 */
+      snapshot(); YZY.removeGraphNode(undefined, o.d.id); rebuild(false, false); toast('已删除节点');
     });
   }
 

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any">
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>学通 · 关系图谱</title><meta name="theme-color" content="#0e0c13">
 <meta name="color-scheme" content="dark light">
@@ -270,7 +271,7 @@ body.sepia #focusBar{background:rgba(253,246,230,.94);border-color:rgba(120,90,4
   #tr #ops button,#tr #filters button{padding:3px 8px;font-size:.65rem;border-radius:13px}
   #tr .foldbar button{padding:2px 10px;font-size:.64rem}
 }
-</style><script src="assets/custom.js"></script><script src="assets/crash.js"></script><script src="assets/diag.js"></script>
+</style><script src="assets/store.js"></script><script src="assets/custom.js"></script><script src="assets/crash.js"></script><script src="assets/diag.js"></script>
 </head><body>
 <a class="skip" href="#lb">跳到节点列表</a>
 <canvas id="cv" role="img" aria-label="关系图谱画布：可拖动平移、滚轮缩放、点击节点查看详情；无法用鼠标时可改用左侧「📋 列表」按名称检索定位"></canvas>
@@ -295,7 +296,7 @@ body.sepia #focusBar{background:rgba(253,246,230,.94);border-color:rgba(120,90,4
   <button data-f="org">组织</button>
   <button data-f="crit">被批判</button>
  </div>
- <div id="ops"><button id="fb" onclick="fitAll()">⤢ 适应窗口</button><button id="vb" onclick="toggleViewMode()">🗺 地图</button><button id="cb2" onclick="toggleComm()">🎨 社区</button><button id="cb3" onclick="toggleYears()">⏳ 时间轴</button><button id="cb4" onclick="toggleBundle()">🎀 束线</button><button id="cb" onclick="toggleClean()">🚫 清屏</button><button onclick="toggleEdges()" id="eb" class="on">🔗 关系线</button><button onclick="toggleList()" id="lb" aria-expanded="false" aria-controls="listPanel">📋 列表</button><button onclick="toggleRank()" id="rankb" aria-expanded="false" aria-controls="rankPanel" title="按影响力排名（关联最多 / 最关键的中间人）">📊 排名</button><button onclick="openRelTool()" id="rtb" title="查两个人的共同关系与关系链">🔎 关系工具</button><button onclick="openDataMenu(event)" id="dtb" title="导出图谱数据">⬇ 数据</button><button id="mgb" onclick="toggleMgr()" title="自定义显示哪些工具与节点 / 关系">⚙ 管理</button></div>
+ <div id="ops"><button id="fb" onclick="fitAll()">⤢ 适应窗口</button><button id="vb" onclick="toggleViewMode()">🗺 地图</button><button id="cb2" onclick="toggleComm()">🎨 社区</button><button id="cb3" onclick="toggleYears()">⏳ 时间轴</button><button id="cb4" onclick="toggleBundle()">🎀 束线</button><button id="cb" onclick="toggleClean()">🚫 清屏</button><button onclick="toggleEdges()" id="eb" class="on">🔗 关系线</button><button onclick="cycleLabelMode()" id="lbb" title="名称显示：全部 / 只显示重要的 / 不显示">🏷 名称</button><button onclick="toggleList()" id="lb" aria-expanded="false" aria-controls="listPanel">📋 列表</button><button onclick="toggleRank()" id="rankb" aria-expanded="false" aria-controls="rankPanel" title="按影响力排名（关联最多 / 最关键的中间人）">📊 排名</button><button onclick="openRelTool()" id="rtb" title="查两个人的共同关系与关系链">🔎 关系工具</button><button onclick="openDataMenu(event)" id="dtb" title="导出图谱数据">⬇ 数据</button><button id="mgb" onclick="toggleMgr()" title="自定义显示哪些工具与节点 / 关系">⚙ 管理</button></div>
  <div class="foldbar"><button id="trFold" onclick="toggleTr()">▾ 收起面板</button></div>
 </div>
 <div id="focusBar" role="status" aria-live="polite"></div>
@@ -316,6 +317,7 @@ body.sepia #focusBar{background:rgba(253,246,230,.94);border-color:rgba(120,90,4
 <script src="data/graph.js"></script>
 <script src="data/graph-wenge.js"></script>
 <script src="data/graph-geo.js"></script>
+<script src="data/graph-geo-extra.js"></script>
 <script src="data/graph-world.js"></script>
 <script src="data/geo-china.js"></script>
 <script src="data/geo-world.js"></script>
@@ -347,7 +349,9 @@ function color(n){
 function relKind(r){r=r||'';if(/批判|对立|分歧|开除|论战|叛徒|错误|敌人|反对|前身思潮/.test(r))return 'neg';if(/父子|伴侣|亲人|兄弟|夫妻/.test(r))return 'fam';return 'pos';}
 function relColor(r){var k=relKind(r);return k==='neg'?CL.neg:k==='fam'?CL.fam:CL.pos;}
 var KINDCLR=(GR&&GR.kinds)||{};
-function edgeColor(e){if(e&&e.k&&KINDCLR[e.k])return KINDCLR[e.k];return relColor(e?e.r:'');}
+/* 用户在「关系工具」里给这条线单独设过颜色 → 优先用它（0.17.56 之前漏读 e.color，
+   所以 2D 图谱改色看着没反应；3D 版是读的） */
+function edgeColor(e){if(e&&typeof e.color==='string'&&e.color)return e.color;if(e&&e.k&&KINDCLR[e.k])return KINDCLR[e.k];return relColor(e?e.r:'');}
 function tyName(t){return t==='person'?'人物':t==='idea'?'思想':t==='event'?'事件':t==='work'?'著作':'组织';}
 function tyEmoji(t){return t==='person'?'👤':t==='idea'?'💡':t==='event'?'📅':t==='work'?'📕':'🏛';}
 var DIM=0.10;
@@ -424,11 +428,32 @@ function yzGeo(list){
   }catch(e){}
 }
 window.yzPlace=yzPlace; window.yzGeo=yzGeo;
-var GEO_R={p:2.6,o:2.1,e:3.4,d:3.0};      /* 世界地图：固定半径（px）人物/组织思想/事件/逝世 */
+/* 世界地图：人物 / 组织 / 思想 / 事件 / 逝世**统一同一半径**。
+   以前是 2.1 / 3.4 / 3.0 三种大小，同屏看过去大小不齐（用户反馈「节点之间外观不同」）。 */
+var GEO_R={p:2.1,o:2.1,e:2.1,d:2.1};
 var GEO_R_CN={p:3.8,o:3.1,e:4.2,d:3.8};   /* 中国（文革）地图：节点更大一档 */
 var GEO_USE=GEO_R;
 function geoR(){ return (mapMode==='china')?GEO_R_CN:GEO_R; }
-var labelsAll=true,edgesOn=true,hideText=false,filter='all',selected=null,hover=null,nb={},EVMARKS=[],EVLBL=[],GEOBOX=[],EVAGG=[],AGG=[];
+/* 名称显示三态：all=能放下的都放（默认）｜auto=只显示度数高的（少了杂乱）｜off=不显示
+   世界地图上名字永远放不全（实测视野内 84 个候选、屏幕只放得下十几个），
+   给个开关让用户自己选「要清楚」还是「要干净」。 */
+/* 缩放档位缓存：把 k 量化成档（每 1.2 倍一档），同一档内标签名单保持稳定。
+   为什么需要：标签是每帧按屏幕位置做碰撞取舍的，缩放时位置全变 → 名单跟着换（label popping）。
+   现在同一档内优先保留上一帧已经显示的名字，位置微调不会把它们踢掉。 */
+var _lblCache={}, _lblSig='';
+/* 标签宽度保守系数：1.10 为跨端字体度量补偿的中位估计。
+   现场若发现手机上仍偏挤，可在控制台 localStorage.setItem('graphLabelPad','1.18') 调大。 */
+var LBL_PAD=(function(){try{var v=parseFloat(localStorage.getItem('graphLabelPad'));if(v>=0.9&&v<=1.35)return v;}catch(e){}return 1.06;})();
+var LBL_GAP=(function(){try{var v=parseFloat(localStorage.getItem('graphLabelGap'));if(v>=0&&v<=8)return v;}catch(e){}return 3;})();
+function _zq(){ return Math.round(Math.log(Math.max(view.k,0.01))/Math.log(1.2)); }
+function _lblSignature(){
+  /* 注意：签名里**不放 selected**。点击节点如果触发缓存清空，其他标签就会整批重排——
+     那正是「点一下再缩放，名字全变」的来源。选中者走第二遍填空补进来即可。 */
+  var gid=''; try{ gid=(window.YZY&&YZY.activeGraphId)?YZY.activeGraphId():''; }catch(e){}
+  return [filter,LB_MODE,W+'x'+H,gid,viewMode,mapMode].join('|');
+}
+var LB_MODE=(function(){try{return localStorage.getItem('graphLabelMode')||'all'}catch(e){return 'all'}})();
+var labelsAll=(LB_MODE!=='auto'),edgesOn=true,hideText=(LB_MODE==='off'),filter='all',selected=null,hover=null,nb={},EVMARKS=[],EVLBL=[],GEOBOX=[],EVAGG=[],AGG=[];
 var cv=document.getElementById('cv'),ctx=cv.getContext('2d'),DPR=Math.min(devicePixelRatio||1,2),W,H;
 yzPlace();
 var ns=GR.nodes.map(function(n,i){var c=CENTER[GID[n.id]]||[0,0],a=i*2.399963,r=6+(i%7)*5;return{d:n,x:c[0]+Math.cos(a)*r,y:c[1]+Math.sin(a)*r,vx:0,vy:0,deg:0,img:null,imgOk:false};});
@@ -451,23 +476,44 @@ function imgList(d){
   var queue=ns.filter(function(o){ return imgList(o.d).length; }), at=0;
   function loadOne(o){
     var list=imgList(o.d), i=0, im=new Image();
-    im.onload=function(){o.imgOk=true;draw();};
+    /* 每张头像到位都全图重绘，90 张就是 90 次全量 draw —— 改为 80ms 合并一次 */
+    im.onload=function(){o.imgOk=true;_scheduleImgDraw();};
     im.onerror=function(){i++; if(i<list.length){im.src=list[i];} else {o.imgOk=false;o.img=null;} };
     im.src=list[0]; o.img=im;
   }
+  var _imgTimer=null;
+  function _scheduleImgDraw(){
+    if(_imgTimer) return;
+    _imgTimer=setTimeout(function(){ _imgTimer=null; try{ draw(); }catch(e){} }, 80);
+  }
   function step(){
     var n=0;
-    while(at<queue.length && n<6){ loadOne(queue[at++]); n++; }
-    if(at<queue.length) setTimeout(step,110);
+    while(at<queue.length && n<10){ loadOne(queue[at++]); n++; }
+    if(at<queue.length) setTimeout(step,60);
+    else _scheduleImgDraw();
   }
-  function kick(){ setTimeout(step,500); }
+  function kick(){ setTimeout(step,120); }
   if(typeof requestAnimationFrame==='function') requestAnimationFrame(function(){ requestAnimationFrame(kick); });
   else setTimeout(kick,800);
 })();
 
-/* ---------- 分组聚簇布局：组内聚拢 + 组间分离 + 碰撞，清晰不糊 ---------- */
+/* ---------- 分组聚簇布局：组内聚拢 + 组间分离 + 碰撞，清晰不糊 ----------
+   性能说明（0.17.36）：原先是 1100 次同步迭代、每轮都要「节点两两排斥 + 两两碰撞」，
+   124 个节点就是约 1700 万次距离计算，全部压在白屏里同步跑完 —— 这是「点开图谱要等一下」的主因。
+   现在：① 迭代降到 300 次（力导向早已收敛，视觉无差别）；② 算完把坐标存本机，
+   同一图谱同一批节点再次进入直接复用，一分钱不花。节点一旦增减，签名变化，缓存自动作废。 */
 (function(){
- var N=ns.length,F=26000,KG=0.0035,REST=300,LK=0.010,MIN=150,IT=1100;
+ var N=ns.length,F=26000,KG=0.0035,REST=300,LK=0.010,MIN=150,IT=300;
+ var _g0=''; try{ _g0=(window.YZY&&YZY.activeGraphId)?YZY.activeGraphId():''; }catch(e){}
+ var _sig=hashStr(ns.map(function(o){ return String(o.d.id); }).join(','));
+ var _ck='yzLayout3:'+_g0;
+ try{
+   var _c=JSON.parse(localStorage.getItem(_ck)||'null');
+   if(_c && _c.sig===_sig && _c.p && _c.p.length===N){
+     for(var _i=0;_i<N;_i++){ ns[_i].x=_c.p[_i][0]; ns[_i].y=_c.p[_i][1]; ns[_i].vx=0; ns[_i].vy=0; }
+     return;
+   }
+ }catch(e){}
  for(var it=0;it<IT;it++){var al=1-it/IT;
   for(var i=0;i<N;i++){var a=ns[i];
    for(var j=i+1;j<N;j++){var b=ns[j],dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+0.01,d=Math.sqrt(d2),f=F/d2,ux=dx/d*f,uy=dy/d*f;a.vx+=ux;a.vy+=uy;b.vx-=ux;b.vy-=uy;}}
@@ -475,6 +521,7 @@ function imgList(d){
   for(var m=0;m<N;m++){var o=ns[m],c=CENTER[GID[o.d.id]]||[0,0];o.vx+=(c[0]-o.x)*KG;o.vy+=(c[1]-o.y)*KG;o.x+=o.vx*al*0.5;o.y+=o.vy*al*0.5;o.vx*=0.82;o.vy*=0.82;}
   for(var p=0;p<N;p++){var A=ns[p];for(var q=p+1;q<N;q++){var B=ns[q],dx2=A.x-B.x,dy2=A.y-B.y,dd=Math.sqrt(dx2*dx2+dy2*dy2)||0.01;if(dd<MIN){var push=(MIN-dd)*0.5,nx=dx2/dd,ny=dy2/dd;A.x+=nx*push;A.y+=ny*push;B.x-=nx*push;B.y-=ny*push;}}}
  }
+ try{ localStorage.setItem(_ck, JSON.stringify({ sig:_sig, p:ns.map(function(o){ return [Math.round(o.x),Math.round(o.y)]; }) })); }catch(e){}
 })();
 
 /* 覆盖层写回的用户位置：布局跑完后恢复（把用户拖过的节点“钉住”）——
@@ -515,7 +562,7 @@ function drawGeo(){
     }
     if(view.k>0.05&&p.c){ var w2=proj(p.c[0],p.c[1]); ctx.fillStyle=CL.grid; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.font='600 '+Math.max(9,Math.round(10*Math.min(view.k,1.4)+6))+'px -apple-system,sans-serif';
-      var _px=w2.x*view.k+view.x, _py=w2.y*view.k+view.y-1, _pw=ctx.measureText(p.n).width+8;
+      var _px=w2.x*view.k+view.x, _py=w2.y*view.k+view.y-1, _pw=ctx.measureText(p.n).width*LBL_PAD+10;
       GEOBOX.push([_px-_pw/2,_py-11,_px+_pw/2,_py+4]);   /* 省份名参与防重叠 */
       ctx.fillText(p.n, _px, _py); ctx.textBaseline='alphabetic'; }
   }
@@ -565,27 +612,50 @@ function drawEvents(){
   var aggPts=[]; Object.keys(bg).forEach(function(k){ var a=bg[k]; if(a.length>1){ var nm2=bgPlace[k];
     var title=(nm2.length===1)?nm2[0]:(nm2.length<=3?nm2.join(' / '):(nm2.slice(0,2).join(' / ')+' 等'));
     aggPts.push({x:a[0].x,y:a[0].y,n:a.length,place:title,kind:a[0].kind,items:a}); } });
-  pts.forEach(function(m){ ctx.globalAlpha=m.sp;
+  /* 给每个标点编号，供下面判断「是否已被合并进计数徽标」 */
+  /* 图谱里已有的「事件节点」名字：这些事件已经以节点形式画在图上，标点不再重复画 */
+  var _evNodeNm={};
+  for(var _en=0;_en<ns.length;_en++){ var _nd=ns[_en].d; if(_nd&&_nd.type==='event'&&_nd.name)_evNodeNm[_nd.name]=1; }
+  pts.forEach(function(m,k){ m.__pid=k; });
+  /* 被合并进计数徽标的标点：不再单独画点、不再单独出名字、不再单独登记命中项。
+     之前这三件事照做，结果是「计数圈 + 圈里的小点」同时出现，
+     而且点数字圈会先命中半径内 n=1 的单点，表现为「圈里写 3，点开只有 1 条」。 */
+  var _inP={};
+  aggPts.forEach(function(g){ g.items.forEach(function(m){ _inP[m.__pid]=1; }); });
+  pts.forEach(function(m){ if(_inP[m.__pid])return; ctx.globalAlpha=m.sp;
+    /* 与图谱里同名的事件节点重复：图谱那个节点已经画了这件事（连名字），
+       再画一个标点会让同一处出现两个名字，点开也变成两条（用户反馈的「显示两个名字」）。
+       注意：只对「事件」这样处理，逝世标点名字是人名，不能跳。 */
+    if(m.kind==='event' && _evNodeNm[m.nm]) return;
+    /* 标点严格锚在真实经纬度上：不做任何屏幕像素偏移（偏移会随缩放相对底图滑动） */
     var _mr=GEO_USE.e;   /* 事件/逝世标点：固定小点 */
     if(m.kind==='death'){ ctx.beginPath();ctx.arc(m.x,m.y,GEO_USE.d,0,6.2832);ctx.fillStyle='#d9534f';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.6)';ctx.stroke(); }
     else { ctx.beginPath();ctx.arc(m.x,m.y,_mr,0,6.2832);ctx.fillStyle='#e0913a';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.5)';ctx.stroke(); }
-    if(view.k>=0.2){ EVLBL.push({x:m.x,y:m.y+13,txt:m.nm,col:(m.kind==='death'?'#e2a3a3':CL.lbl),prio:(m.kind==='death'?6:5)}); }
+    /* 逝世标点用「名字 †」：与他本人的节点同名但地点不同（生卒地 vs 活动地），
+       不加记号会像「一个名字在图上出现了两次」 */
+    /* 世界地图初始 fit 后 k 约 0.10：以前阈值 0.2 会让所有事件/逝世标点一个名字都不显示。
+       现在门槛降到 0.10，能不能显示交给下面的防重叠（BG）按优先级取舍。 */
+    /* 点自己在画布外就不给名字：否则名字会「悬空」在没有点的位置 */
+    if(view.k>=0.10 && m.x>-6 && m.x<W+6 && m.y>-6 && m.y<H+6){
+      EVLBL.push({key:'e'+m.__pid,x:m.x,y:m.y+13,txt:(m.kind==='death'?(m.nm+' †'):m.nm),col:(m.kind==='death'?'#e2a3a3':CL.lbl),prio:(m.kind==='death'?6:5)}); }
     EVMARKS.push({x:m.x,y:m.y,n:1,kind:m.kind,i:m.i,pid:m.pid,nm:m.nm,place:m.place}); });
   ctx.globalAlpha=1;
   /* 同地点标点完全重合 → 画「计数徽标」（同心、零偏移、严格固定），点击可展开列表 */
+  window.__evAggLen=AGG.length; window.__evAggR=(AGG[0]&&AGG[0].r)||0;   /* 诊断：画事件徽标时 AGG 是否已就绪 */
   aggPts.forEach(function(g){ var rr=GEO_USE.d+5;
-    /* 与「节点聚合」徽标重叠时整体错开到右上并画引线，避免两个数字互相盖住 */
-    var _ov=null;
-    for(var _k=0;_k<AGG.length;_k++){ var _a=AGG[_k];
-      if((_a.x-g.x)*(_a.x-g.x)+(_a.y-g.y)*(_a.y-g.y) < (rr+_a.r+2)*(rr+_a.r+2)){ _ov=_a; break; } }
-    var _dx=_ov?15:0, _dy=_ov?-15:0;
-    if(_ov){ ctx.save();ctx.globalAlpha=.55;ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.strokeStyle=(LIGHT?'rgba(120,90,20,.75)':'rgba(245,197,24,.75)');
-      ctx.beginPath();ctx.moveTo(g.x,g.y);ctx.lineTo(g.x+_dx,g.y+_dy);ctx.stroke();ctx.restore(); }
-    EVMARKS.push({x:g.x+_dx,y:g.y+_dy,n:g.n,kind:'agg',i:-1,pid:null,nm:g.place,place:g.place,items:g.items});
-    ctx.beginPath();ctx.arc(g.x+_dx,g.y+_dy,rr,0,6.2832);ctx.fillStyle=(LIGHT?'rgba(255,252,245,.92)':'rgba(14,12,18,.85)');ctx.fill();
+    /* 与「节点计数圈」同地点：并进那个圈，图上只留一个圈。
+       以前是固定往右上挪 15px（比两个半径和还小，等于没挪开），
+       后来改成按半径推开——但那是**屏幕像素**偏移，一缩放就相对底图滑动，所以又出现了「节点偏移」。
+       现在一律不挪：并进圈，点圈时把事件一起列出来。 */
+    for(var _q2=0;_q2<AGG.length;_q2++){ var _A2=AGG[_q2];
+      if((_A2.x-g.x)*(_A2.x-g.x)+(_A2.y-g.y)*(_A2.y-g.y) < _A2.r*_A2.r){
+        (_A2.evItems=_A2.evItems||[]).concat(g.items); return; } }
+    EVMARKS.push({x:g.x,y:g.y,n:g.n,kind:'agg',i:-1,pid:null,nm:g.place,place:g.place,items:g.items});
+    ctx.beginPath();ctx.arc(g.x,g.y,rr,0,6.2832);ctx.fillStyle=(LIGHT?'rgba(255,252,245,.92)':'rgba(14,12,18,.85)');ctx.fill();
     ctx.lineWidth=1.4;ctx.strokeStyle=(g.kind==='death'?'#d9534f':'#e0913a');ctx.stroke();
     ctx.fillStyle=(LIGHT?'#7a5400':'#f5c518');ctx.font='bold 9.5px -apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(String(g.n),g.x+_dx,g.y+_dy+0.5);ctx.textBaseline='alphabetic'; });
+    ctx.fillText(String(g.n),g.x,g.y+0.5);ctx.textBaseline='alphabetic';
+    if(view.k>=0.10) EVLBL.push({key:'p'+g.place,x:g.x,y:g.y+rr+9,txt:g.place,col:CL.lbl,prio:7}); });
   EVAGG=aggPts;
 }
 function hitEvent(mx,my){ for(var i=0;i<EVMARKS.length;i++){ var m=EVMARKS[i]; var r=(m.n>1?16:12); if((m.x-mx)*(m.x-mx)+(m.y-my)*(m.y-my)<r*r) return m; } return null; }
@@ -621,6 +691,35 @@ function tapAgg(g){ if(!g)return;
    旧版 hitEvent 优先于 hitAgg → 数字显示的是节点数，点开却只有 1 条事件。这里全部合并。 */
 function tapAt(mx, my) {
   var nodes = [], evs = [], seen = {}, i, j;
+  /* ① 先看有没有「肉眼可见的节点」正好被点到：有就直接打开它本身。
+     否则会被下面「同地点的聚合列表」抢走 —— 表现为点一条事件/一个人，弹出的却是这个城市的
+     三四条清单，还得再点一次（用户反馈「点开节点时也会显示两个」）。
+     只认真正画出来的节点（window._drawnIds）；被合并进计数圈的没画，不该被"点中"。 */
+  var _vis = {};
+  (window._drawnIds || []).forEach(function (id) { _vis[id] = 1; });
+  var _bn = null, _bd = 1e18;
+  for (i = 0; i < ns.length; i++) {
+    var _o = ns[i];
+    if (!_vis[_o.d.id] || !passesFilter(_o)) continue;
+    var _p = S(_o), _rr = (_o._R || 2) + 7;
+    var _d2 = (_p.x - mx) * (_p.x - mx) + (_p.y - my) * (_p.y - my);
+    if (_d2 < _rr * _rr && _d2 < _bd) { _bd = _d2; _bn = _o; }
+  }
+  /* 同一位置也有事件标点时，比一比谁更近：事件点常常就压在节点边上，
+     一律让节点优先会导致事件永远点不到。 */
+  var _bm = null, _bd3 = 1e18;
+  for (i = 0; i < EVMARKS.length; i++) {
+    var _m0 = EVMARKS[i], _r1 = (_m0.n > 1 ? 16 : 12) + 4;
+    var _dd = (_m0.x - mx) * (_m0.x - mx) + (_m0.y - my) * (_m0.y - my);
+    if (_dd < _r1 * _r1 && _dd < _bd3) { _bd3 = _dd; _bm = _m0; }
+  }
+  if (_bn && (!_bm || _bd <= _bd3)) { try { select(_bn.d.id); } catch (e) { } return true; }
+  if (_bm) {
+    var _m1 = _bm;
+    if (_m1.kind === 'death' && _m1.pid) { try { select(_m1.pid); } catch (e) { } return true; }
+    if (_m1.kind === 'event') { try { panelEvent(_m1.i); } catch (e) { } return true; }
+    /* 事件聚合徽标：往下走，交给后面的列表 */
+  }
   /* 只取「最近的一个」节点簇：相邻地点在低缩放下屏幕距离很近，全收会把别处的人一起列出来 */
   var bestG = null, bd = 1e18;
   for (i = 0; i < AGG.length; i++) {
@@ -643,6 +742,10 @@ function tapAt(mx, my) {
     if (bestM.kind === 'agg') (bestM.items || []).forEach(function (p) { evs.push(p); });
     else evs.push(bestM);
   }
+  /* 这个圈里「并进来的事件标点」（同地点既有节点又有事件）：一并列出，点圈就能看到全部 */
+  if (bestG && bestG.evItems && bestG.evItems.length) bestG.evItems.forEach(function (p) {
+    if (seen['e' + p.__pid]) return; seen['e' + p.__pid] = 1; evs.push(p);
+  });
   if (!nodes.length && !evs.length) return false;
   var items = [];
   nodes.forEach(function (x) {
@@ -661,14 +764,18 @@ function tapAt(mx, my) {
   if (bestM && bestM.place) place = bestM.place;
   if (!place && bestG && bestG.rep && bestG.rep.d) place = bestG.rep.d.place || bestG.rep.d.prov || '';
   if (!place && bestG) place = '同一地点';
+  function pick(it) {
+    if (it.kind === 'node') { try { select(it.id); } catch (e) { } return; }
+    var p = it.p;
+    if (p.kind === 'death' && p.pid) { try { select(p.pid); } catch (e) { } }
+    else { try { panelEvent(p.i); } catch (e) { } }
+  }
+  /* 只有一条内容：**直接打开**，不要再套一层「一条的列表」让人点第二下
+     （用户反馈：单独点一个事件标点，弹出的却和合并的一样，还得再点一次） */
+  if (items.length === 1) { pick(items[0]); return true; }
   clusterList(place || '同一地点',
     (nodes.length ? nodes.length + ' 个节点' : '') + (nodes.length && evs.length ? ' · ' : '') + (evs.length ? evs.length + ' 个事件 / 逝世标点' : ''),
-    items, function (it) {
-      if (it.kind === 'node') { try { select(it.id); } catch (e) { } return; }
-      var p = it.p;
-      if (p.kind === 'death' && p.pid) { try { select(p.pid); } catch (e) { } }
-      else { try { panelEvent(p.i); } catch (e) { } }
-    });
+    items, pick);
   return true;
 }
 function panelEvent(idx){
@@ -683,7 +790,7 @@ function panelEvent(idx){
   document.getElementById('ppts').innerHTML='';
   document.getElementById('pw').innerHTML='';
   document.getElementById('pr').innerHTML='';
-  document.getElementById('pback').innerHTML='<p style="margin:0 0 10px"><a href="index.html#/e/'+idx+'" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📖 在革命史料中查看 →</a></p>';
+  document.getElementById('pback').innerHTML='<p style="margin:0 0 10px"><a href="index.html#/e/'+idx+'" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📖 在革命史料中查看 →</a></p>';
   document.getElementById('panel').classList.add('open'); document.body.classList.add('p-open'); var tb=document.getElementById('ptab'); if(tb)tb.classList.remove('show');
 }
 function toggleViewMode(){ if(mapMode==='none'||mapOnly)return; viewMode=(viewMode==='geo')?'net':'geo'; if(selected)clearSel();
@@ -760,13 +867,24 @@ function commLegend(){ try{ var old = document.getElementById('commLegend'); if 
 function toggleBundle(){ bundleOn = !bundleOn; if (Object.keys(comm).length === 0) computeComm(); var b = document.getElementById('cb4'); if (b) b.classList.toggle('on', bundleOn); draw(); }
 /* ---- 时间轴滑块 ---- */
 var yearOn = false, yearMin = 0, yearMax = 0, yearVal = null;
-function yearsAvailable(){ for (var i = 0; i < ns.length; i++) { if (ns[i].d && typeof ns[i].d.y0 === 'number') return true; } return false; }
+/* 取节点的年份区间：优先 y0/y1（文革图谱＝活动年份），没有就从 years 字符串解析
+   （主图谱 / 世界图谱的人物是「1818—1883」、事件是「1917」）。
+   以前只认 y0，于是世界图谱里一个 y0 都没有 → 点「⏳ 时间轴」直接静默返回，像按钮坏了。 */
+function _yr(d){ d=d||{};
+  if(typeof d.y0==='number') return {a:d.y0,b:(typeof d.y1==='number')?d.y1:d.y0};
+  var m=String(d.years||'').match(/\d{4}/g);
+  if(!m||!m.length) return null;
+  var a=+m[0], b=m[1]?+m[1]:+m[0];
+  if(b<a){ var t=a; a=b; b=t; }
+  return {a:a,b:b};
+}
+function yearsAvailable(){ for (var i = 0; i < ns.length; i++) { if (_yr(ns[i].d)) return true; } return false; }
 /* 时间轴「聚光灯」：不隐藏，只按与选定年份的关系调透明度（临近变亮、活跃最亮、退出渐淡） */
 function _spotCurve(t,a,b){ if(t<a){var d=a-t;return d>=4?0.15:0.15+0.85*(1-d/4);} if(t>b){var e=t-b;return Math.max(0.15,1-0.85*Math.min(e/3,1));} return 1; }
-function spot(o){ if(!yearOn||yearVal===null)return 1; var d=o.d||{}; if(typeof d.y0!=='number')return 1; return _spotCurve(yearVal,d.y0,(typeof d.y1==='number')?d.y1:d.y0); }
+function spot(o){ if(!yearOn||yearVal===null)return 1; var y=_yr(o.d); if(!y)return 1; return _spotCurve(yearVal,y.a,y.b); }
 function spotYear(str){ if(!yearOn||yearVal===null)return 1; var m=String(str||'').match(/\d{4}/g); if(!m)return 1; return _spotCurve(yearVal,+m[0],m[1]?+m[1]:+m[0]); }
-function toggleYears(){ if (!yearsAvailable()) return; yearOn = !yearOn; var b = document.getElementById('cb3'); if (b) b.classList.toggle('on', yearOn);
-  if (yearOn) { var ys = []; ns.forEach(function(o){ var d = o.d || {}; if (typeof d.y0 === 'number') ys.push(d.y0); if (typeof d.y1 === 'number') ys.push(d.y1); });
+function toggleYears(){ if (!yearsAvailable()){ toast2('这张图谱还没有年份数据'); return; } yearOn = !yearOn; var b = document.getElementById('cb3'); if (b) b.classList.toggle('on', yearOn);
+  if (yearOn) { var ys = []; ns.forEach(function(o){ var y=_yr(o.d); if(y){ ys.push(y.a); ys.push(y.b); } });
     yearMin = Math.min.apply(null, ys); yearMax = Math.max.apply(null, ys); if (yearVal === null) yearVal = yearMax; buildSlider(); clearSel(); }
   var sl = document.getElementById('yearbar'); if (sl) sl.style.display = yearOn ? 'flex' : 'none';
   draw(); }
@@ -793,16 +911,25 @@ function geoBounds(){ if(mapMode==='world'){ var a=proj(-180,84),b=proj(180,-58)
 function fitGeo(full){var b=geoBounds();if(!b){fitTo(ns);return;}
  var k=Math.max(0.05,Math.min((W-30)/(b.w||1),(H-150)/(b.h||1)));
  /* 地图不够放：把整张地图放大（允许左右平移）；「适应窗口」则给全图 */
- if(!full && !geoLocked()){
-   /* 地图不够放就整体放大（可平移）；世界地图锁死 → 只用全图比例，保证整幅世界都看得见 */
-   var _fh=(mapMode==='world')?0.62:0.92, _fw=(mapMode==='world')?1.55:1.72;
+ if(mapMode==='world'){
+   /* 世界地图：0.1 的比例是把 360 度经度硬塞进 390px 宽，地图只剩中间一条横带，
+      所有名字都被防重叠挤掉（用户反馈「很多节点没有名字」）。
+      默认视野放大到 0.16（能看到约 2/3 经度、名字出得来）；
+      点「⤢ 适应窗口」时仍给真正的全球视图。 */
+   if(!full) k=Math.max(k,0.16);
+ } else if(!full && !geoLocked()){
+   /* 地图不够放就整体放大（可平移） */
+   var _fh=0.92, _fw=1.72;
    k=Math.max(k,Math.min((H-40)*_fh/(b.h||1),(W-14)*_fw/(b.w||1)));
  }
  view.k=k;view.x=W/2-b.cx*view.k;view.y=H/2-b.cy*view.k;draw();}
 function fitAll(){clearSel();if(viewMode==='geo')fitGeo(true);else fitTo(ns);}
 function centerDefault(){view.k=Math.max(0.85,Math.min(1.3,Math.min(W,H)/820));view.x=W/2;view.y=H/2;draw();}
 
-function prio(o){if(o===selected)return 1e6;if(o===hover)return 5e5;if(selected&&nb[o.d.id])return 1e4;return o.deg;}
+/* 标签取舍顺序只看「度数」。以前选中某人会把他的邻居抬到 1e4，
+   于是点一下节点，其他所有人的名字就被挤掉一批，再缩放又换一批 —— 用户看到的「名字不固定」。
+   邻居的强调改由颜色表达（CL.lblRel），不再影响谁显示。 */
+function prio(o){if(o===selected)return 1e6;if(o===hover)return 5e5;return o.deg;}
 function makeGrid(cell){var m={};return{
  hit:function(b){var c=cell,x0=Math.floor(b[0]/c),x1=Math.floor(b[2]/c),y0=Math.floor(b[1]/c),y1=Math.floor(b[3]/c);
   for(var x=x0;x<=x1;x++)for(var y=y0;y<=y1;y++){var a=m[x+','+y];if(a)for(var i2=0;i2<a.length;i2++){var q=a[i2];if(!(b[2]<q[0]||b[0]>q[2]||b[3]<q[1]||b[1]>q[3]))return true;}}return false;},
@@ -854,12 +981,36 @@ function draw(){
   }
   ctx.shadowBlur=0;ctx.setLineDash([]);
  }
+ /* 聚合计算（提前算）：同一落点（≈0.05° 网格）的节点会合成一个计数圈。
+    提前算的目的是让下面的节点循环能跳过「已经被合并进圈里」的节点 ——
+    否则会出现「计数圈 + 圈里的小点」同时显示的重复（用户反馈的就是这个）。 */
+ var _aggCl=[], _aggIds={};
+ window._aggIds=_aggIds; window._aggCl=_aggCl;   /* 每次重绘都重新挂：非地图模式下应为空 */
+ if(viewMode==='geo'){
+  var _cell0={}, _cl0=[], _i0, _n0, _s0, _g00, _k0, _gr0;
+  for(_i0=0;_i0<ns.length;_i0++){ _n0=ns[_i0]; if(!passesFilter(_n0))continue; _s0=S(_n0);
+   if(_s0.x<-60||_s0.x>W+60||_s0.y<-60||_s0.y>H+60)continue;
+   _g00=(_n0.d&&_n0.d.geo)||null;
+   _k0=_g00?('g'+Math.round(_g00[0]*20)+','+Math.round(_g00[1]*20)):('s'+Math.floor(_s0.x/28)+','+Math.floor(_s0.y/28));
+   _gr0=_cell0[_k0]; if(!_gr0){ _gr0={sx:0,sy:0,n:0,ids:[],rep:_n0}; _cell0[_k0]=_gr0; _cl0.push(_gr0); }
+   _gr0.sx+=_s0.x;_gr0.sy+=_s0.y;_gr0.n++;_gr0.ids.push(_n0.d.id);
+   if((_n0._gN||1)>(_gr0.rep._gN||1))_gr0.rep=_n0;
+  }
+  _aggCl=_cl0.filter(function(g){return g.n>=2;});
+  _aggCl.forEach(function(g){ g.ids.forEach(function(id){ _aggIds[id]=1; }); });
+ }
  /* 节点：先画无关（淡），再画相关（清晰在上层） */
+ var _drawn=[];   /* 诊断：本次真正单独画出来的节点 id */
+ window._nodeStyle=[]; window._nodeStyleView=viewMode+'/'+mapMode;
  var _ord=ns.filter(passesFilter).sort(function(A,B){var ra=(!selected||A===selected||nb[A.d.id])?1:0,rb=(!selected||B===selected||nb[B.d.id])?1:0;if(hiPath){ra=hiPath.ids[A.d.id]?1:0;rb=hiPath.ids[B.d.id]?1:0;}return ra-rb;});
  for(var q=0;q<_ord.length;q++){var o=_ord[q];var p=S(o);
   if(p.x<-90||p.x>W+90||p.y<-90||p.y>H+90)continue;   /* 视口裁剪：屏幕外的节点不绘制 */
+  if(_aggIds[o.d.id])continue;   /* 已被合并进计数圈：不再单独绘制，避免与圈重复 */
+  _drawn.push(o.d.id);
   var big=(o===hover)||(o===selected),related=hiPath?!!hiPath.ids[o.d.id]:(!selected||o===selected||nb[o.d.id]);
-  ctx.globalAlpha=(related?1:DIM)*spot(o);
+  /* 地图上统一压一点透明度（0.92）：底图透出来一些，点不刺眼——所有节点同一口径，不再一半亮一半暗 */
+  var _alpha=(related?1:DIM)*spot(o)*(viewMode==='geo'?0.92:1);
+  ctx.globalAlpha=_alpha;
   var isP=(o.d.type==='person');
   var R=(isP?6.4:o.d.type==='org'?4.6:3.6)+Math.min(o.deg,6)*0.3;if(big)R*=1.25;o._R=R;
   if(isP&&o.imgOk&&o.img&&viewMode!=='geo'){
@@ -876,8 +1027,14 @@ function draw(){
    if(o.d.type==='event'){var _dr=R2*1.3;ctx.moveTo(p.x,p.y-_dr);ctx.lineTo(p.x+_dr,p.y);ctx.lineTo(p.x,p.y+_dr);ctx.lineTo(p.x-_dr,p.y);ctx.closePath();}
    else if(o.d.type==='org'){ctx.rect(p.x-R2*0.92,p.y-R2*0.92,R2*1.84,R2*1.84);}
    else{ctx.arc(p.x,p.y,R2,0,6.2832);}
-   ctx.fillStyle=commOn?commColor(o):color(o.d);ctx.fill();if(o.d.crit){ctx.lineWidth=1.2;ctx.strokeStyle='rgba(255,139,139,.9)';ctx.stroke();}if(big){ctx.lineWidth=1.4;ctx.strokeStyle='rgba(245,197,24,.95)';ctx.stroke();}}
+   ctx.fillStyle=commOn?commColor(o):color(o.d);ctx.fill();
+   /* 地图上不描「被批判」红边：同一批人物里只有一部分带边，看着像两种外观（用户反馈）。
+      这个身份在点开的面板里仍然写着，不会丢。 */
+   if(o.d.crit&&viewMode!=='geo'){ctx.lineWidth=1.2;ctx.strokeStyle='rgba(255,139,139,.9)';ctx.stroke();}
+   if(big){ctx.lineWidth=1.4;ctx.strokeStyle='rgba(245,197,24,.95)';ctx.stroke();}}
   /* 中介枢纽（介数 Top）：右上角一枚小金点，说明「他是关系网的关键节点」 */
+  /* 诊断：记录每个节点这一次的「外观参数」，方便核对「同类节点长得不一样」的问题 */
+  (window._nodeStyle=window._nodeStyle||[]).push({id:o.d.id,ty:o.d.type,r:+(o._R||0).toFixed(2),a:+_alpha.toFixed(2),img:(o.imgOk&&o.img&&viewMode!=='geo')?1:0,big:big?1:0});
   if(_bcTop&&_bcTop[o.d.id]){var _rr=(o._R||6);ctx.globalAlpha=related?1:(DIM*0.75);ctx.beginPath();ctx.fillStyle='#e0aa46';ctx.arc(p.x+_rr*0.82,p.y-_rr*0.82,3.1,0,6.2832);ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.stroke();}
  }
  ctx.globalAlpha=1;
@@ -890,49 +1047,149 @@ function draw(){
  if(viewMode==='geo'){
   /* 只按「真实经纬度是否为同一落点(≈0.05° 网格)」归并：相隔较远的「地方」在任何缩放下都不会
      被错并成一团（旧版按屏幕距离<22px 链式合并，低缩放时会把几十个地点并成一个计数圈）。 */
-  var _cell={}, _cl=[], _i2;
-  for(_i2=0;_i2<ns.length;_i2++){ var _on=ns[_i2]; if(!passesFilter(_on))continue; var _sp=S(_on);
-   if(_sp.x<-60||_sp.x>W+60||_sp.y<-60||_sp.y>H+60)continue;
-   var _gg=(_on.d&&_on.d.geo)||null;
-   var _k2=_gg?('g'+Math.round(_gg[0]*20)+','+Math.round(_gg[1]*20)):('s'+Math.floor(_sp.x/28)+','+Math.floor(_sp.y/28));
-   var _grp=_cell[_k2]; if(!_grp){ _grp={sx:0,sy:0,n:0,ids:[],rep:_on}; _cell[_k2]=_grp; _cl.push(_grp); }
-   _grp.sx+=_sp.x;_grp.sy+=_sp.y;_grp.n++;_grp.ids.push(_on.d.id);
-   if((_on._gN||1)>(_grp.rep._gN||1))_grp.rep=_on;
-  }
-  _cl.forEach(function(g2){ if(g2.n<2)return; var pp={x:g2.sx/g2.n,y:g2.sy/g2.n};
+  _aggCl.forEach(function(g2){ var pp={x:g2.sx/g2.n,y:g2.sy/g2.n};
    var sel2=!!(selected&&g2.ids.indexOf(selected.d.id)>=0), rr=(GEO_USE.p||3)+6;
    ctx.beginPath();ctx.arc(pp.x,pp.y,rr,0,6.2832);ctx.fillStyle=(LIGHT?'rgba(255,252,245,.92)':'rgba(14,12,18,.84)');ctx.fill();
    ctx.lineWidth=sel2?2.2:1.4;ctx.strokeStyle=sel2?CL.ringHi:CL.ring;ctx.stroke();
    ctx.fillStyle=(LIGHT?'#7a5400':'#f5c518');ctx.font='bold '+(g2.n>999?7.5:(g2.n>99?8:9.5))+'px -apple-system,sans-serif';
    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(g2.n),pp.x,pp.y+0.5);ctx.textBaseline='alphabetic';
-   AGG.push({x:pp.x,y:pp.y,r:rr+7,n:g2.n,ids:g2.ids,rep:g2.rep}); });
+   AGG.push({x:pp.x,y:pp.y,r:rr+7,n:g2.n,ids:g2.ids,rep:g2.rep,evItems:[]}); });
  }
  drawEvents();
  /* 选中项若处在聚合簇中：在簇旁标注其名字 */
- for(var _ag=0;_ag<AGG.length;_ag++){ var _G3=AGG[_ag]; if(selected&&_G3.ids.indexOf(selected.d.id)>=0){ EVLBL.push({x:_G3.x,y:_G3.y-_G3.r+2,txt:selected.d.name,col:CL.lblHi,prio:9}); } }
+ /* 选中项如果被并进了某个计数圈：不再在圈上方另标一个名字（那样就和圈下方的那行名字叠成「上下两个」），
+    改为在下面圈名那一行优先显示它的名字。 */
+ /* 圈内成员不再各出名字后，若圈够大就标一个「代表名 等N位」，否则合并后整片地图一个人名都没有 */
+ function getAggKey(g){ return (g.rep&&g.rep.d&&g.rep.d.id)||('x'+Math.round(g.x)+Math.round(g.y))||(g.ids&&g.ids[0])||'?'; }
+ for(var _ag2=0;_ag2<AGG.length;_ag2++){ var _G4=AGG[_ag2]; if(_G4.n<2)continue;   /* n=2 也要有名，否则图上只剩一个「2」 */
+   if(_G4.x<-24||_G4.x>W+24||_G4.y<-24||_G4.y>H+24)continue;                    /* 圈在视野外就别标名，否则名字会「悬空」 */
+   var _rn='';
+   if(selected&&_G4.ids.indexOf(selected.d.id)>=0) _rn=selected.d.name;          /* 选中的人优先显示 */
+   if(!_rn) _rn=(_G4.rep&&_G4.rep.d&&_G4.rep.d.name)?_G4.rep.d.name:'';
+   if(!_rn)continue;
+   var _evn=(_G4.evItems&&_G4.evItems.length)||0;
+   /* 位置一律固定在圈的正下方：以前给过「上/右/左」备选，结果同一个名字每次重绘可能换到另一侧，
+      看起来就是「名字乱偏移」。现在宁可少显示一个名字，也不让位置变。 */
+   EVLBL.push({x:_G4.x,y:_G4.y+_G4.r+9,
+     agg:1,small:1,key:'a'+(getAggKey(_G4)),txt:_rn+(_evn?('·'+_evn+'事件'):''),col:CL.lbl,prio:99}); }
  /* 名称标签：统一防重叠（逝世/事件标点优先，其余按等级） */
  var BG=makeGrid(46); for(var _g0=0;_g0<GEOBOX.length;_g0++)BG.push(GEOBOX[_g0]);   /* 省份名先占位（空间哈希） */
  if(!hideText){
+  /* ---- 同址去重（0.17.31）----
+     同一经纬度上可能同时有「事件节点」和「事件标点/聚合标题」，两者各画一个标签，
+     屏幕上就出现「一个位置上下两个名字」。规则：节点标签优先，标点标签让位不画。 */
+  (function(){
+    var _nodeXY=[];
+    for(var _i=0;_i<ns.length;_i++){ var _o=ns[_i];
+      if(!passesFilter(_o)||!showLabel(_o))continue;
+      if(_aggIds[_o.d.id])continue;                       /* 已并进计数圈的节点本来就不单独出名字 */
+      var _p=S(_o); if(_p.x<-90||_p.x>W+90||_p.y<-90||_p.y>H+90)continue;
+      _nodeXY.push([_p.x,_p.y-(_o._R||6)-6]);
+    }
+    if(_nodeXY.length){
+      EVLBL=EVLBL.filter(function(m){
+        if(m.agg) return true;      /* 计数圈名不被旁边节点的名字挤掉（否则圈里只剩一个数字） */
+        for(var _k=0;_k<_nodeXY.length;_k++){ var dx=Math.abs(m.x-_nodeXY[_k][0]),dy=Math.abs(m.y-_nodeXY[_k][1]);
+          if(dx<14 && dy<30) return false; }
+        return true;
+      });
+    }
+    /* 同一地点的多个「标点/聚合」标签合并成一个：以前两个不同名的事件落在同一城市，
+       会各画一个名字（上下叠着），界面上就像「一个节点两个名字」。
+       现在只留优先级最高的那个，后面加「等 N 项」，点开仍是完整清单。 */
+    (function(){
+      var out=[], used={};
+      for(var _a=0;_a<EVLBL.length;_a++){
+        if(used[_a])continue;
+        /* 计数圈名不参与合并：三个圈挨得近时，合并会把另外两个圈的名字吞掉（「等3项」），
+           结果是那两个圈只剩数字。各自独立，由防重叠决定显示哪个。 */
+        if(EVLBL[_a].agg){ out.push(EVLBL[_a]); used[_a]=1; continue; }
+        var grp=[EVLBL[_a]]; used[_a]=1;
+        for(var _b=_a+1;_b<EVLBL.length;_b++){
+          if(used[_b])continue;
+          var ddx=Math.abs(EVLBL[_b].x-EVLBL[_a].x), ddy=Math.abs(EVLBL[_b].y-EVLBL[_a].y);
+          if(ddx<18 && ddy<26){ grp.push(EVLBL[_b]); used[_b]=1; }
+        }
+        grp.sort(function(X,Y){ return (Y.prio||0)-(X.prio||0); });
+        var top=grp[0];
+        if(grp.length>1 && top.txt.indexOf('等')<0) top.txt=top.txt+' 等'+grp.length+'项';
+        out.push(top);
+      }
+      EVLBL=out;
+    })();
+  })();
   var LB=[];
-  for(var _d0=0;_d0<EVLBL.length;_d0++){var _m=EVLBL[_d0];LB.push({p:9e5+(_m.prio||0),x:_m.x,y:_m.y,t:_m.txt,c:_m.col,a:1,bold:false});}
-  for(var _c1=0;_c1<ns.length;_c1++){var _oc=ns[_c1];if(!passesFilter(_oc)||!showLabel(_oc))continue;var _pl=S(_oc);if(_pl.x<-50||_pl.x>W+50||_pl.y<-50||_pl.y>H+50)continue;var _bl=(_oc===hover||_oc===selected);
-   LB.push({p:prio(_oc),x:_pl.x,y:_pl.y-(_oc._R||6)-6,t:_oc.d.name,bold:_bl,a:spot(_oc),c:_bl?CL.lblHi:(selected&&nb[_oc.d.id]?CL.lblRel:CL.lbl)});}
+  for(var _d0=0;_d0<EVLBL.length;_d0++){var _m=EVLBL[_d0];LB.push({p:9e5+(_m.prio||0),x:_m.x,y:_m.y,t:_m.txt,c:_m.col,a:1,bold:false,small:!!_m.small,key:_m.key||('e'+_m.txt)});}
+  for(var _c1=0;_c1<ns.length;_c1++){var _oc=ns[_c1];if(!passesFilter(_oc)||!showLabel(_oc))continue;
+   /* 已合并进计数圈的节点：不再单独出名字（否则圈心附近堆一片人名，看着像「圈和里面的节点同时出现」），
+      选中/悬停时仍然显示，方便确认是谁 */
+   if(_aggIds[_oc.d.id]&&_oc!==selected&&_oc!==hover)continue;var _pl=S(_oc);if(_pl.x<-90||_pl.x>W+90||_pl.y<-90||_pl.y>H+90)continue;   /* 与节点绘制同口径：点画了才可能有名字 */var _bl=(_oc===hover||_oc===selected);
+   LB.push({p:prio(_oc),x:_pl.x,y:_pl.y-(_oc._R||6)-6,t:_oc.d.name,bold:_bl,a:spot(_oc),c:_bl?CL.lblHi:(selected&&nb[_oc.d.id]?CL.lblRel:CL.lbl),key:'n'+_oc.d.id});}
   LB.sort(function(A,B){return B.p-A.p;});
   ctx.textAlign='center';ctx.textBaseline='alphabetic';
-  for(var _l0=0;_l0<LB.length;_l0++){var L2=LB[_l0];var _fs=L2.bold?13:12;ctx.font=(L2.bold?'bold ':'')+_fs+'px -apple-system,sans-serif';
-   var _w=ctx.measureText(L2.t).width,_h=_fs+3,_bx=[L2.x-_w/2-2,L2.y-_h,L2.x+_w/2+2,L2.y+2];
-   if(BG.hit(_bx))continue;BG.push(_bx);
-   ctx.globalAlpha=L2.a;ctx.fillStyle=L2.c;ctx.fillText(L2.t,L2.x,L2.y);ctx.globalAlpha=1;}
+  /* ---- 缩放档位缓存（label popping 治理）----
+     同一缩放档内：按「上一帧的绘制顺序」先画上次已经显示的名字（位置微调不会把它们踢掉），
+     其余名字只能填剩下的空位。只有跨档才重新洗牌。
+     签名（筛选 / 名称模式 / 画布尺寸 / 图谱）一变，缓存整体作废；点击节点不触发作废。 */
+  var _zqNow=_zq(), _sigNow=_lblSignature();
+  if(_sigNow!==_lblSig){ _lblCache={}; _lblSig=_sigNow; }
+  var _prevOrder=_lblCache[_zqNow]||null, _orderNow=[];
+  var _byKey={}; for(var _bk=0;_bk<LB.length;_bk++) _byKey[LB[_bk].key]=LB[_bk];
+  var _prevSet={}; if(_prevOrder) for(var _pk=0;_pk<_prevOrder.length;_pk++) _prevSet[_prevOrder[_pk]]=1;
+
+  /* 标签宽度估算（跨端保守）：
+     · 含中文/全角：w*LBL_PAD+3 —— Noto CJK 与 Linux 回退字体的字宽基本同为 1em，主要差在字距与 hinting
+     · 纯拉丁/数字：再补 8% —— 拉丁字形在两端差异更大
+     · LBL_GAP：碰撞框四周的安全边距（默认 3px），手机上仍偏挤就调大 */
+  function _lblW(t){
+    var w=ctx.measureText(t).width;
+    return /[\u3400-\u9FFF\uF900-\uFAFF\u3000-\u303F\uFF00-\uFFEF]/.test(t) ? w*LBL_PAD+3 : w*(LBL_PAD+0.08)+1;
+  }
+  function _paintOne(L2,keepIfFail){
+    var _fs=L2.bold?13:(L2.small?10.5:12);ctx.font=(L2.bold?'bold ':'')+_fs+'px -apple-system,sans-serif';
+    var _w=_lblW(L2.t),_h=_fs*1.32+2;
+    if(_w>W*0.46){
+      var _t2=L2.t;
+      while(_t2.length>3 && _lblW(_t2+'…')>W*0.46) _t2=_t2.slice(0,-1);
+      if(_t2!==L2.t){ L2.t=_t2+'…'; _w=_lblW(L2.t); }
+    }
+    var _fx=L2.x, _fy=L2.y;
+    /* 判定坐标吸附到 2px 网格：缩放时位置只挪一两像素，不该让碰撞结果翻转 */
+    var _qx=Math.round(_fx/2)*2, _qy=Math.round(_fy/2)*2;
+    if(_qx-_w/2<LBL_GAP || _qx+_w/2>W-LBL_GAP || _qy-_h<2 || _qy>H-LBL_GAP) return false;
+    var _bx=[_qx-_w/2-LBL_GAP,_qy-_h,_qx+_w/2+LBL_GAP,_qy+2];
+    if(BG.hit(_bx)) return false;
+    BG.push(_bx);
+    ctx.globalAlpha=L2.a;ctx.fillStyle=L2.c;ctx.fillText(L2.t,_fx,_fy);ctx.globalAlpha=1;
+    return true;
+  }
+
+  /* 第一遍：按上一帧的顺序重画上次显示过的名字 —— 顺序固定，结果就固定 */
+  if(_prevOrder){
+    for(var _pi=0;_pi<_prevOrder.length;_pi++){
+      var _L2=_byKey[_prevOrder[_pi]]; if(!_L2) continue;
+      _paintOne(_L2,true);
+      _orderNow.push(_L2.key);          /* 画不出来也保留资格，下一帧继续试 */
+    }
+  }
+  /* 第二遍：其余名字填空位（只能新增，不会顶掉第一遍的） */
+  for(var _l0=0;_l0<LB.length;_l0++){
+    var L2=LB[_l0];
+    if(_prevSet[L2.key]) continue;
+    if(_paintOne(L2,false)) _orderNow.push(L2.key);
+  }
+  _lblCache[_zqNow]=_orderNow;
  /* 关系线文字：防遮挡（选中的优先） */
  eLbl.sort(function(A,B){return B.touch-A.touch;});
  for(var e1=0;e1<eLbl.length;e1++){var L=eLbl[e1];ctx.font='10.5px -apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='alphabetic';
   var lx=(L.g.a.x+2*L.g.qx+L.g.b.x)/4, ly=(L.g.a.y+2*L.g.qy+L.g.b.y)/4-3;
-  var lw=ctx.measureText(L.r).width, lbx=[lx-lw/2-4,ly-12,lx+lw/2+4,ly+3];
+  var lw=ctx.measureText(L.r).width*LBL_PAD+3, lbx=[lx-lw/2-5,ly-13,lx+lw/2+5,ly+4];
   if(BG.hit(lbx))continue; BG.push(lbx);
   var kk2=relKind(L.r); var col=kk2==='neg'?CL.neg:kk2==='fam'?CL.fam:CL.pos;
   ctx.save();ctx.lineWidth=3.2;ctx.strokeStyle=CL.elblBg;ctx.strokeText(L.r,lx,ly);ctx.fillStyle=col;ctx.fillText(L.r,lx,ly);ctx.restore();
  }
  }
+ window._drawnIds=_drawn; window._aggDup=_drawn.filter(function(id){return !!_aggIds[id];});
  document.getElementById('shown').textContent='当前显示 '+listShown().length+' 个';
 }
 function hit(mx,my){var best=null,bd=28*28;ns.forEach(function(o){if(!passesFilter(o))return;var p=S(o),d2=(p.x-mx)*(p.x-mx)+(p.y-my)*(p.y-my);if(d2<bd){bd=d2;best=o;}});return best;}
@@ -941,6 +1198,15 @@ function collapsePanel(){closePanel();var tb=document.getElementById('ptab');if(
 function expandPanel(){document.getElementById('panel').classList.add('open');document.body.classList.add('p-open');var tb=document.getElementById('ptab');if(tb)tb.classList.remove('show');}
 function togglePanel(){var p=document.getElementById('panel');if(p.classList.contains('open'))collapsePanel();else expandPanel();}
 function toggleEdges(){edgesOn=!edgesOn;document.getElementById('eb').classList.toggle('on',edgesOn);draw();}
+function cycleLabelMode(){
+  var order=['all','auto','off'];
+  var i=order.indexOf(LB_MODE); LB_MODE=order[(i+1)%3];
+  try{ localStorage.setItem('graphLabelMode',LB_MODE); }catch(e){}
+  labelsAll=(LB_MODE!=='auto'); hideText=(LB_MODE==='off');
+  var b=document.getElementById('lbb');
+  if(b) b.textContent = '🏷 ' + ({all:'名称',auto:'仅重要',off:'无名称'})[LB_MODE];
+  draw();
+}
 function applyFilter(f){filter=f;if(selected)clearSel();Array.prototype.slice.call(document.querySelectorAll('#filters button')).forEach(function(b){b.classList.toggle('on',b.dataset.f===f);});if(viewMode==='geo')fitGeo();else fitTo(listShown());syncHash();}
 Array.prototype.slice.call(document.querySelectorAll('#filters button')).forEach(function(b){b.onclick=function(){applyFilter(b.dataset.f);};});
 /* ---- 文革图谱：关系线类型「图例 + 过滤」（仅当图谱声明 kinds 时启用） ---- */
@@ -1114,11 +1380,33 @@ function renderMgr(){
   if(n) n.innerHTML=MG_TYPES.map(function(x){ return '<button type="button" class="'+(mgNodeHidden(x.k)?'off':'on')+'" onclick="toggleMgrNode(\''+x.k+'\')">'+x.t+'</button>'; }).join('');
   var list=mgRelList(), r=document.getElementById('mgRels');
   if(r) r.innerHTML=list.length?list.map(function(x){ return '<button type="button" class="'+(mgRelHidden(x.k)?'off':'on')+'" onclick="toggleMgrRel(\''+x.k+'\')">'+x.t+'</button>'; }).join(''):'<span class="mg-note">该图谱未定义关系类型</span>';
+  var hm=document.getElementById('mgHome');
+  if(hm){ try{
+    var ys=YZY.listGraphs(), oh=[];
+    ys.forEach(function(g){ var on=(!YZY.homeGraphOn || YZY.homeGraphOn(g.id));
+      oh.push('<button type="button" class="'+(on?'on':'off')+'" onclick="toggleHomeGraph(\''+String(g.id).replace(/'/g,'')+'\')">'+(on?'✔ ':'○ ')+g.name+'</button>'); });
+    var on3=(!YZY.homeGraphOn || YZY.homeGraphOn('3d'));
+    oh.push('<button type="button" class="'+(on3?'on':'off')+'" onclick="toggleHomeGraph(\'3d\')">'+(on3?'✔ ':'○ ')+'3D 关系图谱</button>');
+    hm.innerHTML=oh.join('');
+  }catch(e){ hm.innerHTML='<span class="mg-note">图谱列表暂不可用</span>'; } }
+  var pd=document.getElementById('mgPad');
+  if(pd){ var PADS=[['宽松',1.18,6],['标准',1.06,3],['紧凑',1.00,1]];
+    pd.innerHTML=PADS.map(function(x){ var on=Math.abs(LBL_PAD-x[1])<0.01;
+      return '<button type="button" class="'+(on?'on':'')+'" onclick="setLabelPad('+x[1]+','+x[2]+')">'+x[0]+'</button>'; }).join(''); }
   var st=document.getElementById('mgStat');
   if(st){ var onT=MG_TOOLS.filter(function(x){return !mgToolHidden(x.id);}).length;
     var onN=MG_TYPES.filter(function(x){return !mgNodeHidden(x.k);}).length;
     var hiddenR=mgRelList().filter(function(x){return mgRelHidden(x.k);}).length;
     st.textContent='工具 '+onT+' / '+MG_TOOLS.length+'　节点类型 '+onN+' / '+MG_TYPES.length+(hiddenR?('　已隐藏关系 '+hiddenR+' 类'):''); }
+}
+/* 主页入口开关：只控制「首页我的主页里列不列这个图谱」，与当前页显示无关 */
+function toggleHomeGraph(id){
+  try{
+    var on=(!YZY.homeGraphOn || YZY.homeGraphOn(id));
+    var r=YZY.setHomeGraph(id, !on);
+    renderMgr();
+    toast2(r&&r.ok ? (on?'已从首页移出':'已加到首页') : '没能保存到本机');
+  }catch(e){ toast2('没能保存到本机'); }
 }
 function toggleMgrTool(id){ MG.tools[id]= mgToolHidden(id) ? false : true; mgSave(); mgApplyTools(); renderMgr(); }
 function toggleMgrNode(k){ if(mgNodeHidden(k)) delete MG.nodes[k]; else MG.nodes[k]=false; mgSave();
@@ -1133,6 +1421,14 @@ function resetMgr(){ MG={tools:{},nodes:{},rels:{}}; mgSave();
   try{ window.__kf={}; mgKinds().forEach(function(k){ window.__kf[k]=true; }); }catch(e){}
   applyMgr(); renderMgr(); if(selected&&clearSel)clearSel(); draw(); toast2('已恢复默认显示'); }
 
+/* 标签密度三档：直接改全局系数并清掉档位缓存，下一帧重新排布 */
+function setLabelPad(v,g){
+  LBL_PAD=v; LBL_GAP=g;
+  try{ localStorage.setItem('graphLabelPad',String(v)); localStorage.setItem('graphLabelGap',String(g)); }catch(e){}
+  _lblCache={}; _lblSig='__pad'; renderMgr(); draw();
+  try{ toast2('标签密度：'+(v>=1.15?'宽松':v>=1.03?'标准':'紧凑')); }catch(e){}
+}
+window.setLabelPad=setLabelPad;
 function openRelTool() {
   var box = document.getElementById('relTool'); if (!box) return;
   fillRelSelects();
@@ -1621,7 +1917,7 @@ function restoreViewState(){
   }catch(e){}
 }
 function panelExtra(id) {
-  var h = '<a href="card.html?id=' + encodeURIComponent(id) + '" target="_blank" rel="noopener" style="display:inline-block;padding:7px 13px;border:1px solid var(--card-border);border-radius:9px;color:inherit;text-decoration:none;font-size:.82rem">🖨 速查卡</a>';
+  var h = '<a href="card.html?id=' + encodeURIComponent(id) + '" style="display:inline-block;padding:7px 13px;border:1px solid var(--card-border);border-radius:9px;color:inherit;text-decoration:none;font-size:.82rem">🖨 速查卡</a>';
   if (P[id] && P[id].type === 'person') h += '<button onclick="yzHomeToggle(\'' + String(id).replace(/'/g, '') + '\')">' + (yzHomeIn('p:' + id) ? '✔ 已添加到主页' : '➕ 添加到主页') + '</button>';
   h += '<button onclick="setFocus(\'' + String(id).replace(/'/g, '') + '\')" title="只保留与这位有一/二/三度关系的人">🎯 只看向这位</button>';
   if (viewMode === 'geo') h += '<button onclick="showInNet(\'' + id + '\')">🕸 在关系网中查看此人</button>';
@@ -1750,8 +2046,8 @@ function panel(id){var n=P[id];if(!n)return;
  GR.links.forEach(function(l){if(l.source===id)rels.push({id:l.target,rel:l.rel,o:true,src:l.src});if(l.target===id)rels.push({id:l.source,rel:l.rel,o:false,src:l.src});});
  document.getElementById('pr').innerHTML=rels.length?'<div class="sub2">关系网 · 关联 '+rels.length+' 个</div><div class="rlist">'+rels.map(function(r){var t=P[r.id];if(!t)return '';var kk=relKind(r.rel);var avv=t.img?'<img class="rav" src="'+escA2(t.img)+'" alt="" onerror="this.replaceWith(document.createTextNode(\'\'))">':'<span class="rav">'+tyEmoji(t.type)+'</span>';return '<button class="rbtn rk-'+kk+'" onclick="focusN(\''+r.id+'\')">'+avv+'<span class="rtx"><b>'+(r.o?'':'← ')+esc2(t.name)+'</b><em>'+tyName(t.type)+(t.crit?' · 对立':'')+'</em></span><i>'+esc2(r.rel)+(r.src?'（依据：'+esc2(r.src)+'）':'')+'</i></button>';}).join('')+'</div>':'';
  var _exi = (n.type==='event' || n.ex) ? exEventIdx(n.name) : -1;
- document.getElementById('pback').innerHTML='<p style="margin:0 0 10px"><a href="index.html#/g/'+n.id+'" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📖 在革命史料中查看 →</a></p>' +
-   (_exi>=0 ? '<p style="margin:0 0 10px"><a href="index.html#/e/'+_exi+'" target="_blank" rel="noopener" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📜 重大事件完整记述（背景 / 要点 / 影响）→</a></p>' : '') +
+ document.getElementById('pback').innerHTML='<p style="margin:0 0 10px"><a href="index.html#/g/'+encodeURIComponent(n.id)+'" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📖 在革命史料中查看 →</a></p>' +
+   (_exi>=0 ? '<p style="margin:0 0 10px"><a href="index.html#/e/'+_exi+'" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">📜 重大事件完整记述（背景 / 要点 / 影响）→</a></p>' : '') +
    panelExtra(n.id);
  document.getElementById('panel').classList.add('open');document.body.classList.add('p-open');var tb=document.getElementById('ptab');if(tb)tb.classList.remove('show');
 }
@@ -1824,6 +2120,7 @@ addEventListener('resize',function(){resize();draw();placeJump();});
 resize();if(viewMode==='geo'){fitGeo();}else if(mapMode==='china'){fitTo(ns);}else{centerDefault();}
 var _vb=document.getElementById('vb');if(_vb){if(mapMode==='none'||mapOnly){_vb.style.display='none';}_vb.classList.toggle('on',viewMode==='geo');_vb.textContent=(viewMode==='geo')?'🧩 关系网':'🗺 地图';}
 mgLoad();applyMgr();rankCompute();restoreViewState();
+(function(){var b=document.getElementById('lbb');if(b)b.textContent='🏷 '+({all:'名称',auto:'仅重要',off:'无名称'})[LB_MODE];})();
 setTimeout(function(){ try{ renderMgr(); }catch(e){} }, 0);   /* #mgTop 的 DOM 在脚本之后，就绪后再渲染一次 */
 parseHashInit();
 </script>
@@ -1863,8 +2160,10 @@ parseHashInit();
  <p class="mg-note">决定这张图谱上显示哪些工具、节点与关系。设置只存在本机，随时可改。<br>默认只留常用的（适应窗口 / 地图 / 清屏 / 关系线 / 列表 / 关系工具 / 导出数据）；社区、时间轴、束线默认关闭，点一下即可打开。</p>
  <div class="mg-sec"><div class="mg-h">顶部显示<span class="mg-sub">关掉后页面顶部只留标题和「返回」</span></div><div id="mgTop" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">工具按钮<span class="mg-sub">关掉就从底部去掉</span></div><div id="mgTools" class="mg-grid"></div></div>
+ <div class="mg-sec"><div class="mg-h">主页入口<span class="mg-sub">首页「我的主页」里列哪些图谱；关掉就不在首页出现（默认全部开启）</span></div><div id="mgHome" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">节点<span class="mg-sub">关掉则该类不再显示（其关系线一起隐藏）</span></div><div id="mgNodes" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">关系<span class="mg-sub">关掉则不画该类关系线</span></div><div id="mgRels" class="mg-grid"></div></div>
+ <div class="mg-sec"><div class="mg-h">标签密度<span class="mg-sub">手机上名字挤成一团就调宽松；嫌名字太少就调紧凑</span></div><div id="mgPad" class="mg-grid"></div></div>
  <div class="mg-sec"><button class="mg-reset" type="button" onclick="resetMgr()">↺ 全部恢复默认</button><div id="mgStat" class="mg-note" style="margin-top:8px"></div></div>
 </aside>
 <div id="gtoast" role="status" aria-live="polite"></div>

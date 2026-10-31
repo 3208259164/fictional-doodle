@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.yuanziyuan.app"
-    android:versionCode="201"
-    android:versionName="0.17.22">
+    android:versionCode="245"
+    android:versionName="0.17.66">
 
     <!-- 2026 合规：Google Play 自 2026-08-31 起要求 targetSdk >= 36 (Android 16) -->
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />

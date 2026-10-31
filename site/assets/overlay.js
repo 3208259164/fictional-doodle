@@ -25,8 +25,18 @@
   /* 内置图谱注册表（随站点/App 发布，不可删除 / 改名；仍可被本地覆盖层编辑） */
   function builtinGraphs() {
     var m = {};
-    var W = window.SITE_GRAPH_WENGE;
-    if (W && Array.isArray(W.nodes)) m.wenge = { name: (W.name || '文革图谱'), get: function () { return W; } };
+    /* 文革图谱：**始终注册**，取数据时才看 SITE_GRAPH_WENGE 在不在。
+       原因：首页为了首屏体积，把 142KB 的 data/graph-wenge.js 放到 400ms 后动态加载，
+       而首页「我的主页」里的图谱入口是启动那一刻用 listGraphs() 渲染的 ——
+       以前这里要求「数据已在」才注册，于是首页永远少一个「文革图谱」入口
+       （用户反馈的「文革图谱在我的首页看不到」就是这个）。 */
+    m.wenge = {
+      name: '文革图谱',
+      get: function () {
+        var W = window.SITE_GRAPH_WENGE;
+        return (W && Array.isArray(W.nodes)) ? W : { nodes: [], links: [] };
+      }
+    };
     /* 世界图谱：与「主图谱」同一批人物/思想/组织，但落到真实世界经纬度（geo）。
        单列为一个内置图谱，避免和主图谱（纯关系网）互相争夺视图模式。 */
     m.world = {
@@ -39,6 +49,21 @@
       }
     };
     return m;
+  }
+
+  /* ---------------- 首页图谱入口（哪些图谱出现在首页「我的主页」） ----------------
+     默认全部开启；只记录被关掉的那些，这样以后新增内置图谱会自动出现。 */
+  function homeOffList() {
+    try { var a = JSON.parse(localStorage.getItem('homeGraphsOff') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  }
+  function homeGraphOn(gid) { return homeOffList().indexOf(String(gid)) < 0; }
+  function setHomeGraph(gid, on) {
+    gid = String(gid || '').slice(0, 40); if (!gid) return { ok: false };
+    var a = homeOffList(), i = a.indexOf(gid);
+    if (on && i >= 0) a.splice(i, 1);
+    if (!on && i < 0) a.push(gid);
+    try { localStorage.setItem('homeGraphsOff', JSON.stringify(a)); } catch (e) { return { ok: false, msg: '本机存储已满' }; }
+    return { ok: true, on: !!on };
   }
 
   window.__YZY_OVERLAY_V = 2;
@@ -153,6 +178,8 @@
       concepts: { edited: {} },
       events: { edited: {} },
       /* 史料补充内容：推荐人物 / 思想组织 / 答疑（键 = 人物名 / 条目名 / 答疑 id） */
+      /* 术语卡（data/glossary.js）：改 / 增 / 删，与史料四类同一套机制 */
+      term: { edited: {}, added: [], removed: [] },
       edu: { rec: { edited: {}, added: [], removed: [] },
              sch: { edited: {}, added: [], removed: [] },
              qa:  { edited: {}, added: [], removed: [] } },
@@ -250,9 +277,28 @@
     if (p.people !== undefined) q.people = cleanList(p.people, 60, 30);
     return q;
   }
+  /* 术语卡：字段少但都是要显示的文本，逐项限长；confuse 是「易混辨析」数组 */
+  function normTerm(p) {
+    p = p || {}; var q = {};
+    if (p.term !== undefined) q.term = clean(p.term, 40);
+    if (p.dic !== undefined) q.dic = clean(p.dic, MAX);
+    if (p.from !== undefined) q.from = clean(p.from, 200);
+    if (p.group !== undefined) q.group = clean(p.group, 20);
+    if (p.note !== undefined) q.note = clean(p.note, 200);
+    if (p.concept !== undefined) q.concept = clean(p.concept, 60);
+    if (p.alias !== undefined) q.alias = cleanList(p.alias, 20, 8);
+    if (p.tags !== undefined) q.tags = cleanList(p.tags, 20, 8);
+    if (p.confuse !== undefined) {
+      q.confuse = (Array.isArray(p.confuse) ? p.confuse : []).slice(0, 6).map(function (c) {
+        c = c || {}; return { t: clean(c.t, 60), d: clean(c.d, 400) };
+      }).filter(function (c) { return c.t || c.d; });
+    }
+    return q;
+  }
   function normQa(p) {
     p = p || {}; var q = {};
     if (p.q !== undefined) q.q = clean(p.q, 300);
+    if (p.group !== undefined) q.group = clean(p.group, 40);
     ['a', 'why'].forEach(function (k) {
       if (p[k] !== undefined) q[k] = clean(p[k], MAX);
     });
@@ -326,6 +372,21 @@
     R.catAdded = cleanList(R.catAdded, 40, 60);
     R.catRemoved = cleanList(R.catRemoved, 40, 60);
 
+    /* 术语卡（data/glossary.js）：edited 覆盖 / added 新增 / removed 删除。
+       normalize() 是白名单式的——这里漏一段，整段改动就会被丢掉（editTerm 存进去、reapply 读不出）。 */
+    sub(OV, 'term', {});
+    var TERM = OV.term;
+    sub(TERM, 'edited', {}); sub(TERM, 'added', []); sub(TERM, 'removed', []);
+    var termEd = {};
+    Object.keys(TERM.edited).forEach(function (k) { var id = clean(k, 60); if (id) termEd[id] = normTerm(TERM.edited[k]); });
+    TERM.edited = termEd;
+    TERM.added = (Array.isArray(TERM.added) ? TERM.added : []).map(function (x) {
+      var p = normTerm(x); if (!p.term || !p.dic) return null;
+      p.id = clean(x && x.id, 60) || ('gz' + Math.random().toString(36).slice(2, 8));
+      return p;
+    }).filter(Boolean);
+    TERM.removed = (Array.isArray(TERM.removed) ? TERM.removed : []).map(function (x) { return clean(x, 60); }).filter(Boolean);
+
     sub(OV, 'edu', {});
     var ED = OV.edu, NORMEDU = { rec: normRec, sch: normSch, qa: normQa };
     Object.keys(NORMEDU).forEach(function (k) {
@@ -388,7 +449,11 @@
     G.created = cr;
     G.removed = (Array.isArray(G.removed) ? G.removed : []).map(function (x) { return clean(x, 40); }).filter(Boolean);
     G.active = clean(G.active, 40) || GID_MAIN;
-    if (G.active !== GID_MAIN && !G.created[G.active]) G.active = GID_MAIN;
+    /* ★ 内置图谱（文革 / 世界）也是合法 active。这里以前只认 S.graphs.created，
+       于是「在文革图谱里删一个节点/一条关系」→ persist → reapply → load → normalize
+       把 active 强制改回 main，界面直接切成主图谱的另一套节点（用户看到的就是
+       「删一下就整张图都乱了」）。setActiveGraph 本来就允许内置图谱，这里是漏判。 */
+    if (G.active !== GID_MAIN && !G.created[G.active] && !builtinGraphs()[G.active]) G.active = GID_MAIN;
     ['nodeAdd', 'edgeAdd'].forEach(function (k) {
       var m = {}, so = G[k];
       Object.keys(so).forEach(function (gid) {
@@ -475,6 +540,14 @@
     r.people.moved = Object.assign({}, r.people.moved || {}, pb.moved || {});
     r.people.added = (r.people.added || []).concat(pb.added || []);
     r.people.avatars = Object.assign({}, r.people.avatars || {}, pb.avatars || {});
+    // 术语卡（data/glossary.js）：与 edu 同规则，个人后写覆盖官方
+    r.term = r.term || { edited: {}, added: [], removed: [] };
+    var _ta = r.term, _tb = b.term || {};
+    r.term = {
+      edited: Object.assign({}, _ta.edited || {}, _tb.edited || {}),
+      added: (_ta.added || []).concat(_tb.added || []),
+      removed: (_ta.removed || []).concat(_tb.removed || [])
+    };
     // 史料补充内容（个人后写覆盖官方）
     r.edu = r.edu || {};
     ['rec', 'sch', 'qa'].forEach(function (k) {
@@ -605,6 +678,10 @@
     if (window.__YZY_BASE_GRAPH) return;
     var GR = window.SITE_GRAPH;
     if (!GR || !Array.isArray(GR.nodes)) return;
+    /* ★ 空数据不能当基线：graph.js 现在是延迟加载，首屏 window.SITE_GRAPH 只是个空占位，
+       若在这里冻结成"内置基线"，之后每次 reapply 都会拿空基线重建 SITE_GRAPH，
+       结果就是图谱数据被清空（表现为"图谱节点点不开、搜索不到"）。 */
+    if (!GR.nodes.length) return;
     try { window.__YZY_BASE_GRAPH = clone({ nodes: GR.nodes, links: GR.links || [] }); } catch (e) {}
   }
   function applyGraphToSiteGraph(OV) {
@@ -813,6 +890,11 @@
       }
       /* ③ 答疑 */
       var ANS = window.SITE_ANSWERS;
+      /* 撤掉上一轮由覆盖层临时建的分组与塞进去的条目（push 必须可撤销，apply 才幂等） */
+      if (ANS && Array.isArray(ANS.groups)) {
+        ANS.groups = ANS.groups.filter(function (g) { return !(g && g.__ov); });
+        ANS.groups.forEach(function (g) { if (g && Array.isArray(g.items)) g.items = g.items.filter(function (y) { return !(y && y.__ov); }); });
+      }
       var AG = (ANS && ANS.groups) || [];
       var bq = ED.qa || {}, qed = bq.edited || {};
       AG.forEach(function (g) {
@@ -829,9 +911,16 @@
         if (!x || !x.q) return;
         var g0 = AG.filter(function (g) { return (g.items || []).some(function (y) { return y && y.q === x.q; }); })[0];
         if (g0) return;
-        var t = AG[0]; if (!t) return;
-        x.id = x.id || ('a-x' + Math.random().toString(36).slice(2, 7));
-        t.items.push(x);
+        /* 指定了分组就放进去；组不存在就现建一个（标 __ov，下次重算时先撤掉） */
+        var t = null;
+        if (x.group) {
+          t = AG.filter(function (g) { return g && g.name === x.group; })[0];
+          if (!t) { t = { name: x.group, items: [], __ov: 1 }; AG.push(t); }
+        }
+        if (!t) t = AG[0];
+        if (!t) return;
+        var c = Object.assign({}, x); c.id = c.id || ('a-x' + Math.random().toString(36).slice(2, 7)); c.__ov = 1;
+        (t.items = t.items || []).push(c);
       });
       if (bq.removed && bq.removed.length) {
         AG.forEach(function (g) {
@@ -845,6 +934,30 @@
      ⚠️ 必须是「基线 → 删 → 按 id 写回」：只做「有则写」的话，把年表清空保存后旧内容会残留
      （用户会看到「删了还在」），重置覆盖层后也撤不掉。 */
   var _chronoBase = null;
+  /* 术语卡的编辑结果写回 SITE_GLOSSARY：先覆盖 → 再新增 → 最后删除（与 applyEdu 同序，幂等） */
+  function applyTerm(OV) {
+    if (!Array.isArray(window.SITE_GLOSSARY)) return;
+    /* 先把上一轮由覆盖层加进来的项剔掉再重加。
+       否则 removeTerm 只把 added 清空，而上一轮 push 进数组的那一条会留在页面上
+       ——「加了又删，删不掉」就是这里（push 型数据必须可撤销，apply 才幂等）。 */
+    window.SITE_GLOSSARY = window.SITE_GLOSSARY.filter(function (x) { return !(x && x.__ov); });
+    var T = window.SITE_GLOSSARY;
+    var B = (OV && OV.term) || {}, ed = B.edited || {};
+    T.forEach(function (t) {
+      if (!t || !t.id) return;
+      var e = ed[t.id]; if (!e) return;
+      Object.keys(e).forEach(function (k) { t[k] = e[k]; });
+    });
+    (B.added || []).forEach(function (x) {
+      if (!x || !x.term) return;
+      if (T.some(function (y) { return y && (y.id === x.id || y.term === x.term); })) return;
+      var c = Object.assign({}, x); c.__ov = 1;   /* 打标记，下一轮好撤；副本不写回存档 */
+      T.push(c);
+    });
+    if (B.removed && B.removed.length) {
+      window.SITE_GLOSSARY = T.filter(function (x) { return B.removed.indexOf(x && x.id) < 0; });
+    }
+  }
   function chronoBase() {
     if (_chronoBase) return _chronoBase;
     var EX = window.SITE_EXTRA || {};
@@ -896,6 +1009,7 @@
     applyConcepts(S);
     applyEvents(S);
     applyEdu(S);
+    applyTerm(S);
     applyLabels(S);
     /* 覆盖层（含导入的备份）刚合并完，立刻净化一次，避免把 HTML 带进页面 */
     try { if (window.yzCleanData) window.yzCleanData(); } catch (e) {}
@@ -903,10 +1017,14 @@
   }
   window.YZY = {
     version: 2,
+    /* 诊断用：返回当前覆盖层快照（只读副本），排查「改完没生效」时先用它看数据到底在不在 */
+    dumpOverlay: function () { try { return JSON.parse(JSON.stringify(S)); } catch (e) { return null; } },
     sanitize: clean,
     storage: storageInfo,
     /* 懒加载图谱数据后，需要重新把本机改动应用一遍（覆盖层是幂等的） */
     reapply: function () { try { reapply(); return true; } catch (e) { return false; } },
+    /* 延迟图谱数据到位后，让下一轮 reapply 重新捕获基线（否则基线还是那个空占位） */
+    resetBaseGraph: function () { try { window.__YZY_BASE_GRAPH = null; } catch (e) { } return true; },
     state: function () { return clone(S); },
 
     /* ---- 总开关 ---- */
@@ -941,6 +1059,49 @@
       persist(); return { ok: true };
     },
     moveResource: function (id, toCat) { return this.editResource(id, { cat: clean(toCat, 40) }); },
+
+    /* ---- 术语卡：改 / 增 / 删 / 批量导入 ---- */
+    editTerm: function (id, patch) {
+      id = clean(id, 60); if (!id) return { ok: false, msg: '缺少 id' };
+      var p = normTerm(patch);
+      if (!Object.keys(p).length) return { ok: false, msg: '没有可保存的字段' };
+      S.term.edited[id] = Object.assign(S.term.edited[id] || {}, p);
+      persist(); return { ok: true };
+    },
+    addTerm: function (obj) {
+      var p = normTerm(obj);
+      if (!p.term) return { ok: false, msg: '缺少术语名' };
+      if (!p.dic) return { ok: false, msg: '缺少定义' };
+      var exist = (window.SITE_GLOSSARY || []).filter(function (x) { return x && x.term === p.term; })[0];
+      if (exist) return { ok: false, msg: '已有同名词条：' + p.term, id: exist.id };
+      p.id = 'gz' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      S.term.added.push(p); persist(); return { ok: true, id: p.id };
+    },
+    removeTerm: function (id) {
+      id = clean(id, 60); if (!id) return { ok: false, msg: '缺少 id' };
+      var inAdded = (S.term.added || []).some(function (x) { return x.id === id; });
+      if (inAdded) S.term.added = S.term.added.filter(function (x) { return x.id !== id; });
+      else if ((S.term.removed || []).indexOf(id) < 0) S.term.removed.push(id);
+      persist(); return { ok: true };
+    },
+    importTerms: function (list, opts) {
+      opts = opts || {};
+      var added = 0, skipped = [], bad = [];
+      (Array.isArray(list) ? list : []).forEach(function (x) {
+        var p = normTerm(x);
+        if (!p.term || !p.dic) { bad.push((x && x.term) || '(空)'); return; }
+        var exist = (window.SITE_GLOSSARY || []).filter(function (y) { return y && y.term === p.term; })[0];
+        if (exist) {
+          if (opts.overwrite) { S.term.edited[exist.id] = Object.assign(S.term.edited[exist.id] || {}, p); added++; }
+          else skipped.push(p.term);
+          return;
+        }
+        p.id = 'gz' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        S.term.added.push(p); added++;
+      });
+      persist();
+      return { ok: true, added: added, skipped: skipped, bad: bad };
+    },
 
     /* ---- 史料补充内容：推荐人物 / 思想组织 / 答疑 ---- */
     editRec: function (name, patch) {
@@ -996,6 +1157,24 @@
       if (!p.q) return { ok: false, msg: '问题不能为空' };
       p.id = 'a-' + Math.random().toString(36).slice(2, 8);
       S.edu.qa.added.push(p); persist(); return { ok: true, id: p.id };
+    },
+    /* 批量导入答疑：一条条走 addQa，同名问题跳过 */
+    importAnswers: function (list, opts) {
+      opts = opts || {};
+      var added = 0, skipped = [], bad = [];
+      var existQ = {};
+      ((window.SITE_ANSWERS || {}).groups || []).forEach(function (g) {
+        (g.items || []).forEach(function (y) { if (y && y.q) existQ[String(y.q).trim()] = 1; });
+      });
+      (Array.isArray(list) ? list : []).forEach(function (x) {
+        var p = normQa(x);
+        if (!p.q || !p.a) { bad.push((x && x.q) || '(空)'); return; }
+        if (existQ[String(p.q).trim()] && !opts.overwrite) { skipped.push(p.q); return; }
+        p.id = 'a-' + Math.random().toString(36).slice(2, 8);
+        S.edu.qa.added.push(p); added++;
+      });
+      persist();
+      return { ok: true, added: added, skipped: skipped, bad: bad };
     },
     removeQa: function (id) {
       id = clean(id, 120); if (!id) return { ok: false };
@@ -1142,6 +1321,7 @@
       return out;
     },
     activeGraphId: function () { return S.graphs.active; },
+    homeGraphOn: homeGraphOn, setHomeGraph: setHomeGraph, homeGraphsOff: homeOffList,
     setActiveGraph: function (gid) {
       gid = clean(gid, 40);
       if (gid !== GID_MAIN && !builtinGraphs()[gid] && !S.graphs.created[gid]) return { ok: false, msg: '图谱不存在' };

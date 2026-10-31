@@ -611,6 +611,9 @@
     window.__lastCardDataURL = dataURL;
     window.__lastCardQR = m.url;
     window.__lastCardQrDrawn = !!qrDrawn;
+    /* 测试可观测性（tools/verify_sharecard.mjs 依赖，只读、无行为影响） */
+    window.__lastCardScale = S;
+    window.__lastCardQrGeom = QR_GEOM;
 
     return {
       id: m.id, name: m.name, canvas: cv, dataURL: dataURL, blob: blob,

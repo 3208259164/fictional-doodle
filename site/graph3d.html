@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000011">
@@ -1351,6 +1352,15 @@ window.addEventListener('error', function (ev) {
     window.addEventListener('resize', function () { setTimeout(syncLegendPos, 60); });
     window.addEventListener('orientationchange', function () { setTimeout(syncLegendPos, 260); });
     [400, 1500, 3000].forEach(function (t) { setTimeout(syncLegendPos, t); });
+    /* 工具条高度会变（按钮随数据加载后可能从一行折成两行），
+       只靠上面几个固定时刻算一次会把图例算在旧位置上 —— 结果图例压住工具条。
+       用 ResizeObserver 跟着工具条尺寸实时重算（只观察 #tools，图例自身变化不会回环）。 */
+    try {
+      if (window.ResizeObserver) {
+        var _tlEl = document.getElementById('tools');
+        if (_tlEl) new ResizeObserver(function () { syncLegendPos(); }).observe(_tlEl);
+      }
+    } catch (e) { }
 
     window.yz3d = { toggleList: toggleList, renderList: renderList, pick: pickNode, fit: fitView,
       toggleLabels: toggleLabels, toggleMgr3: toggleMgr3,

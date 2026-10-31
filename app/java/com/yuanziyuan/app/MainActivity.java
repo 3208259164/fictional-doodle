@@ -88,6 +88,7 @@ public class MainActivity extends Activity {
     private static final int REQ_FILE = 1001;
     private static final int REQ_TREE = 1002;   /* 选择「导出文件夹」（SAF，零权限） */
     private static final int REQ_PERM = 1003;   /* 申请存储权限（直写系统「下载」目录） */
+    private static final int REQ_BOOK = 1004;   /* 选择电子书（EPUB / PDF，SAF） */
 
     /* ---------------- 离线朗读（系统 TTS，全部本机）----------------
        要点（都是踩过的坑）：
@@ -495,6 +496,41 @@ public class MainActivity extends Activity {
             else mime = MIME.containsKey(ext) ? MIME.get(ext) : "application/octet-stream";
             String enc = (mime.startsWith("text/") || mime.contains("javascript") || mime.contains("json") || mime.contains("svg")) ? "utf-8" : null;
 
+            /* 电子书 PDF 页图（0.17.37）：从私有缓存目录按需读。
+               走同源 https 的目的是让 WebView 用它自己的图片管线（可流式、可缓存、可降采样），
+               而不是把几 MB 的 base64 通过 JS 桥搬进内存。 */
+            if (p.startsWith("_bookpage/")) {
+                String rel = p.substring("_bookpage/".length());
+                if (rel.indexOf("..") >= 0 || rel.indexOf(':') >= 0 || rel.indexOf('\\') >= 0) return notFound();
+                File pf = new File(bookPagesRoot(), rel);
+                if (!pf.exists() || !pf.isFile()) return notFound();
+                return new WebResourceResponse("image/jpeg", null, 200, "OK",
+                    respHeaders("image/jpeg", u), new FileInputStream(pf));
+            }
+
+            /* 纯文本正文（TXT / MD）：给网页一个同源地址去 fetch。
+               不把几 MB 文本用 base64 过桥——那样既慢又占内存，还会卡住 JS 线程。 */
+            if (p.startsWith("_booktext/")) {
+                String rel = p.substring("_booktext/".length());
+                if (badRel(rel)) return notFound();
+                File tf = new File(booksRoot(), rel);
+                if (!tf.exists() || !tf.isFile()) return notFound();
+                String tm = tf.getName().toLowerCase(Locale.US).endsWith(".md") ? "text/markdown" : "text/plain";
+                return new WebResourceResponse(tm, "utf-8", 200, "OK", respHeaders(tm, u), new FileInputStream(tf));
+            }
+
+            /* 相册照片（App 私有目录，不碰系统相册，不需要任何存储权限） */
+            if (p.startsWith("_photo/")) {
+                String rel = p.substring("_photo/".length());
+                if (badRel(rel)) return notFound();
+                File ph = new File(photosRoot(), rel);
+                if (!ph.exists() || !ph.isFile()) return notFound();
+                String low = rel.toLowerCase(Locale.US);
+                String pm = low.endsWith(".png") ? "image/png" : (low.endsWith(".webp") ? "image/webp"
+                          : (low.endsWith(".gif") ? "image/gif" : "image/jpeg"));
+                return new WebResourceResponse(pm, null, 200, "OK", respHeaders(pm, u), new FileInputStream(ph));
+            }
+
             /* 内置 assets（全部内容随 APK 分发） */
             InputStream in = getAssets().open("site/" + p);
             return new WebResourceResponse(mime, enc, 200, "OK", respHeaders(mime, u), in);
@@ -567,6 +603,57 @@ public class MainActivity extends Activity {
             } catch (Throwable t) { toast("设置失败：" + t.getMessage()); }
             return;
         }
+        if (req == REQ_BOOK) {
+            if (res != RESULT_OK || data == null) { bookResult("{\"ok\":false,\"error\":\"已取消\"}"); return; }
+            final java.util.ArrayList<Uri> uris = new java.util.ArrayList<Uri>();
+            try {
+                android.content.ClipData cd = data.getClipData();
+                if (cd != null && cd.getItemCount() > 0) {
+                    for (int i = 0; i < cd.getItemCount(); i++) {
+                        Uri one = cd.getItemAt(i) == null ? null : cd.getItemAt(i).getUri();
+                        if (one != null) uris.add(one);
+                    }
+                } else if (data.getData() != null) uris.add(data.getData());
+            } catch (Throwable t) {}
+            if (uris.isEmpty()) { bookResult("{\"ok\":false,\"error\":\"已取消\"}"); return; }
+            new Thread(new Runnable() { public void run() {
+                StringBuilder items = new StringBuilder("[");
+                int nb = 0, np = 0, bad = 0;
+                String firstErr = null;
+                String lastId = "", lastType = ""; int lastCount = 0;
+                for (int k = 0; k < uris.size(); k++) {
+                    Uri bu = uris.get(k);
+                    try { getContentResolver().takePersistableUriPermission(bu, Intent.FLAG_GRANT_READ_URI_PERMISSION); } catch (Throwable t) {}
+                    String one;
+                    try { one = importBook(bu); }
+                    catch (Throwable e) { one = "{\"ok\":false,\"error\":" + Epub.q(msgOf(e)) + "}"; }
+                    if (one == null) continue;
+                    if (one.indexOf("\"ok\":true") < 0) {
+                        bad++;
+                        if (firstErr == null) {
+                            try { firstErr = new org.json.JSONObject(one).optString("error"); } catch (Throwable t) { firstErr = "导入失败"; }
+                        }
+                        continue;
+                    }
+                    if (items.length() > 1) items.append(',');
+                    items.append(one);
+                    try {
+                        org.json.JSONObject o = new org.json.JSONObject(one);
+                        if ("photo".equals(o.optString("kind"))) np++;
+                        else { nb++; lastId = o.optString("id"); lastType = o.optString("type"); lastCount = o.optInt("count", 0); }
+                    } catch (Throwable t) { nb++; }
+                }
+                items.append(']');
+                String out = "{\"ok\":true,\"items\":" + items
+                    + ",\"books\":" + nb + ",\"photos\":" + np + ",\"bad\":" + bad
+                    + ",\"id\":" + Epub.q(lastId) + ",\"type\":" + Epub.q(lastType)
+                    + ",\"count\":" + lastCount
+                    + ",\"error\":" + Epub.q(firstErr == null ? "" : firstErr) + "}";
+                final String j = out;
+                runOnUiThread(new Runnable() { public void run() { bookResult(j); } });
+            }}).start();
+            return;
+        }
         if (req == REQ_FILE) {
             if (fileCb == null) return;
             Uri[] results = null;
@@ -578,6 +665,202 @@ public class MainActivity extends Activity {
             fileCb.onReceiveValue(results); fileCb = null; return;
         }
         super.onActivityResult(req, res, data);
+    }
+
+    /* ================= 电子书：导入与读取（0.17.36）=================
+       全部零依赖：EPUB 用 java.util.zip 自己解，PDF 用系统 PdfRenderer 逐页出图。
+       文件统一落到 App 私有目录 files/books/，之后不再依赖用户原来的路径。 */
+
+    private File booksRoot() { File f = new File(getFilesDir(), "books"); if (!f.exists()) f.mkdirs(); return f; }
+
+    /* ---------------- 导出书库（Longevity） ----------------
+       EPUB 在导入时被解成了目录（Epub.stage），所以要重新打包成标准 .epub 才能带走。
+       规范要求 mimetype 必须是第一个条目且不压缩，这里照做，主流阅读器都能直接打开。 */
+
+    /* JSON 字符串转义（只处理导出提示里用得到的几个字符） */
+    private static String jsEscape(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\\') sb.append("\\\\");
+            else if (c == '"') sb.append("\\\"");
+            else if (c == '\n' || c == '\r' || c == '\t') sb.append(' ');
+            else sb.append(c);
+        }
+        return sb.toString();
+    }
+
+    private String bookTitleOf(File root, String id) {
+        try {
+            File mj = new File(root, id + ".json");
+            if (!mj.exists()) return null;
+            String t = readAllText(mj);
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\"name\"\\s*:\\s*\"([^\"]{1,120})\"").matcher(t);
+            if (m.find()) return m.group(1);
+            m = java.util.regex.Pattern.compile("\"title\"\\s*:\\s*\"([^\"]{1,120})\"").matcher(t);
+            if (m.find()) return m.group(1);
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private String readAllText(File f) throws Exception { return EpubPack.readAllText(f); }
+
+    private byte[] zipEpubDir(File dir) throws Exception { return EpubPack.zipDir(dir); }
+
+    private File bookPagesRoot() { File f = new File(getCacheDir(), "bookpages"); if (!f.exists()) f.mkdirs(); return f; }
+
+    /** PDF 夜间：页图要按夜间重渲染一次，所以状态存原生侧 */
+    private boolean pdfNightOn() {
+        try { return getSharedPreferences("yz", 0).getBoolean("pdfNight", false); } catch (Throwable t) { return false; }
+    }
+
+    private File photosRoot() { File f = new File(getFilesDir(), "photos"); if (!f.exists()) f.mkdirs(); return f; }
+
+    /** 流式落盘（TXT / MD / 图片都走这里，不经过内存拼字符串） */
+    private static long copyTo(InputStream in, File out) throws Exception {
+        File parent = out.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+        FileOutputStream fos = new FileOutputStream(out);
+        try {
+            byte[] buf = new byte[8192];
+            long total = 0; int n;
+            while ((n = in.read(buf)) > 0) { fos.write(buf, 0, n); total += n; }
+            fos.flush();
+            return total;
+        } finally { try { fos.close(); } catch (Throwable t) {} }
+    }
+
+    private static byte[] readBytes(File f) throws Exception {
+        InputStream in = new java.io.FileInputStream(f);
+        try {
+            long len = f.length();
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream((int) Math.max(1024, Math.min(len, 64L * 1024 * 1024)));
+            byte[] buf = new byte[8192]; int k;
+            while ((k = in.read(buf)) > 0) bos.write(buf, 0, k);
+            return bos.toByteArray();
+        } finally { try { in.close(); } catch (Throwable t) {} }
+    }
+
+    /** 媒体路径防护：不允许跳出私有目录 */
+    private static boolean badRel(String rel) {
+        return rel == null || rel.indexOf("..") >= 0 || rel.indexOf(':') >= 0 || rel.indexOf('\\') >= 0 || rel.startsWith("/");
+    }
+
+    private static String msgOf(Throwable e) {
+        String m = e.getMessage();
+        return (m == null || m.length() == 0) ? e.getClass().getSimpleName() : m;
+    }
+
+    private String displayNameOf(Uri u) {
+        String name = null;
+        Cursor c = null;
+        try {
+            c = getContentResolver().query(u, null, null, null, null);
+            if (c != null && c.moveToFirst()) {
+                int i = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                if (i >= 0) name = c.getString(i);
+            }
+        } catch (Throwable ignore) {
+        } finally { if (c != null) try { c.close(); } catch (Throwable t) {} }
+        if (name == null) { name = u.getLastPathSegment(); if (name == null) name = "未命名"; }
+        return name;
+    }
+
+    private void saveBookMeta(String id, String name, String type, long size, String chaptersJson) {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("id", id); o.put("name", name); o.put("type", type);
+            o.put("size", size); o.put("at", System.currentTimeMillis());
+            if (chaptersJson != null && chaptersJson.length() > 2) {
+                try { o.put("chapters", new org.json.JSONArray(chaptersJson)); } catch (Throwable t) {}
+            }
+            FileOutputStream fos = new FileOutputStream(new File(booksRoot(), id + ".json"));
+            try { fos.write(o.toString().getBytes("UTF-8")); } finally { try { fos.close(); } catch (Throwable t) {} }
+        } catch (Throwable ignored) {}
+    }
+
+    /** 照片只记最小元信息（原名 / 后缀 / 字节数 / 时间），不解析内容 */
+    private void savePhotoMeta(String id, String name, String ext, long size) {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("id", id); o.put("name", name); o.put("ext", ext);
+            o.put("size", size); o.put("at", System.currentTimeMillis());
+            FileOutputStream fos = new FileOutputStream(new File(photosRoot(), id + ".json"));
+            try { fos.write(o.toString().getBytes("UTF-8")); } finally { try { fos.close(); } catch (Throwable t) {} }
+        } catch (Throwable ignored) {}
+    }
+
+    private String importBook(Uri u) {
+        String name = displayNameOf(u);
+        String lower = name.toLowerCase(Locale.US);
+        /* 格式白名单。安卓的文件选择器不看 accept，从相册、QQ/微信「发送到」进来的
+           任何文件都会到这儿；以前只有「是不是 .pdf」一个判断，其它一律当 EPUB 处理，
+           结果一张 JPG 也被导成「书」占了书架、点开又读不出来。 */
+        boolean okPdf = lower.endsWith(".pdf");
+        boolean okEpub = lower.endsWith(".epub");
+        boolean okText = lower.endsWith(".txt") || lower.endsWith(".md") || lower.endsWith(".markdown");
+        boolean okPhoto = lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")
+                       || lower.endsWith(".webp") || lower.endsWith(".gif") || lower.endsWith(".bmp");
+        if (!okPdf && !okEpub && !okText && !okPhoto) {
+            return "{\"ok\":false,\"error\":\"不支持这种格式（收 EPUB / PDF / TXT / MD 和图片）\"}";
+        }
+        /* 同一毫秒选多个文件会撞 id，加随机后缀 */
+        String id = (okPhoto ? "p" : "b") + System.currentTimeMillis() + (100 + (int) (Math.random() * 900));
+        InputStream in = null;
+        try {
+            in = getContentResolver().openInputStream(u);
+            if (in == null) return "{\"ok\":false,\"error\":\"无法读取这个文件\"}";
+            /* 图片：进相册，不进书架。它是“另一种东西”，不是“另一种书”。 */
+            if (okPhoto) {
+                String ext = ".jpg";
+                int dot = lower.lastIndexOf('.');
+                if (dot >= 0) ext = lower.substring(dot);
+                File out = new File(photosRoot(), id + ext);
+                long n = copyTo(in, out);
+                savePhotoMeta(id, name, ext, n);
+                return "{\"ok\":true,\"kind\":\"photo\",\"id\":" + Epub.q(id)
+                     + ",\"title\":" + Epub.q(name) + ",\"size\":" + n + "}";
+            }
+            /* 纯文本：落盘成 <id>.txt，阅读时用 _booktext/ 同源地址取，过桥只传地址 */
+            if (okText) {
+                boolean md = lower.endsWith(".md") || lower.endsWith(".markdown");
+                File out = new File(booksRoot(), id + (md ? ".md" : ".txt"));
+                long n = copyTo(in, out);
+                saveBookMeta(id, name, md ? "md" : "txt", n, null);
+                return "{\"ok\":true,\"kind\":\"book\",\"id\":" + Epub.q(id)
+                     + ",\"title\":" + Epub.q(name.replaceAll("(?i)\\.(txt|md|markdown)$", ""))
+                     + ",\"type\":\"" + (md ? "md" : "txt") + "\",\"size\":" + n + "}";
+            }
+            if (lower.endsWith(".pdf")) {
+                File f = Pdf.stage(in, booksRoot(), id);
+                String info = Pdf.info(f);
+                if (info.indexOf("\"ok\":true") < 0) { try { f.delete(); } catch (Throwable t) {} return info; }
+                saveBookMeta(id, name, "pdf", f.length(), null);
+                return "{\"ok\":true,\"id\":" + Epub.q(id) + ",\"title\":" + Epub.q(name.replaceAll("(?i)\\.pdf$", ""))
+                     + ",\"type\":\"pdf\",\"kind\":\"book\",\"info\":" + info + "}";
+            }
+            File epubFile = Epub.stage(in, booksRoot(), id);
+            File dir = new File(booksRoot(), id);
+            String j = Epub.importTo(epubFile, dir);
+            if (j.indexOf("\"ok\":true") < 0) { Epub.deleteTree(dir); return j; }
+            /* 章节目录一起存进元信息：否则重开 App 后「目录」按钮会拿不到标题 */
+            String chaptersJson = null;
+            try { chaptersJson = new org.json.JSONObject(j).getJSONArray("chapters").toString(); } catch (Throwable t) {}
+            saveBookMeta(id, name, "epub", 0, chaptersJson);
+            /* 把 id / type / 原文件名补进结果 JSON */
+            return j.substring(0, j.length() - 1) + ",\"id\":" + Epub.q(id)
+                 + ",\"type\":\"epub\",\"kind\":\"book\",\"file\":" + Epub.q(name.replaceAll("(?i)\\.epub$", "")) + "}";
+        } catch (Throwable e) {
+            return "{\"ok\":false,\"error\":" + Epub.q(msgOf(e)) + "}";
+        } finally { if (in != null) try { in.close(); } catch (Throwable t) {} }
+    }
+
+    /** 把导入结果回传给网页 */
+    private void bookResult(String json) {
+        final String js = "window.__yzBookResult&&window.__yzBookResult(" + json + ")";
+        try { if (web != null) web.evaluateJavascript(js, null); } catch (Throwable ignored) {}
     }
 
     @Override protected void onPause() {
@@ -1267,6 +1550,306 @@ public class MainActivity extends Activity {
             }});
         }
         @JavascriptInterface public boolean hasExportDir() { return exportTree() != null; }
+
+        /* ---------------- 电子书阅读（0.17.36） ----------------
+           选书走 SAF（零权限），导入后文件落在 App 私有目录，之后按需读取。 */
+        @JavascriptInterface public void bookPick() {
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    if (!trusted()) { toast("选择文件：安全校验未通过，已取消"); return; }
+                    Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    i.addCategory(Intent.CATEGORY_OPENABLE);
+                    i.setType("*/*");
+                    /* 一次能选多个：书和照片混着选也行，导入时按扩展名各归各位 */
+                    i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                    i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                        "application/epub+zip", "application/pdf", "text/plain", "text/markdown", "image/*" });
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                    try { if (i.resolveActivity(getPackageManager()) == null) { toast("本机没有可用的文件选择器"); return; } } catch (Throwable ignore) {}
+                    startActivityForResult(i, REQ_BOOK);
+                } catch (Throwable e) { toast("无法打开文件选择器：" + msgOf(e)); }
+            }});
+        }
+        @JavascriptInterface public String bookChapter(String id, int idx) {
+            try {
+                File dir = new File(booksRoot(), id);
+                if (!dir.exists() || !dir.isDirectory()) return "<p class=\"sub\">这本书已经不在了，请重新导入</p>";
+                return Epub.chapterHTML(dir, idx);
+            } catch (Throwable e) { return "<p class=\"sub\">读取失败：" + msgOf(e) + "</p>"; }
+        }
+        @JavascriptInterface public String bookPage(String id, int idx, int w) {
+            try {
+                File pdf = new File(booksRoot(), id + ".pdf");
+                if (!pdf.exists()) return "{\"ok\":false,\"error\":\"文件不存在\"}";
+                int ww = w > 0 ? w : 780;
+                String rel = id + "/" + idx + "-" + ww + ".jpg";
+                File out = new File(bookPagesRoot(), rel);
+                String r;
+                if (out.exists() && out.length() > 0) {
+                    /* 已经渲染过：直接复用文件，网页那边也有图片缓存 */
+                    r = "{\"ok\":true,\"pages\":0,\"bytes\":" + out.length() + "}";
+                } else {
+                    r = Pdf.renderTo(pdf, idx, ww, out, pdfNightOn());
+                }
+                if (r.indexOf("\"ok\":true") < 0) return r;
+                String url = "https://" + ASSET_HOST + "/_bookpage/" + rel + "?v=" + out.lastModified();
+                return r.substring(0, r.length() - 1) + ",\"url\":" + Epub.q(url) + "}";
+            } catch (Throwable e) { return "{\"ok\":false,\"error\":" + Epub.q(msgOf(e)) + "}"; }
+        }
+        /** 纯文本正文的同源地址（JS 用它 fetch，不走 base64 过桥） */
+        @JavascriptInterface public String bookTextUrl(String id) {
+            try {
+                if (badRel(id)) return "";
+                File t = new File(booksRoot(), id + ".txt");
+                if (!t.exists()) { File m = new File(booksRoot(), id + ".md"); if (m.exists()) t = m; }
+                if (!t.exists() || !t.isFile()) return "";
+                return "https://" + ASSET_HOST + "/_booktext/" + t.getName() + "?v=" + t.lastModified();
+            } catch (Throwable e) { return ""; }
+        }
+
+        /** 相册：直接扫私有目录，按时间倒序 */
+        @JavascriptInterface public String photoList() {
+            StringBuilder sb = new StringBuilder("[");
+            try {
+                File[] fs = photosRoot().listFiles();
+                java.util.ArrayList<org.json.JSONObject> arr = new java.util.ArrayList<org.json.JSONObject>();
+                if (fs != null) for (File f : fs) {
+                    if (!f.isFile() || !f.getName().endsWith(".json")) continue;
+                    String t = Epub.readText(f);
+                    if (t == null || t.length() < 2) continue;
+                    try { arr.add(new org.json.JSONObject(t)); } catch (Throwable ignored) {}
+                }
+                java.util.Collections.sort(arr, new java.util.Comparator<org.json.JSONObject>() {
+                    public int compare(org.json.JSONObject a, org.json.JSONObject b) {
+                        return Long.compare(b.optLong("at", 0), a.optLong("at", 0));
+                    }
+                });
+                boolean first = true;
+                for (org.json.JSONObject o : arr) {
+                    if (!first) sb.append(',');
+                    sb.append(o.toString()); first = false;
+                }
+            } catch (Throwable ignored) {}
+            return sb.append(']').toString();
+        }
+
+        /** 把相册里的一张照片导出到系统「下载」——字节全在原生侧搬，不过 JS 桥 */
+        @JavascriptInterface public void photoExport(final String id) {
+            new Thread(new Runnable() { public void run() {
+                try {
+                    if (badRel(id)) { finishSave(null, false, "❌ 参数异常", 0, "", null); return; }
+                    File src = null; String ext = ".jpg"; String nm = null;
+                    File[] fs = photosRoot().listFiles();
+                    if (fs != null) for (File f : fs) {
+                        String fn = f.getName();
+                        if (fn.equals(id + ".json")) {
+                            try { nm = new org.json.JSONObject(Epub.readText(f)).optString("name", null); } catch (Throwable t) {}
+                        }
+                        if (fn.startsWith(id + ".") && !fn.endsWith(".json")) {
+                            src = f; ext = fn.substring(id.length());
+                        }
+                    }
+                    if (src == null) { finishSave(null, false, "❌ 找不到这张照片", 0, "", null); return; }
+                    byte[] data = readBytes(src);
+                    String low = ext.toLowerCase(Locale.US);
+                    String mime = low.endsWith(".png") ? "image/png" : (low.endsWith(".webp") ? "image/webp"
+                                : (low.endsWith(".gif") ? "image/gif" : "image/jpeg"));
+                    String base = (nm == null || nm.length() == 0) ? ("photo-" + id) : nm;
+                    if (base.toLowerCase(Locale.US).endsWith(low)) { /* 已带后缀 */ } else { base = base + ext; }
+                    lastSavedMime = mime;
+                    try {
+                        Uri u = saveDownload(base, data, mime);
+                        String where = "tree".equals(lastSaveMethod) ? exportTreeLabel()
+                                     : ("appdir".equals(lastSaveMethod) ? ("应用专属文件夹：" + appExportDir().getAbsolutePath())
+                                                                         : "系统「文件管理 → 下载」");
+                        finishSave(u, true, "✅ 已导出\n位置：" + where + "\n文件名：" + base + "\n大小：" + data.length + " 字节",
+                            data.length, base, u == null ? null : u.toString());
+                    } catch (Throwable e) {
+                        finishSave(null, false, "❌ 导出失败\n" + msgOf(e), 0, base, null);
+                    }
+                } catch (Throwable e) {
+                    finishSave(null, false, "❌ 导出失败\n" + msgOf(e), 0, "", null);
+                }
+            }}).start();
+        }
+
+        @JavascriptInterface public void photoRemove(String id) {
+            try {
+                if (badRel(id)) return;
+                File root = photosRoot();
+                File[] fs = root.listFiles();
+                if (fs != null) for (File f : fs) {
+                    String n = f.getName();
+                    if (n.startsWith(id + ".") || n.equals(id + ".json")) { try { f.delete(); } catch (Throwable ignored) {} }
+                }
+                toast("已从相册删除");
+            } catch (Throwable e) { toast("删除失败：" + msgOf(e)); }
+        }
+
+        /** 切到/退出夜间：清掉已渲染的页图缓存，让下次翻页按新配色重出图 */
+        @JavascriptInterface public void setPdfNight(final boolean on) {
+            try {
+                boolean old = pdfNightOn();
+                getSharedPreferences("yz", 0).edit().putBoolean("pdfNight", on).apply();
+                if (old == on) return;
+                File[] dirs = bookPagesRoot().listFiles();
+                if (dirs != null) for (File d : dirs) {
+                    if (d.isDirectory()) {
+                        File[] fs = d.listFiles();
+                        if (fs != null) for (File f : fs) { try { f.delete(); } catch (Throwable t) {} }
+                    }
+                }
+            } catch (Throwable t) { }
+        }
+
+        /** 阅读时隐藏系统状态栏/导航栏（沉浸）；退出阅读再显示回来 */
+        @JavascriptInterface public void setImmersive(final boolean on) {
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    if (Build.VERSION.SDK_INT >= 30) {
+                        android.view.WindowInsetsController c = getWindow().getInsetsController();
+                        if (c != null) {
+                            if (on) {
+                                c.hide(android.view.WindowInsets.Type.systemBars());
+                                c.setSystemBarsBehavior(android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                            } else {
+                                c.show(android.view.WindowInsets.Type.systemBars());
+                            }
+                        }
+                    } else {
+                        android.view.View d = getWindow().getDecorView();
+                        if (on) {
+                            d.setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                                | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                                | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+                        } else {
+                            d.setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_VISIBLE);
+                        }
+                    }
+                } catch (Throwable t) { }
+            }});
+        }
+
+        @JavascriptInterface public String bookList() {
+            StringBuilder sb = new StringBuilder("[");
+            try {
+                File[] fs = booksRoot().listFiles();
+                boolean first = true;
+                if (fs != null) for (File f : fs) {
+                    if (!f.isFile() || !f.getName().endsWith(".json")) continue;
+                    String t = Epub.readText(f);
+                    if (t == null || t.length() < 2) continue;
+                    if (!first) sb.append(',');
+                    sb.append(t); first = false;
+                }
+            } catch (Throwable ignored) {}
+            return sb.append(']').toString();
+        }
+        /* 阅读进度另存一份到原生（SharedPreferences）。
+           原因：WebView 的 localStorage 是"尽力而为"的存储——系统空间不足、
+           WebView 组件升级、用户在系统里清"缓存"都可能让它整片消失，
+           而 Chromium 的 LevelDB 一旦损坏在 Android 上没有 API 能修。
+           进度丢失是用户最恼火的一类问题，所以双写：网页侧 localStorage（快）+ 原生（稳）。 */
+        @JavascriptInterface public void bookPosSave(String json) {
+            try { getSharedPreferences("yz", 0).edit().putString("bookPos", json == null ? "{}" : json).apply(); } catch (Throwable t) {}
+        }
+        @JavascriptInterface public String bookPosLoad() {
+            try { return getSharedPreferences("yz", 0).getString("bookPos", "{}"); } catch (Throwable t) { return "{}"; }
+        }
+
+        /* 导出全部书（书文件本身，标准格式）——「换台设备还能打开」的前提。
+           返回 JSON：{ok, n, bytes, skipped, folder, failed:[...]} */
+        @JavascriptInterface public String exportLibrary() {
+            File root = booksRoot();
+            File[] items = root.listFiles();
+            if (items == null) return "{\"ok\":false,\"error\":\"书库目录不可读\"}";
+            java.util.Arrays.sort(items, new java.util.Comparator<File>() {
+                public int compare(File a, File b) { return a.getName().compareTo(b.getName()); }
+            });
+            int n = 0; long total = 0; int skipped = 0;
+            java.util.ArrayList<String> failed = new java.util.ArrayList<String>();
+            java.util.HashSet<String> used = new java.util.HashSet<String>();
+
+            for (File f : items) {
+                String nm = f.getName();
+                if (nm.endsWith(".json")) continue;
+                if (nm.startsWith("_")) continue;
+
+                String id, ext = "", title;
+                if (f.isDirectory()) {
+                    id = nm; ext = "epub";
+                } else {
+                    int dot = nm.lastIndexOf('.');
+                    if (dot <= 0) { skipped++; continue; }
+                    id = nm.substring(0, dot);
+                    ext = nm.substring(dot + 1).toLowerCase();
+                    if (!("pdf".equals(ext) || "txt".equals(ext) || "md".equals(ext))) { skipped++; continue; }
+                }
+                title = bookTitleOf(root, id);
+                if (title == null || title.trim().isEmpty()) title = id;
+                title = cleanFileName(title.trim());
+                if (title.length() > 60) title = title.substring(0, 60);
+
+                String fname = title + "." + ext;
+                if (used.contains(fname)) {
+                    int k = 2;
+                    while (used.contains(title + " (" + k + ")." + ext)) k++;
+                    fname = title + " (" + k + ")." + ext;
+                }
+                used.add(fname);
+
+                try {
+                    byte[] data;
+                    String mime;
+                    if (f.isDirectory()) {
+                        data = zipEpubDir(f);
+                        mime = "application/epub+zip";
+                    } else {
+                        data = java.nio.file.Files.readAllBytes(f.toPath());
+                        mime = "pdf".equals(ext) ? "application/pdf"
+                             : ("md".equals(ext) ? "text/markdown" : "text/plain");
+                    }
+                    if (data == null || data.length == 0) { failed.add(fname + "：内容为空"); continue; }
+                    saveDownload(fname, data, mime);
+                    n++; total += data.length;
+                } catch (Throwable t) {
+                    String m = (t.getMessage() == null) ? t.getClass().getSimpleName() : t.getMessage();
+                    failed.add(fname + "：" + m);
+                }
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("{\"ok\":").append(failed.isEmpty()).append(",\"n\":").append(n)
+              .append(",\"bytes\":").append(total).append(",\"skipped\":").append(skipped)
+              .append(",\"folder\":\"").append(exportTree() != null ? "tree" : "download").append("\"");
+            if (exportTree() != null) {
+                sb.append(",\"folderName\":\"").append(jsEscape(exportTreeLabel())).append("\"");
+            }
+            sb.append(",\"failed\":[");
+            for (int i = 0; i < failed.size(); i++) {
+                if (i > 0) sb.append(',');
+                sb.append('"').append(jsEscape(failed.get(i))).append('"');
+            }
+            sb.append("]}");
+            return sb.toString();
+        }
+
+        @JavascriptInterface public void bookRemove(String id) {
+            try {
+                File root = booksRoot();
+                File dir = new File(root, id);
+                if (dir.exists()) Epub.deleteTree(dir);
+                File pdf = new File(root, id + ".pdf");
+                if (pdf.exists()) pdf.delete();
+                File txt = new File(root, id + ".txt");
+                if (txt.exists()) txt.delete();
+                File md = new File(root, id + ".md");
+                if (md.exists()) md.delete();
+                File meta = new File(root, id + ".json");
+                if (meta.exists()) meta.delete();
+                toast("已删除这本书的本机副本");
+            } catch (Throwable e) { toast("删除失败：" + msgOf(e)); }
+        }
         @JavascriptInterface public boolean isDirectDownload() { return directDownload() && hasStoragePerm(); }
         @JavascriptInterface public void requestDirectDownload() {
             runOnUiThread(new Runnable() { public void run() {

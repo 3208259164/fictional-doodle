@@ -39,7 +39,7 @@ main#main { width:100%; min-width:0; }
 #view-home, #view-results { max-width:100%; }
 
 #setBtn,#musicBtn { position:fixed; top:calc(16px + env(safe-area-inset-top, 0px)); z-index:40; background:var(--card); border:1px solid var(--card-border);
-  color:var(--text); border-radius:50%; width:40px; height:40px; cursor:pointer; font-size:1.125rem; backdrop-filter:blur(8px); }
+  color:var(--text); border-radius:50%; width:40px; height:40px; cursor:pointer; font-size:1.125rem; backdrop-filter:blur(5px); }
 #setBtn { left:calc(16px + env(safe-area-inset-left, 0px)); }
 #musicBtn { right:calc(16px + env(safe-area-inset-right, 0px)); }
 #musicBtn.playing { border-color:var(--text); color:var(--text); }
@@ -50,13 +50,13 @@ p.bio { position:relative; z-index:1; font-size:0.875rem; opacity:.78; margin-bo
 nav.nav { position:relative; z-index:1; display:flex; flex-wrap:wrap; justify-content:center; gap:8px;
   margin:18px 0 2px; max-width:460px; }
 nav.nav button { padding:6px 14px; border-radius:20px; border:1px solid var(--card-border); background:var(--card);
-  color:var(--text); font-size:0.8125rem; cursor:pointer; backdrop-filter:blur(8px); }
+  color:var(--text); font-size:0.8125rem; cursor:pointer; backdrop-filter:blur(5px); }
 nav.nav button:hover { border-color:var(--text); color:var(--text); }
 
 .toolbar { position:relative; z-index:1; width:100%; max-width:460px; margin:20px 0 4px; }
 .search-big { position:relative; width:100%; }
 .search-big input { width:100%; padding:15px 18px 15px 46px; border-radius:14px; border:1px solid var(--card-border);
-  background:var(--card); color:var(--text); font-size:0.9375rem; backdrop-filter:blur(12px); outline:none;
+  background:var(--card); color:var(--text); font-size:0.9375rem; backdrop-filter:blur(4px); outline:none;
   box-shadow:0 6px 22px rgba(0,0,0,.28); transition:border-color .2s; }
 .search-big input:focus { border-color:var(--text); }
 .search-big .mg { position:absolute; left:16px; top:50%; transform:translateY(-50%); opacity:.7; font-size:1rem; cursor:pointer; }
@@ -69,7 +69,7 @@ mark { background:transparent; color:var(--text); font-weight:bold; }
 
 .res-top { position:relative; z-index:1; display:flex; gap:10px; align-items:center; width:100%; max-width:460px; margin:18px 0 0; }
 .res-top .back { background:var(--card); border:1px solid var(--card-border); color:var(--text); border-radius:12px;
-  padding:14px 14px; cursor:pointer; font-size:0.9375rem; flex:none; backdrop-filter:blur(8px); }
+  padding:14px 14px; cursor:pointer; font-size:0.9375rem; flex:none; backdrop-filter:blur(5px); }
 .res-top .back:hover { border-color:var(--text); color:var(--text); }
 .res-top .search-big { flex:1; }
 
@@ -83,7 +83,7 @@ mark { background:transparent; color:var(--text); font-weight:bold; }
 .tagrow .lbl { font-size:0.72rem; opacity:.5; }
 .controls { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
 .controls select { flex:1; min-width:110px; padding:8px 10px; border-radius:10px; border:1px solid var(--card-border);
-  background:var(--card); color:var(--text); font-size:0.78rem; backdrop-filter:blur(8px); outline:none; }
+  background:var(--card); color:var(--text); font-size:0.78rem; backdrop-filter:blur(5px); outline:none; }
 .controls select option { color:#222; }
 
 .group { position:relative; z-index:1; width:100%; max-width:460px; scroll-margin-top:16px; }
@@ -91,7 +91,7 @@ mark { background:transparent; color:var(--text); font-weight:bold; }
 .sub-title { font-size:0.75rem; color:var(--text); letter-spacing:2px; margin:18px 0 4px; opacity:.9; }
 a.card { display:flex; align-items:center; gap:12px; padding:14px 16px; margin:10px 0; background:var(--card);
   color:var(--text); border-radius:12px; text-decoration:none; border:1px solid var(--card-border);
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); transition:transform .15s, background .2s; }
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); transition:transform .15s, background .2s; }
 a.card:hover { transform:scale(1.02); background:rgba(245,197,24,.15); border-color:var(--text); }
 a.card .icon { font-size:1.375rem; }
 a.card .body { flex:1; min-width:0; }
@@ -201,3 +201,55 @@ body.no-motion a.card, body.no-motion .drawer{ transition:none; }
 body.sepia { --panel-bg:#fbf3e0; --panel-bg2:#f4e7cc; --panel-line:rgba(120,80,20,.30); --panel-text:#3a2a0d;
              --panel-accent:#7a5400; --panel-btn:#8a5a1f; --panel-btn-line:#a8763f; --panel-btn-text:#fffaf0;
              --panel-glass:rgba(251,243,224,.95); }
+
+/* ---------- 书志卡（booknote.js，0.17.38）----------
+   目录学「解题」的做法：作者爵里 → 成书 → 版本 → 大要 → 源流 → 读法。
+   默认折叠，不抢简介的位置；字段对齐用固定标签列，长文本自动换行。 */
+.booknote{margin:12px 0;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03);overflow:hidden}
+.booknote>summary{padding:10px 12px;cursor:pointer;font-weight:700;font-size:.88rem;list-style:none;display:flex;align-items:center}
+.booknote>summary::-webkit-details-marker{display:none}
+.booknote>summary::after{content:'▾';margin-left:auto;opacity:.5}
+.booknote[open]>summary::after{content:'▴'}
+.bn-hint{font-weight:400;font-size:.7rem;opacity:.55;margin-left:8px;letter-spacing:0}
+.bn-body{padding:0 12px 8px}
+.bn-row{display:flex;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07);font-size:.84rem;line-height:1.9}
+.bn-k{flex:0 0 4.6em;opacity:.6;font-size:.76rem;padding-top:.18em;letter-spacing:0}
+.bn-v{flex:1;min-width:0;word-break:break-word}
+.bn-src{padding:2px 12px 10px;font-size:.68rem;opacity:.45;line-height:1.7}
+body.light .booknote,body.sepia .booknote{background:rgba(0,0,0,.02)}
+body.light .bn-row,body.sepia .bn-row{border-top-color:rgba(0,0,0,.08)}
+
+/* ---------- 章级论证骨架（study.js outlineBlock，0.17.39）----------
+   按原书章节给出「这一章回答什么 → 哪几个论点 → 容易在哪读偏」。
+   与书志卡区分：书志讲「书是什么」，这里讲「书在论证什么」。 */
+.yzOl{margin:12px 0;border:1px solid var(--line);border-radius:10px;background:rgba(245,197,24,.045);overflow:hidden}
+.yzOl>summary{padding:11px 12px;cursor:pointer;font-weight:700;font-size:.9rem;list-style:none;display:flex;align-items:center;gap:8px}
+.yzOl>summary::-webkit-details-marker{display:none}
+.yzOl>summary::after{content:'▾';margin-left:auto;opacity:.5}
+.yzOl[open]>summary::after{content:'▴'}
+.ol-hint{font-weight:400;font-size:.72rem;opacity:.6;letter-spacing:0}
+.ol-body{padding:0 12px 6px}
+.ol-ch{padding:10px 0;border-top:1px solid rgba(245,197,24,.16)}
+.ol-h{font-size:.88rem;font-weight:700;line-height:1.6}
+.ol-q{font-size:.78rem;opacity:.72;margin:3px 0 6px;line-height:1.7}
+.ol-p{margin:0 0 6px;padding-left:1.25em;font-size:.84rem;line-height:1.95}
+.ol-p li{margin:2px 0}
+.ol-mis{font-size:.79rem;line-height:1.85;padding:7px 10px;border-radius:8px;background:rgba(255,110,80,.1);border-left:3px solid rgba(255,110,80,.5)}
+.ol-src{padding:6px 12px 10px;font-size:.68rem;opacity:.45;line-height:1.7}
+body.light .yzOl,body.sepia .yzOl{background:rgba(122,84,0,.05)}
+body.light .ol-ch,body.sepia .ol-ch{border-top-color:rgba(122,84,0,.16)}
+
+/* ---------- 书壳诚实化（0.17.41）----------
+   简介不足 40 字的条目不再拿一句短话糊过去，而是明确标注「还没写全」并给出三条可走的路。 */
+.yzThin{margin:8px 0 4px;padding:10px 12px;border:1px dashed rgba(245,197,24,.42);border-radius:10px;background:rgba(245,197,24,.05)}
+.yzThin-t{font-size:.8rem;font-weight:700;color:var(--accent);opacity:.95;margin-bottom:2px}
+.yzThin-s{font-size:.76rem;opacity:.7;line-height:1.85;margin-bottom:8px}
+.yzThin-ops{display:flex;flex-wrap:wrap;gap:8px}
+.yzThin-ops button{font-family:inherit;font-size:.76rem;padding:6px 11px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:inherit;cursor:pointer}
+.yzThin-ops button:active{opacity:.6}
+body.light .yzThin,body.sepia .yzThin{background:rgba(122,84,0,.05);border-color:rgba(122,84,0,.35)}
+body.light .yzThin-ops button,body.sepia .yzThin-ops button{background:rgba(0,0,0,.04)}
+
+/* 讲堂等站内正文条目：列表卡片里的开头预览 + 详情小按钮 */
+.lcard .prev2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  opacity:.74;line-height:1.55;font-size:.78rem;margin:2px 0 1px}
