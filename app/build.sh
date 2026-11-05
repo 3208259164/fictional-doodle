@@ -161,6 +161,14 @@ java -cp "$R8" com.android.tools.r8.R8 --release --min-api 29 \
 DEX="$WORK/r8out/classes.dex"
 [ -f "$DEX" ] || die "R8 未产出 classes.dex（发布模式不静默退回 d8）"
 ok "classes.dex $(stat -c%s "$DEX") 字节 ｜ 映射 mapping-$NAME.txt"
+# ★ 必须校验 @JavascriptInterface 注解还在（0.18.25）：
+#   注解被 R8 裁掉时，方法名仍然保留、大小也不变，但网页拿到的 AndroidApp 是个空壳——
+#   朗读/导入/导出/分享/返回键全部失效，而且从包外面看不出来。
+if [ -x "$BT/dexdump" ]; then
+  ANN=$("$BT/dexdump" -a "$DEX" 2>/dev/null | grep -c "JavascriptInterface" || true)
+  [ "${ANN:-0}" -ge 50 ] || die "R8 把 @JavascriptInterface 注解裁掉了（只剩 ${ANN:-0} 个）：网页将无法调用任何 App 方法。检查 r8.pro 里的 -keepattributes *Annotation*"
+  ok "JS 桥注解完整（$ANN 个 @JavascriptInterface）"
+fi
 
 say "[6/8] 组包 + zipalign"
 touch -d @$SOURCE_DATE_EPOCH_FIXED "$DEX"

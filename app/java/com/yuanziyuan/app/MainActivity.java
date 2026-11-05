@@ -90,6 +90,7 @@ public class MainActivity extends Activity {
     private static final int REQ_TREE = 1002;   /* 选择「导出文件夹」（SAF，零权限） */
     private static final int REQ_PERM = 1003;   /* 申请存储权限（直写系统「下载」目录） */
     private static final int REQ_BOOK = 1004;   /* 选择电子书（EPUB / PDF，SAF） */
+    private static final int REQ_MEDIA = 1006;  /* 选择音频 / 视频（SAF） */
 
     /* ---------------- 离线朗读（系统 TTS，全部本机）----------------
        要点（都是踩过的坑）：
@@ -180,7 +181,7 @@ public class MainActivity extends Activity {
 
         web.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
-                return intercept(req.getUrl());
+                return intercept(req.getUrl(), req);
             }
             @Override public void onReceivedSslError(WebView v, android.webkit.SslErrorHandler h, android.net.http.SslError e) {
                 h.cancel();   /* 永不忽略证书错误 */
@@ -307,7 +308,7 @@ public class MainActivity extends Activity {
                 android.webkit.ServiceWorkerController.getInstance().setServiceWorkerClient(
                     new android.webkit.ServiceWorkerClient() {
                         @Override public WebResourceResponse shouldInterceptRequest(WebResourceRequest req) {
-                            return intercept(req.getUrl());
+                            return intercept(req.getUrl(), req);
                         }
                     });
             } catch (Throwable ignored) {}
@@ -434,13 +435,15 @@ public class MainActivity extends Activity {
         + "font-src 'self' data:; connect-src 'self'; frame-src 'self'; worker-src 'self' blob:; "
         + "manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
-    private WebResourceResponse intercept(Uri u) {
+    private WebResourceResponse intercept(Uri u) { return intercept(u, null); }
+
+    private WebResourceResponse intercept(Uri u, WebResourceRequest req) {
         if (u == null) return null;
         String scheme = u.getScheme();
         if (scheme == null) return null;
         scheme = scheme.toLowerCase(Locale.US);
         if (scheme.equals("data") || scheme.equals("blob") || scheme.equals("about")) return null;
-        if (ASSET_HOST.equalsIgnoreCase(u.getHost())) return assetResponse(u);
+        if (ASSET_HOST.equalsIgnoreCase(u.getHost())) return assetResponse(u, req);
         return blocked();
     }
 
@@ -484,7 +487,9 @@ public class MainActivity extends Activity {
                 respHeaders("text/plain"), new ByteArrayInputStream(new byte[0]));
     }
 
-    private WebResourceResponse assetResponse(Uri u) {
+    private WebResourceResponse assetResponse(Uri u) { return assetResponse(u, null); }
+
+    private WebResourceResponse assetResponse(Uri u, WebResourceRequest req) {
         try {
             String path = u.getPath();
             String p = (path == null || path.equals("/")) ? "index.html" : path.substring(1);
@@ -518,6 +523,17 @@ public class MainActivity extends Activity {
                 if (!tf.exists() || !tf.isFile()) return notFound();
                 String tm = tf.getName().toLowerCase(Locale.US).endsWith(".md") ? "text/markdown" : "text/plain";
                 return new WebResourceResponse(tm, "utf-8", 200, "OK", respHeaders(tm, u), new FileInputStream(tf));
+            }
+
+            /* 导入的音频 / 视频（0.18.26）：私有目录，按 Range 之外的整文件返回。
+               视频拖动进度条时 WebView 会发 Range 请求，这里直接整段给也没问题（内核自己缓存）。 */
+            if (p.startsWith("_media/")) {
+                String rel = p.substring("_media/".length());
+                if (badRel(rel)) return notFound();
+                File mf = new File(mediaDir(), rel);
+                if (!mf.exists() || !mf.isFile()) return notFound();
+                String mm = mediaMime(mf.getName());
+                return mediaResponse(mf, mm, u, req);
             }
 
             /* 相册照片（App 私有目录，不碰系统相册，不需要任何存储权限） */
@@ -604,6 +620,31 @@ public class MainActivity extends Activity {
             } catch (Throwable t) { toast("设置失败：" + t.getMessage()); }
             return;
         }
+        if (req == REQ_MEDIA) {
+            if (res != RESULT_OK || data == null) return;
+            final java.util.ArrayList<Uri> us = new java.util.ArrayList<Uri>();
+            try {
+                android.content.ClipData cd2 = data.getClipData();
+                if (cd2 != null && cd2.getItemCount() > 0) {
+                    for (int i = 0; i < cd2.getItemCount(); i++) { Uri one = cd2.getItemAt(i) == null ? null : cd2.getItemAt(i).getUri(); if (one != null) us.add(one); }
+                } else if (data.getData() != null) us.add(data.getData());
+            } catch (Throwable t) {}
+            if (us.isEmpty()) return;
+            new Thread(new Runnable() { public void run() {
+                int ok = 0, bad = 0; String firstErr = null;
+                for (int k = 0; k < us.size(); k++) {
+                    try { importMedia(us.get(k)); ok++; }
+                    catch (Throwable e) { bad++; if (firstErr == null) firstErr = msgOf(e); }
+                }
+                final int fok = ok, fbad = bad; final String ferr = firstErr;
+                runOnUiThread(new Runnable() { public void run() {
+                    if (fok > 0) toast("已导入 " + fok + " 个" + (fbad > 0 ? ("，失败 " + fbad + (ferr == null ? "" : "：" + ferr)) : ""));
+                    else toast("导入失败：" + (ferr == null ? "没有可用的文件" : ferr));
+                    try { web.evaluateJavascript("window.YZMedia&&window.YZMedia.refresh()", null); } catch (Throwable ig) {}
+                }});
+            }}).start();
+            return;
+        }
         if (req == REQ_BOOK) {
             if (res != RESULT_OK || data == null) { bookResult("{\"ok\":false,\"error\":\"已取消\"}"); return; }
             final java.util.ArrayList<Uri> uris = new java.util.ArrayList<Uri>();
@@ -673,6 +714,161 @@ public class MainActivity extends Activity {
        文件统一落到 App 私有目录 files/books/，之后不再依赖用户原来的路径。 */
 
     private File booksRoot() { File f = new File(getFilesDir(), "books"); if (!f.exists()) f.mkdirs(); return f; }
+
+    /* ---------------- 音视频：私有目录与导入 ----------------
+       文件放 getFilesDir()/media，不进系统媒体库、不占相册、不需要任何存储权限。 */
+    private File mediaDir() { File f = new File(getFilesDir(), "media"); if (!f.exists()) f.mkdirs(); return f; }
+
+    /** 只读到指定长度的流（Range 分段响应用，避免把整段都给内核） */
+    private static class BoundedStream extends java.io.FilterInputStream {
+        private long left;
+        BoundedStream(java.io.InputStream in, long limit) { super(in); left = limit; }
+        @Override public int read() throws java.io.IOException {
+            if (left <= 0) return -1;
+            int c = super.read();
+            if (c >= 0) left--;
+            return c;
+        }
+        @Override public int read(byte[] b, int off, int len) throws java.io.IOException {
+            if (left <= 0) return -1;
+            int n = super.read(b, off, (int) Math.min(len, left));
+            if (n > 0) left -= n;
+            return n;
+        }
+        @Override public long skip(long n) throws java.io.IOException {
+            long s = super.skip(Math.min(n, left));
+            left -= s;
+            return s;
+        }
+    }
+
+    /* 音视频响应：必须自己处理 Range（0.18.28）
+       不处理的话，<video> 只能顺序播——拖进度条没反应、也不能边下边播。
+       规则按 RFC 7233：请求带 Range: bytes=a-b 时回 206 + Content-Range。 */
+    private WebResourceResponse mediaResponse(File mf, String mime, Uri u, WebResourceRequest req) {
+        try {
+            long total = mf.length();
+            String range = null;
+            try { if (req != null && req.getRequestHeaders() != null) range = req.getRequestHeaders().get("Range"); } catch (Throwable t) {}
+            java.util.Map<String, String> h = respHeaders(mime, u);
+            h.put("Accept-Ranges", "bytes");
+            long start = 0, end = total - 1;
+            boolean partial = false;
+            if (range != null && range.startsWith("bytes=") && total > 0) {
+                String spec = range.substring(6).split(",")[0].trim();
+                int dash = spec.indexOf('-');
+                if (dash >= 0) {
+                    String a = spec.substring(0, dash).trim();
+                    String b = spec.substring(dash + 1).trim();
+                    try {
+                        if (a.length() == 0) {          /* bytes=-500：最后 500 字节 */
+                            long n = Long.parseLong(b);
+                            start = Math.max(0, total - n);
+                            end = total - 1;
+                        } else {
+                            start = Long.parseLong(a);
+                            if (b.length() > 0) end = Math.min(Long.parseLong(b), total - 1);
+                        }
+                        if (start < 0) start = 0;
+                        if (end >= total) end = total - 1;
+                        if (start > end) { start = 0; end = total - 1; }
+                        else partial = true;
+                    } catch (Throwable t) { start = 0; end = total - 1; partial = false; }
+                }
+            }
+            FileInputStream fis = new FileInputStream(mf);
+            try { if (start > 0) fis.getChannel().position(start); } catch (Throwable t) { long skipped = 0; while (skipped < start) { long s = fis.skip(start - skipped); if (s <= 0) break; skipped += s; } }
+            long len = end - start + 1;
+            java.io.InputStream body = partial ? new BoundedStream(fis, len) : fis;
+            h.put("Content-Length", String.valueOf(len));
+            if (partial) h.put("Content-Range", "bytes " + start + "-" + end + "/" + total);
+            return new WebResourceResponse(mime, null, partial ? 206 : 200, partial ? "Partial Content" : "OK", h, body);
+        } catch (Throwable e) {
+            return notFound();
+        }
+    }
+
+    private boolean isAudioName(String n) {
+        String x = (n == null ? "" : n.toLowerCase(Locale.US));
+        return x.endsWith(".mp3") || x.endsWith(".m4a") || x.endsWith(".aac") || x.endsWith(".ogg")
+            || x.endsWith(".oga") || x.endsWith(".wav") || x.endsWith(".flac") || x.endsWith(".opus")
+            || x.endsWith(".amr") || x.endsWith(".wma");
+    }
+
+    private boolean isVideoName(String n) {
+        String x = (n == null ? "" : n.toLowerCase(Locale.US));
+        return x.endsWith(".mp4") || x.endsWith(".mkv") || x.endsWith(".webm") || x.endsWith(".mov")
+            || x.endsWith(".3gp") || x.endsWith(".avi") || x.endsWith(".m4v") || x.endsWith(".ts");
+    }
+
+    private String mediaMime(String n) {
+        String x = (n == null ? "" : n.toLowerCase(Locale.US));
+        if (x.endsWith(".mp4") || x.endsWith(".m4v")) return "video/mp4";
+        if (x.endsWith(".mkv")) return "video/x-matroska";
+        if (x.endsWith(".webm")) return "video/webm";
+        if (x.endsWith(".mov")) return "video/quicktime";
+        if (x.endsWith(".3gp")) return "video/3gpp";
+        if (x.endsWith(".avi")) return "video/x-msvideo";
+        if (x.endsWith(".ts")) return "video/mp2t";
+        if (x.endsWith(".mp3")) return "audio/mpeg";
+        if (x.endsWith(".m4a") || x.endsWith(".aac")) return "audio/mp4";
+        if (x.endsWith(".ogg") || x.endsWith(".oga")) return "audio/ogg";
+        if (x.endsWith(".wav")) return "audio/wav";
+        if (x.endsWith(".flac")) return "audio/flac";
+        return isVideoName(x) ? "video/*" : "audio/*";
+    }
+
+    /** 只允许单层文件名，防目录穿越；与 ExportProvider 的规则一致 */
+    private File mediaFile(String name) {
+        try {
+            String n = (name == null ? "" : name.trim());
+            if (n.length() == 0 || n.length() > 200) return null;
+            if (n.indexOf('/') >= 0 || n.indexOf('\\') >= 0 || n.contains("..") || n.indexOf(':') >= 0) return null;
+            return new File(mediaDir(), n);
+        } catch (Throwable t) { return null; }
+    }
+
+    private String safeMediaName(String raw) {
+        String n = (raw == null ? "" : raw.trim());
+        if (n.length() == 0) n = "media";
+        n = n.replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_')
+             .replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_');
+        if (n.length() > 120) {
+            int dot = n.lastIndexOf('.');
+            String ext = (dot > 0) ? n.substring(dot) : "";
+            n = n.substring(0, Math.max(1, 120 - ext.length())) + ext;
+        }
+        return n;
+    }
+
+    /** 选中的 uri → 复制进私有目录。返回最终文件名。 */
+    private String importMedia(Uri u) throws Exception {
+        if (u == null) throw new Exception("没有文件");
+        String name = safeMediaName(displayNameOf(u));
+        File dir = mediaDir();
+        File target = new File(dir, name);
+        if (target.exists()) {
+            int dot = name.lastIndexOf('.');
+            String base = (dot > 0) ? name.substring(0, dot) : name;
+            String ext = (dot > 0) ? name.substring(dot) : "";
+            for (int i = 1; i < 1000 && target.exists(); i++) target = new File(dir, base + " (" + i + ")" + ext);
+        }
+        java.io.InputStream in = null;
+        java.io.FileOutputStream out = null;
+        try {
+            try { getContentResolver().takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION); } catch (Throwable ig) {}
+            in = getContentResolver().openInputStream(u);
+            if (in == null) throw new Exception("读不到这个文件");
+            out = new java.io.FileOutputStream(target);
+            byte[] buf = new byte[65536]; int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        } finally {
+            try { if (in != null) in.close(); } catch (Throwable ig) {}
+            try { if (out != null) out.close(); } catch (Throwable ig) {}
+        }
+        if (target.length() == 0) { target.delete(); throw new Exception("文件是空的"); }
+        return target.getName();
+    }
 
     /* ---------------- 导出书库（Longevity） ----------------
        EPUB 在导入时被解成了目录（Epub.stage），所以要重新打包成标准 .epub 才能带走。
@@ -804,8 +1000,18 @@ public class MainActivity extends Activity {
         boolean okText = lower.endsWith(".txt") || lower.endsWith(".md") || lower.endsWith(".markdown");
         boolean okPhoto = lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")
                        || lower.endsWith(".webp") || lower.endsWith(".gif") || lower.endsWith(".bmp");
-        if (!okPdf && !okEpub && !okText && !okPhoto) {
-            return "{\"ok\":false,\"error\":\"不支持这种格式（收 EPUB / PDF / TXT / MD 和图片）\"}";
+        boolean okMedia = isAudioName(lower) || isVideoName(lower);
+        if (!okPdf && !okEpub && !okText && !okPhoto && !okMedia) {
+            return "{\"ok\":false,\"error\":\"不支持这种格式（收 EPUB / PDF / TXT / MD、图片、音频、视频）\"}";
+        }
+        /* 音频 / 视频：和书一样从一个入口进来，但落到 media 目录（0.18.27） */
+        if (okMedia) {
+            try {
+                String fn = importMedia(u);
+                return "{\"ok\":true,\"kind\":\"media\",\"name\":" + Epub.q(fn) + "}";
+            } catch (Throwable e) {
+                return "{\"ok\":false,\"error\":" + Epub.q(msgOf(e)) + "}";
+            }
         }
         /* 同一毫秒选多个文件会撞 id，加随机后缀 */
         String id = (okPhoto ? "p" : "b") + System.currentTimeMillis() + (100 + (int) (Math.random() * 900));
@@ -1564,7 +1770,8 @@ public class MainActivity extends Activity {
                     /* 一次能选多个：书和照片混着选也行，导入时按扩展名各归各位 */
                     i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                     i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-                        "application/epub+zip", "application/pdf", "text/plain", "text/markdown", "image/*" });
+                        "application/epub+zip", "application/pdf", "text/plain", "text/markdown", "image/*",
+                        "audio/*", "video/*" });
                     i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
                     try { if (i.resolveActivity(getPackageManager()) == null) { toast("本机没有可用的文件选择器"); return; } } catch (Throwable ignore) {}
                     startActivityForResult(i, REQ_BOOK);
@@ -2173,6 +2380,36 @@ public class MainActivity extends Activity {
             }});
         }
 
+        /* 分享文件（0.18.24）：导出的东西直接进系统分享面板（微信 / QQ / 网盘 / 邮件），
+           不再往系统「下载」目录丢文件——手机上那个目录用户根本找不到。
+           文件写到 cache/share，由 ExportProvider 暴露成 content:// 再交给 ACTION_SEND。 */
+        @JavascriptInterface public void shareFile(final String name, final String b64, final String mime) {
+            if (!trusted()) { toast("分享被拒绝：页面校验未通过"); return; }
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    String safe = (name == null || name.trim().length() == 0) ? "xuetong.txt" : name.trim();
+                    safe = safe.replace('/', '_').replace('\\', '_').replace(':', '_')
+                               .replace('*', '_').replace('?', '_').replace('"', '_')
+                               .replace('<', '_').replace('>', '_').replace('|', '_');
+                    java.io.File dir = new java.io.File(getCacheDir(), "share");
+                    if (!dir.exists()) dir.mkdirs();
+                    java.io.File f = new java.io.File(dir, safe);
+                    byte[] data = Base64.decode(b64 == null ? "" : b64, Base64.DEFAULT);
+                    java.io.FileOutputStream out = new java.io.FileOutputStream(f);
+                    try { out.write(data); } finally { try { out.close(); } catch (Throwable ignored) {} }
+                    Uri u = ExportProvider.uriForShare(safe);
+                    Intent i = new Intent(Intent.ACTION_SEND);
+                    i.setType((mime == null || mime.length() == 0) ? "application/octet-stream" : mime);
+                    i.putExtra(Intent.EXTRA_STREAM, u);
+                    i.putExtra(Intent.EXTRA_SUBJECT, safe);
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(i, "导出到"));
+                } catch (Throwable e) {
+                    toast("导出失败：" + (e.getMessage() == null ? e.toString() : e.getMessage()));
+                }
+            }});
+        }
+
         @JavascriptInterface public void toast(String s) { MainActivity.this.toast(s); }
 
         /* 网页切换深浅色时调用，让状态栏/导航栏/容器背景跟着变，
@@ -2193,6 +2430,82 @@ public class MainActivity extends Activity {
 
         /** 引擎状态：{"ok":true/false,"lang":"zh-CN","engine":"包名","reason":"…","inited":…,"busy":…}。
             初始化是异步的：首次调用会顺手开始初始化并返回 inited=false，轮询几次即可拿到结论。 */
+        /* ---------------- 音视频导入（0.18.26） ----------------
+           为什么必须复制一份：SAF 给的 content:// 读权限不持久，隔一段时间/重启就失效，
+           直接引用会出现「导入的歌过几天就打不开了」。所以选中后立刻落到应用私有目录。
+           分享同理：私有目录的文件不能直接给别的 App，必须经 ExportProvider 转成 content://。 */
+        @JavascriptInterface public void mediaPick() {
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    if (!trusted()) { toast("导入：安全校验未通过，已取消"); return; }
+                    Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    i.addCategory(Intent.CATEGORY_OPENABLE);
+                    i.setType("*/*");
+                    i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                    i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{ "audio/*", "video/*" });
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    try { if (i.resolveActivity(getPackageManager()) == null) { toast("本机没有可用的文件选择器"); return; } } catch (Throwable ignore) {}
+                    startActivityForResult(i, REQ_MEDIA);
+                } catch (Throwable e) { toast("打不开文件选择器：" + msgOf(e)); }
+            }});
+        }
+
+        @JavascriptInterface public String mediaList() {
+            org.json.JSONArray arr = new org.json.JSONArray();
+            try {
+                File[] fs = mediaDir().listFiles();
+                if (fs != null) {
+                    java.util.Arrays.sort(fs, new java.util.Comparator<File>() {
+                        public int compare(File a, File b) { return Long.compare(b.lastModified(), a.lastModified()); }
+                    });
+                    for (int k = 0; k < fs.length; k++) {
+                        File f = fs[k];
+                        if (!f.isFile() || f.length() == 0) continue;
+                        org.json.JSONObject o = new org.json.JSONObject();
+                        o.put("name", f.getName());
+                        o.put("size", f.length());
+                        o.put("type", isVideoName(f.getName()) ? "video" : "audio");
+                        o.put("url", ASSET_BASE + "_media/" + Uri.encode(f.getName()));
+                        o.put("at", f.lastModified());
+                        arr.put(o);
+                    }
+                }
+            } catch (Throwable t) {}
+            return arr.toString();
+        }
+
+        @JavascriptInterface public void mediaRemove(final String name) {
+            try {
+                File f = mediaFile(name);
+                if (f != null && f.exists()) f.delete();
+            } catch (Throwable t) {}
+        }
+
+        /* 分享：直接走文件（不走 base64，几十 MB 的音视频不适合过桥） */
+        @JavascriptInterface public void mediaShare(final String name) {
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    File f = mediaFile(name);
+                    if (f == null || !f.exists()) { toast("文件不在了"); return; }
+                    File dir = new File(getCacheDir(), "share");
+                    if (!dir.exists()) dir.mkdirs();
+                    File copy = new File(dir, f.getName());
+                    java.io.FileInputStream in = new java.io.FileInputStream(f);
+                    java.io.FileOutputStream out = new java.io.FileOutputStream(copy);
+                    try {
+                        byte[] buf = new byte[65536]; int n;
+                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    } finally { try { in.close(); } catch (Throwable ig) {} try { out.close(); } catch (Throwable ig) {} }
+                    Uri u = ExportProvider.uriForShare(copy.getName());
+                    Intent i = new Intent(Intent.ACTION_SEND);
+                    i.setType(isVideoName(copy.getName()) ? "video/*" : "audio/*");
+                    i.putExtra(Intent.EXTRA_STREAM, u);
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(i, "发送到"));
+                } catch (Throwable e) { toast("分享失败：" + msgOf(e)); }
+            }});
+        }
+
         @JavascriptInterface public String ttsStatus() {
             ttsEnsure();
             return ttsStatusJson();
