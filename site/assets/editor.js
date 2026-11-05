@@ -1229,6 +1229,10 @@
     exp.onclick = function () {
       try {
         var txt = YZY.exportJSON(), name = '学通-我的改动-' + new Date().toISOString().slice(0, 10) + '.json';
+        if (window.YZSave && YZSave.share) {
+          /* 先走「文件 + 系统分享/其他应用打开」，剪贴板放不下大 JSON */
+          if (YZSave.share(name, 'application/json;charset=utf-8', txt)) { toast('已导出 ' + name); return; }
+        }
         if (window.AndroidApp && window.AndroidApp.saveBase64) {
           window.AndroidApp.saveBase64(name, btoa(unescape(encodeURIComponent(txt))), 'application/json');
           toast('已保存到「下载」：' + name); return;

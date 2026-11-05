@@ -81,8 +81,10 @@
       var b = RES().find(function (r) { return r.id === x.b; });
       var i = b ? RES().indexOf(b) : -1;
       return '<div style="border-bottom:1px solid var(--card-border);padding:9px 0"' + (i >= 0 ? ' onclick="openItemDetail(' + i + ')"' : '') + '>' +
-        '<div style="font-size:.84rem;line-height:1.85">' + esc(x.txt) + '</div>' +
-        (x.note ? '<div style="font-size:.76rem;opacity:.62;margin-top:3px">💭 ' + esc(x.note) + '</div>' : '') +
+        '<div style="font-size:.84rem;line-height:1.85">' +
+          ((window.YZWordCard) ? YZWordCard.linkify(x.txt) : esc(x.txt)) + '</div>' +
+        (x.note ? '<div style="font-size:.76rem;opacity:.62;margin-top:3px">💭 ' +
+          ((window.YZWordCard) ? YZWordCard.linkify(x.note) : esc(x.note)) + '</div>' : '') +
         '<div style="font-size:.7rem;opacity:.5;margin-top:4px">' + (b ? esc(b.title) : '未关联书目') + '</div></div>';
     }).join('') + (a.length > 200 ? '<p class="sub" style="font-size:.74rem;opacity:.6">只显示最近 200 条（共 ' + a.length + ' 条）。</p>' : '');
   }

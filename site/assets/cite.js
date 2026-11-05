@@ -63,6 +63,29 @@
     } catch (e) { return ''; }
   }
   /* 导出结果预览浮层：图片显示图，文本/数据直接显示内容（点背景或 Esc 关闭） */
+  /* 复制到剪贴板（0.18.27）：App 内 navigator.clipboard 常常不可用，
+     回退到 textarea + execCommand；都不行就返回 false，让调用方提示长按选中。 */
+  function copyText(t) {
+    var txt = String(t == null ? '' : t);
+    if (!txt) return false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt); return true; }
+    } catch (e) { }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { ta.setSelectionRange(0, txt.length); } catch (e) { }
+      var ok = false;
+      try { ok = document.execCommand && document.execCommand('copy'); } catch (e) { }
+      ta.remove();
+      return !!ok;
+    } catch (e) { return false; }
+  }
+
   function preview(name, body, note) {
     try {
       var ov = document.getElementById('yzExportOv');
@@ -90,10 +113,46 @@
       var p = document.createElement('p');
       p.textContent = note || ((isApp() ? '已保存到系统「下载」：' : '已下载：') + name);
       p.style.cssText = 'color:#fff;font-size:.85rem;margin:0;text-align:center;line-height:1.6;max-width:92vw;word-break:break-all';
+      /* 完整文本（pre 里只显示前 4000 字） */
+      var full = /^data:/i.test(bodyStr) ? dataURLToText(bodyStr) : bodyStr;
+      var bar = document.createElement('div');
+      bar.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:92vw';
+      var btnStyle = 'padding:9px 20px;border-radius:22px;border:0;font-size:.88rem;font-weight:600;cursor:pointer;';
+      /* ★ 文件通道为主（0.18.28 用户要求）：导出必须能给到别的应用，
+         有些手机剪贴板放不下超长文本，大文件更不可能靠复制。 */
+      var isData = /^data:/i.test(bodyStr);
+      var hasApp = !!(window.AndroidApp && window.AndroidApp.openFile);
+      if (hasApp && isData) {
+        var bOpen = document.createElement('button'); bOpen.type = 'button';
+        bOpen.textContent = '📤 用其他应用打开';
+        bOpen.style.cssText = btnStyle + 'background:#f5d76e;color:#1a1613';
+        bOpen.onclick = function () { try { YZSave.openURL(name || 'export.txt', bodyStr); } catch (e) { } ov.remove(); };
+        var bShare = document.createElement('button'); bShare.type = 'button';
+        bShare.textContent = '分享到…';
+        bShare.style.cssText = btnStyle + 'background:#fff;color:#111';
+        bShare.onclick = function () {
+          try {
+            var m = bodyStr.match(/^data:([^;]+);base64,([\s\S]*)$/);
+            if (m) YZSave.shareB64(name || 'export.txt', m[1], m[2]);
+            else YZSave.share(name || 'export.txt', 'text/plain;charset=utf-8', full);
+          } catch (e) { }
+        };
+        bar.appendChild(bOpen); bar.appendChild(bShare);
+      }
+      /* 复制降为辅助（剪贴板放不下的东西它救不了） */
+      var copyBtn = document.createElement('button'); copyBtn.type = 'button';
+      copyBtn.textContent = '复制文字';
+      copyBtn.style.cssText = 'padding:7px 16px;border-radius:22px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-size:.8rem;cursor:pointer';
+      copyBtn.onclick = function () {
+        var ok = copyText(full);
+        copyBtn.textContent = ok ? '✓ 已复制' : '复制失败，长按选中';
+        if (!ok) { try { var pre = ov.querySelector('pre'); if (pre) { var r = document.createRange(); r.selectNodeContents(pre); var sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(r); } } catch (e) { } }
+      };
       var btn = document.createElement('button'); btn.type = 'button'; btn.textContent = '关闭';
       btn.style.cssText = 'padding:9px 26px;border-radius:22px;border:0;background:#fff;color:#111;font-size:.9rem;cursor:pointer';
       btn.onclick = function () { ov.remove(); };
-      ov.appendChild(node); ov.appendChild(p); ov.appendChild(btn);
+      bar.appendChild(btn);
+      ov.appendChild(node); ov.appendChild(p); ov.appendChild(bar); ov.appendChild(copyBtn);
     } catch (e) {}
   }
 
@@ -101,5 +160,24 @@
   window.__yzSaveResult = function (r) {
     try { if (typeof window.yzOnSaveResult === 'function') window.yzOnSaveResult(r || {}); } catch (e) {}
   };
-  window.YZSave = { base64: saveBase64, text: saveText, url: saveURL, openURL: openURL, tip: tip, preview: preview, b64: b64utf8, isApp: isApp };
+  /* 导出即分享（0.18.24）：App 内直接把文件交给系统分享面板（微信/QQ/网盘/邮件），
+     不再往系统「下载」目录丢——手机上那个目录用户根本找不到。
+     浏览器没有分享面板，就还回下载。返回 'share' / 'save' / false，调用方据此出提示。 */
+  function shareBase64(name, mime, b64) {
+    mime = mime || 'application/octet-stream';
+    try {
+      if (window.AndroidApp && window.AndroidApp.shareFile) {
+        window.AndroidApp.shareFile(name, b64, mime);
+        return 'share';
+      }
+    } catch (e) {}
+    return saveBase64(name, mime, b64) ? 'save' : false;
+  }
+  function shareText(name, mime, text) {
+    var b = b64utf8(text);
+    return b ? shareBase64(name, mime, b) : false;
+  }
+
+  window.YZSave = { base64: saveBase64, text: saveText, url: saveURL, openURL: openURL, tip: tip, preview: preview, b64: b64utf8, isApp: isApp, copy: copyText,
+    share: shareText, shareB64: shareBase64 };
 })();

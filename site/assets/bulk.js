@@ -389,9 +389,14 @@
         ta.remove();
       } catch (e) {}
     }
-    if (window.YZSave && YZSave.text) { try { YZSave.text(name, 'text/tab-separated-values;charset=utf-8', '\uFEFF' + txt); } catch (e) {} }
-    toast(done ? ('已复制 ' + rows.length + ' 条到剪贴板（也可另存为 ' + name + '）')
-               : ('已导出 ' + rows.length + ' 条：' + name));
+    /* 文件通道为主（0.18.28）：表格可能几百行，剪贴板放不下的手机不少，
+       而且导出给别人时本来就需要一个文件。复制只作兜底。 */
+    if (window.YZSave && YZSave.share) {
+      var ch = YZSave.share(name, 'text/tab-separated-values;charset=utf-8', '\uFEFF' + txt);
+      if (ch) { toast('已导出 ' + rows.length + ' 条（在分享面板里选发给谁）'); return; }
+    }
+    toast(done ? ('已复制 ' + rows.length + ' 条（这台设备没有可用的文件通道，已改为复制）')
+               : ('没能导出。请长按选中下面这段，手工复制:\n\n' + txt.slice(0, 300) + '…'));
   }
 
   /* ================= 粘贴导入 ================= */

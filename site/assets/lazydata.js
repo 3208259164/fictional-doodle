@@ -118,6 +118,51 @@
   function busy() {
     return (Date.now() - lastAct) < 350 && (Date.now() - t0) < 8000;
   }
+  /* ---------------- 按需加载（0.18.24） ----------------
+     问题：speech / zoompane / photo / selftest / quote-match / exportdata /
+     booknote / mine / editor 这 9 个模块原来同步加载，0.18.14 起挪进队列尾部。
+     用户点「朗读」时模块还在排队，于是弹「模块没加载」，看着就像功能没了。
+
+     做法不变（首屏仍然瘦），但给每个入口一条「要用时拉」的通道：
+       YZData.need(路径, cb)             拉这个文件，完了回调 cb(true/false)
+       YZData.guard('全局名', 路径, fn)   全局已存在就立刻执行，否则先拉再执行
+     队列本身也走 need()，同一个文件绝不会被加载两次。 */
+  var state = {};                       /* 路径 → 'loading' | 'ok' | 'fail' */
+  var waiters = {};                     /* 路径 → [cb] */
+  function finish(path, ok) {
+    state[path] = ok ? 'ok' : 'fail';
+    var q = waiters[path] || [];
+    waiters[path] = [];
+    for (var i = 0; i < q.length; i++) { try { q[i](ok); } catch (e) { } }
+  }
+  function need(path, cb) {
+    cb = cb || function () { };
+    if (state[path] === 'ok') { setTimeout(function () { cb(true); }, 0); return; }
+    waiters[path] = waiters[path] || [];
+    waiters[path].push(cb);
+    if (state[path] === 'loading') return;   /* 已在路上，等回调 */
+    state[path] = 'loading';
+    try {
+      var s = document.createElement('script');
+      s.src = path + (window.__YZV ? ('?v=' + window.__YZV) : '');
+      s.async = true;
+      s.onload = function () { finish(path, true); };
+      s.onerror = function () { finish(path, false); };
+      document.head.appendChild(s);
+    } catch (e) { finish(path, false); }
+  }
+  function guard(name, path, fn) {
+    if (window[name]) { try { fn(); } catch (e) { } return true; }
+    need(path, function (ok) {
+      if (!ok || !window[name]) {
+        try { if (window.toast) toast('模块加载失败，请再点一次'); } catch (e) { }
+        return;
+      }
+      try { fn(); } catch (e) { }
+    });
+    return false;
+  }
+
   function step(i) {
     var go = function () { next(i); };
     if (window.requestIdleCallback) { try { window.requestIdleCallback(go, { timeout: 500 }); return; } catch (e) { } }
@@ -126,12 +171,13 @@
   function next(i) {
     if (i >= LAZY.length) { afterAll(); return; }
     if (busy()) { setTimeout(function () { next(i); }, 150); return; }
-    var s = document.createElement('script');
-    s.src = LAZY[i] + (window.__YZV ? ('?v=' + window.__YZV) : '');
-    s.async = false;                       /* 保持顺序：后一个可能依赖前一个 */
-    s.onload = function () { done++; step(i + 1); };
-    s.onerror = function () { failed.push(LAZY[i]); step(i + 1); };
-    document.head.appendChild(s);
+    var path = LAZY[i];
+    if (state[path] === 'ok') { done++; step(i + 1); return; }
+    need(path, function (ok) {
+      if (!ok) failed.push(path);
+      done++;
+      step(i + 1);
+    });
   }
 
   function kick() {
@@ -143,6 +189,9 @@
   window.YZData = {
     lazy: LAZY,
     kick: kick,
+    need: need,
+    guard: guard,
+    state: function () { return state; },
     started: function () { return started; },
     /* 需要「数据到位再渲染」的地方可以用：YZData.ready(function(){ ... }) */
     ready: function (cb) {

@@ -123,7 +123,7 @@
     var L = gls(), groups = {}, order = [];
     L.forEach(function (t) { var g = t.group || '其他'; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(t); });
     return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px">' +
-        '<button class="lk-btn" style="font-size:.82rem" onclick="YZSELFTEST.open()">🎯 来 10 道自测</button>' +
+        '<button class="lk-btn" style="font-size:.82rem" onclick="yzSelfTest()">🎯 来 10 道自测</button>' +
         '<button class="sbtn" style="font-size:.78rem;padding:5px 10px" onclick="YZStudy.termNew()">＋ 新增术语</button>' +
         '<button class="sbtn" style="font-size:.78rem;padding:5px 10px" onclick="YZStudy.termImport()">📥 批量导入</button>' +
         '<span style="font-size:.76rem;opacity:.6;align-self:center">改动只存本机，可随备份导出</span></div>' +
@@ -647,10 +647,23 @@
       var t = refresh();
       var name = '学通-答疑-' + ((document.getElementById('ansExpG').value || '全部').replace(/[\\/:*?"<>|]/g, '_')) + '.txt';
       var ok = false;
-      try { if (window.YZSave && YZSave.text) ok = !!YZSave.text(name, 'text/plain;charset=utf-8', t); } catch (e) {}
+      try {
+        if (window.YZSave && YZSave.share) ok = !!(YZSave.share(name, 'text/plain;charset=utf-8', t) || (YZSave.text && YZSave.text(name, 'text/plain;charset=utf-8', t)));
+        else if (window.YZSave && YZSave.text) ok = !!YZSave.text(name, 'text/plain;charset=utf-8', t);
+      } catch (e) {}
       if (window.toast) toast(ok ? '已保存：' + name : '这台设备不支持直接存文件，请用「复制全文」');
     };
   }
+  /* 自测模块是懒加载的：没到就先拉，到了自动打开 */
+  window.yzSelfTest = function () {
+    if (window.YZSELFTEST && YZSELFTEST.open) { YZSELFTEST.open(); return; }
+    if (window.YZData && YZData.need) {
+      YZData.need('assets/selftest.js', function (ok) {
+        if (ok && window.YZSELFTEST) YZSELFTEST.open();
+        else if (window.toast) toast('自测模块加载失败，请再点一次');
+      });
+    } else if (window.toast) toast('自测模块没加载');
+  };
   window.YZStudy = {
     answersHTML: answersHTML, glossaryHTML: glossaryHTML, glossaryBlock: glossaryBlock,
     guideBlock: guideBlock, outlineBlock: outlineBlock, outlineOf: outlineOf, guideByBook: guideByBook, openGuide: openGuide,

@@ -307,13 +307,6 @@
   function b64utf8(str) {
     try { return btoa(unescape(encodeURIComponent(str))); } catch (e) { return ''; }
   }
-  /* ① AndroidApp 桥：存到系统「下载」（App 内唯一可靠通道） */
-  function saveViaApp(name, mime, text) {
-    if (!isApp()) return false;
-    var b = b64utf8(text);
-    if (!b) return false;
-    try { window.AndroidApp.saveBase64(name, b, mime); return true; } catch (e) { return false; }
-  }
   /* ② 浏览器 Blob + <a download>（WebView 里 <a download> 无效，但网页端可以） */
   function saveViaBlob(name, mime, text) {
     try {
@@ -340,8 +333,17 @@
     } catch (e) {}
     return false;
   }
+  /* ⓿ App 内：导出即分享（0.18.24）
+     以前是存到系统「下载」目录——手机上那个目录用户根本找不到，看着像没导出。
+     现在直接把文件交给系统分享面板：发给微信 / QQ、存网盘、发邮件都行。 */
+  function shareViaApp(name, mime, text) {
+    if (!(window.AndroidApp && typeof window.AndroidApp.shareFile === 'function')) return false;
+    var b = b64utf8(text);
+    if (!b) return false;
+    try { window.AndroidApp.shareFile(name, b, mime); return true; } catch (e) { return false; }
+  }
   function deliver(name, mime, text) {
-    if (saveViaApp(name, mime, text)) return 'app';
+    if (shareViaApp(name, mime, text)) return 'share';
     if (saveViaBlob(name, mime, text)) return 'blob';
     if (saveViaYZSave(name, mime, text)) return 'yzsave';
     return '';
@@ -357,8 +359,8 @@
     var name = fileName(k);
     var mime = (k === 'csv') ? 'text/csv;charset=utf-8' : 'text/markdown;charset=utf-8';
     var ch = deliver(name, mime, text);
-    if (ch === 'app') toastMsg('已保存到系统「下载」：' + name);
-    else if (ch) toastMsg('已下载：' + name);
+    if (ch === 'share') toastMsg('已导出：' + name + '｜在分享面板里选发给谁');
+    else if (ch) toastMsg('已导出：' + name);
     else toastMsg('导出失败：此环境不支持保存文件（可改用「导出我的数据」复制文本）');
     return ch;
   }

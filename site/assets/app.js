@@ -516,6 +516,18 @@ async function exportDiag(){
   let app = ''; try { app = (window.AndroidApp && window.AndroidApp.getVersionName) ? window.AndroidApp.getVersionName() : ''; } catch(e){}
   let wv = ''; try { wv = (window.AndroidApp && window.AndroidApp.webviewVersion) ? window.AndroidApp.webviewVersion() : ''; } catch(e){}
   let dev = ''; try { dev = (window.AndroidApp && window.AndroidApp.deviceInfo) ? window.AndroidApp.deviceInfo() : ''; } catch(e){}
+  /* App 桥探测（0.18.24）：把「哪一层断了」写进诊断，
+     朗读不可用、导出失败、返回键失灵这类问题，一眼就能定位是 App 没给桥还是方法缺失。 */
+  let bridge = 'none';
+  try {
+    const A0 = window.AndroidApp;
+    if (!A0) bridge = 'no-AndroidApp';
+    else {
+      const need = ['ttsStatus', 'ttsSpeak', 'saveBase64', 'shareFile', 'backProbe', 'getVersionName'];
+      const miss = need.filter(k => typeof A0[k] !== 'function');
+      bridge = miss.length ? ('missing:' + miss.join(',')) : 'ok';
+    }
+  } catch (e) { bridge = 'throw:' + (e && e.message); }
   const _cr = (navigator.userAgent.match(/Chrome\/(\d+)/) || [])[1] || '?';
   let cssFeat = 'ok'; try { const miss = [];
     if (window.CSS && CSS.supports) { if (!CSS.supports('inset','0')) miss.push('no-css-inset'); if (!CSS.supports('padding-bottom','env(safe-area-inset-bottom,0px)')) miss.push('no-css-env'); }
@@ -576,7 +588,8 @@ async function exportDiag(){
            webview: (wv || ('Chrome/' + _cr)), device: (dev || '(web)'), cssFeatures: cssFeat,
            viewport: innerWidth + 'x' + innerHeight, dpr: (window.devicePixelRatio || 1),
            screen: (screen.width + 'x' + screen.height), theme: (document.body.className || '(默认)'), storage: (storageSelfTest() ? 'ok' : 'fail'),
-           motion: ((document.body.className || '').indexOf('no-motion') >= 0 ? 'off' : 'on') },
+           motion: ((document.body.className || '').indexOf('no-motion') >= 0 ? 'off' : 'on'),
+           appBridge: bridge, appVersion: (app || '(无)') },
     storage: { localStorageKeys: lsKeys, localStorageBytes: lsBytes, indexedDB: !!window.indexedDB, localSites: siteCount, serviceWorker: sw, jsHeap: mem, overlay: ovStore },
     config: cfg,
     counts: { resources: RES.length, byCat: byCat,
@@ -604,12 +617,11 @@ async function exportDiag(){
   /* ★ App 内 <a download> 无效（blob: 会被 DownloadListener 拦成「请点击页面内的保存按钮」），
      必须走原生桥保存；只有浏览器环境才回退到 Blob 下载。 */
   try {
-    if (window.YZSave && YZSave.text && YZSave.text(fname, 'application/json', txt)) {
-      const isApp = !!(YZSave.isApp && YZSave.isApp());
-      if (isApp && YZSave.preview && YZSave.b64) {
-        YZSave.preview(fname, 'data:application/json;base64,' + YZSave.b64(txt),
-          '⏳ 正在保存诊断报告（' + txt.length + ' 字符）…');
-      } else { toast('诊断报告已保存：' + fname); }
+    /* App 内：诊断报告是给自己看的，直接弹窗显示，不写文件（0.18.24） */
+    const isApp = !!(window.YZSave && YZSave.isApp && YZSave.isApp());
+    if (isApp && YZSave.preview && YZSave.b64) {
+      YZSave.preview(fname, 'data:application/json;base64,' + YZSave.b64(txt),
+        '诊断报告 · ' + txt.length + ' 字符 · 可长按复制');
       return;
     }
   } catch (e) {}
@@ -618,7 +630,7 @@ async function exportDiag(){
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = fname;
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
-    toast('诊断报告已下载：' + fname);
+    toast('诊断报告已导出：' + fname);
   } catch (e) { toast('此环境不支持保存文件，请检查存储权限'); }
 }
 /* 导出/导入覆盖的本机数据：白名单键 + 前缀键。
@@ -697,14 +709,14 @@ function openDataIO(mode){
   const m = document.getElementById('dataModal'); if (!m) return;
   document.getElementById('dataTitle').textContent = exp ? '💾 导出我的数据' : '🔐 导入我的数据';
   document.getElementById('dataHint').innerHTML = exp
-    ? '下面是你的<b>全部</b>本机数据：收藏 · 书签 · 笔记 · 做题题库 · 各项设置 · 主页好友 · 频道点赞评论 · 阅读进度（含章节） · 相册导入记录，以及<b>自助编辑的全部改动</b>（人物介绍与年表、图谱节点与关系、新建图谱、书库条目与分类）。点「⬇️ 下载 .json」或「📋 复制」保存，换设备后导入即可完整恢复。<br><b>注意</b>：你自己导入的<b>电子书正文</b>和<b>相册照片</b>存在本机数据库里、不在这个 JSON 内，换设备需要重新导入文件；书目索引（书名与导入记录）会随 JSON 一起备份。'
+    ? '下面是你的<b>全部</b>本机数据：收藏 · 书签 · 笔记 · 做题题库 · 各项设置 · 主页好友 · 频道点赞评论 · 阅读进度（含章节） · 相册导入记录，以及<b>自助编辑的全部改动</b>（人物介绍与年表、图谱节点与关系、新建图谱、书库条目与分类）。点「📤 导出 / 分享」或「📋 复制」带走，换设备后导入即可完整恢复。<br><b>注意</b>：你自己导入的<b>电子书正文</b>和<b>相册照片</b>存在本机数据库里、不在这个 JSON 内，换设备需要重新导入文件；书目索引（书名与导入记录）会随 JSON 一起备份。'
     : '把你的数据 JSON 粘贴到下面，点「导入并恢复」；<b>部分浏览器</b>也支持直接用「选择文件」。导入为<b>合并</b>：本机已有的不会丢，同名的以备份为准。';
   const ta = document.getElementById('dataText');
   ta.value = exp ? JSON.stringify(buildDataObj(), null, 2) : '';
   ta.readOnly = exp;
   document.getElementById('dataOps').innerHTML = exp
     ? '<button class="go" onclick="copyDataText()">📋 复制</button>' +
-      '<button onclick="downloadDataText()">⬇️ 下载 .json</button>' +
+      '<button onclick="downloadDataText()">📤 导出 / 分享</button>' +
       '<button onclick="closeDataModal()">关闭</button>'
     : '<button class="go" onclick="submitDataImport()">导入并恢复</button>' +
       '<label style="font-size:.75rem;padding:6px 14px;border-radius:8px;cursor:pointer;background:var(--card);border:1px solid var(--card-border);color:var(--text)">选择文件<input type="file" accept="application/json,.json" onchange="importData(this)" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden"></label>' +
@@ -721,22 +733,22 @@ function copyDataText(){
 }
 function downloadDataText(){
   const t0 = (document.getElementById('dataText') || {}).value || '';
-  /* App 内 <a download> 无效（blob: 会被 DownloadListener 拦下），必须走原生桥保存 */
+  if (!t0) { toast('没有可导出的数据'); return; }
+  /* App 内：导出即分享（0.18.24）。以前写进系统「下载」目录，手机上根本找不到。 */
   try {
-    if (window.YZSave && YZSave.text && YZSave.text('学通-我的数据.json', 'application/json', t0)) {
-      if (YZSave.isApp && YZSave.isApp() && YZSave.preview && YZSave.b64) {
-        YZSave.preview('学通-我的数据.json', 'data:application/json;base64,' + YZSave.b64(t0), '⏳ 正在保存…');
-      } else { toast('已导出：学通-我的数据.json'); }
-      return;
+    if (window.YZSave && YZSave.share && YZSave.isApp && YZSave.isApp()) {
+      if (YZSave.share('学通-我的数据.json', 'application/json;charset=utf-8', t0)) {
+        toast('已导出：在分享面板里选发给谁'); return;
+      }
     }
   } catch(e){}
+  /* 浏览器：没有分享面板，仍然下载 */
   try {
-    const t = document.getElementById('dataText').value || '';
-    const blob = new Blob([t], { type:'application/json' });
+    const blob = new Blob([t0], { type:'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '学通-我的数据.json';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
-    toast('已尝试下载；若没反应，请用「📋 复制」');
-  } catch(e){ toast('此环境不支持下载，请用「📋 复制」'); }
+    toast('已导出：学通-我的数据.json');
+  } catch(e){ toast('此环境不支持导出，请用「📋 复制」'); }
 }
 function submitDataImport(){
   const t = (document.getElementById('dataText').value || '').trim();
@@ -1474,6 +1486,13 @@ function omniSearchRaw(q){
     });
   });
   (EX.topics || []).forEach(t => { if (hit(t.title) || hit(t.desc)) out.push({ cat:'阅读路径', t:t.title, sub:t.desc || '', fn:`openSection(secIdx('阅读与手册'))` }); });
+  /* 问题专题（data/topics.js 的 3 篇：国家是什么 / 苏联为什么变修 / 继续革命）
+     以前只进「专题」面板，搜索里找不到——这里补进来。 */
+  (window.SITE_TOPICS || []).forEach(t => {
+    if (hit(t.name) || hit(t.sub) || hit(t.lead)) {
+      out.push({ cat: '专题', t: t.name, sub: t.sub || '', fn: `openTopic('${t.id}')` });
+    }
+  });
   schoolGroups().forEach((g, gi) => { if (hit(g.note)) out.push({ cat:(g.group || '流派'), t:'流派说明', sub:g.note, fn:`openHub('${gi === 0 ? 'thoughts' : 'orgs'}')` }); });
   (CT.help || []).forEach(([k, v]) => { if (hit(k) || hit(v)) out.push({ cat:'使用指南', t:k, sub:v, fn:`openSection(secIdx('使用指南'))` }); });
   (CT.faq || []).forEach(([qq, aa]) => { if (hit(qq) || hit(aa)) out.push({ cat:'常见问题', t:qq, sub:aa, fn:`openSection(secIdx('使用指南'))` }); });
@@ -1637,6 +1656,9 @@ function openOmniResults(q){
   /* ② 引文近似：整句搜索时，按字面搜不到也能定位「这句话在哪」 */
   let quoteHTML = '';
   try {
+    if (!window.YZQUOTE && window.YZData && YZData.need) {
+      YZData.need('assets/quote-match.js', function () { });
+    }
     if (window.YZQUOTE && String(q).replace(/\s/g, '').length >= 6) {
       const b = YZQUOTE.best(q);
       if (b && b.score >= 0.55) {
@@ -1972,9 +1994,11 @@ function renderPc(){
       pcRow('🌐','网站版','xuetone.netlify.app · 浏览器打开','openSiteVersion()') +
       pcRow('🔓','开源地址','GitHub · 源码 / 许可 / 更新日志','openRepo()') +
       pcRow('📁','文件','全部文件 · ' + RES.length + ' 项',"openSection(secIdx('文件'))") +
-      pcRow('📚','我的藏书','EPUB / PDF / TXT · 导入后可直接读','YZAppBooks.shelf()') +
+      /* 「我的藏书」与「音视频」合并成一个入口：一个「＋ 导入」什么都能选，导入后自动分流
+         （书进书架、图片进相册、音视频进音视频库）。 */
+      pcRow('📚','我的文件','书 · 音频 · 视频 · 一个入口全导入','YZAppBooks.shelf()') +
       pcRow('📦','内容包','自己做的 HTML 小应用 · 导入即可运行','location.href=\'challenge.html\'') +
-      pcRow('📚','我的资料','书架 · 收藏 · 书签 · 摘录 · 标注','openMine()') +
+      pcRow('📚','我的资料','书架 · 收藏 · 书签 · 摘录 · 标注','yzOpenMine()') +
       pcRow('🎛','自定义','外观 · 片段 · 版式 · 首页','openCustom()') +
     '</div>' +
     '<div class="pc-bottom">' +
@@ -4015,6 +4039,14 @@ function authorPeople(name){
   /* 简称 → 全名：书库作者写「卢森堡」「普列汉诺夫」，人物库存的是「罗莎·卢森堡」「格奥尔基·普列汉诺夫」。
      不补这一步，明明有人物页也会落到「还没有建立人物页」。（data/author-alias.js） */
   const AL = (window.YZ_AUTHOR_ALIAS || {})[n];
+  /* 别名表是懒加载的：没到就先去拉，拉到了把当前页重画一遍。
+     不这么做，窗口期内点「卢森堡」会落到「还没有建立人物页」——这个坑修过一次又回来了。 */
+  if (!AL && !window.YZ_AUTHOR_ALIAS && window.YZData && YZData.need) {
+    YZData.need('data/author-alias.js', function (ok) {
+      if (!ok) return;
+      try { if (window.openCurrent) openCurrent(); } catch (e) { }
+    });
+  }
   if (AL) {
     const arr = Array.isArray(AL) ? AL : [AL];
     const hits = arr.map(one).filter(Boolean);
@@ -4063,6 +4095,11 @@ function openAuthor(name, fromRoute){
       </div>`
     : (function () {
         /* 书作者简介：魏巍、李达、艾思奇这类「有书无页」的作者，先给一段可读的生平（data/authors-bio.js） */
+        if (!window.YZ_AUTHOR_BIO && window.YZData && YZData.need) {
+          YZData.need('data/authors-bio.js', function (ok) {
+            if (ok) { try { if (window.openCurrent) openCurrent(); } catch (e) { } }
+          });
+        }
         const bio = (window.YZ_AUTHOR_BIO || {})[name];
         if (bio) {
           return `<div class="ldetail"><div style="font-size:2.2rem;line-height:1;margin-bottom:8px">👤</div>
@@ -4507,7 +4544,7 @@ function openItemDetail(idx, fromRoute){
        ${critHTML(nid)}
        <p style="margin-top:12px;font-size:.72rem;opacity:.5">标签：${(it.tags||[]).join(' / ') || '—'}</p>
        ${introSection}
-       ${(window.YZBookNote ? YZBookNote.block(nid) : '')}
+       ${(window.YZBookNote ? YZBookNote.block(nid) : yzBookNoteLazy(nid))}
        ${tocSection}${_olLeftHTML}
        <span id="yzGuideSlot" data-b="${escAttr(it.title)}">${(window.YZStudy && YZStudy.guideBlock ? YZStudy.guideBlock(it.title) : '')}</span>
        ${contentSection}
@@ -4547,7 +4584,7 @@ function helpFaqHTML(){
     ['💾 导出位置与打开', '「个人中心 → 设置 → 导出位置」可指定一个文件夹（无需任何权限）；每次导出完成都会显示真实保存位置、文件名与大小，并可直接点「用其他应用打开」。'],
     ['🔐 导入 / 导出数据', '打开「个人中心」，点头像进入账号页：可导出账号数据（头像、名字、收藏、书签、设置）为 JSON；换设备时点「登录」粘贴即可恢复。'],
     ['📥 导入频道内容', '在「频道」右上角点 📥，粘贴 JSON 数组即可添加自己的发言（只存本机）。'],
-    ['🖼️ 相册', '「个人中心 → 相册」可查看内置照片、下载，或点「＋导入照片」把自己手机里的照片加进来。']
+    ['🖼️ 相册', '「个人中心 → 相册」可查看内置照片、保存到手机，或点「＋导入照片」把自己手机里的照片加进来。']
   ];
   var rows = function(a){ return a.map(function(x){ return '<div class="hp"><span class="hp-t">' + x[0] + '</span><span class="hp-d">' + x[1] + '</span></div>'; }).join(''); };
   return '<h2 class="stage">🚀 快速上手</h2>' + rows(quick) +
@@ -4775,8 +4812,15 @@ function openCatPage(cat){
   cat = String(cat || '').trim();
   if (!cat) return;
   var icon = (typeof catIcon !== 'undefined' && catIcon[cat]) ? catIcon[cat] : '📁';
+  /* 歌曲 / 影像：这两类是「可以自己导入」的，页面顶部给导入与库入口 */
+  var extra = '';
+  if (cat === '歌曲' || cat === '影像') {
+    extra = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px">' +
+      '<button class="sbtn" onclick="YZMedia.pick()">＋ 导入' + (cat === '歌曲' ? '音频' : '视频') + '</button>' +
+      '<button class="sbtn" onclick="YZMedia.openLib()">📂 我的音视频</button></div>';
+  }
   openContent(icon + ' ' + cat,
-    crumbFrom([{ t:'分类', fn:openClassify }, { t:cat, fn:function(){ openCatPage(cat); } }]) + catListHTML(cat),
+    crumbFrom([{ t:'分类', fn:openClassify }, { t:cat, fn:function(){ openCatPage(cat); } }]) + extra + catListHTML(cat),
     { right: { text:'🔎', act:'openCatSearch' } });
 }
 /* 顶栏放大镜：跳到首页搜索，并预填当前分类 */
@@ -4903,6 +4947,38 @@ document.getElementById('dataModal').addEventListener('click', e => { if (e.targ
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { var _d = document.getElementById('drawer'); if (_d && _d.classList.contains('open')) { pageBack(); return; } closePlus(); closePreview(); closeLeave(); closeShare(); closeDataModal(); } });
 
 /* ---------- 页导航（QQ 原生「整页推进」） ---------- */
+/* 「我的资料」在 mine.js（懒加载）：没到就先拉，到了直接打开 */
+/* 编辑台在 editor.js（懒加载）：开启自助编辑时如果还没到，先拉再启动 */
+/* 读书笔记块（booknote.js，懒加载）：没到就先拉，到货后重绘当前页补上 */
+function yzBookNoteLazy(nid) {
+  if (window.YZBookNote) { try { return YZBookNote.block(nid); } catch (e) { return ''; } }
+  if (window.YZData && YZData.need) {
+    YZData.need('assets/booknote.js', function (ok) {
+      if (ok && window.YZBookNote) { try { openCurrent(); } catch (e) { } }
+    });
+  }
+  return '';
+}
+function yzBootEditor() {
+  if (window.__yzEditorBoot) { try { window.__yzEditorBoot(); } catch (e) { } return; }
+  if (window.YZData && YZData.need) {
+    YZData.need('assets/editor.js', function (ok) {
+      if (ok && window.__yzEditorBoot) { try { window.__yzEditorBoot(); } catch (e) { } }
+    });
+  }
+}
+function yzOpenMine() {
+  if (window.openMine) { try { openMine(); } catch (e) { } return; }
+  if (window.YZData && YZData.need) {
+    if (window.toast) toast('正在打开…');
+    YZData.need('assets/mine.js', function (ok) {
+      if (ok && window.openMine) { try { openMine(); } catch (e) { } }
+      else if (window.toast) toast('加载失败，请再点一次');
+    });
+    return;
+  }
+  if (window.toast) toast('模块没加载');
+}
 function openDrawer(mode){
   var d = document.getElementById('drawer'); if (!d) return;
   var isPage = mode !== 'drawer';
@@ -4984,26 +5060,33 @@ function openPc(){                       /* 个人中心：左侧抽屉（仿 QQ
 function openSettings(){                 /* 设置页：入栈，返回回到上一层（个人中心 / 资料） */
   _pageStack.push({ view: 'settingsView', title: '⚙️ 设置' });
   _renderPage(_pageStack[_pageStack.length - 1]);
-  /* 存储用量面板（exportdata.js）：先同步画一版，再等容量估算回来补一次 */
-  try {
-    if (window.YZEXPORT) {
+  /* 存储用量面板（exportdata.js，懒加载）：没到就先拉，到货后就地补画 */
+  function yzPaintUsage() {
+    try {
+      if (!window.YZEXPORT) return;
       const box = document.getElementById('yzUsageBox');
       if (box) box.innerHTML = YZEXPORT.renderUsagePanel();
       if (YZEXPORT.refreshUsage) YZEXPORT.refreshUsage().then(function () {
         const b = document.getElementById('yzUsageBox');
         if (b) b.innerHTML = YZEXPORT.renderUsagePanel();
       });
-    }
-  } catch (e) { }
+    } catch (e) { }
+  }
+  yzPaintUsage();
+  if (!window.YZEXPORT && window.YZData && YZData.need) {
+    YZData.need('assets/exportdata.js', function (ok) { if (ok) yzPaintUsage(); });
+  }
   /* 朗读引擎 / 正文检索 的自检结果（都只读本机，不联网） */
-  try {
-    const tl = document.getElementById('yzTtsLine');
-    if (tl) {
-      if (window.YZSPEECH) {
-        tl.textContent = YZSPEECH.status();
-      } else tl.textContent = '朗读模块未加载';
-    }
-  } catch (e) { }
+  function yzPaintTts() {
+    try {
+      const tl = document.getElementById('yzTtsLine');
+      if (tl) tl.textContent = window.YZSPEECH ? YZSPEECH.status() : '朗读模块未加载';
+    } catch (e) { }
+  }
+  yzPaintTts();
+  if (!window.YZSPEECH && window.YZData && YZData.need) {
+    YZData.need('assets/speech.js', function (ok) { if (ok) yzPaintTts(); });
+  }
   try {
     const fl = document.getElementById('yzFtLine');
     if (fl) {
@@ -5034,13 +5117,13 @@ function toggleSelfEdit(){
   if (!window.YZY || typeof YZY.setEditorEnabled!=="function"){ toast("编辑器未加载，请刷新页面"); return; }
   var on = selfEditOn(); YZY.setEditorEnabled(!on); syncSelfEditSwitch();
   var st = document.getElementById("seState"); if (st) st.textContent = !on ? "已开启" : "已关闭";
-  if (!on) { try { if (window.__yzEditorBoot) window.__yzEditorBoot(); } catch(e){} toast("自助编辑已开启"); }
+  if (!on) { yzBootEditor(); toast("自助编辑已开启"); }
   else { var w=document.getElementById("zzyWrap"); if(w) w.classList.remove("open"); toast("自助编辑已关闭"); }
 }
 function openSelfEdit(){
   try {
   try { if (window.YZY && typeof YZY.setEditorEnabled==="function" && !YZY.editorEnabled()){ YZY.setEditorEnabled(true); syncSelfEditSwitch(); var _s=document.getElementById('seState'); if(_s)_s.textContent='已开启'; } } catch(e){}
-  try { if (window.__yzEditorBoot) window.__yzEditorBoot(); } catch(e){}
+  yzBootEditor();
   var b = document.getElementById("zzyBtn");
   if (b) { b.click(); openDrawer('page'); } else { try { location.href = "index.html?edit=1"; } catch(e){} }
   } catch(e){}
@@ -5268,7 +5351,14 @@ function exportNotesMD() {
   var txt = L.join('\n');
   var fname = '学通-我的资料-' + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + '.md';
   try {
-    if (window.YZSave && YZSave.text) { YZSave.text(fname, txt, 'text/markdown'); }
+    /* App 内走分享（不再写进系统「下载」） */
+    if (window.YZSave && YZSave.share && YZSave.isApp && YZSave.isApp()) {
+      if (YZSave.share(fname, 'text/markdown;charset=utf-8', txt)) {
+        toast('已导出 ' + fname + '（在分享面板里选发给谁）');
+        return;
+      }
+    }
+    if (window.YZSave && YZSave.text) { YZSave.text(fname, 'text/markdown', txt); }
     else {
       var blob = new Blob([txt], { type: 'text/markdown;charset=utf-8' });
       var a = document.createElement('a');
@@ -5667,10 +5757,19 @@ function quizImport(input){
 }
 function quizExport(){
   const bank = quizBank(); if (!bank.length){ toast('题库为空'); return; }
-  const blob = new Blob([JSON.stringify({ title:'选择题题库', questions: bank }, null, 2)], { type:'application/json' });
+  const txt = JSON.stringify({ title:'选择题题库', questions: bank }, null, 2);
+  /* App 内：分享面板；浏览器：下载 */
+  try {
+    if (window.YZSave && YZSave.share && YZSave.isApp && YZSave.isApp()) {
+      if (YZSave.share('学通-做题题库.json', 'application/json;charset=utf-8', txt)) {
+        toast('已导出题库（在分享面板里选发给谁）'); return;
+      }
+    }
+  } catch (e) {}
+  const blob = new Blob([txt], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '做题题库.json';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  toast('已导出选择题 JSON｜' + (window.AndroidApp ? '已存到系统「下载」' : '已存到浏览器下载'));
+  toast('已导出选择题 JSON');
 }
 function quizClear(){
   if (!confirm('清空本机题库？（不可恢复）')) return;

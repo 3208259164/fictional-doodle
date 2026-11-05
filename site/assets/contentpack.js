@@ -79,6 +79,9 @@
     var txt = JSON.stringify(pack, null, 1);
     var name = '学通内容包-' + new Date().toISOString().slice(0, 10) + '.json';
     try {
+      if (window.YZSave && YZSave.share && YZSave.isApp && YZSave.isApp()) {
+        if (YZSave.share(name, 'application/json;charset=utf-8', txt)) { toast('已导出内容包（在分享面板里选发给谁）'); return; }
+      }
       if (window.YZSave && window.YZSave.text) { window.YZSave.text(name, 'application/json', txt); return; }
     } catch (e) {}
     try {

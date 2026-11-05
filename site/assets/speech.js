@@ -147,7 +147,11 @@
       if (!vs.length) return '浏览器语音合成可用 · 语音列表尚未就绪（首次朗读时会加载）';
       return '浏览器语音合成 · 共 ' + vs.length + ' 个语音，中文 ' + zh + ' 个' + (zh ? '' : '（可能读不出中文）');
     }
-    return '本机不支持语音朗读（既没有原生桥，也没有 speechSynthesis）';
+    /* 把「断在哪一层」说清楚：以前笼统一句「本机不支持」，看着像功能被删了 */
+    var hasApp = false;
+    try { hasApp = !!window.AndroidApp; } catch (e) { }
+    if (hasApp) return 'App 桥在，但里面没有语音接口（ttsStatus 不是函数）——请更新到最新版本';
+    return '这一页没拿到 App 桥（window.AndroidApp 不存在），也没有 speechSynthesis';
   }
 
   function diagnose() {

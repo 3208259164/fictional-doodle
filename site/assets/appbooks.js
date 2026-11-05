@@ -179,7 +179,7 @@
       '.yzbox .bk-menu{position:absolute;left:0;right:0;bottom:0;z-index:14;background:var(--chrome-bg2);color:var(--chrome-fg);border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -6px 30px rgba(0,0,0,.22);padding:6px 0 10px;max-height:78%;overflow:auto}',
       /* 底部半屏面板（目录 / 书签 / 搜索）：带遮罩和把手，上半屏仍露着正文。
          全屏面板会让人「为了调个字号而离开那一页」，回来排版已经变了。 */
-      '.yzbox .bk-scrim{position:absolute;inset:0;background:rgba(0,0,0,.36);z-index:12}',
+      '.yzbox .bk-scrim{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.36);z-index:12}',
       '.yzbox .bk-sheet{position:absolute;left:0;right:0;bottom:0;z-index:13;background:var(--chrome-bg2);color:var(--chrome-fg);border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.3);display:flex;flex-direction:column;max-height:min(62%,34rem)}',
       '.yzbox .bk-sheet .hd{padding:8px 0 2px;display:flex;justify-content:center}',
       '.yzbox .bk-sheet .hd i{display:block;width:38px;height:4px;border-radius:2px;background:currentColor;opacity:.2}',
@@ -504,7 +504,8 @@
 
   function headHTML(nMine, nShell, nPhoto, cont, webOnly) {
     var h = '<div class="bk-toolbar">'
-      + '<button class="bk-btn bk-import" type="button" onclick="YZAppBooks.pick()">＋ 导入文件</button>'
+      + '<button class="bk-btn bk-import" type="button" onclick="YZAppBooks.pick()">＋ 导入（书 / 音视频）</button>'
+      + '<button class="bk-btn" type="button" onclick="YZMedia.openLib()">🎵 音视频</button>'
       + '<button class="bk-btn" type="button" onclick="YZAppBooks.openAlbum()">🖼 相册' + (nPhoto ? ' · ' + nPhoto : '') + '</button>'
       + '</div>'
       + '<div class="bk-tip">书（EPUB / PDF / TXT / MD）进书架，照片自动进相册 —— 选完按类型自己分，不用先挑格式。</div>'
@@ -620,7 +621,7 @@
 
     if (!mineN && !shells.length) {
       body.innerHTML = h + '<div class="bk-empty">还没有书。<br>'
-        + '点上面的「＋ 导入文件」，一次可以选好几本（也能和照片一起选）。<br>'
+        + '点上面的「＋ 导入（书 / 音视频）」，一次可以选好几本，图片、音频、视频也能一起选，导入后自动各归各位。<br>'
         + '<b>EPUB</b> 带目录分章，<b>PDF</b> 逐页翻还能放大，<b>TXT / MD</b> 适合自己整理的笔记。<br>'
         + '<span style="opacity:.7;font-size:.82rem">文件会复制到 App 内部，原文件不受影响；卸载 App 才会删。</span></div>';
       return;
@@ -1107,12 +1108,35 @@
     })();
   }
 
+  /* 从第 start 段开始逐段朗读（0.18.26 抽出，好让「长按段落→从本段读」复用） */
+  function ttsStartFrom(start) {
+    var body = document.getElementById('yzbkBody');
+    if (!body) { toast('还没打开正文'); return false; }
+    var ps = body.querySelectorAll('h3.bk-h, p[id^="bkp-"]');
+    if (!ps.length) { toast('没有可读的段落'); return false; }
+    if (start < 0) start = 0;
+    if (start >= ps.length) start = ps.length - 1;
+    var list = [];
+    for (var k = start; k < ps.length && list.length < 40; k++) {
+      var tx = (ps[k].textContent || '').trim();
+      if (tx.length < 2) continue;
+      list.push({ el: ps[k], text: tx.slice(0, 800) });
+    }
+    if (!list.length) { toast('这一段没有可读的文字'); return false; }
+    ttsStopFollow();
+    ttsJob = { list: list, pos: 0, timer: null };
+    ttsMark(list[0].el);
+    toast('从这里开始朗读（再点一次停止）');
+    ttsPlayNext();
+    return true;
+  }
+
   function ttsToggle() {
     if (ttsJob) { ttsStopFollow(); toast('已停止朗读'); return; }
     var A = app();
     var isText = cur && (cur.type === 'txt' || cur.type === 'md');
     if (isText && A && typeof A.ttsBusy === 'function') {
-      /* 收集从当前视口开始的段落（每段单独喂，最多 40 段） */
+      /* 默认从「当前视口第一段」开始；想指定段落就长按那一段 */
       var body = document.getElementById('yzbkBody');
       var top = body.getBoundingClientRect().top;
       var ps = body.querySelectorAll('h3.bk-h, p[id^="bkp-"]');
@@ -1120,21 +1144,22 @@
       for (var i = 0; i < ps.length; i++) {
         if (ps[i].getBoundingClientRect().top - top >= -12) { start = i; break; }
       }
-      var list = [];
-      for (var k = start; k < ps.length && list.length < 40; k++) {
-        var tx = (ps[k].textContent || '').trim();
-        if (tx.length < 2) continue;
-        list.push({ el: ps[k], text: tx.slice(0, 800) });
-      }
-      if (!list.length) { toast('这一段没有可读的文字'); return; }
-      ttsJob = { list: list, pos: 0, timer: null };
-      toast('开始朗读（再点一次停止）');
-      ttsPlayNext();
+      ttsStartFrom(start);
       return;
     }
     /* PDF / EPUB / 浏览器：交给 speech.js 整篇念 */
     var sp = window.YZSPEECH;
-    if (!sp || typeof sp.speak !== 'function') { toast('朗读模块没加载'); return; }
+    if (!sp || typeof sp.speak !== 'function') {
+      /* 模块还在懒加载队列里：现拉一次，到货后自动接着读，不用用户再点 */
+      if (window.YZData && YZData.need) {
+        toast('正在加载朗读…');
+        YZData.need('assets/speech.js', function (ok) {
+          if (!ok) { toast('朗读模块加载失败，请再点一次'); return; }
+          ttsToggle();
+        });
+      } else toast('朗读模块没加载');
+      return;
+    }
     if (typeof sp.available === 'function' && !sp.available()) {
       toast('这台设备没有可用的语音引擎：到系统设置里装一个中文语音包再试');
       return;
@@ -1144,6 +1169,79 @@
     sp.speak(text, 1.0);
     toast('开始朗读（再点一次停止）');
   }
+
+  /* ---------- 长按段落 → 从本段开始朗读（0.18.26） ----------
+     主流阅读器（番茄 / Reeden / 轻阅）都是这个交互：长按正文某段，浮出「从本段听」。
+     这里不去改行内 HTML，直接用事件委托 + 600ms 计时，移动超过 12px 视为滚动不算长按。 */
+  var ttsMenuEl = null;
+  function ttsCloseMenu() {
+    if (ttsMenuEl) { try { ttsMenuEl.remove(); } catch (e) { } ttsMenuEl = null; }
+  }
+  function ttsOpenMenu(el) {
+    ttsCloseMenu();
+    var body = document.getElementById('yzbkBody');
+    if (!body || !el) return;
+    var ps = body.querySelectorAll('h3.bk-h, p[id^="bkp-"]');
+    var idx = -1;
+    for (var i = 0; i < ps.length; i++) if (ps[i] === el) { idx = i; break; }
+    if (idx < 0) return;
+    var head = (el.textContent || '').trim().slice(0, 26);
+    var d = document.createElement('div');
+    d.id = 'yzTtsMenu';
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:100060;background:rgba(0,0,0,.55);' +
+      'display:flex;align-items:flex-end;justify-content:center';
+    d.innerHTML = '<div style="width:100%;max-width:520px;background:var(--card,#1b1815);border-radius:16px 16px 0 0;padding:16px;color:inherit">' +
+      '<div style="font-size:.78rem;opacity:.65;line-height:1.7;margin-bottom:10px">第 ' + (idx + 1) + ' 段：' +
+      esc(head) + '…</div>' +
+      '<button id="yzTtsGo" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--accent,#c9a227);' +
+      'color:#1a1613;font-size:.95rem;font-weight:600">🔊 从本段开始朗读</button>' +
+      '<button id="yzTtsCancel" style="width:100%;padding:12px;margin-top:8px;border-radius:12px;' +
+      'border:1px solid rgba(255,255,255,.22);background:transparent;color:inherit;font-size:.85rem">取消</button></div>';
+    document.body.appendChild(d);
+    ttsMenuEl = d;
+    var go = document.getElementById('yzTtsGo');
+    if (go) go.onclick = function () { ttsCloseMenu(); ttsStartFrom(idx); };
+    var cc = document.getElementById('yzTtsCancel');
+    if (cc) cc.onclick = ttsCloseMenu;
+    d.addEventListener('click', function (e) { if (e.target === d) ttsCloseMenu(); });
+  }
+  function ttsBindLongPress() {
+    var body = document.getElementById('yzbkBody');
+    if (!body || body.getAttribute('data-tts-lp') === '1') return;
+    body.setAttribute('data-tts-lp', '1');
+    var tmr = null, sx = 0, sy = 0, target = null;
+    body.addEventListener('touchstart', function (e) {
+      var el = e.target;
+      while (el && el !== body && !/^(P|H3)$/.test(el.tagName)) el = el.parentNode;
+      if (!el || el === body) return;
+      target = el;
+      try { sx = e.touches[0].clientX; sy = e.touches[0].clientY; } catch (err) { }
+      if (tmr) clearTimeout(tmr);
+      tmr = setTimeout(function () { tmr = null; ttsOpenMenu(target); }, 600);
+    }, { passive: true });
+    body.addEventListener('touchmove', function (e) {
+      if (!tmr) return;
+      try {
+        if (Math.abs(e.touches[0].clientX - sx) > 12 || Math.abs(e.touches[0].clientY - sy) > 12) {
+          clearTimeout(tmr); tmr = null;
+        }
+      } catch (err) { }
+    }, { passive: true });
+    body.addEventListener('touchend', function () { if (tmr) { clearTimeout(tmr); tmr = null; } }, { passive: true });
+    body.addEventListener('touchcancel', function () { if (tmr) { clearTimeout(tmr); tmr = null; } }, { passive: true });
+  }
+
+  /* 阅读器正文容器是动态插进来的，绑不上就等它出现（一次性 MutationObserver） */
+  (function ttsWatchBody() {
+    if (document.getElementById('yzbkBody')) { ttsBindLongPress(); return; }
+    try {
+      var mo = new MutationObserver(function () {
+        if (document.getElementById('yzbkBody')) { ttsBindLongPress(); try { mo.disconnect(); } catch (e) { } }
+      });
+      mo.observe(document.body || document.documentElement, { childList: true, subtree: true });
+      setTimeout(function () { try { mo.disconnect(); } catch (e) { } }, 60000);
+    } catch (e) { }
+  })();
 
   /* 关闭阅读器时把朗读停掉，免得退出去还在念 */
   function stopAllSpeech() { ttsStopFollow(); try { if (window.YZSPEECH) YZSPEECH.stop(); } catch (e) { } }
@@ -1586,13 +1684,17 @@
       var items = r.items || (r.id ? [r] : []);
       var nb = (typeof r.books === 'number') ? r.books : items.filter(function (x) { return x.kind !== 'photo'; }).length;
       var np = (typeof r.photos === 'number') ? r.photos : items.filter(function (x) { return x.kind === 'photo'; }).length;
+      var nm = items.filter(function (x) { return x.kind === 'media'; }).length;
       var bad = r.bad || 0;
 
       var msg = [];
       if (nb) msg.push(nb + ' 本书');
       if (np) msg.push(np + ' 张照片');
+      if (nm) msg.push(nm + ' 个音视频');
       if (bad) msg.push(bad + ' 个跳过');
       if (msg.length) toast('已导入：' + msg.join(' · '));
+      /* 音视频导完顺手刷新「音视频」页（开着的话） */
+      if (nm && window.YZMedia && YZMedia.refresh) { try { YZMedia.refresh(); } catch (e) { } }
       else toast('没有可导入的文件' + (r.error ? '：' + r.error : ''));
 
       /* 从书详情页点「导入本书」进来的：强制挂到那一条书壳上 */
@@ -2144,7 +2246,13 @@
   function bindPdfGestures() {
     var st = document.getElementById('bkStage');
     if (zoom) { try { zoom.destroy(); } catch (e) { } zoom = null; }
-    if (!st || !window.YZZoom || !cur) return;
+    if (!st || !cur) return;
+    if (!window.YZZoom) {
+      if (window.YZData && YZData.need) YZData.need('assets/zoompane.js', function (ok) {
+        if (ok) { try { bindPdfGestures(); } catch (e) { } }
+      });
+      return;
+    }
     if (cur.type !== 'pdf') return;
     var box = document.getElementById('yzbk');
     var isPage = box.classList.contains('fit-page');
@@ -2613,6 +2721,14 @@
         close();
         if (typeof window.openAlbum === 'function') { window.openAlbum(); return; }
         if (window.YZPhoto && YZPhoto.open) { YZPhoto.open(); return; }
+        if (window.YZData && YZData.need) {
+          toast('正在加载相册…');
+          YZData.need('assets/photo.js', function (ok) {
+            if (ok && window.YZPhoto && YZPhoto.open) YZPhoto.open();
+            else toast('相册加载失败，请再点一次');
+          });
+          return;
+        }
         toast('相册未加载');
       } catch (e) { toast('打不开相册'); }
     }, delText: delText,
