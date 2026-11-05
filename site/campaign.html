@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>战役路线图 · 学通</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+/* 战役路线图（campaign.html）—— 独立页面，不依附关系图谱。
+   两种图形：
+     kind='route'    —— 行军/突围型：一条行进线，线宽＝该时点兵力（长征）
+     kind='maneuver' —— 会战/合围型：多路箭头 + 包围圈（淮海、渡江）
+   制图规范参考 Jane 式流图设计原则（Jenny et al. 2016, CaGIS）：
+   曲线优于直线、箭头优于锥形线宽、避免锐角交叉、细线压粗线。
+   数据原则：有据可查写数字并附出处；查不到确切数字就写「无确切记载」，绝不插值。 */
+/* 背景与 graph.html（关系图谱）完全一致：同一套三层渐变，深浅主题各一版。
+   以前这里用 style.css 的 --bg（深红 #2b0505），从图谱页点进来会从紫变红。 */
+:root{--accent:#f5c518;--text:#f2e8d8;--line:rgba(255,255,255,.18);--card:rgba(255,255,255,.06);
+  --card-border:rgba(255,255,255,.34)}
+body{margin:0;overflow:hidden;color:var(--text);
+  font-family:-apple-system,"PingFang SC","Noto Serif SC",serif;
+  background:radial-gradient(circle at 20% 0%,rgba(200,30,30,.22),transparent 45%),
+             radial-gradient(circle at 90% 100%,rgba(245,197,24,.10),transparent 45%),
+             linear-gradient(160deg,#261f38,#171226 60%,#100c1b)}
+body.light{color:#2a2320;
+  background:radial-gradient(circle at 20% 0%,rgba(200,30,30,.10),transparent 45%),
+             radial-gradient(circle at 90% 100%,rgba(245,197,24,.16),transparent 45%),
+             linear-gradient(160deg,#fffdf8,#f5efe3 60%,#ece3d3)}
+body.sepia{color:#2a2320;
+  background:radial-gradient(circle at 20% 0%,rgba(170,70,20,.12),transparent 45%),
+             linear-gradient(160deg,#f8efdd,#efe0c4 60%,#e6d5b5)}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+#top{position:fixed;left:0;right:0;top:0;z-index:30;display:flex;align-items:center;gap:.5rem;
+  padding:calc(.5rem + env(safe-area-inset-top,0px)) .75rem .5rem;
+  background:linear-gradient(to bottom,rgba(23,18,38,.95),rgba(23,18,38,0));pointer-events:none}
+body.light #top{background:linear-gradient(to bottom,rgba(245,233,226,.96),rgba(245,233,226,0))}
+#top>*{pointer-events:auto}
+#back{flex:0 0 auto;color:var(--text);text-decoration:none;font-size:.875rem;opacity:.85;
+  border:1px solid var(--card-border,rgba(255,255,255,.34));border-radius:999px;padding:.25rem .6rem}
+#ttl{font-size:.875rem;letter-spacing:.1rem;font-weight:600;margin:0;flex:1 1 auto;text-align:center}
+#ttl small{display:block;font-size:.625rem;font-weight:400;opacity:.62;letter-spacing:0;margin-top:.1rem}
+
+/* 战役切换 */
+#pick{position:fixed;left:.5rem;top:calc(3.3rem + env(safe-area-inset-top,0px));z-index:31;display:flex;gap:.35rem;flex-wrap:wrap;max-width:calc(100vw - 1rem)}
+#pick button{font:inherit;font-size:.6875rem;color:var(--text);background:var(--card,rgba(255,255,255,.09));
+  border:1px solid var(--card-border,rgba(255,255,255,.28));border-radius:999px;padding:.22rem .55rem;cursor:pointer;backdrop-filter:blur(6px)}
+#pick button.on{background:var(--accent,#f5c518);color:#2b0505;border-color:transparent;font-weight:600}
+
+#hud{position:fixed;left:.5rem;right:.5rem;top:calc(5.9rem + env(safe-area-inset-top,0px));z-index:28;
+  font-size:.75rem;line-height:1.55;padding:.5rem .7rem;border-radius:.5rem;
+  background:linear-gradient(160deg,rgba(36,16,24,.94),rgba(18,11,16,.96));
+  border:1px solid var(--card-border,rgba(255,255,255,.28));backdrop-filter:blur(6px);
+  box-shadow:0 .4rem 1.2rem rgba(0,0,0,.35)}
+body.light #hud{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:0 .4rem 1.2rem rgba(0,0,0,.14)}
+#hud .row1{display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap}
+#hud .nm{font-weight:600;font-size:.8125rem}
+#hud .dt{opacity:.7;font-size:.6875rem;font-variant-numeric:tabular-nums}
+#hud .st{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600;
+  color:var(--accent,#f5c518);font-size:.8125rem}
+#hud .note{opacity:.78;margin-top:.2rem;font-size:.6875rem}
+#hud .src{margin-top:.25rem;font-size:.625rem;opacity:.55;border-top:1px dashed rgba(255,255,255,.14);padding-top:.22rem}
+body.light #hud .src{border-top-color:rgba(120,40,30,.18)}
+
+#zoom{position:fixed;right:.6rem;bottom:calc(6.4rem + env(safe-area-inset-bottom,0px));z-index:32;
+  display:flex;flex-direction:column;gap:.35rem}
+#zoom button{width:2.75rem;height:2.75rem;border-radius:.6rem;font-size:1.1rem;line-height:1;
+  color:var(--text);background:var(--card,rgba(255,255,255,.09));
+  border:1px solid var(--card-border,rgba(255,255,255,.28));cursor:pointer;backdrop-filter:blur(6px)}
+#zoom button:active{background:var(--accent,#f5c518);color:#2b0505}
+#zlv{position:fixed;right:.6rem;bottom:calc(5.7rem + env(safe-area-inset-bottom,0px));z-index:31;
+  font-size:.5625rem;opacity:.45;text-align:center;width:2.75rem;font-variant-numeric:tabular-nums}
+
+#legend{position:fixed;left:.5rem;bottom:calc(5.6rem + env(safe-area-inset-bottom,0px));z-index:25;
+  font-size:.625rem;line-height:1.6;opacity:.72;pointer-events:none}
+#legend .ln{display:inline-block;width:1rem;height:3px;border-radius:2px;background:var(--accent,#f5c518);
+  margin-right:.3rem;vertical-align:middle}
+#legend .ln.dash{background:repeating-linear-gradient(90deg,#f5c518 0 3px,transparent 3px 6px)}
+#legend .ln.ring{background:none;border:1px dashed var(--accent,#f5c518);border-radius:50%;width:.8rem;height:.8rem}
+#legend .ln.enemy{background:#ff8f6b;border-radius:2px;width:.6rem;height:.6rem}
+#legend .ln.emove{background:repeating-linear-gradient(90deg,#ff8f6b 0 2px,transparent 2px 5px);height:2px}
+#legend .ln.block{background:none;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid var(--accent,#f5c518)}
+#legend .ln.eline{background:repeating-linear-gradient(90deg,#ff8f6b 0 5px,transparent 5px 8px);height:3px}
+#legend .ln.water{background:rgba(120,190,255,.55);height:2px}
+#legend .ln.rail{background:repeating-linear-gradient(90deg,rgba(200,180,160,.6) 0 3px,transparent 3px 6px);height:2px}
+
+/* ---------- 地图工具（图层 / 量算） ---------- */
+#tools{position:fixed;right:.6rem;top:calc(3.25rem + env(safe-area-inset-top,0px));z-index:31;
+  display:flex;flex-direction:column;gap:.35rem}
+#tools button{width:2.2rem;height:2.2rem;border-radius:.55rem;font-size:.95rem;line-height:1;
+  color:var(--text);background:var(--card,rgba(255,255,255,.09));
+  border:1px solid var(--card-border,rgba(255,255,255,.28));cursor:pointer;backdrop-filter:blur(6px)}
+#tools button.on{background:var(--accent,#f5c518);color:#2b0505;border-color:transparent;font-weight:700}
+
+/* 图层面板：右半屏抽屉（与图谱页管理面板同一套交互） */
+#layPanel{position:fixed;right:0;top:0;bottom:0;width:min(72%,300px);z-index:60;
+  padding:calc(3.2rem + env(safe-area-inset-top,0px)) .9rem 1rem;
+  background:linear-gradient(160deg,rgba(36,16,24,.975),rgba(18,11,16,.985));
+  border-left:1px solid var(--card-border,rgba(255,255,255,.24));
+  transform:translateX(102%);visibility:hidden;overflow:auto;font-size:.75rem;line-height:1.6;
+  transition:transform .26s ease,visibility 0s .26s}
+body.light #layPanel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8)}
+#layPanel.open{transform:none;visibility:visible;transition:transform .26s ease,visibility 0s}
+#layPanel h4{margin:.2rem 0 .55rem;font-size:.8125rem;font-weight:600}
+#layPanel .ly{display:flex;align-items:center;gap:.55rem;padding:.34rem .1rem;
+  border-bottom:1px dashed rgba(255,255,255,.12)}
+body.light #layPanel .ly{border-bottom-color:rgba(120,40,30,.14)}
+#layPanel .ly span{flex:1 1 auto}
+#layPanel .sw{width:2.3rem;height:1.35rem;border-radius:999px;background:rgba(255,255,255,.16);
+  position:relative;flex:0 0 auto;cursor:pointer;transition:background .16s}
+#layPanel .sw::after{content:'';position:absolute;left:.15rem;top:.15rem;width:1.05rem;height:1.05rem;
+  border-radius:50%;background:#fff;transition:transform .16s}
+body.light #layPanel .sw{background:rgba(120,40,30,.18)}
+#layPanel .sw.on{background:var(--accent,#f5c518)}
+#layPanel .sw.on::after{transform:translateX(.95rem)}
+#layPanel .tip{opacity:.45;font-size:.625rem;margin-top:.65rem;line-height:1.5}
+#layScrim{position:fixed;inset:0;z-index:59;background:rgba(0,0,0,.26);display:none}
+#layScrim.on{display:block}
+
+/* 决策点（事后回顾）面板 */
+#aarPanel{position:fixed;left:.5rem;right:.5rem;bottom:calc(4.6rem + env(safe-area-inset-bottom,0px));
+  z-index:61;max-height:36vh;overflow:auto;padding:.7rem .8rem;border-radius:.6rem;display:none;
+  background:linear-gradient(160deg,rgba(36,16,24,.975),rgba(18,11,16,.985));
+  border:1px solid var(--card-border,rgba(255,255,255,.28));box-shadow:0 .5rem 1.6rem rgba(0,0,0,.45);
+  font-size:.75rem;line-height:1.62}
+body.light #aarPanel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:0 .5rem 1.6rem rgba(0,0,0,.14)}
+#aarPanel.on{display:block}
+#aarPanel .hd{display:flex;align-items:baseline;gap:.45rem;margin-bottom:.3rem}
+#aarPanel .dg{font-size:.625rem;font-weight:700;color:#2b0505;background:var(--accent,#f5c518);
+  border-radius:.2rem;padding:.05rem .3rem;flex:0 0 auto}
+#aarPanel .qt{font-weight:600;font-size:.8125rem;flex:1 1 auto}
+#aarPanel .x{margin-left:auto;opacity:.6;cursor:pointer;font-size:1rem;line-height:1;flex:0 0 auto}
+#aarPanel .lb{margin-top:.5rem;font-size:.625rem;opacity:.85;letter-spacing:.06rem;
+  font-weight:700;color:var(--accent,#f5c518)}
+#aarPanel .tx{opacity:.88}
+#aarPanel .src{margin-top:.45rem;font-size:.625rem;opacity:.5;
+  border-top:1px dashed rgba(255,255,255,.14);padding-top:.3rem}
+body.light #aarPanel .src{border-top-color:rgba(120,40,30,.18)}
+
+/* 图例新增项 */
+#legend .ln.pl{background:repeating-linear-gradient(90deg,#9ecbff 0 6px,transparent 6px 9px);height:2px}
+#legend .ln.bd{background:repeating-linear-gradient(90deg,#cfd6e0 0 5px,transparent 5px 7px,#cfd6e0 7px 8px,transparent 8px 12px);height:2px}
+#legend .ln.obj{background:none;border:1px solid var(--accent,#f5c518);border-radius:50%;width:.85rem;height:.55rem}
+#legend .ln.nai{background:rgba(158,203,255,.14);border:1px dotted #9ecbff;width:.85rem;height:.5rem;border-radius:1px}
+#legend .ln.dp{background:none;width:.55rem;height:.55rem;border:1.5px solid currentColor;transform:rotate(45deg);border-radius:1px}
+
+#measNote{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(9.2rem + env(safe-area-inset-bottom,0px));
+  z-index:44;font-size:.6875rem;padding:.28rem .6rem;border-radius:999px;display:none;
+  background:rgba(0,0,0,.6);color:#f2e8d8;border:1px solid rgba(255,255,255,.2);pointer-events:none}
+#measNote.on{display:block}
+
+#tl{position:fixed;left:0;right:0;bottom:0;z-index:30;
+  padding:.4rem .75rem calc(.55rem + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top,rgba(23,18,38,.96),rgba(23,18,38,0))}
+body.light #tl{background:linear-gradient(to top,rgba(245,233,226,.97),rgba(245,233,226,0))}
+/* 战役阶段带：淮海三阶段、渡江三阶段，一眼看出当前在哪一段 */
+#phbar{display:flex;height:1.15rem;border-radius:.3rem;overflow:hidden;margin-bottom:.3rem;
+  font-size:.5625rem;letter-spacing:.02rem}
+#phbar span{display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;min-width:4.2rem;
+  border-right:1px solid rgba(0,0,0,.28);opacity:.5;transition:opacity .18s;color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.45)}
+#phbar span:last-child{border-right:0}
+#phbar span.on{opacity:1;font-weight:700}
+#tlrow{display:flex;align-items:center;gap:.5rem}
+#play{flex:0 0 auto;width:2rem;height:2rem;border-radius:50%;font-size:.8125rem;
+  background:var(--accent,#f5c518);color:#2b0505;border:0;font-weight:700;cursor:pointer}
+#yr{flex:1 1 auto;accent-color:var(--accent,#f5c518);height:1.5rem}
+#steplab{flex:0 0 auto;font-size:.6875rem;font-variant-numeric:tabular-nums;opacity:.85;min-width:5rem;text-align:right}
+#tlnote{font-size:.5625rem;opacity:.35;margin-top:.1rem}
+
+#hint{position:fixed;left:50%;bottom:calc(8.2rem + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:45;max-width:88vw;
+  font-size:.8125rem;line-height:1.8;text-align:center;padding:.9rem 1.1rem;border-radius:.75rem;
+  background:rgba(0,0,0,.62);color:#f2e8d8;border:1px solid rgba(255,255,255,.2);
+  backdrop-filter:blur(6px);transition:opacity .35s;pointer-events:none}
+#hint.gone{opacity:0}
+@media (max-height:640px){#hud .note{display:none}}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <a id="back" href="index.html">← 学通</a>
+  <h1 id="ttl">战役路线图<small id="sub">—</small></h1>
+</header>
+
+<div id="pick"></div>
+
+<div id="hud">
+  <div class="row1">
+    <span class="nm" id="hNm">—</span>
+    <span class="dt" id="hDt"></span>
+    <span class="st" id="hSt"></span>
+  </div>
+  <div class="note" id="hNote"></div>
+  <div class="src" id="hSrc"></div>
+</div>
+
+<canvas id="cv"></canvas>
+
+<div id="zoom">
+  <button id="zin" aria-label="放大">＋</button>
+  <button id="zout" aria-label="缩小">－</button>
+  <button id="zrst" aria-label="复位">⤢</button>
+</div>
+<div id="zlv"></div>
+
+<div id="legend"></div>
+
+<div id="tools">
+  <button id="tlay" aria-label="图层" title="图层">▤</button>
+  <button id="tmeas" aria-label="量算" title="量算距离与方位">⇔</button>
+</div>
+<div id="layScrim"></div>
+<div id="layPanel">
+  <h4>图层</h4>
+  <div id="layList"></div>
+  <div class="tip">关掉某层可以单看态势。设置记在本机。<br>点击右侧空白处收起。</div>
+</div>
+<div id="aarPanel"></div>
+<div id="measNote"></div>
+
+<footer id="tl">
+  <div id="phbar"></div>
+  <div id="tlrow">
+    <button id="play" aria-label="播放">▶</button>
+    <input id="yr" type="range" min="0" max="10" step="1" value="0">
+    <span id="steplab">—</span>
+  </div>
+  <div id="tlnote">按事件步进，非等比时间——各步实际间隔不同，此处只表示先后</div>
+</footer>
+
+<div id="hint">拖底部时间轴一步步看 · 双指放大看细节<br><span style="opacity:.7">点任意地点或包围圈看兵力与出处</span></div>
+
+<script src="data/geo-china.js"></script>
+<script src="data/geo-water.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- 主题 ---------- */
+  var THEME = 'dark';
+  try {
+    var t = localStorage.getItem('theme') || 'auto';
+    if (t === 'auto') t = (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    THEME = (t === 'light' || t === 'sepia') ? 'light' : 'dark';
+  } catch (e) { }
+  if (THEME === 'light') document.body.classList.add('light');
+
+  var CL = THEME === 'light' ? {
+    bg: '#f5e9e2', land: 'rgba(120,40,30,.05)', border: 'rgba(120,40,30,.18)',
+    route: '#a35a00', routeDim: 'rgba(120,60,0,.30)', arrow: '#a35a00', arrow2: '#8a2f2f',
+    dot: '#7a4e00', text: '#3a0d0d', dim: 'rgba(58,13,13,.55)', labBg: 'rgba(250,242,236,.92)',
+    drop: '#b3261e', accent: '#7a4e00', ring: '#b3261e',
+    water: 'rgba(43,108,163,.55)', rail: 'rgba(110,80,60,.5)',
+    enemy: '#8a2f2f', enemyBg: 'rgba(138,47,47,.13)',
+    pl: 'rgba(30,86,150,.72)', bd: 'rgba(96,96,108,.66)', obj: '#8a5a00',
+    nai: 'rgba(43,108,163,.6)', meas: '#0f6b5c'
+  } : {
+    bg: '#2b0505', land: 'rgba(245,197,24,.045)', border: 'rgba(245,197,24,.15)',
+    route: '#f5c518', routeDim: 'rgba(245,197,24,.26)', arrow: '#f5c518', arrow2: '#ff8f6b',
+    dot: '#f5c518', text: '#f2e8d8', dim: 'rgba(242,232,216,.55)', labBg: 'rgba(20,2,2,.84)',
+    drop: '#ff7a5c', accent: '#f5c518', ring: '#ff7a5c',
+    water: 'rgba(120,190,255,.5)', rail: 'rgba(200,180,160,.28)',
+    enemy: '#ff8f6b', enemyBg: 'rgba(255,143,107,.10)',
+    pl: 'rgba(158,203,255,.78)', bd: 'rgba(206,214,226,.60)', obj: '#f5c518',
+    nai: 'rgba(158,203,255,.55)', meas: '#7ee0c6'
+  };
+
+  /* =====================================================================
+     数据
+     ===================================================================== */
+  var CAMPAIGNS = [
+
+    /* ---------- 一、行军型：线宽 = 该时点兵力 ---------- */
+    {
+      id: 'changzheng', kind: 'route',
+      name: '中央红军长征',
+      sub: '1934.10 于都 → 1935.11 直罗镇 ｜ 线宽 = 兵力',
+      legend: ['route'],
+      steps: [
+        { p: [115.41, 25.95], t: '1934.10', s: 86789, nm: '于都出发', lab: '于都',
+          note: '中央红军长征出发时有 86,789 人。',
+          src: '中革军委《野战军人员武器弹药供给统计表》（1934.10.08）；央视网《三万还是八万?长征之后还有多少红军?》。口径：含一、三、五、八、九军团及军委纵队、中央纵队，其中含少量机关人员与数千名临时雇佣的民夫。' },
+        { p: [113.10, 25.05], t: '1934.11', s: 70000, nm: '突破第三道封锁线（宜章）',
+          note: '过赣南、粤北时减员约 1.3 万，过郴县—宜章一线再减 8,600 余人，接近湘江前约 7 万人。',
+          src: '中共党史网《湘江战役的历史回顾与思考》。口径：约数（原文「近 7 万人」）。' },
+        { p: [111.07, 25.93], t: '1934.12', s: 30000, nm: '湘江战役后（全州·兴安）', lab: '湘江',
+          note: '长征以来损失最惨重的一战。出发至湘江战役后累计损失约 51,400 人。',
+          src: '中央党史和文献研究院《湘江战役重要研究成果报告》（2026.01）：湘江战役期间可明确的损失约 9,400 人，出发至湘江后总损失约 51,400 人。另刘伯承《回顾长征》称「人员折损过半」。' },
+        { p: [109.14, 26.23], t: '1934.12', s: 30000, nm: '黎平会议',
+          note: '通道转兵后西进贵州。此处无新的兵力统计，沿用湘江战后数字。',
+          src: '公开党史教材。口径：无该时点独立统计。' },
+        { p: [106.93, 27.70], t: '1935.01', s: 37000, nm: '遵义会议', lab: '遵义',
+          note: '遵义会议时中央红军兵力约 3.7 万余人。',
+          src: '人民网党史频道《解读长征(10)：中央红军到达陕北后还剩多少兵力?》（2016.09.01）。' },
+        { p: [105.70, 28.58], t: '1935.03', s: null, nm: '四渡赤水', lab: '赤水',
+          note: '在川黔滇边反复穿插，此阶段无确切兵力统计。',
+          src: '无该时点统计数字，故不折算。' },
+        { p: [102.15, 26.60], t: '1935.05', s: null, nm: '巧渡金沙江（皎平渡）', lab: '金沙江',
+          note: '摆脱数十万国民党军追堵，此阶段无确切兵力统计。',
+          src: '无该时点统计数字，故不折算。' },
+        { p: [102.30, 29.30], t: '1935.05', s: null, nm: '强渡大渡河（安顺场）', lab: '大渡河',
+          note: '十七勇士强渡成功，此阶段无确切兵力统计。',
+          src: '无该时点统计数字，故不折算。' },
+        { p: [102.36, 30.99], t: '1935.06', s: 20000, nm: '懋功会师（夹金山后）', lab: '夹金山',
+          note: '翻越夹金山后与红四方面军会师，中央红军减至 2 万余人。',
+          src: '人民网党史频道《解读长征(10)》（2016.09.01）。' },
+        { p: [102.96, 33.58], t: '1935.08', s: null, nm: '过草地（班佑·若尔盖）', lab: '草地',
+          note: '过草地是减员最惨重的一段路，但无确切统计。',
+          src: '无该时点统计数字，故不折算。' },
+        { p: [103.22, 34.06], t: '1935.09', s: 14000, nm: '俄界会议（陕甘支队）',
+          note: '红一、三军编为陕甘支队北上，约 1.4 万余人。',
+          src: '《彭德怀自述》回忆（转引自人民网党史频道《解读长征(10)》）。' },
+        { p: [108.18, 36.93], t: '1935.10', s: 7000, nm: '到达吴起镇', lab: '吴起镇',
+          note: '陕甘支队到达陕北吴起镇，兵力约 7,000 余人。',
+          src: '人民网党史频道《解读长征(10)》。另一常见表述为 6,500 人（央视网），差异源于统计口径。' },
+        { p: [109.36, 35.98], t: '1935.11', s: 10000, nm: '直罗镇战役后',
+          note: '恢复红一方面军番号，红十五军团编入，全军共 1 万余人。',
+          src: '人民网党史频道《解读长征(10)》（2016.09.01）。' }
+      ]
+    },
+
+    /* ---------- 二、会战型：多路箭头 + 包围圈（淮海） ----------
+       为什么不能用「线宽=兵力」：我军自始至终约 60 万，全程不变，
+       线宽会是常数、没有任何信息量。淮海的信息在「把谁围在哪里、围掉多少」，
+       所以改用包围圈 + 歼敌数字。 */
+    {
+      id: 'huaihai', kind: 'maneuver',
+      name: '淮海战役',
+      sub: '1948.11—1949.1 ｜ 我军 60 万 对 敌军 80 万 ｜ 歼敌 55.5 万',
+      legend: ['arrow', 'ring', 'enemy', 'block'],
+      /* 阶段划分：底部时间轴按这三段着色 */
+      phases: [
+        { n: '一 · 围歼黄百韬', a: 0, b: 2 },
+        { n: '二 · 围歼黄维', a: 3, b: 4 },
+        { n: '三 · 围歼杜聿明', a: 5, b: 6 }
+      ],
+      /* 阻断点：解释「为什么走不掉」——敌军的行军线终点为什么会停在包围圈里 */
+      /* 居民地分三级：徐州是指挥中枢与两条铁路交点，画最大 */
+      cities: [
+        { p: [117.18, 34.26], lab: '徐州', lv: 1 },
+        { p: [117.39, 32.92], lab: '蚌埠', lv: 2 },
+        { p: [116.98, 33.63], lab: '宿县', lv: 2 },
+        { p: [118.35, 34.37], lab: '新安镇', lv: 3 },
+        { p: [116.56, 33.26], lab: '蒙城', lv: 3 }
+      ],
+      block: [
+        { p: [117.75, 34.35], n: '抢占曹八集', t: '11.10',
+          note: '华野一部抢占曹八集，切断黄百韬兵团由碾庄西退徐州的道路。',
+          src: '央视网《奠定全国战局的最大决战——淮海战役》。' },
+        { p: [116.56, 33.26], n: '蒙城阻击', t: '11.18',
+          note: '中野在蒙城地区阻击黄维兵团北进，迫其转向。',
+          src: '连云港市退役军人事务局《淮海战役》。' },
+        { p: [116.85, 33.40], n: '南坪集阻击', t: '11.23',
+          note: '中野在浍河南岸南坪集阻击黄维兵团，为合围争取时间。',
+          src: '央视网《奠定全国战局的最大决战——淮海战役》。' }
+      ],
+      /* 敌军态势：只画我军箭头的话，读的人不知道「为什么围在这里」 */
+      enemy: [
+        { name: '第7兵团 黄百韬', p: [118.35, 34.37], n: '约 10 万',
+          move: [[118.35, 34.37], [118.12, 34.40], [117.94, 34.36]] /* 新安镇 → 碾庄 */ },
+        { name: '第2/13/16兵团（杜聿明）', p: [117.18, 34.26], n: '约 30 万 · 徐州',
+          move: [[117.18, 34.26], [116.86, 34.10], [116.55, 34.05]] /* 徐州 → 陈官庄 */ },
+        { name: '第12兵团 黄维', p: [114.03, 32.80], n: '约 12 万',
+          move: [[114.03, 32.80], [115.40, 33.10], [116.56, 33.26], [116.83, 33.42]] /* 确山 → 双堆集 */ },
+        { name: '李延年 / 刘汝明兵团', p: [117.39, 32.92], n: '自蚌埠北援',
+          move: [[117.39, 32.92], [117.28, 33.30]] }
+      ],
+      steps: [
+        { t: '1948.11.6', nm: '华野分路南下', arrow: { from: [117.18, 34.26], to: [118.35, 34.37], side: '华野', w: 3.2 },
+          note: '华东野战军分路南下，向新安镇方向追击黄百韬兵团。参战我军共约 60 万人。',
+          src: '中央党史和文献研究院《淮海战役》；共产党员网《淮海战役》。' },
+        { t: '1948.11.8', nm: '何基沣、张克侠起义', arrow: { from: [117.45, 34.44], to: [117.90, 34.40], side: '起义', w: 1.6 },
+          note: '第三绥靖区副司令官何基沣、张克侠（均为中共地下党员）率三个半师约 2.3 万人在贾汪、台儿庄一带起义。',
+          src: '中央党史和文献研究院《淮海战役》。' },
+        { t: '1948.11.22', nm: '围歼黄百韬兵团（碾庄）',
+          ring: { c: [117.94, 34.36], r: 0.42, label: '碾庄 · 黄百韬兵团', kill: '约 10 万', win: '11.10—11.22' },
+          note: '华野将黄百韬兵团分割包围于碾庄圩地区，经 10 天逐村恶战全歼约 10 万人，兵团司令官黄百韬毙命。',
+          src: '中央党史和文献研究院《淮海战役》；共产党员网《淮海战役》。' },
+        { t: '1948.11.15', nm: '攻克宿县，切断徐蚌线', arrow: { from: [116.10, 33.30], to: [116.98, 33.63], side: '中野', w: 2.4 },
+          note: '中原野战军攻克宿县，会同华野一部切断徐蚌线，完成对徐州的战略包围。',
+          src: '中央党史和文献研究院《淮海战役》。' },
+        { t: '1948.12.15', nm: '围歼黄维兵团（双堆集）',
+          ring: { c: [116.83, 33.42], r: 0.46, label: '双堆集 · 黄维兵团', kill: '约 12 万', win: '11.23—12.15' },
+          note: '中原野战军及华野一部在宿县西南双堆集包围并全歼自确山东援的黄维兵团约 12 万人，生俘黄维。其中一个师在廖运周率领下起义。',
+          src: '中央党史和文献研究院《淮海战役》。' },
+        { t: '1948.12.1', nm: '杜聿明弃徐州西逃', arrow: { from: [117.18, 34.26], to: [116.55, 34.05], side: '杜集团', w: 2.8 },
+          note: '徐州守军三个兵团约 30 万人弃城向西南逃窜，华野主力追击，4 日将其合围于永城东北陈官庄地区。',
+          src: '中央党史和文献研究院《淮海战役》。' },
+        { t: '1949.1.10', nm: '围歼杜聿明集团（陈官庄）',
+          ring: { c: [116.55, 34.05], r: 0.54, label: '陈官庄 · 杜聿明集团', kill: '约 20 万', win: '12.4—1.10' },
+          note: '1949.1.6 发起总攻，经四天激战全歼邱清泉、李弥两兵团约 20 万人（另说含孙元良部共 30 万），俘杜聿明，击毙邱清泉。战役结束，共歼敌 55.5 万余人。',
+          src: '中央党史和文献研究院《淮海战役》（歼邱、李两兵团约 20 万）；共产党员网（全歼邱清泉、李弥两兵团共 30 万人）。两说差异源于是否计入孙元良兵团残部。' }
+      ]
+    },
+
+    /* ---------- 三、会战型：三路平行渡江（渡江） ---------- */
+    {
+      id: 'dujiang', kind: 'maneuver',
+      name: '渡江战役',
+      sub: '1949.4.20—6.2 ｜ 东 35 万 · 中 30 万 · 西 35 万 ｜ 歼敌 43 万',
+      legend: ['arrow', 'enemy'],
+      phases: [
+        { n: '一 · 突破江防', a: 0, b: 3 },
+        { n: '二 · 追击合围', a: 4, b: 5 },
+        { n: '三 · 攻占上海', a: 6, b: 6 }
+      ],
+      /* 长江防线：汤恩伯守湖口—上海，白崇禧守湖口—宜昌，共 115 个师约 70 万 */
+      enemy: [
+        { name: '汤恩伯集团', n: '45 万 / 75 师',
+          line: [[116.22, 29.73], [117.05, 30.52], [117.81, 30.93], [118.38, 31.33],
+                 [118.80, 32.06], [119.45, 32.20], [120.28, 31.92], [121.47, 31.23]] },
+        { name: '白崇禧集团', n: '25 万 / 40 师',
+          line: [[116.22, 29.73], [115.04, 30.20], [114.30, 30.59], [113.13, 29.36],
+                 [112.24, 30.33], [111.29, 30.69]] }
+      ],
+      steps: [
+        { t: '1949.4.20', nm: '中集团率先渡江', arrow: { from: [117.60, 30.95], to: [118.20, 31.08], side: '中集团 30 万', w: 3.0, lab: '30 万', fromLab: '枞阳·裕溪口', toLab: '繁昌·铜陵' },
+          note: '4 月 20 日夜，中突击集团（三野第 7、9 兵团，约 30 万人）在裕溪口至枞阳段首先发起渡江，一夜之间突破江防，将敌长江防线拦腰斩断。',
+          src: '中国法院网《渡江战役》；上观新闻《70 年前的今天，百万雄师过大江》。' },
+        { t: '1949.4.21', nm: '东集团渡江（江阴段）', arrow: { from: [119.60, 32.30], to: [120.28, 31.92], side: '东集团 35 万', w: 3.2, lab: '35 万', fromLab: '三江营', toLab: '江阴' },
+          note: '东突击集团（三野第 8、10 兵团，约 35 万人）在三江营至张黄港段渡江，切断宁沪铁路。',
+          src: '中国法院网《渡江战役》。' },
+        { t: '1949.4.21', nm: '西集团渡江（湖口—枞阳）', arrow: { from: [116.22, 29.73], to: [117.49, 30.66], side: '西集团 35 万', w: 3.2, lab: '35 万', fromLab: '湖口', toLab: '贵池' },
+          note: '西突击集团（二野第 3、4、5 兵团，约 35 万人）在湖口至枞阳段渡江，攻占贵池、青阳等地。',
+          src: '中国法院网《渡江战役》。' },
+        { t: '1949.4.23', nm: '解放南京', node: { p: [118.80, 32.06], lab: '南京', lv: 1 },
+          note: '东集团第 35 军一部进入国民党总统府，南京解放，宣告国民党 22 年统治覆灭。',
+          src: '学习时报《拉开战略追击序幕的渡江战役》。' },
+        { t: '1949.5.3', nm: '解放杭州', node: { p: [120.15, 30.27], lab: '杭州', lv: 2 },
+          note: '第 7 兵团占领杭州。此前在郎溪、广德之间歼灭国民党 5 个军 8 万余人。',
+          src: '学习时报《拉开战略追击序幕的渡江战役》。' },
+        { t: '1949.5.27', nm: '攻占上海', node: { p: [121.47, 31.23], lab: '上海', lv: 1 },
+          note: '第三野战军攻占上海。',
+          src: '安徽网《安徽人文讲坛：70 年前的渡江战役》。' },
+        { t: '1949.6.2', nm: '解放崇明岛', node: { p: [121.40, 31.62], lab: '崇明', lv: 3 },
+          note: '解放崇明岛，渡江战役结束。此役共歼敌 43 万余人。',
+          src: '安徽网《安徽人文讲坛：70 年前的渡江战役》。' }
+      ]
+    }
+  ];
+
+
+  /* =====================================================================
+     控制措施（control measures）与决策点
+     参考 MIL-STD-2525 / APP-6 的战术图形语法：阶段线、作战分界、目标、
+     关注地域、决策点。图上只画箭头与圆圈时，读者分不清「这个圈是包围
+     还是集结地域」「这条虚线是我军推进还是敌军防线」——图形本身就是
+     一套语法，用对了才读得懂。
+     按战役 id 挂载，不改动上方 steps 结构。
+     ===================================================================== */
+  /* 图层开关：读者可以关掉某一层单看态势（信息一多就糊，这是战役图的通病）。
+     状态存 localStorage 'yzCampLayers'，与学通其它本机数据一致，不联网。 */
+  var LAYER_DEF = [
+    { k: 'prov',  n: '省界与陆地' },
+    { k: 'water', n: '江河 · 运河' },
+    { k: 'rail',  n: '铁路' },
+    { k: 'city',  n: '居民地' },
+    { k: 'enemy', n: '敌军态势' },
+    { k: 'our',   n: '我军行动' },
+    { k: 'ctl',   n: '控制措施（阶段线／分界／目标）' },
+    { k: 'block', n: '阻断点' },
+    { k: 'aar',   n: '决策点' }
+  ];
+  var LAYERS = {};
+  LAYER_DEF.forEach(function (d) { LAYERS[d.k] = 1; });
+  try {
+    var _lsv = JSON.parse(localStorage.getItem('yzCampLayers') || '{}');
+    for (var _lk in _lsv) if (_lk in LAYERS) LAYERS[_lk] = _lsv[_lk] ? 1 : 0;
+  } catch (e) { }
+  function saveLayers() {
+    try { localStorage.setItem('yzCampLayers', JSON.stringify(LAYERS)); } catch (e) { }
+  }
+
+  var CTL = {
+
+    /* ---------- 长征：四道封锁线 + 两个关键地域 ---------- */
+    changzheng: {
+      plines: [
+        { n: '第一道封锁线', pts: [[114.78, 25.26], [115.16, 25.06], [115.52, 25.28]],
+          note: '1934.10 下旬，粤军余汉谋部在赣南安远、信丰、赣州一线布防。红军选择其薄弱段突围。',
+          src: '军事科学院《中国工农红军长征史》第一卷。' },
+        { n: '第二道封锁线', pts: [[112.92, 25.30], [113.02, 25.72], [113.34, 25.92]],
+          note: '1934.11 上旬，湘军何键部在湘南汝城、宜章、郴县一线。红军过此线后减员加重。',
+          src: '同上。' },
+        { n: '第三道封锁线', pts: [[111.46, 25.36], [111.92, 25.58], [112.22, 25.82]],
+          note: '1934.11 中旬，沿潇水布防，目的是把红军挡在湘江以东。',
+          src: '同上。' },
+        { n: '第四道封锁线（湘江）', pts: [[110.52, 25.46], [110.96, 25.84], [111.24, 26.06]],
+          note: '湘江两岸夹击，是长征损失最惨重的一战。8.6 万人过江后仅剩 3 万余。',
+          src: '中央党史和文献研究院《湘江战役重要研究成果报告》（2026.01）。' }
+      ],
+      nai: [
+        { c: [105.85, 27.62], w: 3.4, h: 2.3, n: '川黔滇边（四渡赤水地域）',
+          note: '在川黔滇边界反复穿插，以运动战摆脱四十万追堵。此阶段无确切兵力统计。' },
+        { c: [102.90, 33.30], w: 1.7, h: 1.30, n: '松潘草地',
+          note: '过草地是减员最惨重的一段，无确切统计。' }
+      ],
+      objs: [
+        { p: [108.18, 36.93], n: 'OBJ 1', lab: '吴起镇（终点）' },
+        { p: [106.93, 27.70], n: 'OBJ 2', lab: '遵义' }
+      ]
+    },
+
+    /* ---------- 淮海：两大野战军作战分界 + 三个围歼目标 ---------- */
+    huaihai: {
+      bounds: [
+        { pts: [[115.55, 34.52], [115.78, 33.90], [116.50, 33.28], [117.30, 33.30], [117.60, 32.95]],
+          a: '中原野战军', b: '华东野战军',
+          note: '淮海战役中两军以津浦路徐蚌段及涡河一线划分作战地境：中野在西南担任阻击与合围黄维，华野在东北围歼黄百韬、杜聿明。',
+          src: '《淮海战役》中共党史出版社；中央党史和文献研究院《淮海战役》。' }
+      ],
+      objs: [
+        { p: [117.94, 34.36], n: 'OBJ 1' },
+        { p: [116.83, 33.44], n: 'OBJ 2' },
+        { p: [116.35, 34.03], n: 'OBJ 3' }
+      ],
+      nai: [
+        { c: [117.18, 34.26], w: 0.9, h: 0.7, n: '徐州（敌 30 万猬集地域）',
+          note: '徐州是陇海、津浦两条铁路的交点，敌军猬集于此，正面强攻不利，故先割裂其外围兵团。' }
+      ]
+    },
+
+    /* ---------- 渡江：三集团分界 + 三个目标 ---------- */
+    dujiang: {
+      bounds: [
+        { pts: [[117.02, 30.20], [117.04, 30.86]], a: '西集团（刘伯承）', b: '中集团（谭震林）',
+          note: '以西起湖口、东至江阴的千里江防为正面，分西、中、东三个突击集团。安庆附近为西／中集团分界。',
+          src: '《渡江战役》中共党史出版社；中央党史和文献研究院《渡江战役》。' },
+        { pts: [[118.70, 31.62], [118.86, 32.34]], a: '中集团（谭震林）', b: '东集团（粟裕）',
+          note: '南京正面为东／中集团分界。4 月 20 日夜中集团先渡，东集团 21 日晚跟进。',
+          src: '同上。' }
+      ],
+      objs: [
+        { p: [118.80, 32.06], n: 'OBJ 1' },
+        { p: [121.47, 31.23], n: 'OBJ 2' },
+        { p: [120.15, 30.27], n: 'OBJ 3' }
+      ],
+      nai: [
+        { c: [120.28, 31.92], w: 0.8, h: 0.6, n: '江阴要塞',
+          note: '江阴要塞守军起义，炮台调转炮口，东段江防正面被打开。' }
+      ]
+    }
+  };
+
+  /* 决策点：战役图上最容易「看得见动作、看不见选择」的地方。
+     只写有史料支撑的取舍；对「另一种选择会怎样」明确标为推测。 */
+  var AAR = {
+    changzheng: [
+      { p: [109.78, 26.16], n: 'D1',
+        q: '湘江之后：去湘西会合二、六军团，还是转兵贵州？',
+        chose: '通道转兵，西进贵州，放弃原定去湘西的计划。',
+        why: '原定路线正对敌军重兵预伏。湘江战后红军只剩 3 万余，再撞一次包围圈即可能全军覆没。',
+        alt: '按原计划北上湘西，等于走进已布好的口袋。此为当时判断，非事后推演。',
+        src: '通道会议、黎平会议记录；《中国共产党历史》第一卷。' },
+      { p: [105.26, 28.16], n: 'D2',
+        q: '土城失利后：继续北渡长江，还是回师黔北？',
+        chose: '一渡赤水，放弃在泸州、宜宾间北渡长江的计划，转入川滇黔边。',
+        why: '土城一战情报有误（敌军兵力判断偏低），硬拼不利；北渡长江的通道已被川军封堵。',
+        alt: '继续强渡长江，将与川军主力决战于不利地形。',
+        src: '《毛泽东年谱（1893—1949）》上卷；《彭德怀自述》。' },
+      { p: [102.52, 31.02], n: 'D3',
+        q: '懋功会师后：北上，还是南下？',
+        chose: '中央率红一方面军主力北上，1935.10 到达陕北。',
+        why: '北上抗日、靠近抗日前线，并可依托陕北根据地；南下则与中央方针相悖。',
+        alt: '南下方案由张国焘主张，后另立中央，1936 年被迫取消。此处只记史实与结果，路线分歧的定性另见史料。',
+        src: '《中国共产党历史》第一卷；《张国焘问题研究资料》。' }
+    ],
+    huaihai: [
+      { p: [117.94, 34.78], n: 'D1',
+        q: '战役从哪里开刀：先打徐州，还是先割裂外围兵团？',
+        chose: '先围歼黄百韬兵团于碾庄，同时切断徐蚌线。',
+        why: '徐州城防坚固、敌军猬集 30 万，正面强攻代价极大；黄百韬兵团位置突出、与徐州之间有运河阻隔，便于割裂。',
+        alt: '直接攻徐州会打成消耗战，并给对方调整部署的时间。',
+        src: '粟裕 1948.09.24 建议电；中央军委 1948.10.11《关于淮海战役的作战方针》。' },
+      { p: [116.83, 33.82], n: 'D2',
+        q: '黄维兵团东援：中野要不要以劣势装备硬拦？',
+        chose: '中野在双堆集正面阻击并完成合围，华野抽兵支援。',
+        why: '若放黄维东进与徐州集团会合，整个战役将变成对方集中兵力决战。中野虽重装备不足，但可依托涡河、浍河节节阻击争取时间。',
+        alt: '放其东进＝让对方三个兵团合流，割裂歼敌的方针落空。',
+        src: '《刘伯承军事文选》；中央党史和文献研究院《淮海战役》。' },
+      { p: [116.35, 34.40], n: 'D3',
+        q: '杜聿明弃徐州西撤：往东南追，还是往西南追？',
+        chose: '判断其向西南（永城方向）撤退，主力平行追击，终围于陈官庄。',
+        why: '东南方向水网密、不利于大兵团快速撤退；西南方向地势开阔、靠近黄维，便于会合。',
+        alt: '若按东南方向追，则追空，杜集团可能脱出。此为当时的判断依据，非结果倒推。',
+        src: '中央军委 1948.12.01 电报；《淮海战役》中共党史出版社。' }
+    ],
+    dujiang: [
+      { p: [118.26, 32.38], n: 'D1',
+        q: '4 月谈判破裂后：立即渡江，还是再等？',
+        chose: '4 月 20 日夜发起渡江，中集团先渡，东、西集团随后。',
+        why: '《国内和平协定》被拒，政治上的「等」已到尽头；雨季将至，江水位上涨会增加渡江难度。',
+        alt: '继续等待会丧失渡江窗口，并给对方加固江防的时间。',
+        src: '《渡江战役》中共党史出版社；中央党史和文献研究院《渡江战役》。' },
+      { p: [120.66, 31.70], n: 'D2',
+        q: '江阴要塞：强攻，还是争取起义？',
+        chose: '地下党长期工作，要塞守军起义，炮台调转炮口。',
+        why: '江阴要塞扼守长江下游最窄处，强攻代价大；起义直接打开了东段江防正面。',
+        alt: '强攻要塞将付出重大伤亡，并迟滞东集团渡江。',
+        src: '《江阴要塞起义》相关档案；中央党史和文献研究院《渡江战役》。' },
+      { p: [121.76, 31.62], n: 'D3',
+        q: '上海怎么打：强攻，还是「瓷器店里打老鼠」？',
+        chose: '力争市区不使用重火器，主要在外围歼敌，保全城市。',
+        why: '上海是工业与金融中心，市区人口密集；重火器会毁掉城市与大量平民。',
+        alt: '强攻可缩短时间，但城市与平民损失不可接受。',
+        src: '《上海战役》相关战史；中央党史和文献研究院《渡江战役》。' }
+    ]
+  };
+
+  var CUR = CAMPAIGNS[0];
+
+  /* ---------- 画布 ---------- */
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  var W = 0, H = 0;
+
+  var FIT = { k: 1, cx0: 0, cy0: 0, baseX: 0, baseY: 0 };
+  var VIEW = { k: 1, ox: 0, oy: 0 };
+  var ZMIN = 0.6, ZMAX = 8;
+  function raw(lng, lat) { return { x: (lng - 104.5) * 62, y: (36 - lat) * 62 }; }
+  function P(lng, lat) {
+    var r = raw(lng, lat), k = FIT.k * VIEW.k;
+    return { x: FIT.baseX + (r.x - FIT.cx0) * k + VIEW.ox,
+             y: FIT.baseY + (r.y - FIT.cy0) * k + VIEW.oy };
+  }
+
+  var BBOX = null;
+  function collectPts() {
+    var out = [];
+    CUR.steps.forEach(function (s) {
+      if (s.p) out.push(s.p);
+      if (s.arrow) { out.push(s.arrow.from, s.arrow.to); }
+      if (s.ring) {
+        var c = s.ring.c, r = s.ring.r;
+        out.push([c[0] - r, c[1] - r], [c[0] + r, c[1] + r]);
+      }
+      if (s.node) out.push(s.node.p);
+    });
+    /* 敌军位置也要纳入视野：渡江的白崇禧集团在武汉（114.3°E），
+       只按我军箭头算包围盒会把他裁到屏幕外，图上就"消失"了。 */
+    (CUR.cities || []).forEach(function (c) { out.push(c.p); });
+    /* 控制措施与决策点也要进视野，否则阶段线/目标会被裁到屏幕外 */
+    var _c = CTL[CUR.id] || {};
+    (_c.plines || []).forEach(function (x) { if (x.pts) x.pts.forEach(function (q) { out.push(q); }); });
+    (_c.bounds || []).forEach(function (x) { if (x.pts) x.pts.forEach(function (q) { out.push(q); }); });
+    (_c.objs || []).forEach(function (x) { out.push(x.p); });
+    (_c.nai || []).forEach(function (x) {
+      out.push([x.c[0] - x.w / 2, x.c[1] - x.h / 2], [x.c[0] + x.w / 2, x.c[1] + x.h / 2]);
+    });
+    (AAR[CUR.id] || []).forEach(function (x) { out.push(x.p); });
+    (CUR.enemy || []).forEach(function (e) {
+      if (e.p) out.push(e.p);
+      if (e.move) e.move.forEach(function (q) { out.push(q); });
+      if (e.line) e.line.forEach(function (q) { out.push(q); });
+    });
+    return out;
+  }
+  function calcBBox() {
+    var pts = collectPts();
+    if (!pts.length) { BBOX = { x0: -30, x1: 30, y0: -20, y1: 20 }; return; }
+    var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    pts.forEach(function (p2) {
+      var q = raw(p2[0], p2[1]);
+      x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x);
+      y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y);
+    });
+    var pad = 34;
+    BBOX = { x0: x0 - pad, x1: x1 + pad, y0: y0 - pad, y1: y1 + pad };
+  }
+  function fit(resetView) {
+    if (!BBOX) calcBBox();
+    /* 右侧留出缩放按钮的位置：原来只留 24px，长征图东段的封锁线与标签会被 +/－ 压住 */
+    var availW = W - 96, availH = H - 300;
+    if (availH < 160) availH = H - 240;
+    var w = BBOX.x1 - BBOX.x0, h = BBOX.y1 - BBOX.y0;
+    FIT.k = Math.min(availW / w, availH / h);
+    FIT.cx0 = (BBOX.x0 + BBOX.x1) / 2;
+    FIT.cy0 = (BBOX.y0 + BBOX.y1) / 2;
+    FIT.baseX = W / 2;
+    FIT.baseY = 210 + availH / 2;
+    if (resetView) { VIEW.k = 1; VIEW.ox = 0; VIEW.oy = 0; }
+    updateZlv();
+  }
+
+  function resize() {
+    W = cv.clientWidth || window.innerWidth;
+    H = cv.clientHeight || window.innerHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    fit(false); draw();
+  }
+
+  var step = 0, playing = false, playTimer = null;
+  /* 距当前步越远越淡：时间轴拖到某一步时，只有这一步是「正在发生」，
+     之前的步骤留作上下文（0.34），不然后来三步的包围圈会同时抢注意力，
+     读起来像「三处同时被围」。 */
+  function stepAlpha(idx) {
+    var age = step - idx;
+    if (age <= 0) return 1;
+    return Math.max(0.34, 1 - age * 0.17);
+  }
+
+  /* ---------- 绘制 ---------- */
+  function drawBaseMap() {
+    var G = window.SITE_GEO;
+    if (G && LAYERS.prov) {
+      ctx.strokeStyle = CL.border; ctx.lineWidth = 0.7;
+      ctx.fillStyle = CL.land;
+      (G.provinces || []).forEach(function (pv) {
+        (pv.r || []).forEach(function (ring) {
+          if (!ring || ring.length < 3) return;
+          ctx.beginPath();
+          for (var i = 0; i < ring.length; i++) {
+            var s = P(ring[i][0], ring[i][1]);
+            if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
+          }
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+        });
+      });
+    }
+    /* 水系与铁路：战役图没有地形就只是「我军行动示意」。
+       渡江要看见长江这道天堑，淮海要看见陇海／津浦两条铁路的交叉（徐州为什么是枢纽）。 */
+    var WD = window.SITE_WATER;
+    if (!WD) return;
+    if (!LAYERS.water && !LAYERS.rail) return;
+    function line(pts, color, w, dash) {
+      ctx.beginPath();
+      for (var i = 0; i < pts.length; i++) {
+        var q = P(pts[i][0], pts[i][1]);
+        if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
+      }
+      ctx.strokeStyle = color; ctx.lineWidth = w;
+      if (dash) ctx.setLineDash(dash);
+      ctx.stroke();
+      if (dash) ctx.setLineDash([]);
+    }
+    if (LAYERS.water) (WD.rivers || []).forEach(function (r) {
+      line(r.pts, CL.water, r.canal ? 1.2 : (r.n === '长江' ? 2.6 : 1.8), r.canal ? [6, 4] : null);
+      /* 河名：取中段一点标出来 */
+      if (!r.canal) {
+        var mid = r.pts[Math.floor(r.pts.length * 0.45)];
+        var mp = P(mid[0], mid[1]);
+        ctx.font = '600 11px -apple-system,"PingFang SC",sans-serif';
+        ctx.fillStyle = CL.water; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+        ctx.fillText(r.n, mp.x + 4, mp.y - 4);
+      }
+    });
+    if (LAYERS.rail) (WD.rails || []).forEach(function (r) {
+      line(r.pts, CL.rail, 1.1, [4, 3]);
+      var mid = r.pts[Math.floor(r.pts.length * 0.45)];
+      var mp = P(mid[0], mid[1]);
+      ctx.font = '500 9px -apple-system,"PingFang SC",sans-serif';
+      ctx.fillStyle = CL.rail; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(r.n, mp.x + 3, mp.y + 2);
+    });
+  }
+
+  /* 比例尺：用纬度换算（1 度纬度 ≈ 111km，投影 y = (36-lat)*62）。
+     画在左下角，长度取 100km 或 200km，取整到"好看"的像素值。 */
+  function drawScale() {
+    var pxPer100 = (100 / 111) * 62 * FIT.k * VIEW.k;
+    var km = 100;
+    if (pxPer100 < 40) { km = 200; pxPer100 *= 2; }
+    if (pxPer100 < 40) { km = 500; pxPer100 *= 2.5; }
+    var x = 14, y = H - 96, w = pxPer100;
+    ctx.strokeStyle = CL.dim; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 4); ctx.lineTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y - 4);
+    ctx.stroke();
+    ctx.font = '500 9px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillStyle = CL.dim; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText(km + ' km', x, y - 5);
+  }
+
+  /* 指北针 */
+  function drawNorth() {
+    var x = W - 26, y = 250;
+    ctx.strokeStyle = CL.dim; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(x, y + 12); ctx.lineTo(x, y - 10); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y - 14); ctx.lineTo(x - 4, y - 6); ctx.lineTo(x + 4, y - 6); ctx.closePath();
+    ctx.fillStyle = CL.dim; ctx.fill();
+    ctx.font = '600 9px -apple-system,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('N', x, y + 14);
+  }
+
+  function quadArrow(a, b, wpx, color, dashed, label, alpha) {
+    var A = P(a[0], a[1]), B = P(b[0], b[1]);
+    var dx = B.x - A.x, dy = B.y - A.y;
+    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var bend = Math.min(len * 0.16, 46);
+    var cxp = (A.x + B.x) / 2 - dy / len * bend, cyp = (A.y + B.y) / 2 + dx / len * bend;
+    ctx.globalAlpha = alpha == null ? 1 : alpha;
+    ctx.beginPath();
+    ctx.moveTo(A.x, A.y);
+    ctx.quadraticCurveTo(cxp, cyp, B.x, B.y);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = wpx;
+    if (dashed) ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    /* 箭头放中点切线方向 */
+    var t0 = 0.55;
+    var px = (1 - t0) * (1 - t0) * A.x + 2 * (1 - t0) * t0 * cxp + t0 * t0 * B.x;
+    var py = (1 - t0) * (1 - t0) * A.y + 2 * (1 - t0) * t0 * cyp + t0 * t0 * B.y;
+    var tx = 2 * (1 - t0) * (cxp - A.x) + 2 * t0 * (B.x - cxp);
+    var ty = 2 * (1 - t0) * (cyp - A.y) + 2 * t0 * (B.y - cyp);
+    var tl = Math.sqrt(tx * tx + ty * ty) || 1; tx /= tl; ty /= tl;
+    var ah = Math.max(6, Math.min(wpx * 0.9, 12));
+    ctx.beginPath();
+    ctx.moveTo(px + tx * ah, py + ty * ah);
+    ctx.lineTo(px - ty * ah * 0.55 - tx * ah * 0.25, py + tx * ah * 0.55 - ty * ah * 0.25);
+    ctx.lineTo(px + ty * ah * 0.55 - tx * ah * 0.25, py - tx * ah * 0.55 - ty * ah * 0.25);
+    ctx.closePath();
+    ctx.fillStyle = color; ctx.fill();
+    /* 兵力标注 */
+    if (label) {
+      ctx.font = '600 10px -apple-system,"PingFang SC",sans-serif';
+      var w2 = ctx.measureText(label).width + 8;
+      ctx.fillStyle = CL.labBg;
+      ctx.fillRect(px - w2 / 2, py - 22, w2, 14);
+      ctx.fillStyle = CL.text; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(label, px, py - 9);
+    }
+    ctx.globalAlpha = 1;
+    return { A: A, B: B, mid: { x: px, y: py } };
+  }
+
+  function drawRing(ring, alpha) {
+    var c = P(ring.c[0], ring.c[1]);
+    var edge = P(ring.c[0] + ring.r, ring.c[1]);
+    var R = Math.abs(edge.x - c.x);
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, R, 0, 6.283);
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = CL.ring; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.setLineDash([]);
+    /* 圈内轻微填充，强调"被围住" */
+    ctx.fillStyle = THEME === 'light' ? 'rgba(179,38,30,.07)' : 'rgba(255,122,92,.08)';
+    ctx.fill();
+    /* 标注：名称 + 歼敌数 */
+    ctx.font = '600 10px -apple-system,"PingFang SC",sans-serif';
+    var txt = ring.label;
+    var txt2 = '歼灭 ' + ring.kill + (ring.win ? ' · ' + ring.win : '');
+    var w2 = Math.max(ctx.measureText(txt).width, ctx.measureText(txt2).width) + 10;
+    var bx = c.x - w2 / 2, by = c.y + R + 5;
+    ctx.fillStyle = CL.labBg;
+    ctx.fillRect(bx, by, w2, 30);
+    ctx.fillStyle = CL.text; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(txt, c.x, by + 3);
+    /* 第二行（歼敌数 · 时间）字号降一档：一行长文本不做换行，靠字号压住宽度 */
+    ctx.font = '700 9px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillStyle = CL.drop;
+    ctx.fillText(txt2, c.x, by + 18);
+    ctx.globalAlpha = 1;
+    ring._cx = c.x; ring._cy = c.y; ring._R = R;
+    /* 圈顶不再单独浮日期：那块底板是图上最容易被箭头／徽章压住的元素 */
+  }
+
+  /* 敌军标记：支持三种形态
+       · p    一个点        → 交叉方框（兵团结算地）
+       · move 一条路径      → 虚线 + 末端小箭头（行军/增援/西撤这类动作）
+       · line 一条折线      → 粗虚线 + 两端短垂线（绵亘防线，如汤恩伯的千里江防）
+     只画我方箭头的话，读的人看不出「敌人原来在哪、为什么会在这儿被围」。 */
+  function drawEnemy() {
+    var list = CUR.enemy || [];
+
+    /* 先画防线（最粗、压在最下层） */
+    list.forEach(function (e) {
+      if (!e.line || e.line.length < 2) return;
+      ctx.beginPath();
+      for (var i = 0; i < e.line.length; i++) {
+        var q = P(e.line[i][0], e.line[i][1]);
+        if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
+      }
+      ctx.strokeStyle = CL.enemy; ctx.lineWidth = 3; ctx.setLineDash([9, 5]);
+      ctx.globalAlpha = .55; ctx.stroke();
+      ctx.globalAlpha = 1; ctx.setLineDash([]);
+      /* 防线两端画短垂线（制图上表示「防线起止」） */
+      [0, e.line.length - 1].forEach(function (k) {
+        var a2 = P(e.line[k][0], e.line[k][1]);
+        var b2 = P(e.line[Math.min(k + 1, e.line.length - 1)][0], e.line[Math.min(k + 1, e.line.length - 1)][1]);
+        var dx = b2.x - a2.x, dy = b2.y - a2.y, L = Math.hypot(dx, dy) || 1;
+        var nx = -dy / L * 7, ny = dx / L * 7;
+        ctx.beginPath(); ctx.moveTo(a2.x - nx, a2.y - ny); ctx.lineTo(a2.x + nx, a2.y + ny);
+        ctx.lineWidth = 2; ctx.strokeStyle = CL.enemy; ctx.stroke();
+      });
+      /* 防线名称标在中段 */
+      var mid = e.line[Math.floor(e.line.length / 2)];
+      var mp = P(mid[0], mid[1]);
+      ctx.font = '600 10px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = CL.enemy;
+      ctx.fillText(e.name + (e.n ? ' ' + e.n : ''), mp.x, mp.y + 8);
+      e._sx = mp.x; e._sy = mp.y;
+    });
+
+    /* 再画行军虚线 */
+    list.forEach(function (e) {
+      if (!e.move || e.move.length < 2) return;
+      ctx.beginPath();
+      for (var i = 0; i < e.move.length; i++) {
+        var q = P(e.move[i][0], e.move[i][1]);
+        if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
+      }
+      /* 先描一层底色再描虚线：深色背景上橙红虚线与金色箭头同属暖色，不描边会被吞掉 */
+      ctx.strokeStyle = THEME === 'light' ? 'rgba(255,255,255,.75)' : 'rgba(20,2,2,.7)';
+      ctx.lineWidth = 3.6; ctx.setLineDash([]);
+      ctx.globalAlpha = .85; ctx.stroke();
+      ctx.strokeStyle = CL.enemy; ctx.lineWidth = 2.1; ctx.setLineDash([4, 4]);
+      ctx.globalAlpha = 1; ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      /* 末端小箭头：朝最后一个点 */
+      var a3 = P(e.move[e.move.length - 2][0], e.move[e.move.length - 2][1]);
+      var b3 = P(e.move[e.move.length - 1][0], e.move[e.move.length - 1][1]);
+      var dx2 = b3.x - a3.x, dy2 = b3.y - a3.y, L2 = Math.hypot(dx2, dy2) || 1;
+      dx2 /= L2; dy2 /= L2;
+      var ah = 7;
+      ctx.beginPath();
+      ctx.moveTo(b3.x, b3.y);
+      ctx.lineTo(b3.x - dx2 * ah - dy2 * ah * 0.5, b3.y - dy2 * ah + dx2 * ah * 0.5);
+      ctx.lineTo(b3.x - dx2 * ah + dy2 * ah * 0.5, b3.y - dy2 * ah - dx2 * ah * 0.5);
+      ctx.closePath();
+      ctx.fillStyle = CL.enemy; ctx.fill();
+    });
+
+    /* 最后画方框（压在最上层，最易读） */
+    list.forEach(function (e) {
+      if (!e.p) return;
+      var p = P(e.p[0], e.p[1]);
+      var s = 7;
+      ctx.fillStyle = CL.enemyBg;
+      ctx.strokeStyle = CL.enemy;
+      ctx.lineWidth = 1.2;
+      ctx.fillRect(p.x - s, p.y - s, s * 2, s * 2);
+      ctx.strokeRect(p.x - s, p.y - s, s * 2, s * 2);
+      ctx.beginPath();
+      ctx.moveTo(p.x - s, p.y - s); ctx.lineTo(p.x + s, p.y + s);
+      ctx.moveTo(p.x + s, p.y - s); ctx.lineTo(p.x - s, p.y + s);
+      ctx.stroke();
+      ctx.font = '600 9px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.fillStyle = CL.enemy;
+      ctx.fillText(e.name, p.x + s + 3, p.y - 1);
+      if (e.n) {
+        ctx.font = '500 9px -apple-system,"PingFang SC",sans-serif';
+        ctx.textBaseline = 'top';
+        ctx.fillText(e.n, p.x + s + 3, p.y + 1);
+      }
+      e._sx = p.x; e._sy = p.y;
+    });
+  }
+
+  /* 居民地：按等级画（1 枢纽 / 2 重要城市 / 3 一般城镇）。
+     以前淮海图上完全没有城市点，读的人不知道碾庄、双堆集、陈官庄在地理上是什么关系。 */
+  function drawCities() {
+    (CUR.cities || []).forEach(function (c) {
+      var p = P(c.p[0], c.p[1]);
+      var lv = c.lv || 2;
+      var rad = lv === 1 ? 5.5 : (lv === 2 ? 4 : 2.8);
+      ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, 6.283);
+      ctx.fillStyle = CL.dim; ctx.fill();
+      if (lv === 1) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, rad + 3, 0, 6.283);
+        ctx.strokeStyle = CL.text; ctx.lineWidth = 1.1; ctx.stroke();
+      }
+      ctx.font = (lv === 1 ? '700 12px ' : (lv === 2 ? '600 10px ' : '500 9px ')) + '-apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      /* 一级/二级城市给标签加底色块：不然会被兵团番号、歼敌数字压过去 */
+      if (lv <= 2) {
+        var tw = ctx.measureText(c.lab).width + 6;
+        ctx.fillStyle = CL.labBg;
+        ctx.fillRect(p.x + rad + 1, p.y - 7, tw, 14);
+      }
+      ctx.fillStyle = lv === 1 ? CL.text : CL.dim;
+      ctx.fillText(c.lab, p.x + rad + 4, p.y);
+    });
+  }
+
+  /* 阻断点：我军抢占的截击位置。它是「敌军为什么会停在这里」的答案，
+     画成金色小三角 + 竖线（制图上「阻击/截断」的常用符号）。 */
+  function drawBlock() {
+    (CUR.block || []).forEach(function (b) {
+      var p = P(b.p[0], b.p[1]);
+      /* 先描一圈底色，再画三角：浅底/深底上都能跳出来 */
+      ctx.strokeStyle = THEME === 'light' ? 'rgba(255,255,255,.9)' : 'rgba(10,2,10,.85)';
+      ctx.lineWidth = 4.5;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y + 8); ctx.lineTo(p.x, p.y - 8); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - 13); ctx.lineTo(p.x - 7.5, p.y - 2); ctx.lineTo(p.x + 7.5, p.y - 2);
+      ctx.closePath();
+      ctx.lineWidth = 3.5; ctx.stroke();          /* 三角也先描边 */
+      ctx.strokeStyle = CL.accent; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y + 8); ctx.lineTo(p.x, p.y - 8); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - 13); ctx.lineTo(p.x - 7.5, p.y - 2); ctx.lineTo(p.x + 7.5, p.y - 2);
+      ctx.closePath(); ctx.fillStyle = CL.accent; ctx.fill();
+      ctx.font = '700 10px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = CL.accent;
+      ctx.fillText(b.n + (b.t ? ' · ' + b.t : ''), p.x + 10, p.y - 4);
+      b._sx = p.x; b._sy = p.y;
+    });
+  }
+
+  /* =====================================================================
+     控制措施图形（control measures）
+     MIL-STD-2525 / APP-6 把「图上那些线」当一套语法：
+       阶段线（phase line）＝ 阵地/推进的分期界线
+       作战分界（boundary）＝ 两支友军的责任地境
+       目标（objective）   ＝ 编号的攻取目标
+       关注地域（NAI）     ＝ 需要监控/判断敌情的地域
+       决策点（decision point）＝ 指挥员当时必须做的取舍
+     只画箭头和圆圈，读者读不出这些含义；用对图形，图才「会说话」。
+     ===================================================================== */
+  function ctlOf() { return CTL[CUR.id] || {}; }
+
+  function polyPath(pts) {
+    ctx.beginPath();
+    for (var i = 0; i < pts.length; i++) {
+      var q = P(pts[i][0], pts[i][1]);
+      if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
+    }
+    ctx.lineCap = 'round';
+  }
+
+  /* 两端短垂线：制图上表示「这条线到此为止」 */
+  function endTicks(pts, color, len) {
+    [0, pts.length - 1].forEach(function (k) {
+      var a = P(pts[k][0], pts[k][1]);
+      var nb = (k === 0) ? 1 : pts.length - 2;
+      var b = P(pts[nb][0], pts[nb][1]);
+      var dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+      var nx = -dy / L * len, ny = dx / L * len;
+      ctx.beginPath();
+      ctx.moveTo(a.x - nx, a.y - ny); ctx.lineTo(a.x + nx, a.y + ny);
+      ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.stroke();
+    });
+  }
+
+  /* 阶段线：长划虚线 + 两端垂线 + 名称。刻意用冷色细线，
+     与敌军防线（橙红粗虚线）区分——两者都虚线，颜色不能再撞。 */
+  function drawPhaseLines() {
+    var L = ctlOf().plines || [];
+    L.forEach(function (pl) {
+      if (!pl.pts || pl.pts.length < 2) return;
+      polyPath(pl.pts);
+      ctx.setLineDash([13, 5]);
+      ctx.strokeStyle = CL.pl; ctx.lineWidth = 1.3; ctx.stroke();
+      ctx.setLineDash([]);
+      endTicks(pl.pts, CL.pl, 6);
+      var mi = Math.floor(pl.pts.length / 2);
+      var mp = P(pl.pts[mi][0], pl.pts[mi][1]);
+      ctx.font = '600 9px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      var tw = ctx.measureText(pl.n).width + 8;
+      ctx.fillStyle = CL.labBg; ctx.fillRect(mp.x - tw / 2, mp.y - 16, tw, 13);
+      ctx.fillStyle = CL.pl; ctx.fillText(pl.n, mp.x, mp.y - 4);
+      pl._sx = mp.x; pl._sy = mp.y;
+    });
+  }
+
+  /* 作战分界：点划线 + 中点标两侧番号 */
+  function drawBoundaries() {
+    var L = ctlOf().bounds || [];
+    L.forEach(function (bd) {
+      if (!bd.pts || bd.pts.length < 2) return;
+      polyPath(bd.pts);
+      ctx.setLineDash([11, 4, 2, 4]);
+      ctx.strokeStyle = CL.bd; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.setLineDash([]);
+      endTicks(bd.pts, CL.bd, 7);
+      var mi = Math.floor(bd.pts.length / 2);
+      var mp = P(bd.pts[mi][0], bd.pts[mi][1]);
+      ctx.font = '600 9px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var t1 = bd.a + ' ｜ ' + bd.b;
+      var tw = ctx.measureText(t1).width + 10;
+      ctx.fillStyle = CL.labBg; ctx.fillRect(mp.x - tw / 2, mp.y - 8, tw, 15);
+      ctx.fillStyle = CL.bd; ctx.fillText(t1, mp.x, mp.y);
+    });
+  }
+
+  /* 目标：轻量徽章（编号 + 可选名）。
+     一开始画成椭圆，实测与包围圈的「名称／歼敌数」标签、城市点三层叠字——
+     目标地点本来就是包围圈与居民地所在的位置，用徽章挂在上方才不打架。 */
+  function drawObjectives() {
+    var L = ctlOf().objs || [];
+    L.forEach(function (o) {
+      var p = P(o.p[0], o.p[1]);
+      var txt = o.n + (o.lab ? ' · ' + o.lab : '');
+      ctx.font = '700 9px -apple-system,"PingFang SC",sans-serif';
+      var tw = ctx.measureText(txt).width + 10;
+      var bx = p.x - tw / 2, by = p.y - 26;
+      ctx.fillStyle = CL.labBg;
+      ctx.fillRect(bx, by, tw, 14);
+      ctx.strokeStyle = CL.obj; ctx.lineWidth = 1; ctx.strokeRect(bx + .5, by + .5, tw - 1, 13);
+      ctx.fillStyle = CL.obj; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, p.x, by + 7);
+      /* 细引线连到目标点，避免「这个徽章说的是哪儿」 */
+      ctx.beginPath();
+      ctx.moveTo(p.x, by + 14); ctx.lineTo(p.x, p.y - 4);
+      ctx.strokeStyle = CL.obj; ctx.lineWidth = .8; ctx.setLineDash([2, 2]); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+
+  /* 关注地域（NAI）：点线矩形 + 极淡填充 */
+  function drawNAI() {
+    var L = ctlOf().nai || [];
+    L.forEach(function (a) {
+      var c = P(a.c[0], a.c[1]);
+      var w = Math.abs(P(a.c[0] + a.w / 2, a.c[1]).x - P(a.c[0] - a.w / 2, a.c[1]).x);
+      var h = Math.abs(P(a.c[0], a.c[1] - a.h / 2).y - P(a.c[0], a.c[1] + a.h / 2).y);
+      ctx.beginPath();
+      ctx.rect(c.x - w / 2, c.y - h / 2, w, h);
+      ctx.fillStyle = THEME === 'light' ? 'rgba(43,108,163,.09)' : 'rgba(158,203,255,.10)';
+      ctx.fill();
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = CL.nai; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '600 9px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillStyle = CL.nai;
+      ctx.fillText(a.n, c.x, c.y - h / 2 - 3);
+      a._sx = c.x; a._sy = c.y;
+    });
+  }
+
+  /* 决策点：菱形（制图上的 decision point），点开看当时的取舍 */
+  function drawAAR() {
+    var L = AAR[CUR.id] || [];
+    L.forEach(function (d, i) {
+      var p = P(d.p[0], d.p[1]);
+      var r = 9;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - r); ctx.lineTo(p.x + r, p.y);
+      ctx.lineTo(p.x, p.y + r); ctx.lineTo(p.x - r, p.y);
+      ctx.closePath();
+      ctx.fillStyle = CL.labBg; ctx.fill();
+      ctx.strokeStyle = CL.accent; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.font = '700 8px -apple-system,sans-serif';
+      ctx.fillStyle = CL.accent; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(d.n, p.x, p.y + .5);
+      d._sx = p.x; d._sy = p.y;
+    });
+  }
+
+  /* ---------- 量算 ---------- */
+  var meas = { on: false, A: null, B: null };
+  function kmBetween(a, b) {
+    var R = 6371, dLat = (b[1] - a[1]) * Math.PI / 180, dLng = (b[0] - a[0]) * Math.PI / 180;
+    var la1 = a[1] * Math.PI / 180, la2 = b[1] * Math.PI / 180;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function bearing(a, b) {
+    var la1 = a[1] * Math.PI / 180, la2 = b[1] * Math.PI / 180;
+    var dLng = (b[0] - a[0]) * Math.PI / 180;
+    var y = Math.sin(dLng) * Math.cos(la2);
+    var x = Math.cos(la1) * Math.sin(la2) - Math.sin(la1) * Math.cos(la2) * Math.cos(dLng);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+  function drawMeasure() {
+    if (!meas.A) return;
+    var a = P(meas.A[0], meas.A[1]);
+    ctx.beginPath(); ctx.arc(a.x, a.y, 4, 0, 6.283);
+    ctx.strokeStyle = CL.meas; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(a.x - 7, a.y); ctx.lineTo(a.x + 7, a.y);
+    ctx.moveTo(a.x, a.y - 7); ctx.lineTo(a.x, a.y + 7);
+    ctx.lineWidth = 1; ctx.stroke();
+    if (!meas.B) return;
+    var b = P(meas.B[0], meas.B[1]);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = CL.meas; ctx.lineWidth = 1.8;
+    ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 6.283); ctx.stroke();
+    var km = kmBetween(meas.A, meas.B);
+    var bg = bearing(meas.A, meas.B);
+    var txt = (km < 10 ? km.toFixed(1) : Math.round(km)) + ' km · 方位 ' +
+      Math.round(bg) + '°（' + Math.round(bg / 360 * 6400) + ' 密位）';
+    ctx.font = '600 10px -apple-system,"PingFang SC",sans-serif';
+    var tw = ctx.measureText(txt).width + 12;
+    var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    ctx.fillStyle = CL.labBg; ctx.fillRect(mx - tw / 2, my - 20, tw, 16);
+    ctx.fillStyle = CL.meas; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(txt, mx, my - 7);
+  }
+  /* 屏幕坐标 → 经纬度（量算取点） */
+  function unproject(sx, sy) {
+    var k = FIT.k * VIEW.k;
+    var rx = (sx - FIT.baseX - VIEW.ox) / k + FIT.cx0;
+    var ry = (sy - FIT.baseY - VIEW.oy) / k + FIT.cy0;
+    return [rx / 62 + 104.5, 36 - ry / 62];
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    drawBaseMap();
+    if (LAYERS.ctl) { drawNAI(); drawPhaseLines(); drawBoundaries(); drawObjectives(); }
+    if (LAYERS.city) drawCities();
+    if (LAYERS.enemy) drawEnemy();
+    if (LAYERS.block) drawBlock();
+
+    var i, s;
+
+    if (!LAYERS.our) { /* 我军层关闭：只留底图与控制措施，便于单看地形与敌军 */ }
+    else if (CUR.kind === 'route') {
+      var R = CUR.steps;
+      var maxS = 0;
+      for (i = 0; i < R.length; i++) maxS = Math.max(maxS, R[i].s || 0);
+      var segs = [];
+      for (i = 1; i < R.length; i++) segs.push(i);
+      segs.sort(function (a, b) { return (R[b].s || 99) - (R[a].s || 99); });
+      segs.forEach(function (idx) {
+        if (idx > step) return;
+        quadArrow(R[idx - 1].p, R[idx].p,
+          (R[idx].s != null && maxS) ? (1.8 + 12.5 * (R[idx].s / maxS)) : 1.8,
+          R[idx].s != null ? CL.route : CL.routeDim,
+          R[idx].s == null, null, stepAlpha(idx) * 0.92);
+      });
+      R.forEach(function (r, idx) {
+        if (idx > step) return;
+        var sp = P(r.p[0], r.p[1]);
+        var big = (idx === step), noNum = (r.s == null);
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, big ? 6.5 : 4, 0, 6.283);
+        if (noNum) { ctx.strokeStyle = CL.routeDim; ctx.lineWidth = 1.6; ctx.stroke(); }
+        else { ctx.fillStyle = CL.dot; ctx.globalAlpha = big ? 1 : .75; ctx.fill(); ctx.globalAlpha = 1; }
+        if (r.lab) {
+          ctx.font = '500 10px -apple-system,"PingFang SC",sans-serif';
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = CL.dim;
+          ctx.fillText(r.lab, sp.x + 8, sp.y + 1);
+        }
+        if (big) { ctx.beginPath(); ctx.arc(sp.x, sp.y, 11, 0, 6.283); ctx.strokeStyle = CL.accent; ctx.lineWidth = 1.4; ctx.stroke(); }
+        r._sx = sp.x; r._sy = sp.y;
+      });
+      /* 三个关键数字 */
+      [0, 2, R.length - 1].forEach(function (idx) {
+        if (idx > step || !R[idx].s) return;
+        var txt = R[idx].s.toLocaleString('en-US') + ' 人';
+        ctx.font = '600 11px -apple-system,"PingFang SC",sans-serif';
+        var w2 = ctx.measureText(txt).width + 10;
+        ctx.fillStyle = CL.labBg;
+        ctx.fillRect(R[idx]._sx - w2 / 2, R[idx]._sy - 26, w2, 16);
+        ctx.fillStyle = (idx === 2) ? CL.drop : CL.text;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(txt, R[idx]._sx, R[idx]._sy - 13);
+      });
+    } else {
+      /* 会战型：先画包围圈（在下层），再画箭头，最后画城市点 */
+      var st = CUR.steps;
+      st.forEach(function (x, idx) {
+        if (idx > step) return;
+        if (x.ring) drawRing(x.ring, stepAlpha(idx));
+      });
+      st.forEach(function (x, idx) {
+        if (idx > step) return;
+        if (x.arrow) {
+          var a = x.arrow;
+          var mid = quadArrow(a.from, a.to, a.w || 2.4,
+            a.side === '杜集团' || a.side === '起义' ? CL.arrow2 : CL.arrow,
+            false, a.lab || null, stepAlpha(idx) * 0.92);
+          x._sx = mid.mid.x; x._sy = mid.mid.y;
+        }
+        if (x.node) {
+          var sp2 = P(x.node.p[0], x.node.p[1]);
+          /* 居民地按等级分大小：1=枢纽/首都 2=重要城市 3=一般城镇 */
+          var lv = x.node.lv || 2;
+          var rad = lv === 1 ? 6.2 : (lv === 2 ? 4.4 : 3.2);
+          ctx.beginPath(); ctx.arc(sp2.x, sp2.y, rad, 0, 6.283);
+          ctx.fillStyle = CL.dot; ctx.fill();
+          if (lv === 1) {   /* 枢纽加一圈外环，一眼分级 */
+            ctx.beginPath(); ctx.arc(sp2.x, sp2.y, rad + 3, 0, 6.283);
+            ctx.strokeStyle = CL.dot; ctx.lineWidth = 1; ctx.stroke();
+          }
+          ctx.font = (lv === 1 ? '700 11px ' : (lv === 2 ? '600 10px ' : '500 9px ')) + '-apple-system,"PingFang SC",sans-serif';
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = lv === 1 ? CL.text : CL.dim;
+          ctx.fillText(x.node.lab, sp2.x + rad + 3, sp2.y);
+          x._sx = sp2.x; x._sy = sp2.y;
+        }
+        /* 渡口 / 登陆点：起渡点用空心小圈，登陆点用实心小圈 */
+        if (x.arrow) {
+          if (x.arrow.fromLab) {
+            var fp = P(x.arrow.from[0], x.arrow.from[1]);
+            ctx.beginPath(); ctx.arc(fp.x, fp.y, 3, 0, 6.283);
+            ctx.strokeStyle = CL.text; ctx.lineWidth = 1.2; ctx.stroke();
+            ctx.font = '500 9px -apple-system,"PingFang SC",sans-serif';
+            ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = CL.dim;
+            ctx.fillText(x.arrow.fromLab, fp.x - 5, fp.y);
+          }
+          if (x.arrow.toLab) {
+            var tp = P(x.arrow.to[0], x.arrow.to[1]);
+            ctx.font = '500 9px -apple-system,"PingFang SC",sans-serif';
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = CL.dim;
+            ctx.fillText(x.arrow.toLab, tp.x + 5, tp.y - 6);
+          }
+        }
+      });
+    }
+
+    if (LAYERS.aar) drawAAR();
+    drawMeasure();
+    drawScale();
+    drawNorth();
+
+    /* 当前步骤名 */
+    var cur = CUR.steps[step];
+    if (cur && cur._sx != null) {
+      ctx.font = '600 12px -apple-system,"PingFang SC",sans-serif';
+      var w3 = ctx.measureText(cur.nm).width + 12;
+      var bx = Math.max(6, Math.min(W - w3 - 6, cur._sx - w3 / 2));
+      ctx.fillStyle = CL.labBg; ctx.fillRect(bx, cur._sy + 10, w3, 19);
+      ctx.fillStyle = CL.accent; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(cur.nm, bx + 6, cur._sy + 20);
+    }
+  }
+
+  /* ---------- HUD / 图例 / 时间轴 ---------- */
+  var hNm = document.getElementById('hNm'), hDt = document.getElementById('hDt'),
+    hSt = document.getElementById('hSt'), hNote = document.getElementById('hNote'),
+    hSrc = document.getElementById('hSrc'), subEl = document.getElementById('sub');
+
+  function updateHud(idx) {
+    var s = CUR.steps[idx]; if (!s) return;
+    hNm.textContent = s.nm;
+    hDt.textContent = s.t || '';
+    var stTxt = '';
+    if (s.arrow && s.arrow.side) stTxt = s.arrow.side;
+    else if (s.ring && s.ring.kill) stTxt = '歼灭 ' + s.ring.kill;
+    else if (s.arrow && s.arrow.lab) stTxt = s.arrow.lab;
+    hSt.textContent = stTxt;
+    hNote.textContent = s.note || '';
+    hSrc.textContent = s.src || '';
+  }
+
+  function renderLegend() {
+    var box = document.getElementById('legend');
+    var want = CUR.legend || [];
+    var html = '';
+    if (want.indexOf('route') >= 0) {
+      html += '<div><span class="ln"></span>线宽按线性比例反映兵力</div>' +
+        '<div><span class="ln dash"></span>该步无确切兵力记载（不折算）</div>';
+    }
+    if (want.indexOf('arrow') >= 0) html += '<div><span class="ln"></span>进攻方向（箭头粗细＝兵力）</div>';
+    if (want.indexOf('ring') >= 0) html += '<div><span class="ln ring"></span>包围圈（圈下标注歼敌数）</div>';
+    if (want.indexOf('enemy') >= 0) html += '<div><span class="ln enemy"></span>敌军兵团（交叉方框）· <span class="ln emove"></span>敌军行动 · <span class="ln eline"></span>敌军防线</div>';
+    if (want.indexOf('block') >= 0) html += '<div><span class="ln block"></span>我军阻断点（抢占/阻击）</div>';
+    if ((ctlOf().plines || []).length) html += '<div><span class="ln pl"></span>阶段线／封锁线</div>';
+    if ((ctlOf().bounds || []).length) html += '<div><span class="ln bd"></span>作战分界（两侧番号）</div>';
+    if ((ctlOf().objs || []).length) html += '<div><span class="ln obj"></span>目标 OBJ · <span class="ln nai"></span>关注地域</div>';
+    if ((AAR[CUR.id] || []).length) html += '<div><span class="ln dp"></span>决策点（点开看取舍）</div>';
+    html += '<div><span class="ln water"></span>江河 · <span class="ln rail"></span>铁路</div>';
+    box.innerHTML = html;
+  }
+
+  function renderPick() {
+    var box = document.getElementById('pick');
+    box.innerHTML = CAMPAIGNS.map(function (c) {
+      return '<button type="button" data-id="' + c.id + '" class="' + (c.id === CUR.id ? 'on' : '') + '">' + c.name + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('button'), function (b) {
+      b.onclick = function () { switchCampaign(b.getAttribute('data-id')); };
+    });
+  }
+
+  function switchCampaign(id) {
+    var c = null;
+    CAMPAIGNS.forEach(function (x) { if (x.id === id) c = x; });
+    if (!c) return;
+    CUR = c; step = 0;
+    stopPlay();
+    document.getElementById('ttl').firstChild.nodeValue = c.name;
+    subEl.textContent = c.sub;
+    calcBBox();
+    var yr = document.getElementById('yr');
+    yr.max = String(c.steps.length - 1); yr.value = '0';
+    renderPick(); renderLegend(); renderPhases();
+    fit(true); draw(); updateHud(0); updateStepLab();
+  }
+
+  /* ---------- 战役阶段带 ---------- */
+  var PHCOL = ['rgba(190,55,55,.85)', 'rgba(190,135,45,.85)', 'rgba(70,130,175,.85)'];
+  function renderPhases() {
+    var box = document.getElementById('phbar');
+    if (!box) return;
+    if (!CUR.phases || !CUR.phases.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = 'flex';
+    box.innerHTML = CUR.phases.map(function (ph, i) {
+      var n = ph.b - ph.a + 1;
+      return '<span data-i="' + i + '" style="flex:' + n + ' 1 0;background:' + PHCOL[i % PHCOL.length] + '">' + ph.n + '</span>';
+    }).join('');
+    updatePhaseHi();
+  }
+  function updatePhaseHi() {
+    var box = document.getElementById('phbar');
+    if (!box || !CUR.phases) return;
+    Array.prototype.forEach.call(box.querySelectorAll('span'), function (sp) {
+      var ph = CUR.phases[+sp.getAttribute('data-i')];
+      if (ph) sp.classList.toggle('on', step >= ph.a && step <= ph.b);
+    });
+  }
+
+  var yr = document.getElementById('yr'), lab = document.getElementById('steplab');
+  function updateStepLab() {
+    var s = CUR.steps[step];
+    lab.textContent = (step === CUR.steps.length - 1) ? '全程' : (s ? s.t : '');
+  }
+  function setStep(v, fromUser) {
+    step = Math.max(0, Math.min(CUR.steps.length - 1, v));
+    yr.value = String(step);
+    updateStepLab(); updatePhaseHi(); updateHud(step); draw();
+    if (fromUser) hideHint();
+  }
+  yr.addEventListener('input', function () { setStep(parseInt(yr.value, 10), true); });
+
+  var play = document.getElementById('play');
+  play.addEventListener('click', function () {
+    if (playing) { stopPlay(); return; }
+    playing = true; play.textContent = '❚❚';
+    if (step >= CUR.steps.length - 1) setStep(0);
+    playTimer = setInterval(function () {
+      if (step >= CUR.steps.length - 1) { stopPlay(); return; }
+      setStep(step + 1);
+    }, 700);
+    hideHint();
+  });
+  function stopPlay() {
+    playing = false; play.textContent = '▶';
+    if (playTimer) { clearInterval(playTimer); playTimer = null; }
+  }
+
+  /* ---------- 缩放 / 平移 ---------- */
+  var pan = null, pinch = null, touchN = 0, lastTap = 0;
+  function clampK(v) { return Math.max(ZMIN, Math.min(ZMAX, v)); }
+  function updateZlv() {
+    var el = document.getElementById('zlv');
+    if (el) el.textContent = VIEW.k.toFixed(1) + '×';
+  }
+  function zoomAt(sx, sy, factor) {
+    var k0 = VIEW.k, k1 = clampK(k0 * factor);
+    if (k1 === k0) return;
+    var ux = (sx - FIT.baseX - VIEW.ox) / k0;
+    var uy = (sy - FIT.baseY - VIEW.oy) / k0;
+    VIEW.k = k1;
+    VIEW.ox = sx - FIT.baseX - ux * k1;
+    VIEW.oy = sy - FIT.baseY - uy * k1;
+    updateZlv(); draw();
+  }
+  cv.addEventListener('pointerdown', function (e) {
+    if (touchN >= 2) return;
+    pan = { x: e.clientX, y: e.clientY, ox: VIEW.ox, oy: VIEW.oy, moved: 0 };
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (pinch || !pan) return;
+    var dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+    pan.moved = Math.max(pan.moved, Math.abs(dx) + Math.abs(dy));
+    VIEW.ox = pan.ox + dx; VIEW.oy = pan.oy + dy;
+    draw();
+  });
+  cv.addEventListener('pointerup', function (e) {
+    var now = Date.now();
+    /* 量算模式优先：两次点击取 A/B，再点重来 */
+    if (pan && pan.moved < 7 && meas.on) {
+      var ll = unproject(e.clientX, e.clientY);
+      if (!meas.A || meas.B) { meas.A = ll; meas.B = null; }
+      else { meas.B = ll; }
+      draw(); pan = null; return;
+    }
+    if (pan && pan.moved < 7) {
+      /* 决策点比事件步优先：菱形很小，先判它 */
+      var dd = -1, dbd = 16;
+      (AAR[CUR.id] || []).forEach(function (d, i) {
+        if (d._sx == null) return;
+        var dist = Math.hypot(d._sx - e.clientX, d._sy - e.clientY);
+        if (dist < dbd) { dbd = dist; dd = i; }
+      });
+      if (dd >= 0 && LAYERS.aar) { openAar((AAR[CUR.id] || [])[dd]); pan = null; return; }
+      if (now - lastTap < 320) { zoomAt(e.clientX, e.clientY, 2.2); lastTap = 0; }
+      else {
+        lastTap = now;
+        var best = -1, bd = 30;
+        CUR.steps.forEach(function (s, i) {
+          if (i > step || s._sx == null) return;
+          var d = Math.hypot(s._sx - e.clientX, s._sy - e.clientY);
+          if (d < bd) { bd = d; best = i; }
+        });
+        if (best >= 0) setStep(best, true);
+      }
+    }
+    pan = null;
+  });
+  cv.addEventListener('pointercancel', function () { pan = null; });
+
+  cv.addEventListener('touchstart', function (e) {
+    touchN = e.touches.length;
+    if (e.touches.length === 2) {
+      var a = e.touches[0], b = e.touches[1];
+      pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        k: VIEW.k, ox: VIEW.ox, oy: VIEW.oy,
+        mx: (a.clientX + b.clientX) / 2, my: (a.clientY + b.clientY) / 2 };
+      pan = null;
+    }
+  }, { passive: true });
+  cv.addEventListener('touchmove', function (e) {
+    touchN = e.touches.length;
+    if (e.touches.length !== 2 || !pinch) return;
+    e.preventDefault();
+    var a = e.touches[0], b = e.touches[1];
+    var d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    var mx = (a.clientX + b.clientX) / 2, my = (a.clientY + b.clientY) / 2;
+    var k1 = clampK(pinch.k * (d / pinch.d));
+    var ux = (pinch.mx - FIT.baseX - pinch.ox) / pinch.k;
+    var uy = (pinch.my - FIT.baseY - pinch.oy) / pinch.k;
+    VIEW.k = k1;
+    VIEW.ox = mx - FIT.baseX - ux * k1;
+    VIEW.oy = my - FIT.baseY - uy * k1;
+    updateZlv(); draw();
+  }, { passive: false });
+  cv.addEventListener('touchend', function (e) {
+    touchN = e.touches.length;
+    if (e.touches.length < 2) pinch = null;
+  });
+  cv.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 0.88 : 1.14);
+  }, { passive: false });
+  document.getElementById('zin').addEventListener('click', function () { zoomAt(W / 2, H / 2, 1.5); });
+  document.getElementById('zout').addEventListener('click', function () { zoomAt(W / 2, H / 2, 1 / 1.5); });
+  document.getElementById('zrst').addEventListener('click', function () { fit(true); draw(); });
+
+  /* ---------- 图层面板 ---------- */
+  var layPanel = document.getElementById('layPanel'), layScrim = document.getElementById('layScrim');
+  function renderLayers() {
+    var box = document.getElementById('layList');
+    if (!box) return;
+    box.innerHTML = LAYER_DEF.map(function (d) {
+      return '<div class="ly"><span>' + d.n + '</span><i class="sw' + (LAYERS[d.k] ? ' on' : '') +
+        '" data-k="' + d.k + '"></i></div>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('.sw'), function (sw) {
+      sw.onclick = function () {
+        var k = sw.getAttribute('data-k');
+        LAYERS[k] = LAYERS[k] ? 0 : 1;
+        sw.classList.toggle('on', !!LAYERS[k]);
+        saveLayers(); draw();
+      };
+    });
+  }
+  function openLayers(v) {
+    var on = (v == null) ? !layPanel.classList.contains('open') : !!v;
+    layPanel.classList.toggle('open', on);
+    layScrim.classList.toggle('on', on);
+    document.getElementById('tlay').classList.toggle('on', on);
+    if (on) closeAar();
+  }
+  document.getElementById('tlay').onclick = function (e) { e.stopPropagation(); openLayers(); };
+  layScrim.onclick = function () { openLayers(false); };
+
+  /* ---------- 决策点（事后回顾） ---------- */
+  var aarPanel = document.getElementById('aarPanel');
+  var aarShift = 0;
+  function openAar(d) {
+    if (!d) { closeAar(); return; }
+    aarPanel.innerHTML =
+      '<div class="hd"><span class="dg">' + d.n + '</span><span class="qt">' + d.q + '</span>' +
+      '<span class="x" id="aarX">✕</span></div>' +
+      '<div class="tx"><b>当时的选择：</b>' + d.chose + '</div>' +
+      '<div class="lb">为什么这么选</div><div class="tx">' + d.why + '</div>' +
+      '<div class="lb">另一种选择（推测）</div><div class="tx">' + d.alt + '</div>' +
+      '<div class="src">出处：' + (d.src || '—') + '</div>';
+    aarPanel.classList.add('on');
+    document.getElementById('aarX').onclick = closeAar;
+    openLayers(false);
+    /* 面板占屏幕下方三分之一，若不把内容上移，刚点的那个决策点会被面板压住 */
+    if (!aarShift) {
+      aarShift = Math.round(window.innerHeight * 0.17);
+      VIEW.oy -= aarShift; draw();
+    }
+  }
+  function closeAar() {
+    aarPanel.classList.remove('on');
+    if (aarShift) { VIEW.oy += aarShift; aarShift = 0; draw(); }
+  }
+
+  /* ---------- 量算 ---------- */
+  var measBtn = document.getElementById('tmeas'), measNote = document.getElementById('measNote');
+  function toggleMeas() {
+    meas.on = !meas.on;
+    measBtn.classList.toggle('on', meas.on);
+    meas.A = null; meas.B = null;
+    measNote.classList.toggle('on', meas.on);
+    measNote.textContent = meas.on ? '点两下量距离与方位' : '';
+    draw();
+  }
+  measBtn.onclick = toggleMeas;
+
+  var hintEl = document.getElementById('hint'), hinted = false;
+  function hideHint() {
+    if (hinted) return; hinted = true;
+    hintEl.classList.add('gone');
+    setTimeout(function () { hintEl.style.display = 'none'; }, 400);
+  }
+  setTimeout(hideHint, 4000);
+
+  window.addEventListener('resize', resize);
+
+  /* 启动 */
+  document.getElementById('ttl').firstChild.nodeValue = CUR.name;
+  subEl.textContent = CUR.sub;
+  calcBBox();
+  renderPick(); renderLegend(); renderPhases(); renderLayers();
+  fit(true);
+  resize();
+  setStep(0);
+
+  window.yzCamp = {
+    setStep: function (v) { stopPlay(); setStep(v); },
+    play: function () { play.click(); },
+    switchTo: function (id) { switchCampaign(id); },
+    list: function () { return CAMPAIGNS.map(function (c) { return { id: c.id, name: c.name, kind: c.kind, steps: c.steps.length }; }); },
+    enemy: function () { return (CUR.enemy || []).map(function (e) { return { name: e.name, n: e.n, p: e.p, move: e.move, line: e.line }; }); },
+    block: function () { return (CUR.block || []).map(function (b) { return { name: b.n, t: b.t, p: b.p }; }); },
+    phases: function () { return (CUR.phases || []).map(function (p) { return { n: p.n, a: p.a, b: p.b }; }); },
+    activePhase: function () {
+      if (!CUR.phases) return null;
+      for (var i = 0; i < CUR.phases.length; i++) { var p = CUR.phases[i]; if (step >= p.a && step <= p.b) return p.n; }
+      return null;
+    },
+    state: function () { return { id: CUR.id, kind: CUR.kind, step: step, total: CUR.steps.length, playing: playing, nm: hNm.textContent }; },
+    layers: function () { return JSON.parse(JSON.stringify(LAYERS)); },
+    toggleLayer: function (k) {
+      if (!(k in LAYERS)) return null;
+      LAYERS[k] = LAYERS[k] ? 0 : 1; saveLayers(); renderLayers(); draw();
+      return LAYERS[k];
+    },
+    openLayers: openLayers,
+    ctl: function () {
+      var c = ctlOf();
+      return { plines: (c.plines || []).length, bounds: (c.bounds || []).length,
+        objs: (c.objs || []).length, nai: (c.nai || []).length };
+    },
+    aar: function () {
+      return (AAR[CUR.id] || []).map(function (d) {
+        return { n: d.n, q: d.q, x: d._sx, y: d._sy };
+      });
+    },
+    openAar: function (i) { openAar((AAR[CUR.id] || [])[i]); },
+    closeAar: closeAar,
+    measure: function (a, b) {
+      meas.on = true; meas.A = a; meas.B = b;
+      measBtn.classList.add('on'); draw();
+      return { km: kmBetween(a, b), bearing: bearing(a, b) };
+    },
+    measState: function () { return { on: meas.on, A: meas.A, B: meas.B }; },
+    toggleMeas: toggleMeas,
+    view: function () { return { k: VIEW.k, ox: VIEW.ox, oy: VIEW.oy, zmax: ZMAX, zmin: ZMIN }; },
+    zoomAt: zoomAt,
+    resetZoom: function () { fit(true); draw(); },
+    stats: function () {
+      var s = CUR.steps, num = 0, ring = 0, arrow = 0;
+      s.forEach(function (x) {
+        if (x.ring) ring++;
+        if (x.arrow) arrow++;
+        if (x.s != null || (x.ring && x.ring.kill)) num++;
+      });
+      return { steps: s.length, withNumber: num, rings: ring, arrows: arrow };
+    }
+  };
+})();
+</script>
+</body>
+</html>

@@ -20,6 +20,16 @@
 #      · tools/verify_round31b.mjs     3D 页 Esc/布局避让/字号自适应 + 卡片降级 + 入口页 Esc（13 项）
 #      · tools/probe_index.mjs         入口页交互矩阵：6 类浮层打开/关闭闭环 × 4 视口（108 项）
 #      · tools/verify_round34.mjs      导出图片已移除 + 导出数据走保存 + 3D 提示条（11 项）
+#      · tools/verify_fulltext.mjs     全文检索：内置语料 + App 内导入的书（19 项）
+#      · tools/verify_export_all.mjs   数据可迁出：Markdown 导出 + 书文件导出（21 项）
+#      · tools/verify_shelf.mjs        我的书：三标签/排序/视图/批量管理（30 项）
+#      · tools/verify_mount.mjs        书壳挂载本机文件（13 项）
+#      · tools/verify_onetap.mjs       一键导入与格式白名单（22 项）
+#      · tools/verify_editor_v3.mjs    编辑台：事件增删 / 书目录 / 批量标签与移目录 / 撤销找回（24 项）
+#      · tools/verify_reader.mjs       阅读器基础（26 项）
+#      · tools/verify_reader2.mjs      阅读器三档翻页/排版/夜间/页码/返回（54 项）
+#      · tools/verify_visual.mjs       视觉回归：7 页截图逐像素比对基线（含书架浮层）
+#                                      基线更新：node tools/verify_visual.mjs --update
 # 用法： bash tools/check.sh            # 站点根目录下运行
 #        PORT=8946 bash tools/check.sh  # 自定义端口
 #        SKIP_RUNTIME=1 bash tools/check.sh   # 只跑 1、2（无需浏览器）
@@ -37,7 +47,14 @@ node tools/audit_code.js || FAIL=1
 echo
 echo "=== [2/3] 数据一致性审计 ==="
 node tools/validate_data.js || FAIL=1      # 既有：字段/唯一性/悬空/头像/别名
+# 导出书库时 EPUB 要重新打包成标准格式 —— 纯 JVM 校验（mimetype 首条且不压缩）
+if [ -f "$SITE/../qa/tools/run_epubpack_test.sh" ]; then
+  bash "$SITE/../qa/tools/run_epubpack_test.sh" >/tmp/yzy_epubpack.log 2>&1 \
+    && echo "  ✅ EPUB 重打包符合 OCF 规范（8 项）" \
+    || { echo "  ❌ EPUB 重打包有问题（见 /tmp/yzy_epubpack.log）"; FAIL=1; }
+fi
 node tools/audit_data.js || FAIL=1         # 补充：3D 数据集、世界地理坐标、孤立节点
+node tools/check_meetings.js || FAIL=1     # 会议条目：人物名/书目 id/事件名能否在站内解析
 
 if [ "${SKIP_RUNTIME:-0}" = "1" ]; then
   echo; echo "（已跳过运行时回归：SKIP_RUNTIME=1）"
@@ -64,6 +81,23 @@ else
     PORT="$PORT" node tools/verify_storage.mjs || FAIL=1
     PORT="$PORT" node tools/verify_features.mjs || FAIL=1
     PORT="$PORT" node tools/verify_graph28.mjs || FAIL=1
+    PORT="$PORT" node tools/graph_label_density_test.js || FAIL=1
+    PORT="$PORT" node tools/verify_lazydata.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_appbooks.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_bookshelf3.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_shelf.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_mount.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_onetap.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_reader.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_reader2.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_booknote.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_outline.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_fulltext.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_export_all.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_searchmerge.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_editmerge.mjs || FAIL=1
+    PORT="$PORT" node tools/verify_editor_v3.mjs || FAIL=1
+    PORT="$PORT" node tools/graph_world_label_test.js || FAIL=1
     PORT="$PORT" node tools/verify_a11y.mjs || FAIL=1
     PORT="$PORT" node tools/verify_sharecard.mjs || FAIL=1
     PORT="$PORT" node tools/verify_3d_idle.mjs || FAIL=1
@@ -74,6 +108,12 @@ else
     PORT="$PORT" node tools/verify_round34.mjs || FAIL=1
     PORT="$PORT" node tools/verify_export_dir.mjs || FAIL=1
     PORT="$PORT" node tools/verify_graph_io.mjs || FAIL=1
+    # 视觉回归放在最后：拍 7 页截图与基线逐像素比对（基线缺失则跳过）
+    if [ -d "$SITE/../shots/base" ]; then
+      PORT="$PORT" node tools/verify_visual.mjs || FAIL=1
+    else
+      echo "（跳过视觉回归：没有基线，先跑 node tools/verify_visual.mjs --update）"
+    fi
     kill "$SRV" 2>/dev/null
   fi
 fi

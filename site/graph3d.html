@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+
 <link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
@@ -167,6 +168,10 @@ body.clean #dataMenu{display:none !important}
   body.light #ebox .eb{background:#f7efe9;color:#2a2320;border-color:rgba(0,0,0,.12)}
   body.light #ebox input,body.light #ebox select,body.light #ebox textarea{background:#fff;border-color:rgba(0,0,0,.16);color:#2a2320}
   #panel .pacts{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+  /* 「在史料中查看」：与 2D 图谱页同一个入口，强调色描边 */
+  #panel .pacts a.hlink{padding:7px 12px;border-radius:9px;border:1px solid var(--accent);
+    color:var(--accent);text-decoration:none;font-size:.82rem;display:inline-flex;align-items:center;gap:4px}
+  #panel .pacts a.hlink:active{opacity:.7}
   #panel .pacts button{padding:7px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.22);
     background:rgba(255,255,255,.07);color:inherit;font:inherit;font-size:.78rem;cursor:pointer}
   body.light #panel .pacts button{border-color:rgba(0,0,0,.16)}
@@ -198,7 +203,7 @@ body.light #mg3{background:rgba(255,255,255,.98);color:#2a2320;border-left-color
 body.light #mg3 button{background:rgba(0,0,0,.05);color:#3a322c;border-color:rgba(0,0,0,.14)}
 </style>
 <script src="assets/custom.js"></script><script src="assets/crash.js"></script><script src="assets/diag.js"></script>
-</head>
+<link rel="stylesheet" href="assets/landscape.css"></head>
 <body>
 <a class="skip" href="#hint">跳到操作提示</a>
 <div id="yzLabels" aria-hidden="true"></div>
@@ -836,7 +841,11 @@ window.addEventListener('error', function (ev) {
         (n.years ? '<div class="yr">' + esc3(n.years) + '</div>' : '') +
         (n.role ? '<div class="role">' + esc3(n.role) + '</div>' : '') +
         (n.desc ? '<div class="desc">' + esc3(n.desc) + '</div>' : '') +
-        '<div class="pacts"><button type="button" onclick="yz3d.addEdgeUI()">＋ 以此为起点加关系</button>' +
+        '<div class="pacts">' +
+        /* 3D 的 nebula/lineage 与主图谱节点 id 完全同源（124/124、64/64），
+           直接走 index.html#/g/<id> 就能命中同一套史料条目。 */
+        '<a class="hlink" href="index.html#/g/' + encodeURIComponent(n.id) + '">📜 在史料中查看</a>' +
+        '<button type="button" onclick="yz3d.addEdgeUI()">＋ 以此为起点加关系</button>' +
         '<button type="button" onclick="yz3d.editNodeUI()">✏️ 编辑内容</button>' +
         '<button type="button" onclick="yz3d.addNodeUI()">＋ 新节点</button>' +
         '<button type="button" class="dgr" onclick="yz3d.deleteNodeUI()">🗑 删除节点</button></div>' +

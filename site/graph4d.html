@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>时空立方体 · 学通</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+/* 时空立方体（graph4d.html）—— 沿用站点色板，不引入新依赖。
+   X-Y 为示意空间（与 graph.html 的地图模式同一投影：x=(经度-104.5)*62、y=(36-纬度)*62），
+   Z 为 1840→1978 的分段时间轴（六段等宽，非遗漏：等距刻度会让 1919—1949 只占 1/5 高度）。 */
+/* 背景与关系图谱页一致（同一套三层渐变）：从图谱点进立方体不该变个色调 */
+:root{--accent:#f5c518;--text:#f2e8d8;--card:rgba(255,255,255,.09);--card-border:rgba(255,255,255,.34)}
+body{margin:0;overflow:hidden;color:var(--text);
+  font-family:-apple-system,"PingFang SC","Noto Serif SC",serif;
+  background:radial-gradient(circle at 20% 0%,rgba(200,30,30,.22),transparent 45%),
+             radial-gradient(circle at 90% 100%,rgba(245,197,24,.10),transparent 45%),
+             linear-gradient(160deg,#261f38,#171226 60%,#100c1b)}
+body.light{color:#2a2320;
+  background:radial-gradient(circle at 20% 0%,rgba(200,30,30,.10),transparent 45%),
+             radial-gradient(circle at 90% 100%,rgba(245,197,24,.16),transparent 45%),
+             linear-gradient(160deg,#fffdf8,#f5efe3 60%,#ece3d3)}
+body.sepia{color:#2a2320;
+  background:radial-gradient(circle at 20% 0%,rgba(170,70,20,.12),transparent 45%),
+             linear-gradient(160deg,#f8efdd,#efe0c4 60%,#e6d5b5)}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+/* 顶栏 */
+#top{position:fixed;left:0;right:0;top:0;z-index:30;display:flex;align-items:center;gap:.5rem;
+  padding:calc(.5rem + env(safe-area-inset-top,0px)) .75rem .5rem;
+  background:linear-gradient(to bottom,rgba(23,18,38,.94),rgba(23,18,38,0));
+  pointer-events:none}
+body.light #top{background:linear-gradient(to bottom,rgba(245,233,226,.96),rgba(245,233,226,0))}
+#top>*{pointer-events:auto}
+#back{flex:0 0 auto;color:var(--text);text-decoration:none;font-size:.875rem;opacity:.85;
+  border:1px solid var(--card-border,rgba(255,255,255,.34));border-radius:999px;padding:.25rem .6rem}
+#ttl{font-size:.9375rem;letter-spacing:.25rem;font-weight:600;margin:0;flex:1 1 auto;text-align:center}
+#gsel{flex:0 0 auto;display:flex;gap:.25rem}
+#gsel button{font:inherit;font-size:.75rem;color:var(--text);background:var(--card,rgba(255,255,255,.09));
+  border:1px solid var(--card-border,rgba(255,255,255,.34));border-radius:999px;padding:.25rem .55rem;cursor:pointer}
+#gsel button.on{background:var(--accent,#f5c518);color:#2b0505;border-color:transparent;font-weight:600}
+
+/* 视角条 */
+#cam{position:fixed;right:.5rem;top:calc(3.1rem + env(safe-area-inset-top,0px));z-index:30;
+  display:flex;flex-direction:column;gap:.3rem}
+#cam button{font:inherit;font-size:.75rem;color:var(--text);background:var(--card,rgba(255,255,255,.09));
+  border:1px solid var(--card-border,rgba(255,255,255,.34));border-radius:.5rem;padding:.3rem .5rem;
+  cursor:pointer;min-width:3.2rem;backdrop-filter:blur(5px)}
+#cam button.on{background:var(--accent,#f5c518);color:#2b0505;border-color:transparent;font-weight:600}
+
+
+/* 图例 */
+#legend{position:fixed;left:.5rem;bottom:calc(5.4rem + env(safe-area-inset-bottom,0px));z-index:25;
+  font-size:.6875rem;line-height:1.55;color:var(--text);opacity:.85;
+  background:var(--card,rgba(255,255,255,.09));border:1px solid var(--card-border,rgba(255,255,255,.22));
+  border-radius:.5rem;padding:.3rem .5rem;backdrop-filter:blur(4px)}
+#legend>div{cursor:pointer;user-select:none;transition:opacity .15s}
+#legend>div.off{opacity:.32;text-decoration:line-through}
+#legend>div.path{opacity:.72;cursor:default}
+#legend i{display:inline-block;width:.55rem;height:.55rem;border-radius:50%;margin-right:.3rem;vertical-align:middle}
+#legend .ln{display:inline-block;width:.85rem;height:2px;background:#f5c518;margin-right:.3rem;vertical-align:middle}
+
+/* 底部时间轴 */
+#tl{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:.35rem .75rem calc(.5rem + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top,rgba(23,18,38,.95),rgba(23,18,38,0))}
+body.light #tl{background:linear-gradient(to top,rgba(245,233,226,.97),rgba(245,233,226,0))}
+#band{height:.4rem;border-radius:.2rem;overflow:hidden;display:flex;margin-bottom:.3rem;opacity:.85}
+#band span{flex:1 1 auto;display:block}
+#bandrow{display:flex;align-items:center;gap:.5rem}
+#yr{flex:1 1 auto;accent-color:var(--accent,#f5c518);height:1.4rem}
+#yrv{flex:0 0 auto;font-size:.75rem;font-variant-numeric:tabular-nums;opacity:.9;min-width:5.6rem;text-align:right}
+#bandrow2{display:flex;align-items:center;gap:.35rem;margin-top:.3rem;flex-wrap:wrap}
+#bandrow2 button{font:inherit;font-size:.6875rem;color:var(--text);background:var(--card,rgba(255,255,255,.09));
+  border:1px solid var(--card-border,rgba(255,255,255,.24));border-radius:999px;padding:.15rem .5rem;cursor:pointer;opacity:.8}
+#bandrow2 button.on{background:var(--accent,#f5c518);color:#2b0505;border-color:transparent;font-weight:600;opacity:1}
+#bandrow2 .sep{opacity:.3;font-size:.6875rem}
+/* 顶部提示条：用于「本图谱时间跨度只有一段」这类结构性说明 */
+#banner{position:fixed;left:.5rem;right:calc(4.6rem);top:calc(3.1rem + env(safe-area-inset-top,0px));z-index:35;
+  display:none;font-size:.75rem;line-height:1.6;padding:.5rem .7rem;border-radius:.5rem;
+  background:rgba(245,197,24,.14);border:1px solid rgba(245,197,24,.45);color:var(--text);
+  backdrop-filter:blur(6px)}
+body.light #banner{background:rgba(122,78,0,.10);border-color:rgba(122,78,0,.35)}
+#banner.show{display:block}
+#banner b{font-weight:600}
+#banner button{font:inherit;font-size:.6875rem;background:none;border:1px solid currentColor;border-radius:.4rem;
+  padding:.05rem .4rem;color:inherit;opacity:.8;cursor:pointer;margin-left:.3rem}
+
+/* 节点信息面板 */
+#panel{position:fixed;left:.5rem;right:.5rem;bottom:calc(4.4rem + env(safe-area-inset-bottom,0px));z-index:40;
+  max-height:42vh;overflow:auto;display:none;
+  background:linear-gradient(160deg,rgba(58,8,8,.97),rgba(30,3,3,.98));
+  border:1px solid var(--card-border,rgba(255,255,255,.34));border-radius:.75rem;
+  padding:.7rem .8rem;box-shadow:0 .5rem 1.5rem rgba(0,0,0,.5)}
+body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:0 .5rem 1.5rem rgba(0,0,0,.18)}
+#panel.open{display:block}
+#panel h3{margin:0 0 .25rem;font-size:.9375rem}
+#panel .meta{font-size:.6875rem;opacity:.75;margin-bottom:.35rem}
+#panel .desc{font-size:.8125rem;line-height:1.6;white-space:pre-wrap}
+#panel ul{margin:.4rem 0 0;padding-left:1.1rem;font-size:.78125rem;line-height:1.6}
+#panel .x{position:absolute;right:.5rem;top:.4rem;background:none;border:0;color:var(--text);
+  font-size:1.1rem;cursor:pointer;opacity:.7;padding:.2rem .4rem}
+
+/* 首次提示 */
+#hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:45;
+  font-size:.8125rem;line-height:1.8;text-align:center;padding:.9rem 1.1rem;border-radius:.75rem;
+  background:rgba(0,0,0,.62);color:#f2e8d8;border:1px solid rgba(255,255,255,.2);
+  backdrop-filter:blur(6px);transition:opacity .35s;pointer-events:none}
+#hint.gone{opacity:0}
+@media (max-width:360px){#legend{display:none}#ttl{letter-spacing:.1rem}}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <a id="back" href="graph.html">← 图谱</a>
+  <h1 id="ttl">时空立方体</h1>
+  <div id="gsel">
+    <button data-g="old">旧民</button>
+    <button data-g="new" class="on">新民</button>
+  </div>
+</header>
+
+<div id="cam">
+  <button data-v="iso" class="on">斜视</button>
+  <button data-v="front">正视</button>
+  <button data-v="top">俯视</button>
+  <button data-v="side">侧视</button>
+  <button id="rst">复位</button>
+</div>
+
+<canvas id="cv"></canvas>
+
+<div id="legend">
+  <div data-t="event"><i style="background:#f5c518"></i>事件</div>
+  <div data-t="org"><i style="background:#7fb0ff;border-radius:.1rem"></i>组织（存续期）</div>
+  <div data-t="person" class="off"><i style="background:#8fe08f"></i>人物（生命路径）</div>
+  <div data-t="idea"><i style="background:#c9a6ff;border-radius:.1rem"></i>思想（无位置）</div>
+  <div class="path"><span class="ln"></span>跨区域行动</div>
+</div>
+
+<div id="panel"><button class="x" id="px">✕</button><h3></h3><div class="meta"></div><div class="desc"></div><ul></ul></div>
+
+<footer id="tl">
+  <div id="band"></div>
+  <div id="bandrow">
+    <input id="yr" type="range" min="1840" max="1978" step="1" value="1978">
+    <span id="yrv">全时段</span>
+  </div>
+  <div id="bandrow2">
+    <button data-w="window" class="on" title="只看当前年份附近一段，窗口外淡出为上下文">窗口</button>
+    <button data-w="cum" title="显示截至当前年份已发生的全部内容">累计</button>
+    <span class="sep">｜</span>
+    <button data-tm="seg" class="on" title="六段等宽：1919—1949 不再被压扁，但各段时长不可直接比较">等宽分段</button>
+    <button data-tm="lin" title="等距年份：时长可比，但密集年份会挤在一起">等距年份</button>
+  </div>
+</footer>
+
+<div id="banner"></div>
+
+<div id="hint">拖动旋转 · 双指缩放 · 点节点看详情<br><span style="opacity:.7">Z 轴 = 1840→1978（六段等宽）</span></div>
+
+<script src="data/graph.js"></script>
+<script src="data/graph-old.js"></script>
+<script src="data/graph-new.js"></script>
+<script src="data/geo-china.js"></script>
+<script>
+/* =====================================================================
+   学通 · 3D 时空立方体（graph4d.html，站点 0.36.32 新增）
+   ---------------------------------------------------------------------
+   为什么不用 WebGL / 3d-force-graph：
+     ① 立方体是「静态几何 + 正交投影」，没有任何物理与光照需求，
+        本质是把 3 维坐标投到 2 维再画，Canvas 2D 足够（百级图元 <2ms/帧）；
+     ② 3d-force-graph 的 UMD 包没有暴露 THREE 命名空间（官方 issue #729 确认），
+        nodeThreeObject 里造不出线段/立方块/薄片，自定义几何这条路走不通；
+     ③ WebGL 在安卓 WebView 里切后台会丢上下文（白屏），而本项目主打离线长期使用；
+        文字标签在 WebGL 里要自己烘字形纹理，Canvas 2D 直接用系统文字栈，更清晰。
+   所以本页零新依赖、零 WebGL，与 graph.html 的地图模式共用同一套投影与配色。
+   ===================================================================== */
+(function () {
+  'use strict';
+
+  /* ---------- 主题 ---------- */
+  var THEME = 'dark';
+  try {
+    var t = localStorage.getItem('theme') || 'auto';
+    if (t === 'auto') t = (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    THEME = (t === 'light' || t === 'sepia') ? 'light' : 'dark';
+  } catch (e) { }
+  if (THEME === 'light') document.body.classList.add('light');
+
+  var CL = THEME === 'light' ? {
+    bg: '#f5e9e2', box: 'rgba(120,40,30,.34)', boxFill: 'rgba(120,40,30,.045)',
+    grid: 'rgba(120,40,30,.13)', text: '#3a0d0d', dim: 'rgba(58,13,13,.55)',
+    ev: '#b07400', org: '#2f63b8', per: '#1f7a3f', idea: '#6b3fae', path: '#a06a00',
+    accent: '#7a4e00', labBg: 'rgba(250,242,236,.86)'
+  } : {
+    bg: '#2b0505', box: 'rgba(245,197,24,.30)', boxFill: 'rgba(245,197,24,.035)',
+    grid: 'rgba(255,255,255,.10)', text: '#f2e8d8', dim: 'rgba(242,232,216,.5)',
+    ev: '#f5c518', org: '#7fb0ff', per: '#8fe08f', idea: '#c9a6ff', path: '#f5c518',
+    accent: '#f5c518', labBg: 'rgba(20,2,2,.78)'
+  };
+
+  /* ---------- 时间轴：六段等宽 ---------- */
+  /* 等距刻度的问题：1919—1949 这 30 年只占 1840—1978 的 21.7%，
+     而这段恰恰是图谱信息最密的部分，视觉上会被压扁。
+     按革命史分期分段等宽，信息密度才落得住（与 Beck 地铁图压缩距离同源）。 */
+  var SEG = [
+    [1840, 1919, '旧民主主义革命'],
+    [1919, 1927, '大革命'],
+    [1927, 1937, '土地革命'],
+    [1937, 1945, '全民族抗战'],
+    [1945, 1949, '解放战争'],
+    [1949, 1978, '建国后']
+  ];
+  var T0 = 1840, T1 = 1978, ZH = 56;          /* ZH = 立方体高度（与空间同一“度”量纲） */
+  var SEGH = ZH / SEG.length;
+  var SEGCOL = ['rgba(200,120,60,.55)', 'rgba(200,60,60,.55)', 'rgba(200,140,50,.55)',
+    'rgba(180,180,60,.55)', 'rgba(120,170,90,.55)', 'rgba(90,150,190,.55)'];
+
+  /* 时间刻度两种模式：
+     · seg（默认）六段等宽——解决「1919—1949 只占 1/5 高度」的挤压；
+       代价是 79 年与 4 年画成同样高度，会误导对「时长」的判断，
+       所以轴上必须标年份、并且给用户切回线性刻度的开关。
+     · lin 等距年份——不做任何压缩，时长判断准确，但 burst 区会挤死。 */
+  var timeMode = 'seg';
+  function segIndex(y) {
+    if (y == null || isNaN(y)) return SEG.length - 1;
+    if (y <= T0) return 0;
+    if (y >= T1) return SEG.length - 1;
+    for (var i = 0; i < SEG.length; i++) { if (y <= SEG[i][1]) return i; }
+    return SEG.length - 1;
+  }
+  function yearToZ(y) {
+    if (y == null || isNaN(y)) return ZH;
+    if (timeMode === 'lin') {
+      var r0 = (y - T0) / (T1 - T0);
+      return Math.max(0, Math.min(1, r0)) * ZH;
+    }
+    if (y <= T0) return 0;
+    if (y >= T1) return ZH;
+    for (var i = 0; i < SEG.length; i++) {
+      var a = SEG[i][0], b = SEG[i][1];
+      if (y <= b || i === SEG.length - 1) {
+        var r = (y - a) / (b - a);
+        r = Math.max(0, Math.min(1, r));
+        return i * SEGH + r * SEGH;
+      }
+    }
+    return ZH;
+  }
+  function zToYear(z) {
+    if (timeMode === 'lin') return Math.round(T0 + (z / ZH) * (T1 - T0));
+    var i = Math.min(SEG.length - 1, Math.max(0, Math.floor(z / SEGH)));
+    var r = (z - i * SEGH) / SEGH;
+    return Math.round(SEG[i][0] + r * (SEG[i][1] - SEG[i][0]));
+  }
+
+  /* ---------- 画布 ---------- */
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  var W = 0, H = 0;
+
+  function resize() {
+    W = cv.clientWidth || window.innerWidth;
+    H = cv.clientHeight || window.innerHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    fit();
+    draw();
+  }
+
+  /* ---------- 相机（正交投影） ---------- */
+  /* yaw 绕 Z 轴旋转；elev = 抬升角：0 = 正视（时间竖直向上），PI/2 = 俯视（退化成地图）。
+     投影式：sx = x1；sy = y1*sin(elev) - z*cos(elev)
+     于是 elev→0 时 sy≈-z（时间成为竖轴），elev→PI/2 时 sy≈y1（时间退到纵深）。 */
+  var cam = { yaw: -0.30, elev: 0.52, scale: 1, cx: 0, cy: 0 };
+  var FIT = { cx: 0, cy: 0, scale: 1 };
+
+  function proj(x, y, z) {
+    var ca = Math.cos(cam.yaw), sa = Math.sin(cam.yaw);
+    var x1 = x * ca - y * sa;
+    var y1 = x * sa + y * ca;
+    var ce = Math.cos(cam.elev), se = Math.sin(cam.elev);
+    return {
+      x: FIT.cx + x1 * FIT.scale,
+      y: FIT.cy + (y1 * se - z * ce) * FIT.scale,
+      d: y1 * ce + z * se            /* 深度：越大越远 */
+    };
+  }
+
+  /* ---------- 数据 ---------- */
+  var GR = { nodes: [], links: [] };
+  var GID = 'new';
+  var BOUND = { x0: -31, x1: 31, y0: -18, y1: 18, z0: 0, z1: ZH };
+
+  function pickGraph() {
+    var O = window.SITE_GRAPH_OLD, N = window.SITE_GRAPH_NEW;
+    GR = (GID === 'old' ? O : N) || { nodes: [], links: [] };
+    /* 内部结构：每个节点算一次 3D 坐标，投影每帧重算 */
+    var bb = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9 };
+    GR.nodes.forEach(function (n, i) {
+      var g = n.geo;
+      var x, y;
+      if (n.type === 'idea') {           /* 思想没有地理位置 → 固定投到立方体“概念角” */
+        x = -26; y = -14;
+      } else if (g && g.length === 2) {
+        x = (g[0] - 104.5); y = (36 - g[1]);
+      } else {
+        x = (104.5 - 104.5); y = (36 - 35.5);
+      }
+      n._bx = x; n._by = y;
+      n._z0 = yearToZ(n.y0); n._z1 = yearToZ(n.y1 == null ? n.y0 : n.y1);
+      n._z = (n._z0 + n._z1) / 2;
+      if (n.type !== 'idea') {
+        bb.x0 = Math.min(bb.x0, x); bb.x1 = Math.max(bb.x1, x);
+        bb.y0 = Math.min(bb.y0, y); bb.y1 = Math.max(bb.y1, y);
+      }
+    });
+    /* 同城节点「花瓣散开」：同一 0.2° 网格内的节点围成小圈，半径随数量增长。
+       为什么不用随机抖动：随机会让两次打开的位置不同，用户无法建立空间记忆；
+       花瓣是有序的（按索引逆时针），同一个城市永远长成同一朵花。 */
+    respread();
+
+    /* 立方体范围比数据略大一点，留出边距 */
+    var padx = 5, pady = 4;
+    BOUND = {
+      x0: Math.floor(bb.x0 - padx), x1: Math.ceil(bb.x1 + padx),
+      y0: Math.floor(bb.y0 - pady), y1: Math.ceil(bb.y1 + pady),
+      z0: 0, z1: ZH
+    };
+    /* 邻接表（聚焦高亮用） */
+    var byId = {}; GR.nodes.forEach(function (n) { byId[n.id] = n; });
+    GR.nodes.forEach(function (n) { n._nb = []; });
+    GR.links.forEach(function (l) {
+      var s = typeof l.source === 'object' ? l.source.id : l.source;
+      var t = typeof l.target === 'object' ? l.target.id : l.target;
+      if (byId[s] && byId[t]) { byId[s]._nb.push(t); byId[t]._nb.push(s); }
+    });
+    BYID = byId;
+    selected = null; closePanel();
+    /* 默认把窗口落在节点最密的地方，而不是 1978（那之后没有节点，一片空白） */
+    var ys = GR.nodes.map(function (n) { return n.y0; }).filter(function (y) { return y != null; }).sort(function (a, b) { return a - b; });
+    if (ys.length) {
+      cutYear = ys[Math.floor(ys.length * 0.7)];
+      var ye = document.getElementById('yr');
+      if (ye) ye.value = cutYear;
+    }
+    if (typeof updYearLabel === 'function') updYearLabel();
+    checkSpan();
+  }
+  var BYID = {};
+
+  /* 散开半径按「屏幕像素」算，不按度数写死：
+     上一版写 0.75+0.42√m 度，乘 3.16px/度 在屏幕上只有 2~8px，
+     小于节点直径（5.8px），等于没散。现在目标间距 13px，
+     换算成度数要除以当前 scale；上下限防极端（scale 很小时不把点甩到别的省去）。 */
+  /* 散开：只处理「同城 + 同年」的真重叠。
+     实测数据（新民 113 节点）：同城多点的 14 个组里，40 个点靠 Z 轴（年份）本来就分开了，
+     真正叠在一起（同城同年、Z 也相同）的只有 6 对；旧民是 44 比 7。
+     所以上一版按城市整体散开是错的——它散了本不重叠的点，还让相邻城市互相穿插
+     （上海 121.5/31.2 与南京 118.8/32.1 只差 3 度，散开半径 6 度直接跨过去）。
+     现在只对 z 也相同的点做小半径散开，半径按屏幕像素换算，且上限 2.2 度（约 200km）。 */
+  function respread() {
+    var all = GR.nodes;
+    if (!all || !all.length) return;
+    var sinE = Math.max(0.42, Math.sin(cam.elev || 0.52));
+    var target = 9;                                  /* 目标屏幕间距 px */
+    var rad = Math.max(0.25, Math.min(target / ((FIT.scale || 3) * sinE), 2.2));
+    var key = {}, i;
+    for (i = 0; i < all.length; i++) { all[i]._x = all[i]._bx; all[i]._y = all[i]._by; }
+    for (i = 0; i < all.length; i++) {
+      var n = all[i];
+      if (n.type === 'idea') continue;
+      var kk = Math.round(n._bx * 5) + ',' + Math.round(n._by * 5) + ',' + Math.round(n._z0 * 2);
+      (key[kk] = key[kk] || []).push(n);
+    }
+    Object.keys(key).forEach(function (k) {
+      var a = key[k], m = a.length;
+      if (m < 2) return;
+      var rr = Math.max(rad, (m * rad) / 6.28318);
+      rr = Math.min(rr, 2.2);
+      a.forEach(function (n0, j) {
+        var ang = j / m * 6.28318;
+        n0._x = n0._bx + Math.cos(ang) * rr;
+        n0._y = n0._by + Math.sin(ang) * rr;
+      });
+    });
+  }
+  /* 验收用：把所有「同城同年」组投影到屏幕，返回组内最小间距 */
+  function overlapCheck() {
+    var key = {}, i;
+    for (i = 0; i < GR.nodes.length; i++) {
+      var n = GR.nodes[i];
+      if (n.type === 'idea') continue;
+      var kk = Math.round(n._bx * 5) + ',' + Math.round(n._by * 5) + ',' + Math.round(n._z0 * 2);
+      (key[kk] = key[kk] || []).push(n);
+    }
+    var bad = 0, worst = 1e9, groups = 0;
+    Object.keys(key).forEach(function (k) {
+      var a = key[k]; if (a.length < 2) return;
+      groups++;
+      for (var x = 0; x < a.length; x++) for (var y = x + 1; y < a.length; y++) {
+        var p1 = proj(a[x]._x, a[x]._y, a[x]._z0), p2 = proj(a[y]._x, a[y]._y, a[y]._z0);
+        var d = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        if (d < worst) worst = d;
+        if (d < 6) bad++;
+      }
+    });
+    return { groups: groups, bad: bad, worst: worst === 1e9 ? null : worst };
+  }
+
+  /* ---------- 自适应缩放 ----------
+     ⚠ 这里必须分清两件事，否则会出现「缩放后一拖动就回弹」：
+       · 重算 scale —— 只在换图谱 / 切视角 / 改窗口尺寸时做；
+       · 只重算中心 —— 拖拽旋转时做，scale 保持不变。
+     上一版把两件事塞在同一个 fit() 里，而 pointermove 每帧都调 fit()，
+     于是用户滚轮放大后只要一拖动，scale 立刻被重置回初始值。
+     规范依据：Canvas 场景里「位置随变换走、字形保持屏幕尺寸」，
+     等价地，视图中心可以变、但用户设定的缩放级别不该被他没碰的操作改掉。 */
+  function boxOf() {
+    var cs = [];
+    [BOUND.x0, BOUND.x1].forEach(function (x) {
+      [BOUND.y0, BOUND.y1].forEach(function (y) {
+        [BOUND.z0, BOUND.z1].forEach(function (z) { cs.push(projRaw(x, y, z)); });
+      });
+    });
+    var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    cs.forEach(function (p) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); });
+    return { x0: x0, x1: x1, y0: y0, y1: y1 };
+  }
+  function recenter() {
+    var b = boxOf();
+    FIT.cx = (18 + (W - 30)) / 2 - ((b.x0 + b.x1) / 2) * FIT.scale;
+    FIT.cy = (H - 128) / 2 + 52 - ((b.y0 + b.y1) / 2) * FIT.scale;
+  }
+  function fit(keepScale) {
+    var b = boxOf();
+    if (!keepScale) {
+      var w = Math.max(1e-6, b.x1 - b.x0), h = Math.max(1e-6, b.y1 - b.y0);
+      var availW = W - 18 - 30, availH = H - 136;
+      var k = Math.min(availW / w, availH / h) * 1.05;
+      FIT.scale = Math.max(0.4, Math.min(k, 40));
+    }
+    recenter();
+    respread();          /* 散开半径按屏幕像素算，缩放变了要重排 */
+  }
+  /* 不带 FIT 的原始投影（用于 fit 本身） */
+  function projRaw(x, y, z) {
+    var ca = Math.cos(cam.yaw), sa = Math.sin(cam.yaw);
+    var x1 = x * ca - y * sa;
+    var y1 = x * sa + y * ca;
+    var ce = Math.cos(cam.elev), se = Math.sin(cam.elev);
+    return { x: x1, y: y1 * se - z * ce, d: y1 * ce + z * se };
+  }
+
+  /* ---------- 节点视觉参数 ---------- */
+  function colorOf(n) {
+    if (n.type === 'event') return CL.ev;
+    if (n.type === 'org') return CL.org;
+    if (n.type === 'person') return CL.per;
+    return CL.idea;
+  }
+
+  /* 时间筛选两种模式（学术上叫 focus+context 的两种取法）：
+     · window（默认）当前年份 ±半窗，窗口外的节点淡到 7% 作为上下文——
+       这是切开「1927—1949 挤成一团」的关键：一屏只认真看 1~2 段。
+     · cum 截至某年累积，保留“到这一年为止已发生什么”的读法。
+     窗口宽度按「段」而不是「年」来定：分段刻度下每段等宽，
+     按年算会让 1840—1919 段的窗口只有几像素、1945—1949 段的窗口超过一整段。 */
+  var cutYear = T1;
+  var winMode = 'window';
+  var winHalfSeg = 0.9;         /* 半窗 = 0.9 段（总高 1.8 段） */
+
+  function winRange() {
+    var c = yearToZ(cutYear);
+    if (winMode === 'cum') return [0, c];
+    var hw = (timeMode === 'seg') ? (winHalfSeg * SEGH) : (ZH * 0.17);
+    return [Math.max(0, c - hw), Math.min(ZH, c + hw)];
+  }
+  function alphaOf(n) {
+    var r = winRange();
+    if (r[0] <= 0.001 && r[1] >= ZH - 0.001) return 1;
+    if (n._z1 < r[0] || n._z0 > r[1]) return 0.07;
+    return 1;
+  }
+
+  var selected = null;
+  /* 人物竖线默认关闭：40 条生命路径从生年起画，会全部堆在最底层（实测最近邻 2.7px）。
+     关掉后底部那团糊立刻消失，需要看生命路径时点图例开。 */
+  var typeOn = { event: 1, org: 1, person: 0, idea: 1 };
+
+  /* ---------- 绘制 ---------- */
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    var L = BOUND;
+
+    /* 1) 立方体的六个面：按深度排序，只画最靠后的三面（当“背板”） */
+    var faces = [
+      { p: [[L.x0, L.y0, 0], [L.x1, L.y0, 0], [L.x1, L.y1, 0], [L.x0, L.y1, 0]], c: [0, 0, 0] },       /* 底面 */
+      { p: [[L.x0, L.y0, L.z1], [L.x1, L.y0, L.z1], [L.x1, L.y1, L.z1], [L.x0, L.y1, L.z1]], c: [0, 0, L.z1] }, /* 顶面 */
+      { p: [[L.x0, L.y0, 0], [L.x1, L.y0, 0], [L.x1, L.y0, L.z1], [L.x0, L.y0, L.z1]], c: [0, L.y0, 0] },
+      { p: [[L.x0, L.y1, 0], [L.x1, L.y1, 0], [L.x1, L.y1, L.z1], [L.x0, L.y1, L.z1]], c: [0, L.y1, 0] },
+      { p: [[L.x0, L.y0, 0], [L.x0, L.y1, 0], [L.x0, L.y1, L.z1], [L.x0, L.y0, L.z1]], c: [L.x0, 0, 0] },
+      { p: [[L.x1, L.y0, 0], [L.x1, L.y1, 0], [L.x1, L.y1, L.z1], [L.x1, L.y0, L.z1]], c: [L.x1, 0, 0] }
+    ];
+    faces.forEach(function (f) { f.d = projRaw(f.c[0], f.c[1], f.c[2]).d; });
+    faces.sort(function (a, b) { return b.d - a.d; });
+    ctx.lineWidth = 1;
+    faces.slice(0, 3).forEach(function (f) {
+      ctx.beginPath();
+      f.p.forEach(function (q, i) {
+        var s = proj(q[0], q[1], q[2]);
+        if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = CL.boxFill; ctx.fill();
+      ctx.strokeStyle = CL.box; ctx.stroke();
+    });
+
+    /* 2) 底面网格（每 10 度一条，作为空间参照） */
+    ctx.strokeStyle = CL.grid; ctx.lineWidth = 1;
+    for (var gx = Math.ceil(L.x0 / 10) * 10; gx <= L.x1; gx += 10) {
+      var a = proj(gx, L.y0, 0), b = proj(gx, L.y1, 0);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    for (var gy = Math.ceil(L.y0 / 10) * 10; gy <= L.y1; gy += 10) {
+      var c = proj(L.x0, gy, 0), d = proj(L.x1, gy, 0);
+      ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+    }
+
+    /* 3) 后墙的分段色带 + 年份刻度（深度线索：没有参照物就分不清前后） */
+    var backY = (projRaw(0, L.y1, 0).d > projRaw(0, L.y0, 0).d) ? L.y1 : L.y0;
+    for (var si = 0; si < SEG.length; si++) {
+      var z0 = si * SEGH, z1 = (si + 1) * SEGH;
+      var q0 = proj(L.x0, backY, z0), q1 = proj(L.x1, backY, z0);
+      var q2 = proj(L.x1, backY, z1), q3 = proj(L.x0, backY, z1);
+      ctx.beginPath();
+      ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.lineTo(q2.x, q2.y); ctx.lineTo(q3.x, q3.y);
+      ctx.closePath();
+      ctx.fillStyle = SEGCOL[si]; ctx.globalAlpha = 0.16; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = CL.grid;
+      ctx.beginPath(); ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.stroke();
+      /* 段名贴墙面左端、再淡一档：原先写正中且不透明，会和节点标签叠在一起 */
+      var mid = proj(L.x0 + 0.6, backY, (z0 + z1) / 2);
+      if (FIT.scale > 1.0) {
+        ctx.globalAlpha = 0.62;
+        ctx.fillStyle = CL.dim; ctx.font = '500 10px -apple-system,sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(SEG[si][2] + ' ' + SEG[si][0] + '—' + SEG[si][1], mid.x, mid.y);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    /* 4) 立方体 12 条棱 */
+    ctx.strokeStyle = CL.box; ctx.lineWidth = 1.2;
+    var V = [
+      [L.x0, L.y0, 0], [L.x1, L.y0, 0], [L.x1, L.y1, 0], [L.x0, L.y1, 0],
+      [L.x0, L.y0, L.z1], [L.x1, L.y0, L.z1], [L.x1, L.y1, L.z1], [L.x0, L.y1, L.z1]
+    ].map(function (v) { return proj(v[0], v[1], v[2]); });
+    [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]]
+      .forEach(function (e) {
+        ctx.beginPath(); ctx.moveTo(V[e[0]].x, V[e[0]].y); ctx.lineTo(V[e[1]].x, V[e[1]].y); ctx.stroke();
+      });
+
+    /* 5) 跨区域行动（geoPath）：沿路径把 Z 从 y0 抬到 y1 */
+    GR.nodes.forEach(function (n) {
+      if (!n.geoPath || n.geoPath.length < 2) return;
+      if (!typeOn[n.type]) return;
+      var a0 = alphaOf(n); if (a0 < 0.2 && selected !== n) return;
+      ctx.beginPath();
+      n.geoPath.forEach(function (pt, i) {
+        var r = i / (n.geoPath.length - 1);
+        var z = n._z0 + (n._z1 - n._z0) * r;
+        var s = proj(pt[0] - 104.5, 36 - pt[1], z);
+        if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
+      });
+      ctx.strokeStyle = CL.path; ctx.globalAlpha = 0.55 * a0; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+
+    /* 6) 节点：按深度从远到近画（遮挡关系才正确） */
+    var items = [];
+    GR.nodes.forEach(function (n) {
+      if (!typeOn[n.type]) return;
+      var p = proj(n._x, n._y, n._z0);
+      var p2 = proj(n._x, n._y, n._z1);
+      n._sx = p.x; n._sy = p.y; n._sy2 = p2.y;
+      items.push({ n: n, d: p.d, p: p, p2: p2 });
+    });
+    items.sort(function (a, b) { return b.d - a.d; });
+
+    var focusSet = null;
+    if (selected) {
+      focusSet = {}; focusSet[selected.id] = 1;
+      (selected._nb || []).forEach(function (id) { focusSet[id] = 1; });
+    }
+
+    items.forEach(function (it) {
+      var n = it.n, p = it.p, p2 = it.p2;
+      var a = alphaOf(n);
+      if (focusSet && !focusSet[n.id]) a *= 0.16;
+      if (a < 0.02) return;
+      ctx.globalAlpha = a;
+      var c = colorOf(n);
+
+      if (n.type === 'person') {
+        /* 生命路径：生卒竖线；活跃期（y0→y1 若相等则用一个短柱）用较粗线 */
+        ctx.strokeStyle = c; ctx.lineWidth = (selected === n ? 3 : 1.6);
+        ctx.globalAlpha = a * 0.35;                 /* 生命线降到 35%，只留结构不抢注意力 */
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        ctx.globalAlpha = a;
+        /* 顶端一个小圆点，便于点选 */
+        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(p2.x, p2.y, selected === n ? 4.4 : 2.8, 0, 6.283); ctx.fill();
+        if (n.y0 !== n.y1) {
+          ctx.globalAlpha = a * 0.35;
+          ctx.beginPath(); ctx.arc(p.x, p.y, 1.8, 0, 6.283); ctx.fill();
+          ctx.globalAlpha = a;
+        }
+      } else if (n.type === 'org') {
+        /* 组织：存续期画成竖向细柱（长条），底端小方块 */
+        ctx.strokeStyle = c; ctx.lineWidth = 2.2;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        ctx.fillStyle = c;
+        sq(p2.x, p2.y, selected === n ? 3.4 : 2.4);
+      } else if (n.type === 'idea') {
+        /* 思想：菱形薄片（无地理位置，集中在“概念角”） */
+        ctx.fillStyle = c; dia(p2.x, p2.y, selected === n ? 5 : 3.4);
+      } else {
+        /* 事件：圆点；跨区域事件的起点再画一个小空心圈 */
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.arc(it.p2.x, it.p2.y, selected === n ? 4.6 : (n.geoPath ? 3.6 : 2.9), 0, 6.283); ctx.fill();
+        if (n.geoPath) {
+          ctx.strokeStyle = c; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(it.p2.x, it.p2.y, 5.6, 0, 6.283); ctx.stroke();
+        }
+      }
+      if (selected === n) {
+        ctx.strokeStyle = CL.accent; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(it.p2.x, it.p2.y, 9, 0, 6.283); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    });
+
+    /* 7) 标签：选中/邻居优先，其次度数高的；做屏幕碰撞取舍，避免糊成一团 */
+    var lab = [];
+    items.forEach(function (it) {
+      var n = it.n;
+      if (alphaOf(n) < 0.5) return;
+      var pr = 0;
+      if (selected === n) pr = 100;
+      else if (selected && (selected._nb || []).indexOf(n.id) >= 0) pr = 60;
+      else pr = (n.type === 'event' ? 12 : n.type === 'person' ? 10 : 4) + (n._nb ? n._nb.length : 0);
+      lab.push({ n: n, pr: pr, x: it.p2.x, y: it.p2.y });
+    });
+    lab.sort(function (a, b) { return b.pr - a.pr; });
+    var boxes = [];
+    ctx.font = '500 11px -apple-system,"PingFang SC",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    var shown = 0, LIMIT = FIT.scale > 6 ? 26 : 14;
+    for (var li = 0; li < lab.length && shown < LIMIT; li++) {
+      var L2 = lab[li];
+      var txt = L2.n.name;
+      var w2 = ctx.measureText(txt).width + 8;
+      var bx = [L2.x - w2 / 2, L2.y - 15, L2.x + w2 / 2, L2.y - 1];
+      var hit = false;
+      for (var bi = 0; bi < boxes.length; bi++) {
+        var B = boxes[bi];
+        if (bx[0] < B[2] && bx[2] > B[0] && bx[1] < B[3] && bx[3] > B[1]) { hit = true; break; }
+      }
+      if (hit && L2.pr < 100) continue;
+      boxes.push(bx);
+      ctx.fillStyle = CL.labBg;
+      ctx.globalAlpha = 0.82;
+      ctx.fillRect(bx[0], bx[1], bx[2] - bx[0], bx[3] - bx[1]);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = (selected === L2.n) ? CL.accent : CL.text;
+      ctx.fillText(txt, L2.x, L2.y - 3);
+      shown++;
+    }
+  }
+
+  function sq(x, y, r) { ctx.fillRect(x - r, y - r, r * 2, r * 2); }
+  function dia(x, y, r) {
+    ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y);
+    ctx.closePath(); ctx.fill();
+  }
+
+  /* ---------- 交互 ---------- */
+  var drag = null, pinch = null;
+  cv.addEventListener('pointerdown', function (e) {
+    hideHint();
+    if (e.pointerType === 'touch' && e.isPrimary === false) return;
+    drag = { x: e.clientX, y: e.clientY, yaw: cam.yaw, elev: cam.elev, moved: 0 };
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    drag.moved = Math.max(drag.moved, Math.abs(dx) + Math.abs(dy));
+    cam.yaw = drag.yaw + dx * 0.008;
+    cam.elev = Math.max(0, Math.min(Math.PI / 2, drag.elev + dy * 0.008));
+    fit(true);          /* keepScale：拖拽只改朝向，不动用户设的缩放 */
+    draw();
+  });
+  cv.addEventListener('pointerup', function (e) {
+    if (drag && drag.moved < 6) pick(e.clientX, e.clientY);
+    drag = null;
+  });
+  cv.addEventListener('pointercancel', function () { drag = null; });
+
+  cv.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var k = e.deltaY > 0 ? 0.92 : 1.08;
+    FIT.scale = Math.max(0.4, Math.min(60, FIT.scale * k));
+    recenter(); respread();      /* 只重算中心与散开，不再回头改 scale */
+    draw();
+  }, { passive: false });
+
+  /* 双指缩放 */
+  cv.addEventListener('touchmove', function (e) {
+    if (e.touches.length !== 2) return;
+    e.preventDefault();
+    var a = e.touches[0], b = e.touches[1];
+    var d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    if (!pinch) { pinch = { d: d, s: FIT.scale }; return; }
+    FIT.scale = Math.max(0.4, Math.min(60, pinch.s * (d / pinch.d)));
+    recenter(); respread();
+    draw();
+  }, { passive: false });
+  cv.addEventListener('touchend', function () { pinch = null; });
+
+  function pick(mx, my) {
+    var best = null, bd = 20;
+    GR.nodes.forEach(function (n) {
+      var dx = n._sx - mx, dy = n._sy2 - my;
+      var dd = Math.sqrt(dx * dx + dy * dy);
+      /* 人物竖线是竖直的，用线段距离更准 */
+      if (n.type === 'person') {
+        var y0 = Math.min(n._sy, n._sy2), y1 = Math.max(n._sy, n._sy2);
+        var yy = Math.max(y0, Math.min(y1, my));
+        dd = Math.sqrt(Math.pow(n._sx - mx, 2) + Math.pow(yy - my, 2));
+      }
+      if (dd < bd) { bd = dd; best = n; }
+    });
+    if (best) { selected = best; showPanel(best); }
+    else { selected = null; closePanel(); }
+    draw();
+  }
+
+  /* ---------- 信息面板 ---------- */
+  var panel = document.getElementById('panel');
+  function showPanel(n) {
+    var h = panel.querySelector('h3'), m = panel.querySelector('.meta'),
+      d = panel.querySelector('.desc'), u = panel.querySelector('ul');
+    h.textContent = n.name;
+    var bits = [];
+    if (n.years) bits.push(n.years);
+    if (n.place) bits.push(n.place);
+    else if (n.prov) bits.push(n.prov);
+    var TN = { event: '事件', org: '组织', person: '人物', idea: '思想' };
+    bits.unshift(TN[n.type] || n.type);
+    m.textContent = bits.join(' · ');
+    d.textContent = n.desc || n.role || '';
+    u.innerHTML = '';
+    (n.points || []).slice(0, 6).forEach(function (p) {
+      var li = document.createElement('li'); li.textContent = p; u.appendChild(li);
+    });
+    panel.classList.add('open');
+  }
+  function closePanel() { panel.classList.remove('open'); }
+  document.getElementById('px').addEventListener('click', function () { selected = null; closePanel(); draw(); });
+
+  /* ---------- 视角 ---------- */
+  var VIEWS = {
+    iso: { yaw: -0.30, elev: 0.52 },
+    front: { yaw: 0, elev: 0.02 },
+    top: { yaw: 0, elev: Math.PI / 2 - 0.001 },
+    side: { yaw: Math.PI / 2, elev: 0.02 }
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('#cam button[data-v]'), function (b) {
+    b.addEventListener('click', function () {
+      var v = VIEWS[b.getAttribute('data-v')];
+      cam.yaw = v.yaw; cam.elev = v.elev; fit(); draw();
+      Array.prototype.forEach.call(document.querySelectorAll('#cam button[data-v]'), function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+    });
+  });
+  document.getElementById('rst').addEventListener('click', function () {
+    cam.yaw = VIEWS.iso.yaw; cam.elev = VIEWS.iso.elev; fit(); draw();
+  });
+
+  /* ---------- 时间刻度切换（要重算每个节点的 Z） ---------- */
+  function syncZ() {
+    GR.nodes.forEach(function (n) {
+      n._z0 = yearToZ(n.y0);
+      n._z1 = yearToZ(n.y1 == null ? n.y0 : n.y1);
+      n._z = (n._z0 + n._z1) / 2;
+    });
+  }
+
+  /* ---------- 结构性提示：整张图是否只落在一个时间段 ----------
+     旧民图谱 83 个节点全部落在 1840—1919 一段里（实测），
+     立方体的 Z 轴对它没有任何信息量，等于一张 2D 地图——
+     不告诉用户就等于误导（让人以为"时间维度看过了"）。 */
+  var banner = document.getElementById('banner');
+  function checkSpan() {
+    var used = {}, minY = 1e9, maxY = -1e9;
+    GR.nodes.forEach(function (n) {
+      if (n.y0 == null) return;
+      used[segIndex(n.y0)] = 1;
+      minY = Math.min(minY, n.y0); maxY = Math.max(maxY, n.y1 == null ? n.y0 : n.y1);
+    });
+    var k = Object.keys(used).length;
+    if (k <= 1 && GR.nodes.length > 4) {
+      banner.innerHTML = '<b>本图谱时间跨度只有一段</b>（' + minY + '—' + maxY +
+        '，全部落在「' + SEG[Object.keys(used)[0] | 0][2] + '」里）。Z 轴不提供额外信息，换「等距年份」或直接用 2D 地图看得更清楚。' +
+        '<button id="bnGo">去 2D 地图</button><button id="bnX">知道了</button>';
+      banner.classList.add('show');
+      document.getElementById('bnX').onclick = function () { banner.classList.remove('show'); };
+      document.getElementById('bnGo').onclick = function () { location.href = 'graph.html'; };
+    } else {
+      banner.classList.remove('show');
+    }
+  }
+
+  /* ---------- 时间筛选模式 ---------- */
+  Array.prototype.forEach.call(document.querySelectorAll('#bandrow2 button[data-w]'), function (b) {
+    b.addEventListener('click', function () {
+      winMode = b.getAttribute('data-w');
+      Array.prototype.forEach.call(document.querySelectorAll('#bandrow2 button[data-w]'), function (x) { x.classList.toggle('on', x === b); });
+      updYearLabel(); draw();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#bandrow2 button[data-tm]'), function (b) {
+    b.addEventListener('click', function () {
+      timeMode = b.getAttribute('data-tm');
+      Array.prototype.forEach.call(document.querySelectorAll('#bandrow2 button[data-tm]'), function (x) { x.classList.toggle('on', x === b); });
+      syncZ(); fit(); draw();
+    });
+  });
+
+  /* ---------- 类型筛选（图例即开关） ---------- */
+  Array.prototype.forEach.call(document.querySelectorAll('#legend>div[data-t]'), function (d) {
+    d.addEventListener('click', function () {
+      var t = d.getAttribute('data-t');
+      typeOn[t] = typeOn[t] ? 0 : 1;
+      d.classList.toggle('off', !typeOn[t]);
+      draw();
+    });
+  });
+
+  /* ---------- 图谱切换 ---------- */
+  Array.prototype.forEach.call(document.querySelectorAll('#gsel button'), function (b) {
+    b.addEventListener('click', function () {
+      GID = b.getAttribute('data-g');
+      Array.prototype.forEach.call(document.querySelectorAll('#gsel button'), function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      pickGraph(); fit(); draw();
+      hideHint();
+    });
+  });
+
+  /* ---------- 底部时间轴 ---------- */
+  var band = document.getElementById('band');
+  SEG.forEach(function (s, i) {
+    var sp = document.createElement('span');
+    sp.style.background = SEGCOL[i];
+    band.appendChild(sp);
+  });
+  var yrEl = document.getElementById('yr'), yrv = document.getElementById('yrv');
+  function updYearLabel() {
+    if (winMode === 'cum') yrv.textContent = (cutYear >= T1) ? '全时段' : ('截至 ' + cutYear + ' 年');
+    else yrv.textContent = '聚焦 ' + cutYear + ' 年';
+  }
+  yrEl.addEventListener('input', function () {
+    cutYear = parseInt(yrEl.value, 10);
+    updYearLabel();
+    draw();
+  });
+
+  /* ---------- 提示 ---------- */
+  var hintEl = document.getElementById('hint'), hintGone = false;
+  function hideHint() {
+    if (hintGone) return; hintGone = true;
+    hintEl.classList.add('gone');
+    setTimeout(function () { hintEl.style.display = 'none'; }, 400);
+  }
+  setTimeout(hideHint, 3500);
+
+  /* ---------- 启动 ---------- */
+  window.addEventListener('resize', resize);
+  pickGraph();
+  resize();
+  /* 暴露给自动化测试 */
+  window.yz4d = {
+    setView: function (v) {
+      if (!VIEWS[v]) return;
+      cam.yaw = VIEWS[v].yaw; cam.elev = VIEWS[v].elev; fit(); draw();
+      Array.prototype.forEach.call(document.querySelectorAll('#cam button[data-v]'), function (x) {
+        x.classList.toggle('on', x.getAttribute('data-v') === v);
+      });
+      hideHint();
+    },
+    setType: function (t, on) { typeOn[t] = on ? 1 : 0;
+      Array.prototype.forEach.call(document.querySelectorAll('#legend>div[data-t]'), function (d) {
+        if (d.getAttribute('data-t') === t) d.classList.toggle('off', !on);
+      });
+      draw();
+    },
+    setGraph: function (g) { GID = g; pickGraph(); fit(); draw(); },
+    setYear: function (y) { cutYear = y; yrEl.value = y; updYearLabel(); draw(); },
+    setWin: function (m) {
+      winMode = m;
+      Array.prototype.forEach.call(document.querySelectorAll('#bandrow2 button[data-w]'), function (x) {
+        x.classList.toggle('on', x.getAttribute('data-w') === m);
+      });
+      updYearLabel(); draw();
+    },
+    setTimeMode: function (m) {
+      timeMode = m; syncZ();
+      Array.prototype.forEach.call(document.querySelectorAll('#bandrow2 button[data-tm]'), function (x) {
+        x.classList.toggle('on', x.getAttribute('data-tm') === m);
+      });
+      fit(); draw(); updYearLabel();
+    },
+    winRange: function () { return winRange(); },
+    banner: function () { return document.getElementById('banner').classList.contains('show'); },
+    overlap: function () { return overlapCheck(); },
+    /* 屏幕上相邻节点最近距离（验证「散开是否真的张开」用） */
+    spacing: function () {
+      var S = GR.nodes.filter(function (n) { return typeOn[n.type]; }).map(function (n) {
+        var p = proj(n._x, n._y, n._z1); return { x: p.x, y: p.y };
+      });
+      var nn = [];
+      for (var i = 0; i < S.length; i++) {
+        var best = 1e9;
+        for (var j = 0; j < S.length; j++) {
+          if (i === j) continue;
+          var d = Math.hypot(S[i].x - S[j].x, S[i].y - S[j].y);
+          if (d < best) best = d;
+        }
+        if (best < 1e8) nn.push(best);
+      }
+      nn.sort(function (a, b) { return a - b; });
+      return {
+        n: S.length,
+        median: nn.length ? nn[Math.floor(nn.length / 2)] : 0,
+        p25: nn.length ? nn[Math.floor(nn.length * 0.25)] : 0,
+        lt8: nn.filter(function (v) { return v < 8; }).length
+      };
+    },
+    pick: function (id) { var n = BYID[id]; if (n) { selected = n; showPanel(n); draw(); } return !!n; },
+    state: function () {
+      return {
+        graph: GID, nodes: GR.nodes.length, links: GR.links.length,
+        year: cutYear, view: { yaw: cam.yaw, elev: cam.elev }, scale: FIT.scale,
+        selected: selected ? selected.id : null
+      };
+    },
+    count: function () {
+      var c = { event: 0, org: 0, person: 0, idea: 0, path: 0, noGeo: 0 };
+      GR.nodes.forEach(function (n) { c[n.type] = (c[n.type] || 0) + 1; if (n.geoPath) c.path++; if (n.type !== 'idea' && !n.geo) c.noGeo++; });
+      return c;
+    }
+  };
+})();
+</script>
+</body>
+</html>

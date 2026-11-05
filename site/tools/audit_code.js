@@ -53,11 +53,14 @@ for (const c of ['acorn', path.join(root, 'node_modules/acorn'), '/sandbox/works
    也会漏掉它里面的悬空调用（2026-10-24 修：此前漏了 books/booksearch/challenge/layers/qa-engine 与 ask/challenge 页）。 */
 const JS_FILES = ['assets/app.js', 'assets/overlay.js', 'assets/editor.js', 'assets/graph-edit.js',
   'assets/books.js', 'assets/booksearch.js', 'assets/challenge.js', 'assets/layers.js', 'assets/qa-engine.js',
-  'assets/cite.js', 'assets/diag.js', 'assets/crash.js', 'assets/custom.js', 'assets/reading.js', 'assets/paths.js', 'assets/backup.js', 'assets/mine.js', 'assets/study.js',
-  'data/config.js', 'data/content.js', 'data/graph.js', 'data/graph-wenge.js', 'data/graph-world.js', 'data/graph-geo.js',
+  'assets/cite.js', 'assets/diag.js', 'assets/crash.js', 'assets/lazydata.js', 'assets/store.js', 'assets/appbooks.js', 'assets/booknote.js', 'assets/zoompane.js', 'assets/photo.js',
+  'data/booknotes.js', 'assets/custom.js', 'assets/reading.js', 'assets/paths.js', 'assets/keys.js', 'assets/mine.js', 'assets/study.js',
+  'data/config.js', 'data/content.js', 'data/graph.js', 'data/meetings.js', 'data/graph-wenge.js', 'data/graph-world.js', 'data/graph-geo.js',
   'data/knowledge.js', 'data/libraries.js', 'data/concepts.js', 'data/channel.js', 'data/mentors.js', 'data/album.js',
-  'data/intro-short.js', 'data/py.js', 'data/overrides.js', 'data/resources.js', 'data/avatars.js'].filter(exists);
-const HTML_FILES = ['index.html', 'graph.html', 'graph3d.html', 'card.html', 'ask.html', 'challenge.html',
+  'data/intro-short.js', 'data/py.js', 'data/overrides.js', 'data/resources.js', 'data/avatars.js',
+  'data/netbasics.js', 'data/nett.js', 'assets/netbasics.js'].filter(exists);
+const HTML_FILES = ['index.html', 'graph.html', 'graph3d.html', 'graph4d.html', 'campaign.html',
+  'card.html', 'ask.html', 'challenge.html',
   '404.html', 'offline.html', 'privacy.html', 'licenses.html'].filter(exists);
 
 const VENDOR = new Set();            /* vendor 库导出的全局名（qrcode / JSZip …） */
@@ -323,10 +326,14 @@ const walkDir = (dir, out) => {
   }
   return out;
 };
+/* 懒加载清单：不写在 HTML 里、由 JS 动态 <script> 注入的资源，静态扫描看不到，
+   这里显式登记，避免每次都被报成「未被引用」。 */
+const LAZY_ASSETS = ['data/jtfull.js'];   /* 讲堂全文索引，fulltext.js 搜索时才注入 */
 let orphan = 0;
 [...walkDir('assets', []), ...walkDir('data', [])].forEach(a => {
   const base = a.split('/').pop();
   if (/\.map$/.test(a)) return;
+  if (LAZY_ASSETS.indexOf(a) >= 0) return;
   const referenced = refsSet.has(a) || refsSet.has(base) || [...refsSet].some(r => r.endsWith('/' + base));
   if (!referenced) { note('资源未被引用：' + a); orphan++; }
 });

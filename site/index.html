@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
@@ -19,11 +20,16 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="assets/style.css">
 <script>window.SITE_GRAPH=window.SITE_GRAPH||{nodes:[],links:[]};window.NET_BASICS=window.NET_BASICS||[];window.NET_T=window.NET_T||{};</script>
-<script src="assets/store.js"></script><script src="assets/custom.js"></script>
-<script src="assets/crash.js"></script>
+<script defer src="assets/store.js"></script><script defer src="assets/custom.js"></script>
+<script defer src="assets/changes.js"></script>
+<script defer src="assets/bulk.js"></script>
+<script defer src="assets/contentedit.js"></script>
+<script defer src="assets/contentpack.js"></script>
+<script defer src="assets/textedit.js"></script>
+<script defer src="assets/crash.js"></script>
 <link rel="stylesheet" href="assets/extra.css">
 <link rel="stylesheet" href="assets/graph-hub.css">
-</head>
+<link rel="stylesheet" href="assets/landscape.css"></head>
 <body>
 <a class="skip" href="#main">跳到主内容</a>
 <div class="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
@@ -35,6 +41,7 @@
   <button id="qAva" class="qava" data-act="openAccount" title="我的资料" aria-label="打开我的资料"><img id="qAvaImg" src="avatar.svg" alt="头像"></button>
   <b class="qtitle" id="qTitle" hidden></b>
   <span class="qtop-grow"></span>
+  <button id="qSearchBtn" class="qplus qsbtn" data-act="topSearch" title="搜索" aria-label="搜索">🔍</button>
   <button id="qAct" class="qplus qact2" hidden title="切换频道" aria-label="切换频道">📡</button>
   <button id="qPlus" class="qplus" data-act="togglePlus" title="快捷功能" aria-label="快捷功能">＋</button>
 </header>
@@ -152,6 +159,7 @@
     <p style="margin:8px 0">你将前往第三方站点：<br><span class="host" id="leaveHost"></span></p>
     <p class="leave-note" id="leaveName" style="opacity:.7"></p>
     <p class="leave-note">第三方内容非本站控制，请自行甄别其安全性与合规性。</p>
+    <p class="leave-note" id="leaveOffline" style="display:none;color:var(--accent)">📴 当前离线：外部链接需要联网才能打开。</p>
     <div class="leave-ops">
       <button class="go" data-act="leaveGo">继续前往 ↗</button>
       <button data-act="leaveNever">不再提示</button>
@@ -275,34 +283,29 @@
 
 <!-- 关系图谱已独立为 graph.html -->
 
-<script src="assets/lazydata.js"></script>
-<script src="data/config.js"></script>
-<script src="data/resources.js"></script>
-<script src="data/content.js"></script>
-<script src="data/knowledge.js"></script>
-<script src="data/libraries.js"></script>
-<script src="assets/vendor/qrcode.min.js"></script>
-<script src="data/overrides.js"></script>
-<script src="assets/overlay.js"></script>
-<script src="assets/cite.js"></script>
-<script src="assets/booknote.js"></script>
-<script src="assets/netbasics.js"></script>
-<script src="assets/app.js"></script>
-<script src="assets/reading.js"></script>
-<script src="assets/paths.js"></script>
-<script src="assets/keys.js"></script>
-<script src="assets/mine.js"></script>
-<script src="assets/study.js"></script>
-<script src="assets/books.js"></script>
-<script src="assets/editor.js"></script>
-<script src="assets/exportdata.js"></script>
-<script src="assets/fulltext.js"></script>
-<script src="assets/quote-match.js"></script>
-<script src="assets/selftest.js"></script>
-<script src="assets/yearbook.js"></script>
-<script src="assets/speech.js"></script>
-<script src="assets/zoompane.js"></script>
-<script src="assets/photo.js"></script>
-<script src="assets/appbooks.js"></script>
+<script defer src="assets/lazydata.js"></script>
+<script defer src="data/config.js"></script>
+<script defer src="data/resources.js"></script>
+<script defer src="data/content.js"></script>
+<script defer src="data/knowledge.js"></script>
+<script defer src="data/meetings.js"></script>
+<script defer src="data/graph-extra.js"></script>
+<script defer src="data/yearbook-extra.js"></script>
+<script defer src="data/libraries.js"></script>
+<script defer src="assets/vendor/qrcode.min.js"></script>
+<script defer src="data/overrides.js"></script>
+<script defer src="assets/overlay.js"></script>
+<script defer src="assets/cite.js"></script>
+<script defer src="assets/netbasics.js"></script>
+<script defer src="assets/app.js"></script>
+<script defer src="assets/reading.js"></script>
+<script defer src="assets/paths.js"></script>
+<script defer src="data/topics.js"></script>
+<script defer src="assets/keys.js"></script>
+<script defer src="assets/study.js"></script>
+<script defer src="assets/books.js"></script>
+<script defer src="assets/fulltext.js"></script>
+<script defer src="assets/appbooks.js"></script>
+<script defer src="assets/yearbook.js"></script>
 </body>
 </html>

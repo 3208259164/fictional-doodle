@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+
 <link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -168,7 +169,7 @@ form button:disabled{opacity:.4}
 })();
 </script>
 <script src="assets/store.js"></script><script src="assets/custom.js"></script><script src="assets/crash.js"></script><script src="assets/diag.js"></script>
-</head>
+<link rel="stylesheet" href="assets/landscape.css"></head>
 <body>
 
 <header>
@@ -205,6 +206,8 @@ form button:disabled{opacity:.4}
 <script src="data/resources.js"></script>
 <script src="data/knowledge.js"></script>
 <script src="data/answers.js"></script>
+<script src="data/person-index.js"></script>
+<script src="data/book-index.js"></script>
 <script src="data/glossary.js"></script>
 <script src="assets/booksearch.js"></script>
 <script src="assets/study.js"></script>
@@ -314,6 +317,16 @@ form button:disabled{opacity:.4}
         return '<a class="book" href="' + b.href + '">' +
           '<span class="bk-t">' + esc(b.title) + '</span>' +
           (b.sub ? '<span class="bk-s">' + esc(b.sub) + '</span>' : '') +
+          '<span class="bk-go">打开 ›</span></a>';
+      }).join('') + '</div>';
+    }
+    if (res.texts && res.texts.length){
+      html += '<div class="books">' + res.texts.map(function(t){
+        var f0 = t.files && t.files[0];
+        if (!f0) return '';
+        return '<a class="book" href="javascript:void(0)" onclick="askRead(\'' + f0.f + '\',\'' + String(t.name).replace(/'/g, '') + '\',\'《' + esc(String(t.name).replace(/'/g, '')) + '》原文\')">' +
+          '<span class="bk-t">📖 ' + esc(t.name) + ' · 原文 ' + t.n + ' 段</span>' +
+          '<span class="bk-s">' + esc(String(f0.s || '').slice(0, 72)) + '</span>' +
           '<span class="bk-go">打开 ›</span></a>';
       }).join('') + '</div>';
     }
@@ -573,6 +586,97 @@ form button:disabled{opacity:.4}
       (bk ? '、' + bk.total + ' 条书库记录' : '') + '；不联网、不编造，查不到会直说。';
   })();
 
+})();
+</script>
+
+<!-- 站内正文阅读浮层：点「原文 N 段」就在这里读，不跳页、不开新窗口。
+     以前是 location.href='index.html?read=…'，等于把对话页整页换掉；
+     深色系统下新页还没渲染出正文时是一片黑，看着像卡死。 -->
+<div id="askRd" class="askrd" role="dialog" aria-modal="true" aria-label="原文">
+  <div class="askrd-bar">
+    <button id="askRdBack" class="askrd-x" aria-label="关闭">✕</button>
+    <b id="askRdTitle">原文</b>
+    <span id="askRdMeta" class="askrd-meta"></span>
+  </div>
+  <div id="askRdBody" class="askrd-body"></div>
+</div>
+<style>
+  .askrd{position:fixed;left:0;right:0;top:0;bottom:0;background:var(--bg);z-index:90;
+    display:none;flex-direction:column}
+  .askrd.open{display:flex}
+  .askrd-bar{display:flex;align-items:center;gap:10px;padding:12px 14px;
+    border-bottom:1px solid var(--line);flex:0 0 auto}
+  .askrd-bar b{font-size:.95rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .askrd-x{background:none;border:none;color:var(--fg);font-size:1.1rem;padding:6px 8px;cursor:pointer}
+  .askrd-meta{font-size:.72rem;color:var(--sub)}
+  .askrd-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 60px;
+    line-height:1.95;font-size:.94rem;color:var(--fg)}
+  .askrd-body p{margin:0 0 14px}
+  .askrd-body h2{font-size:1.05rem;margin:22px 0 10px;color:var(--accent)}
+  .askrd-body h3{font-size:.96rem;margin:18px 0 8px;color:var(--accent)}
+  .askrd-body .hit{background:rgba(245,197,24,.22);border-radius:4px}
+</style>
+<script>
+(function(){
+  var cur = { file: '', word: '' };
+  var ESC = function (s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+  window.askRdClose = function () {
+    var d = document.getElementById('askRd');
+    if (d) d.classList.remove('open');
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  };
+  window.askRead = function (file, word, title) {
+    var d = document.getElementById('askRd');
+    var body = document.getElementById('askRdBody');
+    if (!d || !body) return;
+    cur.file = file; cur.word = word || '';
+    document.getElementById('askRdTitle').textContent = title || '原文';
+    document.getElementById('askRdMeta').textContent = '';
+    body.innerHTML = '<p style="opacity:.6">正在打开…</p>';
+    d.classList.add('open');
+    body.scrollTop = 0;
+    fetch(file).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(function (txt) {
+      var paras = String(txt || '').replace(/\r\n?/g, '\n').split(/\n\s*\n/)
+        .map(function (x) { return x.trim(); }).filter(Boolean);
+      if (!paras.length) { body.innerHTML = '<p>文件是空的。</p>'; return; }
+      var n = 0;
+      body.innerHTML = paras.map(function (p) {
+        n += p.replace(/\s/g, '').length;
+        if (p.slice(0, 2) === '##') return '<h3>' + ESC(p.replace(/^#+\s*/, '')) + '</h3>';
+        if (p.charAt(0) === '#') return '<h2>' + ESC(p.slice(1).trim()) + '</h2>';
+        if (/^导读：/.test(p)) return '<p style="opacity:.7;font-size:.85rem">' + ESC(p) + '</p>';
+        return '<p>' + ESC(p) + '</p>';
+      }).join('');
+      document.getElementById('askRdMeta').textContent = Math.round(n / 1000) + ' 千字';
+      body.scrollTop = 0;
+      if (cur.word) {
+        var els = body.querySelectorAll('p,h2,h3');
+        for (var i = 0; i < els.length; i++) {
+          if ((els[i].textContent || '').indexOf(cur.word) >= 0) {
+            try { els[i].scrollIntoView({ block: 'center' }); } catch (e) {}
+            els[i].classList.add('hit');
+            break;
+          }
+        }
+      }
+    }).catch(function (e) {
+      body.innerHTML = '<p style="color:#c0392b">打不开这个文件：' + ESC(file) +
+        '<br><span style="font-size:.85rem;opacity:.8">可以返回首页，在书库里找到这本书打开。</span></p>';
+    });
+  };
+  document.addEventListener('DOMContentLoaded', function () {
+    var b = document.getElementById('askRdBack');
+    if (b) b.onclick = window.askRdClose;
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') window.askRdClose();
+    });
+  });
 })();
 </script>
 </body>
