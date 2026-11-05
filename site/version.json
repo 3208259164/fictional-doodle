@@ -1,11 +1,11 @@
 {
   "deprecated": true,
   "note": "应用内自更新已移除（App 完全离线、无网络权限）。本文件仅记录构建版本，不用于更新检测。",
-  "versionCode": 304,
-  "versionName": "0.18.23",
-  "siteVersion": "0.37.8",
-  "code": 304,
-  "version": "0.18.23",
-  "site": "0.37.8",
-  "sw": "v304"
+  "versionCode": 309,
+  "versionName": "0.18.28",
+  "siteVersion": "0.37.12",
+  "code": 309,
+  "version": "0.18.28",
+  "site": "0.37.12",
+  "sw": "v309"
 }
