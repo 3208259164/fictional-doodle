@@ -102,6 +102,51 @@
     var err = el('div'); err.id = 'zzyErr';
     var host = document.body || document.documentElement;
     host.appendChild(btn); host.appendChild(wrap); host.appendChild(dlg); host.appendChild(toast); host.appendChild(err);
+    /* 撤销 / 重做：所有写入都经过 YZY 的 persist，这里只是两个入口 */
+    var ub = el('div'); ub.id = 'zzyUndo';
+    ub.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding:0 0 8px';
+    var u1 = el('button', 'ztab', '↶ 撤销'); u1.type = 'button';
+    var u2 = el('button', 'ztab', '↷ 重做'); u2.type = 'button';
+    var u3 = el('button', 'ztab', '⟲ 最初'); u3.type = 'button';
+    u3.title = '撤回到第一次安装 / 最初的样子';
+    ub.appendChild(u1); ub.appendChild(u2); ub.appendChild(u3);
+    /* 不在这里挂到 wrap：render() 会 innerHTML='' 重建，挂上去就没了。
+       改成 render() 每次把这一条塞进面板顶部。 */
+    window.__zzyUndoBar = ub;
+    function ztip(m) {
+      var t = document.getElementById('zzyToast'); if (!t) return;
+      t.textContent = m; t.classList.add('show');
+      setTimeout(function () { try { t.classList.remove('show'); } catch (e) { } }, 1600);
+    }
+    u1.addEventListener('click', function () {
+      var r = (window.YZY && YZY.undo) ? YZY.undo() : { ok: false, msg: '编辑器未就绪' };
+      ztip(r.ok ? '已撤销上一次修改' : ('撤销失败：' + (r.msg || '没有可撤销的操作')));
+      try { render(); } catch (e) { }
+      syncUndo();
+    });
+    u2.addEventListener('click', function () {
+      var r = (window.YZY && YZY.redo) ? YZY.redo() : { ok: false, msg: '编辑器未就绪' };
+      ztip(r.ok ? '已恢复' : ('重做失败：' + (r.msg || '没有可重做的操作')));
+      try { render(); } catch (e) { }
+      syncUndo();
+    });
+    u3.addEventListener('click', function () {
+      var info = (window.YZY && YZY.histInfo) ? YZY.histInfo() : { pos: 0 };
+      if (!info.pos) { ztip('已经在最初状态'); return; }
+      if (!confirm('撤回到最初的样子？\n（一共有 ' + info.pos + ' 步改动可以退回，退回后还能用「↷ 重做」一步步回来）')) return;
+      var r = (window.YZY && YZY.undoAll) ? YZY.undoAll() : { ok: false, msg: '编辑器未就绪' };
+      ztip(r.ok ? '已回到最初，可点「↷ 重做」回来' : (r.msg || '操作未生效'));
+      try { render(); } catch (e) { }
+    });
+    function syncUndo() {
+      try {
+        var i = (window.YZY && YZY.histInfo) ? YZY.histInfo() : { pos: 0, steps: 1 };
+        u1.style.opacity = i.pos > 0 ? '1' : '.42';
+        u2.style.opacity = i.pos < i.steps - 1 ? '1' : '.42';
+        u3.style.opacity = i.pos > 0 ? '1' : '.42';
+      } catch (e) { }
+    }
+    window.__zzySyncUndo = syncUndo; syncUndo();
     btn.addEventListener('click', function () {
       try { wrap.classList.add('open'); render(); } catch (e) { showErr('打开编辑器失败：' + (e && e.message)); }
     });
@@ -272,12 +317,23 @@
     box.appendChild(head);
 
     var tabs = el('div', 'ztabs');
-    [['res', '资源'], ['ppl', '人物'], ['cat', '目录'], ['graph', '图谱 · 关系'], ['data', '数据']].forEach(function (t) {
+    [['res', '资源'], ['ppl', '人物'], ['evt', '事件'], ['cat', '目录'], ['graph', '图谱 · 关系'], ['data', '数据']].forEach(function (t) {
       var b = el('button', 'ztab' + (tab === t[0] ? ' on' : ''), t[1]); b.type = 'button';
       b.onclick = function () { tab = t[0]; render(); };
       tabs.appendChild(b);
     });
     box.appendChild(tabs);
+    if (window.__zzyUndoBar) box.appendChild(window.__zzyUndoBar);
+    /* 批量入口：一条一条点太慢时，从这里整表改 / 贴表格导入 */
+    var bulkBar = el('div', '');
+    bulkBar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding:0 0 8px';
+    var bb = el('button', 'ztab', '📋 批量改 / 导入'); bb.type = 'button';
+    bb.onclick = function () {
+      try { if (typeof close === 'function') close(); } catch (e) {}
+      try { if (window.YZBulk) YZBulk.center(); else if (window.toast) toast('批量模块未加载，请刷新'); } catch (e) {}
+    };
+    bulkBar.appendChild(bb);
+    box.appendChild(bulkBar);
 
     var st = YZY.storage();
     box.appendChild(el('div', 'znote' + (st.ok ? '' : ' zwarn'),
@@ -289,6 +345,7 @@
       if (tab === 'res') box.appendChild(resTab());
       else if (tab === 'ppl') box.appendChild(pplTab());
       else if (tab === 'cat') box.appendChild(catTab());
+      else if (tab === 'evt') box.appendChild(evtTab());
       else if (tab === 'graph') box.appendChild(graphTab());
       else box.appendChild(dataTab());
     } catch (e) { box.appendChild(el('div', 'znote zwarn', '该页渲染出错：' + esc(e && e.message))); }
@@ -301,10 +358,12 @@
     /* ★ 每次重绘都回到最上面：以前 innerHTML 重建但 scrollTop 保留，
        于是「退出重进还在底部」。 */
     try { wrap.scrollTop = 0; } catch (e) {}
+    if (window.__zzySyncUndo) { try { window.__zzySyncUndo(); } catch (e) {} }
     topBtn.classList.toggle('show', false);
   }
 
   /* ---------------- 资源 ---------------- */
+  var resSel = {};   /* 批量操作选中的 id（本会话内保留） */
   function resTab() {
     var f = el('div');
     f.appendChild(el('h3', '', '资源导航（' + RES().length + ' 条）'));
@@ -316,8 +375,68 @@
     s.oninput = function () { resQ = s.value; var list = $('zzyResList'); if (list) list.innerHTML = resListHTML(); };
     f.appendChild(s);
 
+    /* 批量操作条：勾选条目后出现 */
+    var bulk = el('div'); bulk.id = 'zzyBulk';
+    bulk.style.cssText = 'margin:8px 0;padding:8px;border:1px solid var(--panel-line,rgba(255,255,255,.18));border-radius:10px;display:none';
+    bulk.innerHTML = '<div style="font-size:.82rem;margin-bottom:6px" id="zzyBulkN">已选 0 条</div>' +
+      '<button class="zbtn ghost" type="button" data-bact="tag">批量加标签</button>' +
+      '<button class="zbtn ghost" type="button" data-bact="untag">批量去标签</button>' +
+      '<button class="zbtn ghost" type="button" data-bact="move">批量移目录</button>' +
+      '<button class="zbtn danger" type="button" data-bact="del">批量删除</button>' +
+      '<button class="zbtn ghost" type="button" data-bact="clear">清除选择</button>';
+    f.appendChild(bulk);
+
     var list = el('div'); list.id = 'zzyResList'; list.innerHTML = resListHTML();
     f.appendChild(list);
+
+    function selIds() { return Object.keys(resSel).filter(function (k) { return resSel[k]; }); }
+    function syncBulk() {
+      var n = selIds().length;
+      var e = $('zzyBulk'); if (e) e.style.display = n ? 'block' : 'none';
+      var t = $('zzyBulkN'); if (t) t.textContent = '已选 ' + n + ' 条';
+    }
+    list.addEventListener('change', function (e) {
+      var c = e.target;
+      if (c && c.type === 'checkbox' && c.getAttribute('data-sel')) {
+        resSel[c.getAttribute('data-sel')] = !!c.checked;
+        syncBulk();
+      }
+    });
+    bulk.addEventListener('click', function (e) {
+      try {
+        var b = e.target && e.target.closest ? e.target.closest('button') : null; if (!b) return;
+        var act = b.getAttribute('data-bact'), ids = selIds();
+        if (act === 'clear') { resSel = {}; render(); return; }
+        if (!ids.length) { toast('先勾选条目', true); return; }
+        if (act === 'tag' || act === 'untag') {
+          askText(act === 'tag' ? '要加的标签（空格分隔，可多个）' : '要去掉的标签（空格分隔）', '').then(function (txt) {
+            if (!txt) return;
+            var tags = String(txt).split(/[\s,，、]+/).filter(function (x) { return x; });
+            if (!tags.length) return;
+            var r = YZY.bulkTag(ids, tags, act === 'tag' ? 'add' : 'remove');
+            if (!r || r.ok === false) { toast((r && r.msg) || '失败', true); return; }
+            applyNow(act === 'tag' ? ('已给 ' + r.n + ' 条加标签') : ('已从 ' + r.n + ' 条去掉标签'));
+            resSel = {}; render();
+          });
+        } else if (act === 'move') {
+          askText('全部移到哪个目录？', '').then(function (to) {
+            if (!to) return;
+            var r = YZY.bulkMove(ids, to);
+            if (!r || r.ok === false) { toast((r && r.msg) || '失败', true); return; }
+            applyNow('已移动 ' + r.n + ' 条'); resSel = {}; render();
+          });
+        } else if (act === 'del') {
+          askConfirm('删除选中的 ' + ids.length + ' 条？（仅本机，可用撤销找回）', '').then(function (y) {
+            if (!y) return;
+            var r = YZY.bulkRemove(ids);
+            if (!r || r.ok === false) { toast((r && r.msg) || '失败', true); return; }
+            applyNow('已删除 ' + r.n + ' 条'); resSel = {}; render();
+          });
+        }
+      } catch (err) { showErr('批量操作失败：' + (err && err.message)); }
+    });
+    setTimeout(syncBulk, 0);
+
     list.addEventListener('click', function (e) {
       try {
         var b = e.target && e.target.closest ? e.target.closest('button') : null; if (!b) return;
@@ -325,48 +444,82 @@
         if (act === 'edit') resForm(id);
         else if (act === 'del') askConfirm('删除条目？（仅本机）', '').then(function (y) { if (y) { YZY.removeResource(id); applyNow('已删除'); render(); } });
         else if (act === 'move') askText('移动到哪个目录？', '').then(function (to) { if (to) { YZY.moveResource(id, to); applyNow('已移动'); render(); } });
+        else if (act === 'ch') resForm(id, 'chapters');
       } catch (err) { showErr('操作失败：' + (err && err.message)); }
     });
     return f;
   }
   function resListHTML() {
     var a = RES(), q = (resQ || '').toLowerCase(), out = '', n = 0;
-    for (var i = 0; i < a.length && n < 400; i++) {
+    /* 自己新增的排最前、改过的其次：书库 456 条时新加的书在末尾，按 400 条截断根本看不到 */
+    try {
+      var ov = (window.YZY && YZY.dumpOverlay) ? YZY.dumpOverlay() : null;
+      if (ov && ov.resources) {
+        var addIds = {}, edIds = (ov.resources.edited || {});
+        (ov.resources.added || []).forEach(function (x) { addIds[x.id] = 1; });
+        var rank = function (r) { return addIds[r.id] ? 0 : (edIds[r.id] ? 1 : 2); };
+        a = a.slice().sort(function (x, y) { var d = rank(x) - rank(y); return d || 0; });
+      }
+    } catch (e) { }
+    for (var i = 0; i < a.length && n < 900; i++) {
       var r = a[i] || {};
       var hay = ((r.title || '') + (r.author || '') + (r.id || '')).toLowerCase();
       if (q && hay.indexOf(q) < 0) continue;
       n++;
       var nav = r.avatar || r.img;
       out += '<div class="zitem">' +
+        '<label style="display:flex;align-items:flex-start;gap:6px;margin-right:2px"><input type="checkbox" data-sel="' + esc(r.id) + '"' + (resSel[r.id] ? ' checked' : '') + ' style="margin-top:4px"></label>' +
         (r.icon ? '<div class="zava" style="border-radius:10px">' + esc(r.icon) + '</div>' : '') +
         '<div class="zbody"><div class="t">' + esc(r.title || '') + '</div>' +
-        '<div class="s">' + esc(r.id || '') + ' ｜ ' + esc(r.author || '—') + ' ｜ ' + esc(r.cat || '') + '</div>' +
+        '<div class="s">' + esc(r.id || '') + ' ｜ ' + esc(r.author || '—') + ' ｜ ' + esc(r.cat || '') +
+        ((r.chapters && r.chapters.length) ? (' ｜ ' + r.chapters.length + ' 章') : '') + '</div>' +
         '<div style="margin-top:6px"><button class="zbtn ghost" type="button" data-act="edit" data-id="' + esc(r.id) + '">编辑</button>' +
+        '<button class="zbtn ghost" type="button" data-act="ch" data-id="' + esc(r.id) + '">目录</button>' +
         '<button class="zbtn ghost" type="button" data-act="move" data-id="' + esc(r.id) + '">移动目录</button>' +
         '<button class="zbtn danger" type="button" data-act="del" data-id="' + esc(r.id) + '">删除</button></div></div></div>';
     }
     if (!n) out = '<div class="znote">没有匹配条目。</div>';
     return out;
   }
-  function resForm(id) {
+  /* 章节目录：编辑器里用「标题｜说明」每行一条的纯文本，和详情页编辑框同一套格式 */
+  function chText2(it) {
+    return ((it && it.chapters) || []).map(function (c) {
+      c = c || {}; return (c.t || '') + (c.d ? '｜' + c.d : '');
+    }).join('\n');
+  }
+  function parseCh2(raw) {
+    var out = [];
+    String(raw || '').split(/\n/).forEach(function (line) {
+      line = line.trim(); if (!line) return;
+      var k = line.indexOf('｜') >= 0 ? line.indexOf('｜') : line.indexOf('|');
+      var t = k >= 0 ? line.slice(0, k).trim() : line;
+      var dd = k >= 0 ? line.slice(k + 1).trim() : '';
+      if (t || dd) out.push({ t: t, d: dd });
+    });
+    return out.slice(0, 80);
+  }
+  function resForm(id, focus) {
     var base = null, a = RES();
     if (id) for (var i = 0; i < a.length; i++) if (a[i] && a[i].id === id) base = a[i];
     var isNew = !base;
     var d = { title: base ? base.title : '', author: base ? base.author : '', cat: base ? base.cat : (cats()[0] || '参考'),
       icon: base ? base.icon : '📄', url: base ? base.url : '', desc: base ? base.desc : '', intro: base ? base.intro : '',
-      note: base ? base.note : '', tags: base && base.tags ? base.tags.join(' ') : '' };
+      note: base ? base.note : '', tags: base && base.tags ? base.tags.join(' ') : '',
+      chapters: chText2(base) };
     var f = el('div');
     f.appendChild(el('h3', '', isNew ? '新增资源' : ('编辑：' + esc(d.title))));
     f.appendChild(form([['title', '标题', 'input'], ['author', '作者', 'input'], ['cat', '目录(分类)', 'input'],
       ['icon', '图标(emoji)', 'input'], ['url', '链接/文件路径', 'input'], ['desc', '一句话描述', 'input'],
-      ['tags', '标签(空格分隔)', 'input'], ['intro', '简介', 'textarea'], ['note', '来源/说明', 'textarea']], d, 'zzyResForm'));
+      ['tags', '标签(空格分隔)', 'input'], ['intro', '简介', 'textarea'], ['note', '来源/说明', 'textarea'],
+      ['chapters', '章节目录（每行一条：标题｜说明）', 'textarea']], d, 'zzyResForm'));
     var bar = el('div');
     var save = el('button', 'zbtn', isNew ? '添加' : '保存修改'); save.type = 'button';
     save.onclick = function () {
       try {
         var g = function (k) { var e = $('zzyResForm_' + k); return e ? e.value : ''; };
         var patch = { title: g('title'), author: g('author'), cat: g('cat'), icon: g('icon'), url: g('url'),
-          desc: g('desc'), intro: g('intro'), note: g('note'), tags: String(g('tags')).split(/\s+/) };
+          desc: g('desc'), intro: g('intro'), note: g('note'), tags: String(g('tags')).split(/\s+/),
+          chapters: parseCh2(g('chapters')) };
         if (!String(patch.title).trim()) { toast('标题不能为空', true); return; }
         var r = isNew ? YZY.addResource(patch) : YZY.editResource(id, patch);
         if (!r || r.ok === false) { toast((r && r.msg) || '保存失败', true); return; }
@@ -384,9 +537,146 @@
     var wrap = document.getElementById('zzyWrap');
     wrap.querySelector('.zx').appendChild(f);
     scrollToEl(f);
+    if (focus === 'chapters') {
+      var ta = $('zzyResForm_chapters');
+      if (ta) { try { ta.focus(); ta.scrollIntoView({ block: 'center' }); } catch (e) { } }
+    }
   }
   function scrollToEl(f) {
     try { if (f && typeof f.scrollIntoView === 'function') f.scrollIntoView(true); } catch (e) {}
+  }
+
+  /* ---------------- 史料事件（新增 / 编辑 / 删除） ---------------- */
+  var evtQ = '';
+  function evtData() {
+    var out = { list: [], removed: [] };
+    try { out.list = (window.YZY && YZY.listEvents) ? YZY.listEvents() : []; } catch (e) { }
+    try {
+      var ov = (window.YZY && YZY.dumpOverlay) ? YZY.dumpOverlay() : null;
+      out.removed = (ov && ov.events && ov.events.removed) || [];
+      out.addedNames = ((ov && ov.events && ov.events.added) || []).map(function (x) { return x.name; });
+    } catch (e) { out.removed = []; out.addedNames = []; }
+    out.list.sort(function (a, b) { return String(a.year || '').localeCompare(String(b.year || '')); });
+    return out;
+  }
+  function evtTab() {
+    var f = el('div');
+    var D = evtData();
+    f.appendChild(el('h3', '', '史料事件（' + D.list.length + ' 条）'));
+    var add = el('button', 'zbtn', '＋ 新增事件'); add.type = 'button';
+    add.onclick = function () { evtForm(null); };
+    f.appendChild(add);
+
+    var s = el('input', 'zsearch'); s.placeholder = '搜索事件名 / 年份'; s.value = evtQ;
+    s.oninput = function () { evtQ = s.value; var l = $('zzyEvtList'); if (l) l.innerHTML = evtListHTML(); };
+    f.appendChild(s);
+
+    var list = el('div'); list.id = 'zzyEvtList'; list.innerHTML = evtListHTML();
+    f.appendChild(list);
+    list.addEventListener('click', function (e) {
+      try {
+        var b = e.target && e.target.closest ? e.target.closest('button') : null; if (!b) return;
+        var nm = b.getAttribute('data-nm'), act = b.getAttribute('data-act');
+        if (act === 'edit') evtForm(nm);
+        else if (act === 'del') askConfirm('删除事件「' + nm + '」？（仅本机，可用撤销找回）', '').then(function (y) {
+          if (!y) return;
+          var r = YZY.removeEvent(nm);
+          if (!r || r.ok === false) { toast((r && r.msg) || '删除失败', true); return; }
+          applyNow('已删除事件'); render();
+        });
+        else if (act === 'restore') {
+          YZY.restoreEvent(nm); applyNow('已恢复'); render();
+        }
+      } catch (err) { showErr('操作失败：' + (err && err.message)); }
+    });
+
+    if (D.removed.length) {
+      var box = el('div');
+      box.innerHTML = '<div class="znote" style="margin-top:10px">已删除 ' + D.removed.length + ' 条（点右侧可恢复）：</div>' +
+        D.removed.map(function (nm) {
+          return '<div class="zitem"><div class="zbody"><div class="t">' + esc(nm) + '</div>' +
+            '<button class="zbtn ghost" type="button" data-act="restore" data-nm="' + esc(nm) + '">恢复</button></div></div>';
+        }).join('');
+      f.appendChild(box);
+      box.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest ? e.target.closest('button') : null; if (!b) return;
+        if (b.getAttribute('data-act') === 'restore') { YZY.restoreEvent(b.getAttribute('data-nm')); applyNow('已恢复'); render(); }
+      });
+    }
+    return f;
+  }
+  function evtListHTML() {
+    var D = evtData(), q = (evtQ || '').toLowerCase().trim(), out = '', n = 0;
+    D.list.forEach(function (r) {
+      var hay = ((r.name || '') + ' ' + (r.year || '')).toLowerCase();
+      if (q && hay.indexOf(q) < 0) return;
+      if (n++ >= 300) return;
+      var mine = (D.addedNames || []).indexOf(r.name) >= 0;
+      out += '<div class="zitem"><div class="zbody"><div class="t">' +
+        (mine ? '<span style="font-size:.7rem;opacity:.7">［新增］</span>' : '') + esc(r.name || '') + '</div>' +
+        '<div class="s">' + esc(r.year || '—') + ' ｜ ' + esc(String(r.desc || '').slice(0, 40)) + '</div>' +
+        '<div style="margin-top:6px"><button class="zbtn ghost" type="button" data-act="edit" data-nm="' + esc(r.name) + '">编辑</button>' +
+        '<button class="zbtn danger" type="button" data-act="del" data-nm="' + esc(r.name) + '">删除</button></div></div></div>';
+    });
+    return out || '<div class="znote">没有匹配事件。</div>';
+  }
+  function evtForm(name) {
+    var base = null;
+    if (name) evtData().list.forEach(function (x) { if (x.name === name) base = x; });
+    var isNew = !base;
+    var d = {
+      name: base ? base.name : '',
+      year: base ? (base.year || '') : '',
+      desc: base ? (base.desc || '') : '',
+      bg: base ? (base.bg || '') : '',
+      impact: base ? (base.impact || '') : '',
+      points: base && base.points ? base.points.join('\n') : ''
+    };
+    var f = el('div');
+    f.appendChild(el('h3', '', isNew ? '新增事件' : ('编辑事件：' + esc(d.name))));
+    f.appendChild(form([['name', '事件名称' + (isNew ? '' : '（改名请新建）'), 'input'],
+      ['year', '年份', 'input'], ['desc', '经过（正文）', 'textarea'],
+      ['bg', '背景', 'textarea'], ['impact', '影响', 'textarea'],
+      ['points', '要点（每行一条）', 'textarea']], d, 'zzyEvtForm'));
+    if (!isNew) {
+      var nmEl = $('zzyEvtForm_name');
+      if (nmEl) { try { nmEl.readOnly = true; nmEl.style.opacity = '.6'; } catch (e) { } }
+    }
+    var bar = el('div');
+    var save = el('button', 'zbtn', isNew ? '添加' : '保存修改'); save.type = 'button';
+    save.onclick = function () {
+      try {
+        var g = function (k) { var e = $('zzyEvtForm_' + k); return e ? e.value : ''; };
+        var pts = String(g('points')).split(/\n/).map(function (x) { return x.trim(); }).filter(function (x) { return x; });
+        var nm = String(g('name')).trim();
+        if (!nm) { toast('事件名称不能为空', true); return; }
+        var r;
+        if (isNew) {
+          r = YZY.addEvent({ name: nm, year: g('year'), desc: g('desc'), bg: g('bg'), impact: g('impact'), points: pts });
+        } else {
+          r = YZY.editEvent(name, { year: g('year'), desc: g('desc'), bg: g('bg'), impact: g('impact'), points: pts });
+        }
+        if (!r || r.ok === false) { toast((r && r.msg) || '保存失败', true); return; }
+        applyNow(isNew ? '已新增事件' : '已保存');
+        render();
+      } catch (e) { showErr('保存失败：' + (e && e.message)); }
+    };
+    var back = el('button', 'zbtn ghost', '返回列表'); back.type = 'button'; back.onclick = render;
+    bar.appendChild(save); bar.appendChild(back);
+    if (!isNew) {
+      var del = el('button', 'zbtn danger', '删除该事件'); del.type = 'button';
+      del.onclick = function () {
+        askConfirm('删除事件「' + name + '」？', '').then(function (y) {
+          if (!y) return;
+          YZY.removeEvent(name); applyNow('已删除'); render();
+        });
+      };
+      bar.appendChild(del);
+    }
+    f.appendChild(bar);
+    var wrap = document.getElementById('zzyWrap');
+    wrap.querySelector('.zx').appendChild(f);
+    scrollToEl(f);
   }
 
   /* ---------------- 人物 ---------------- */

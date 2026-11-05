@@ -65,6 +65,17 @@
   }
   window.YZBread = bread;
 
+  /* 启动耗时：写进面包屑，真机上的「慢」才有数字可查（诊断报告里能直接看到）。
+     DCL 是脚本全部执行完、页面可交互的时刻，load 是连图片字体都就绪的时刻。 */
+  window.addEventListener('load', function () {
+    try {
+      var n = performance.getEntriesByType('navigation')[0];
+      if (!n) return;
+      bread('启动 dcl=' + Math.round(n.domContentLoadedEventEnd) + 'ms load=' +
+        Math.round(n.loadEventEnd) + 'ms 脚本' + document.getElementsByTagName('script').length + '个');
+    } catch (e) { }
+  });
+
   /* 页面名：路径最后一段 */
   function pageName() {
     try {

@@ -1,0 +1,273 @@
+/* ============================================================
+   横竖屏通用 · 手机横屏专用样式
+   ------------------------------------------------------------
+   为什么单独一份文件：全站的移动端样式挂在 @media (max-width:560px)，
+   手机一横过来（CSS 宽 580~900）就不再命中，于是底栏消失、留白丢失、
+   内容继续按竖屏那套 460px 居中 —— 表现为「中间一条、两边大片空白」。
+   横屏真正的瓶颈不是变宽，而是高度骤减（20:9 的机器横屏只剩 260px 左右），
+   所以断点按高度写，不用 orientation（分屏、小窗、折叠屏时 orientation 不可靠）。
+   兜底条件 max-height:560px：覆盖 390~560 高度的横屏机型与半屏小窗。
+   ============================================================ */
+
+@media (max-height: 560px) and (min-width: 520px) {
+
+  /* ---------- 1. 骨架：补回移动端行为，并给横屏算上左右安全区 ---------- */
+  /* 限宽：主题脚本会把 --maxw 连同其它主题变量写进 <html> 的内联样式，
+     内联优先级压过任何样式表，所以这里不能只改 --maxw，得把用到它的元素直接给宽度。 */
+  :root { --maxw: 820px;
+    /* 横屏视口矮，同一份渐变压缩后颜色更暗，这里用横屏实测值（竖屏值见 style.css） */
+    --bar-top:#4c0c0a; --bar-bot:#300606; }
+  body.light { --bar-top:#f1d7cc; --bar-bot:#e6c8bd; }
+  nav.nav, .toolbar, .res-top, .filterbox, .group, .daily, #continueBox { max-width: 820px; }
+  body {
+    /* 顶部必须留出顶栏高度：顶栏是 fixed，body 不留位时内容从 y=0 开始、
+       第一行被顶栏压住 38-42px —— 手机上看到的就是「顶栏里冒出图谱条目文字」。
+       以前这里写 padding:0 ……，把 extra.css 里的 padding-top 直接归零了。 */
+    padding: calc(var(--qtop-h) + env(safe-area-inset-top, 0px))
+              calc(14px + env(safe-area-inset-right, 0px))
+              calc(48px + env(safe-area-inset-bottom, 0px))
+              calc(14px + env(safe-area-inset-left, 0px));
+  }
+  .tabbar { display: flex; }
+  .tabbar button { padding: 3px 2px 4px; font-size: 0.55rem; }
+  .tabbar button .ti { font-size: 1rem; }
+  /* 横屏不引导安装（这个角标会盖住列表）；首页模块的显隐是 JS 写内联样式的，
+     要盖住它只能加 !important。 */
+  #installBtn { display: none !important; }
+  #toTop { bottom: calc(46px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ---------- 2. 顶栏 / 搜索条 / 每日引言：竖屏加起来 130px，横屏只剩 260px ---------- */
+  /* 顶栏高度只改这一处：body 的 padding-top 用同一个变量，内容不会被顶栏压住。
+     之前 body 固定 50px、顶栏压到 36-42px，两者错位；背景又是 100vw×100vh 的渐变，
+     横屏时 vh 只剩 260 左右，背景层铺不满，顶栏容易看着像「透出下层文字」。 */
+  :root { --qtop-h: 42px; }
+  .qtop {
+    height: calc(var(--qtop-h) + env(safe-area-inset-top, 0px));
+    gap: 8px;
+    background: var(--bar-top) !important;
+  }
+  /* 页面标题在 36-42px 的顶栏里会被压成 0 高（实测 qtitle 高度塌陷），
+     给死行高 + 限宽，保证显示一行、长标题走省略号，不跟图标抢地方。 */
+  .qtop .qtitle { font-size: 13px; line-height: 18px; min-height: 18px; max-width: calc(100% - 150px); }
+  .qtop .qava, .qtop .qplus, .qtop .qback { width: 26px; height: 26px; }
+  .qtop .qplus { font-size: 17px; }
+  /* 横屏屏高只有 360，一条 42px 的常驻搜索框就是 12% 的屏高，收起来。
+     入口进顶栏右侧的放大镜，点开仍是同一个 topSearch()。 */
+  .qsearchbar { display: none !important; }
+  .qtop .qsbtn { display: flex !important; }
+  .daily {
+    margin: 4px auto 0; font-size: 0.74rem; line-height: 1.6;
+    max-height: 3.4em; overflow: hidden;   /* 长引言最多两行，别把列表挤出去 */
+  }
+
+  /* ---------- 3. 名录 / 列表：条目压扁，一屏多看到几条 ---------- */
+  h1 { font-size: 1.02rem; letter-spacing: 3px; margin: 6px 0 2px; }
+  .face, .lface-lg { width: 72px; height: 72px; margin-top: 4px; }
+  p.bio { font-size: 0.76rem; }
+  .crumb { margin: 0 0 4px; line-height: 1.5; font-size: 0.66rem; }
+  footer, .hero { display: none; }
+  nav.nav { margin: 4px 0 0; gap: 6px; }
+  nav.nav button { padding: 3px 10px; font-size: 0.75rem; min-height: 26px; }
+  .group-title { font-size: 0.76rem; letter-spacing: 2px; margin: 10px 0 4px; }
+  .res-group-t, .sub-title { margin: 8px 0 3px; font-size: 0.92rem; }
+  .sub { font-size: 0.76rem; line-height: 1.6; }
+  .lcard, button.lcard { padding: 7px 10px; margin: 4px 0; gap: 10px; }
+  .lcard .li, .lcard .pi { font-size: 1.25rem; }
+  .lcard .pname { font-size: 0.9rem; }
+  .lcard .prole, .lcard .prev2 { font-size: 0.7rem; line-height: 1.5; }
+  .quickcats { margin: 2px 0; }
+  .tag, .chip { padding: 2px 9px; font-size: 0.72rem; min-height: 24px; }
+
+  /* ---------- 4. 面板类：抽屉/弹窗在横屏高度下要能滚，不能顶到底 ---------- */
+  /* 横屏底栏也要占 ~45px，抽屉里最后一行的内容会被压住（实测分类页「做题」被遮一半） */
+  .drawer {
+    width: min(680px, 100%);
+    /* 抽屉的 top 已经在顶栏下方（.drawer.page 用 --qtop-h），这里只需一点呼吸位 */
+    padding: 8px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+  }
+  .meta-grid { font-size: 0.76rem; }
+  details.fold > summary.fold-t { padding: 6px 2px; min-height: 34px; }
+  .qpanel { top: calc(44px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 60px); }
+}
+
+/* ---------- 5. 阅读器（我的书 / 讲堂统一走这一个壳）横屏 ----------
+   竖屏时上下工具条各 ~56px 没问题；横屏 260px 高度里它们要占 45%，
+   所以横屏一律瘦身，并把正文列宽锁住（行太长回扫困难）。 */
+@media (max-height: 560px) and (min-width: 520px) {
+  .yzbox#yzbk .bk-top { padding: 3px 8px; min-height: 34px; }
+  .yzbox#yzbk .bk-top .bk-title { font-size: 0.84rem; }
+  .yzbox#yzbk .bk-top .bk-btn { padding: 3px 7px; min-height: 26px; font-size: 0.76rem; }
+  .yzbox#yzbk .bk-body { padding: 6px 20px 22px; font-size: 0.94rem; line-height: 1.8; }
+  /* 正文拉成一整屏宽会变成 110 字一行，锁宽居中更好读 */
+  .yzbox#yzbk .bk-body .bk-txt,
+  .yzbox#yzbk .bk-body > p,
+  .yzbox#yzbk .bk-body > h1, .yzbox#yzbk .bk-body > h2, .yzbox#yzbk .bk-body > h3,
+  .yzbox#yzbk .bk-body > blockquote, .yzbox#yzbk .bk-body > div {
+    max-width: 700px; margin-left: auto; margin-right: auto;
+  }
+  .yzbox#yzbk .bk-foot { padding: 2px 8px; min-height: 32px; gap: 8px; }
+  .yzbox#yzbk .bk-foot .bk-nav { padding: 2px 8px; min-height: 26px; font-size: 0.76rem; }
+  .yzbox#yzbk .bk-foot input[type=range] { height: 20px; }
+  .yzbox#yzbk .bk-pnum { font-size: 0.72rem; }
+  .yzbox#yzbk .bk-aa { max-height: calc(100vh - 70px); overflow-y: auto; }
+  /* 目录 / 摘录面板：横屏改从右侧滑出，不再从底部顶掉上半屏。
+     面板是 JS 动态创建后注入 <style> 的，同特异性下后写入者胜，
+     所以这里用 id 选择器提高特异性，别用 !important。 */
+  #bkLib.bk-sheet {
+    top: 0; bottom: 0; left: auto; right: 0;
+    width: min(340px, 60%); max-height: none;
+    border-radius: 0;
+    border-left: 1px solid var(--chrome-line, rgba(255,255,255,.2));
+    box-shadow: -8px 0 30px rgba(0,0,0,.3);
+  }
+  #bkLib.bk-sheet .hd { display: none; }
+  #bkLib.bk-sheet .tabs .tb { padding: 8px 10px; font-size: 0.86rem; }
+  .yzbox#yzbk .bk-selbar2 { bottom: 36px; }
+  .yzbox#yzbk .bk-sheet .ln, .yzbox#yzbk .bk-sheet .nt { padding: 6px 12px; font-size: 0.82rem; }
+}
+
+/* ---------- 7. 宽横屏（≥700）：名录与书架改成两列，一屏信息量翻倍 ----------
+   用 grid 而不是 CSS 多列：目录条目高度不齐，columns 在自动高度容器里根本不会分列。
+   分组标题、继续阅读卡这些整行元素强制跨两列，只有条目本身占一列。 */
+@media (max-height: 560px) and (min-width: 700px) {
+  #list, #homeFriends { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; align-items: start; }
+  #list > *, #homeFriends > * { grid-column: 1 / -1; }
+  #list > .lcard, #list > button.lcard,
+  #homeFriends > .lcard, #homeFriends > button.lcard,
+  #homeFriends > .frow { grid-column: auto; }
+  #list .lcard .prev2, #homeFriends .lcard .prev2 { -webkit-line-clamp: 1; }
+
+  #yzsBody .bk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; }
+  /* 书架在宽横屏下条目走两列（外层已经是 flex，改 basis 就行，不用再套 grid） */
+  .yzbox#yzshelf #yzsBody > .bk-item { flex: 1 0 calc(50% - 6px); }
+}
+
+/* ---------- 5b. 书架（我的书）横屏：顶部那堆说明/工具栏压到最低 ----------
+   竖屏时「导入文件 / 相册 / 两段说明 / 继续阅读 / 三个标签 / 排序行」占 ~200px，
+   横屏 260px 高度里它们能把整张列表挤没（实测一条都看不到）。 */
+@media (max-height: 560px) and (min-width: 520px) {
+  .yzbox#yzshelf .bk-top { padding: 3px 10px; min-height: 32px; }
+  .yzbox#yzshelf .bk-top .bk-title { font-size: 0.86rem; }
+  /* 说明文字横屏一律不显示：它不是操作，占的却是最贵的高度 */
+  .yzbox#yzshelf .bk-tip { display: none; }
+  .yzbox#yzshelf .bk-toolbar { padding: 3px 10px; gap: 6px; flex-wrap: nowrap; }
+  .yzbox#yzshelf .bk-toolbar .bk-btn { padding: 3px 9px; min-height: 26px; font-size: 0.76rem; }
+  .yzbox#yzshelf .bk-cont { padding: 5px 10px; margin: 2px 0; }
+  .yzbox#yzshelf .bk-cont .nm b { font-size: 0.84rem; }
+  .yzbox#yzshelf .bk-tabs { padding: 0 4px; }
+  .yzbox#yzshelf .bk-tabs .bk-tab { padding: 6px 9px; font-size: 0.8rem; }
+  .yzbox#yzshelf .bk-tools { padding: 3px 10px; }
+  .yzbox#yzshelf .bk-tools select { padding: 3px 6px; font-size: 0.76rem; }
+  .yzbox#yzshelf .bk-tools .bk-btn { padding: 2px 8px; min-height: 24px; font-size: 0.74rem; }
+  .yzbox#yzshelf .bk-sec { padding: 6px 10px 2px; font-size: 0.78rem; }
+  .yzbox#yzshelf .bk-item { padding: 6px 10px; }
+  .yzbox#yzshelf .bk-item .nm b { font-size: 0.86rem; }
+  .yzbox#yzshelf .bk-item .nm span { font-size: 0.7rem; }
+
+  /* 高度不够时最省地方的办法：把「导入/相册」「三个标签」「排序/视图」这三条横栏
+     用 display:contents 打散，重新排成紧凑的流式行，横向能放就一行，放不下自动折两行。
+     竖屏一条条堆着占 ~150px，横屏只剩 260px，全给控件就没列表了。 */
+  .yzbox#yzshelf #yzsBody { display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; align-content: flex-start; }
+  .yzbox#yzshelf #yzsBody > .bk-toolbar,
+  .yzbox#yzshelf #yzsBody > .bk-tabs,
+  .yzbox#yzshelf #yzsBody > .bk-tools { display: contents; }
+  .yzbox#yzshelf #yzsBody > .bk-toolbar .bk-btn,
+  .yzbox#yzshelf #yzsBody > .bk-tabs .bk-tab,
+  .yzbox#yzshelf #yzsBody > .bk-tools > * { flex: 0 0 auto; }
+  .yzbox#yzshelf #yzsBody > .bk-sec,
+  .yzbox#yzshelf #yzsBody > .bk-cont,
+  .yzbox#yzshelf #yzsBody > div[style],
+  .yzbox#yzshelf #yzsBody > .bk-empty { flex: 1 0 100%; }
+  .yzbox#yzshelf #yzsBody > .bk-toolbar { margin: 0; }
+}
+
+/* ---------- 6. 极矮横屏（高度 ≤ 330：20:9 机器横屏约 260）---------- */
+@media (max-height: 330px) and (min-width: 520px) {
+  :root { --qtop-h: 38px; }
+  .qtop { height: calc(var(--qtop-h) + env(safe-area-inset-top, 0px)); }
+  .qsearchbar { padding: 2px 0; }
+  h1, .face, .lface-lg, p.bio, .crumb { display: none; }
+  .daily { display: none !important; }
+  .group-title { margin: 6px 0 3px; }
+  .lcard, button.lcard { padding: 6px 10px; margin: 3px 0; }
+  .lcard .prev2 { display: none; }
+  .yzbox#yzbk .bk-body { font-size: 0.9rem; line-height: 1.75; padding: 4px 18px 16px; }
+  .yzbox#yzbk .bk-top { min-height: 30px; padding: 2px 8px; }
+  .yzbox#yzbk .bk-foot { min-height: 28px; }
+  /* 书架：这个高度下「继续阅读卡」和排序行把列表挤得一条不剩，
+     继续阅读从「最近」标签进，排序回竖屏再用。 */
+  .yzbox#yzshelf .bk-cont { display: none; }
+  .yzbox#yzshelf .bk-tools { padding: 2px 8px; }
+  .yzbox#yzshelf .bk-tips, .yzbox#yzshelf .bk-sec { padding: 3px 10px 1px; }
+}
+
+/* ---------- 10. 3D 图谱页横屏 ---------- */
+@media (max-height: 560px) and (min-width: 520px) {
+  #bar { padding: calc(4px + env(safe-area-inset-top, 0px)) 8px 4px; gap: 5px; row-gap: 4px; }
+  #bar .brand { display: none; }
+  #bar .tab, #lbtn, #fbtn, #back { padding: 3px 9px; font-size: 0.72rem; }
+  #q3 { width: 120px; padding: 4px 8px; font-size: 0.72rem; }
+  #panel { width: min(300px, 48vw); padding: 8px 10px; }
+  #panel h2 { font-size: 0.92rem; }
+  #panel .desc { font-size: 0.76rem; line-height: 1.7; }
+  #listPanel { width: min(240px, 40vw); }
+  #tools { gap: 4px; padding: 4px 8px; }
+  #tools button { padding: 4px 8px; min-height: 28px; font-size: 0.68rem; }
+  #tools #ybar { padding: 4px 8px; }
+  #ptab { bottom: calc(6px + env(safe-area-inset-bottom, 0px)); padding: 5px 12px; font-size: 0.74rem; }
+  #hint, #legend { display: none; }
+}
+
+/* ---------- 8. 窄横屏（520~699）：书架条目仍是单列，一列宽点更好扫 ---------- */
+@media (max-height: 560px) and (min-width: 520px) and (max-width: 699px) {
+  .yzbox#yzshelf #yzsBody > .bk-item { flex: 1 0 100%; }
+}
+
+/* ---------- 9. 图谱页横屏 ----------
+   这两页的 UI 全是压在画布上的绝对定位层：右上那列按钮竖排 7 个，
+   横屏 260px 高度会一路顶到画面中央；图例和提示也都在抢地方。
+   横屏改成「按钮横排、图例收起、提示隐藏」，把画布让出来。 */
+@media (max-height: 560px) and (min-width: 520px) {
+  #tr {
+    top: calc(6px + env(safe-area-inset-top, 0px)); right: 8px; left: auto;
+    flex-direction: row; flex-wrap: wrap; align-items: flex-start;
+    justify-content: flex-end; gap: 5px; max-width: calc(100% - 300px);
+  }
+  #q { width: 140px; padding: 5px 9px; font-size: 0.72rem; }
+  #graphSel { padding: 5px 8px; font-size: 0.72rem; }
+  #ops { gap: 4px; }
+  #ops button { padding: 4px 8px; font-size: 0.68rem; border-radius: 7px; }
+  #filters { gap: 4px; margin-top: 0; }
+  #filters button { padding: 3px 8px; font-size: 0.66rem; }
+  #tl { top: calc(4px + env(safe-area-inset-top, 0px)); left: 10px; max-width: min(44vw, 300px); }
+  #tl h1 { font-size: 0.86rem; letter-spacing: 2px; }
+  #tl .sub, #tl .legend { display: none; }
+  #hint { display: none; }
+  #panel { width: min(320px, 52vw); }
+  #ptab { bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ---------- 11. 平板 / 大屏（宽高都 >560，即不是手机竖屏也不是手机横屏）----------
+   现状是「一律 460px 居中」：1024 宽的平板横屏两侧空 282px，1280 的桌面空 410px。
+   这里按宽度分两档放开，宽到 900 以上再上双列。底栏仍按桌面样式不显示（顶栏导航够用）。 */
+@media (min-width: 561px) and (min-height: 561px) {
+  /* 同样不能只靠 --maxw：主题脚本会把它写进 <html> 内联样式 */
+  nav.nav, .toolbar, .res-top, .filterbox, .group, .daily, #continueBox { max-width: 720px; }
+  body { padding-bottom: 40px; }
+  .lcard .pname, .frow .pname { font-size: 0.94rem; }
+}
+
+@media (min-width: 900px) and (min-height: 561px) {
+  nav.nav, .toolbar, .res-top, .filterbox, .group, .daily, #continueBox { max-width: 900px; }
+  /* 名录两列：屏幕够宽时一行放两条，比一条拉满 900px 好读 */
+  #list, #homeFriends { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; align-items: start; }
+  #list > *, #homeFriends > * { grid-column: 1 / -1; }
+  #list > .lcard, #list > button.lcard,
+  #homeFriends > .lcard, #homeFriends > button.lcard,
+  #homeFriends > .frow { grid-column: auto; }
+  /* 大屏阅读：正文铺满 1400px 会变成一行 90 多个字，锁到 760 居中 */
+  .yzbox .bk-body .bk-txt,
+  .yzbox .bk-body > p,
+  .yzbox .bk-body > h1, .yzbox .bk-body > h2, .yzbox .bk-body > h3,
+  .yzbox .bk-body > blockquote, .yzbox .bk-body > div { max-width: 760px; margin-left: auto; margin-right: auto; }
+}

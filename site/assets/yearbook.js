@@ -88,6 +88,13 @@
       put(r.firstYear, 'work', { title: r.title, author: S(r.author), note: S(r.firstYearNote), id: r.id });
     });
 
+    /* ④ 补录层：零星空白年的共运史与文本成书年（data/yearbook-extra.js） */
+    (window.SITE_YEAR_EXTRA || []).forEach(function (e) {
+      var n = nums(e.year);
+      if (!n || !e.name) return;
+      put(n[0], 'ev', { name: e.name, year: S(e.year), desc: S(e.desc), src: 'extra' });
+    });
+
     var years = Object.keys(map).map(Number).sort(function (a, b) { return a - b; });
     CACHE = { map: map, years: years, hasW: hasW };
     return CACHE;

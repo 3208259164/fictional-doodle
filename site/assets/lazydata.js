@@ -20,6 +20,8 @@
   var LAZY = [
     /* 首屏不读、但一点就可能要用的：图谱数据 / 网络词条。排最前，尽早到位。 */
     'data/graph.js',
+    'data/graph-old.js',   /* 旧民图谱 41KB：跟在主图谱后面，同批注入 */
+    'data/graph-new.js',   /* 新民图谱：同上 */
     'data/netbasics.js',
     'data/nett.js',
     'data/py.js',
@@ -38,6 +40,17 @@
     'data/avatars.js',
     'data/booknotes.js',
     /* 检索合并后主站也要能问答：这两个模块原本只在 ask.html 加载 */
+    'assets/editor.js',
+    'data/book-index.js',
+    'data/person-index.js',
+    'assets/exportdata.js',
+    'assets/speech.js',
+    'assets/photo.js',
+    'assets/selftest.js',
+    'assets/zoompane.js',
+    'assets/quote-match.js',
+    'assets/mine.js',
+    'assets/booknote.js',
     'assets/qa-engine.js',
     'assets/booksearch.js',
     /* 讲堂列表的两行预览（27 条，6.6KB）。首屏不读，滚到书库才用到，
@@ -94,20 +107,37 @@
     } catch (e) { }
   }
 
+  /* 交互感知：用户正在动手时不抢主线程。
+     以前是「一个 onload 接一个」连续注入，实测（4 倍降速、禁缓存）会在
+     0.5～2 秒之间压出 5 个 50～170ms 的长任务，点的第一下明显不跟手。
+     现在每注入一个就让出主线程（requestIdleCallback），交互期间暂停继续注入。 */
+  var lastAct = 0, t0 = Date.now();
+  ['pointerdown', 'touchstart', 'keydown', 'focusin', 'scroll', 'wheel'].forEach(function (t) {
+    try { window.addEventListener(t, function () { lastAct = Date.now(); }, { passive: true }); } catch (e) { }
+  });
+  function busy() {
+    return (Date.now() - lastAct) < 350 && (Date.now() - t0) < 8000;
+  }
+  function step(i) {
+    var go = function () { next(i); };
+    if (window.requestIdleCallback) { try { window.requestIdleCallback(go, { timeout: 500 }); return; } catch (e) { } }
+    setTimeout(go, 16);
+  }
   function next(i) {
     if (i >= LAZY.length) { afterAll(); return; }
+    if (busy()) { setTimeout(function () { next(i); }, 150); return; }
     var s = document.createElement('script');
     s.src = LAZY[i] + (window.__YZV ? ('?v=' + window.__YZV) : '');
     s.async = false;                       /* 保持顺序：后一个可能依赖前一个 */
-    s.onload = function () { done++; next(i + 1); };
-    s.onerror = function () { failed.push(LAZY[i]); next(i + 1); };
+    s.onload = function () { done++; step(i + 1); };
+    s.onerror = function () { failed.push(LAZY[i]); step(i + 1); };
     document.head.appendChild(s);
   }
 
   function kick() {
     if (started) return;
     started = true;
-    next(0);
+    step(0);
   }
 
   window.YZData = {
@@ -122,7 +152,12 @@
     }
   };
 
-  /* 触发时机：先 load+80ms；用户若先动手就立刻开始 */
+  /* 触发时机（0.18.11）：
+     以前是 load+80ms 立刻开始，等于「页面刚画完就往主线程灌 800KB 数据」，
+     用户打开后的第一秒基本都在和注入抢线程。
+     实测推迟到 1.2 秒反而更差（用户那时已经开始滑动，注入正好和操作撞上，
+     长任务从 4 个涨到 11 个）。所以仍然紧随 load 之后开始，
+     但每一步都走空闲调度 + 交互感知，注入过程中不会再压出长任务。 */
   if (document.readyState === 'complete') setTimeout(kick, 80);
   else window.addEventListener('load', function () { setTimeout(kick, 80); });
   ['pointerdown', 'touchstart', 'keydown', 'focusin'].forEach(function (t) {

@@ -231,10 +231,46 @@
     return { segs: flat, chars: chars };
   }
 
+
+  /* ---------- 站内正文（books/*.txt）也进检索 ----------
+     以前只扫「词典/概念/导读/答疑/简介/史料」，包里那 39 篇正文（四十多万字）
+     一句都搜不到：想找《反杜林论》里「自由和必然」那句，只能靠人名索引碰运气。
+     这里在空闲时把正文 fetch 进来切段缓存，命中后直接跳到原文那一段（yzOpenMention）。
+     不做构建期预生成：那等于把 1.4 MB 正文再复制一份进 JS，包会白白大一圈。 */
+  var _bookSegs = null, _bookLoading = false;
+  function bookSegsLoad() {
+    if (_bookSegs || _bookLoading) return;
+    _bookLoading = true;
+    var RES = window.SITE_RESOURCES || [];
+    var files = [];
+    for (var i = 0; i < RES.length; i++) {
+      var u = String(RES[i].url || '');
+      if (/^books\/[^\/]*\.txt$/i.test(u)) files.push({ f: u, t: RES[i].title || u });
+    }
+    if (!files.length) { _bookSegs = []; return; }
+    var got = [], done = 0;
+    files.forEach(function (it) {
+      fetch(it.f).then(function (r) { return r.ok ? r.text() : ''; }).then(function (txt) {
+        var paras = String(txt || '').replace(/\r\n?/g, '\n').split(/\n\s*\n/)
+          .map(function (x) { return x.trim(); })
+          .filter(function (x) { return x.length >= 12 && x.charAt(0) !== '#'; });
+        paras.forEach(function (p, k) {
+          got.push({ cat: '原文', t: it.t + ' · 第' + (k + 1) + ' 段', sub: it.t, text: p, keys: '', f: it.f, book: it.t });
+        });
+      }).catch(function () { }).then(function () {
+        if (++done === files.length) { _bookSegs = got; _corpus = null; }
+      });
+    });
+  }
+  window.YZFULLTEXT_LOADBOOKS = bookSegsLoad;
+
   function corpus() {
     if (!_corpus) {
       var _tB = (window.__YZTiming ? window.__YZTiming.now() : 0);
       try { _corpus = buildCorpus(); } catch (e) { _corpus = { segs: [], chars: 0 }; }
+      if (_bookSegs && _bookSegs.length) {
+        try { _corpus.segs = _corpus.segs.concat(_bookSegs); } catch (e) {}
+      }
       try { if (window.__YZTiming) { window.__YZTiming.span('ftIndex', _tB); window.__YZTiming.m.ftSegs = _corpus.segs.length; window.__YZTiming.m.ftChars = _corpus.chars || 0; } } catch (e) {}
     }
     return _corpus;
@@ -270,7 +306,7 @@
       if (sc < 0) continue;
       var key = seg.cat + '|' + seg.t;
       var sp = snipText(seg.text, q, SNIP_W) || snipText(seg.keys, q, SNIP_W);
-      var cand = { cat: seg.cat, t: seg.t, sub: sp || seg.sub, snip: sp, idx: i, score: sc, _k: key };
+      var cand = { cat: seg.cat, t: seg.t, sub: sp || seg.sub, snip: sp, idx: i, score: sc, _k: key, f: seg.f || '' };
       var old = seen[key];
       if (!old) { seen[key] = cand; out.push(cand); }
       else if (sc > old.score) { old.score = sc; old.sub = cand.sub; old.snip = cand.snip; old.idx = i; }
@@ -282,7 +318,9 @@
       var o = out[i];
       per[o.cat] = (per[o.cat] || 0) + 1;
       if (per[o.cat] > 8) continue;
-      o.fn = 'yzftShow(' + o.idx + ')';
+      o.fn = o.cat === '原文'
+        ? 'yzOpenMention(\'' + (out[i].f || '') + '\',\'' + String(q).replace(/'/g, '').slice(0, 12) + '\')'
+        : 'yzftShow(' + o.idx + ')';
       kept.push(o);
       if (kept.length >= 30) break;
     }

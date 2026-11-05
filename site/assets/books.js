@@ -297,7 +297,6 @@
      （从相册、QQ、微信「发送到」进来的文件会绕过 accept），所以真正把关必须在这里。
      以前一张 235KB 的 JPG 就是这么被当成「书」导入的，点开又按文本去读二进制，直接卡死。 */
   var BOOK_OK = /^(TXT|MD|MARKDOWN|EPUB|PDF)$/;
-  function isBookName(name, type) { return BOOK_OK.test(fmtOf(name, type)); }
 
   function importOne(file, done) {
     var fmt = fmtOf(file.name, file.type);
@@ -436,7 +435,8 @@
         backT: backT || '返回',
         backF: backF || openLocalShelf,
         selfF: function () { var d = drawerEl(); if (d) { try { d.scrollTop = 0; } catch (e) { } } },
-        anchor: (typeof anchor === 'number') ? anchor : null
+        anchor: (typeof anchor === 'number') ? anchor : null,
+        src: path
       });
     }).catch(function () {
       try { toast('载入失败，改用原始页面打开'); } catch (e) { }
@@ -485,7 +485,7 @@
         : '<p data-i="' + i + '">' + esc(p).replace(/\n/g, '<br>') + '</p>';
       return inner;
     }).join('');
-    var thIcon = { day: '🌙', night: '🌓', black: '☀' }[c.th] || '🌙';
+    var thIcon = { day: '🌙', night: '☀' }[c.th] || '🌙';
     openContent('📖 ' + title,
       (typeof crumbFrom === 'function' ? crumbFrom([{ t: backT, fn: backF }, { t: title, fn: selfF }]) : '') +
       '<div id="yzReader" class="th-' + c.th + '" data-book="' + esc(id) + '">' +
@@ -493,6 +493,10 @@
           '<button onclick="yzBooks.aa()" aria-label="排版设置">Aa</button>' +
           '<button onclick="yzBooks.theme()" aria-label="配色">' + thIcon + '</button>' +
           (chs.length ? '<button onclick="yzBooks.toc()" aria-label="目录">📑</button>' : '') +
+          (opt.src && window.YZAppBooks && window.YZAppBooks.outMenu
+            ? '<button data-s="' + esc(opt.src) + '" data-t="' + esc(title) +
+              '" onclick="YZAppBooks.outMenu(\'asset\', this.dataset.s, this.dataset.t)" aria-label="打开或分享">⋯</button>'
+            : '') +
           '<span style="flex:1"></span>' +
           '<span class="rpos"></span>' +
         '</div>' +
@@ -546,7 +550,9 @@
           if (c.lh) d.lh = Math.max(1.5, Math.min(2.4, +c.lh));
           if (typeof c.pd === 'number') d.pd = Math.max(0, Math.min(40, c.pd));
           if (typeof c.jc === 'number') d.jc = c.jc ? 1 : 0;
-          if (c.th === 'day' || c.th === 'night' || c.th === 'black') d.th = c.th;
+          /* 纯黑档已下线（0.17.70）：老配置里存的是 black，就地迁到夜间 */
+          if (c.th === 'day' || c.th === 'night') d.th = c.th;
+          else if (c.th === 'black') { d.th = 'night'; saveCfg(d); }
         }
       } catch (e) { }
     } else {
@@ -569,10 +575,10 @@
     }
     var r = document.getElementById('yzReader');
     if (r) {
-      r.classList.remove('th-day', 'th-night', 'th-black');
+      r.classList.remove('th-day', 'th-night');
       r.classList.add('th-' + c.th);
       var tb = r.querySelector('.reader-bar button[aria-label="配色"]');
-      if (tb) tb.textContent = ({ day: '🌙', night: '🌓', black: '☀' })[c.th] || '🌙';
+      if (tb) tb.textContent = ({ day: '🌙', night: '☀' })[c.th] || '🌙';
     }
   }
   function renderAA() {
@@ -585,8 +591,7 @@
       row('边距', '<button data-aa="pd-">窄</button><b>' + c.pd + '</b><button data-aa="pd+">宽</button>') +
       row('对齐', '<button data-aa="jc" class="' + (c.jc ? 'on' : '') + '">' + (c.jc ? '两端对齐' : '左对齐') + '</button>') +
       row('配色', '<button data-aa="th-day" class="' + (c.th === 'day' ? 'on' : '') + '">日间</button>' +
-        '<button data-aa="th-night" class="' + (c.th === 'night' ? 'on' : '') + '">夜间</button>' +
-        '<button data-aa="th-black" class="' + (c.th === 'black' ? 'on' : '') + '">纯黑</button>');
+        '<button data-aa="th-night" class="' + (c.th === 'night' ? 'on' : '') + '">夜间</button>');
     p.onclick = function (e) {
       var b = e.target.closest ? e.target.closest('[data-aa]') : null;
       if (!b) return;
@@ -610,7 +615,7 @@
   }
   function theme() {
     var c = readCfg();
-    var seq = ['day', 'night', 'black'];
+    var seq = ['day', 'night'];
     c.th = seq[(seq.indexOf(c.th) + 1) % seq.length];
     saveCfg(c); applyCfg();
   }

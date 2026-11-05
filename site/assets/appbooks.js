@@ -64,7 +64,8 @@
     var st = document.createElement('style');
     st.id = CSS_ID;
     st.textContent = [
-      '.yzbox{position:fixed;top:0;right:0;bottom:0;left:0;width:100%;height:100%;z-index:130;display:none;flex-direction:column;background:var(--panel-bg,#150c0c);color:var(--panel-text,#f2e9e4);overflow:hidden}',
+      '.yzbox{position:fixed;top:0;right:0;bottom:0;left:0;width:100%;height:100%;z-index:130;display:none;flex-direction:column;background:var(--panel-bg,#150c0c);color:var(--panel-text,#f2e9e4);overflow:hidden;',
+      '  --chrome-bg:var(--panel-bg,#150c0c);--chrome-bg2:var(--panel-bg2,#241414);--chrome-fg:var(--panel-text,#f2e9e4);--chrome-line:var(--panel-line,rgba(255,255,255,.18))}',
       '.yzbox.open{display:flex}',
       /* 抽屉留在下面时，它的渐变 + backdrop-filter 会一直参与合成，手机上明显掉帧；
          而且关闭动画有 250ms 延时隐藏，会从书架底下透出来。打开书架就把它移出渲染树。 */
@@ -161,7 +162,60 @@
       '.yzbox.fit-page .bk-stage{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}',
       '.yzbox .bk-txt{padding:4px 2px 30px;line-height:1.95;font-size:1rem}',
       '.yzbox .bk-txt p{margin:0 0 1em}',
-      '.yzbox .bk-txt .bk-h{margin:1.4em 0 .6em;font-size:1.06rem;line-height:1.5;opacity:.92}',
+      '.yzbox .bk-txt .bk-readnow{background:rgba(245,197,24,.22);border-radius:6px;box-shadow:0 0 0 6px rgba(245,197,24,.22)}',
+      '.yzbox .bk-txt mark.bk-hl{background:rgba(245,197,24,.42);color:inherit;border-radius:3px;padding:0 1px}',
+      '.yzbox .bk-selbar2{position:absolute;z-index:16;display:flex;gap:2px;background:var(--chrome-bg2);border:1px solid var(--chrome-line);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.26);padding:4px}',
+      '.yzbox .bk-selbar2 button{border:0;background:transparent;color:inherit;font-family:inherit;font-size:.84rem;padding:7px 11px;border-radius:8px;cursor:pointer}',
+      '.yzbox .bk-selbar2 button:active{background:rgba(0,0,0,.08)}',
+      '.yzbox .bk-sheet .nt{padding:11px 16px;border-bottom:1px solid var(--chrome-line)}',
+      '.yzbox .bk-sheet .nt .q{font-size:.86rem;line-height:1.65;border-left:3px solid var(--accent,#f5c518);padding-left:8px}',
+      '.yzbox .bk-sheet .nt .n{font-size:.8rem;opacity:.75;margin-top:5px;line-height:1.6}',
+      '.yzbox .bk-sheet .nt .ops{display:flex;gap:8px;margin-top:6px}',
+      '.yzbox .bk-sheet .nt .ops button{border:0;background:transparent;color:inherit;opacity:.6;font-family:inherit;font-size:.76rem;padding:2px 6px;border-radius:6px}',
+      '.yzbox .bk-sheet .nbox{margin-top:8px;display:flex;gap:8px;align-items:flex-start}',
+      '.yzbox .bk-sheet .nbox .ni{flex:1;min-height:56px;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--chrome-line);background:transparent;color:inherit;font-family:inherit;font-size:.84rem;line-height:1.6;resize:vertical}',
+      '.yzbox .bk-txt .bk-h{margin:1.4em 0 .6em;font-size:1.06rem;line-height:1.5;opacity:.92;scroll-margin-top:56px}',
+      '.yzbox .bk-toc{position:absolute;left:0;right:0;top:0;bottom:0;overflow:auto;padding:8px 0 60px;background:var(--chrome-bg2);color:var(--chrome-fg);z-index:8}',
+      '.yzbox .bk-menu{position:absolute;left:0;right:0;bottom:0;z-index:14;background:var(--chrome-bg2);color:var(--chrome-fg);border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -6px 30px rgba(0,0,0,.22);padding:6px 0 10px;max-height:78%;overflow:auto}',
+      /* 底部半屏面板（目录 / 书签 / 搜索）：带遮罩和把手，上半屏仍露着正文。
+         全屏面板会让人「为了调个字号而离开那一页」，回来排版已经变了。 */
+      '.yzbox .bk-scrim{position:absolute;inset:0;background:rgba(0,0,0,.36);z-index:12}',
+      '.yzbox .bk-sheet{position:absolute;left:0;right:0;bottom:0;z-index:13;background:var(--chrome-bg2);color:var(--chrome-fg);border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.3);display:flex;flex-direction:column;max-height:min(62%,34rem)}',
+      '.yzbox .bk-sheet .hd{padding:8px 0 2px;display:flex;justify-content:center}',
+      '.yzbox .bk-sheet .hd i{display:block;width:38px;height:4px;border-radius:2px;background:currentColor;opacity:.2}',
+      '.yzbox .bk-sheet .tabs{display:flex;align-items:center;gap:2px;padding:4px 8px 0;border-bottom:1px solid var(--chrome-line)}',
+      '.yzbox .bk-sheet .tabs .tb{border:0;background:transparent;color:inherit;font-family:inherit;font-size:.92rem;padding:10px 12px;opacity:.55;border-bottom:2px solid transparent;cursor:pointer}',
+      '.yzbox .bk-sheet .tabs .tb.on{opacity:1;font-weight:700;border-bottom-color:var(--accent,#f5c518)}',
+      '.yzbox .bk-sheet .tabs .x{margin-left:auto;border:0;background:transparent;color:inherit;font-size:1rem;padding:8px 12px;opacity:.55;cursor:pointer}',
+      '.yzbox .bk-sheet .bd{flex:1;min-height:0;overflow:auto;padding:2px 0 14px}',
+      '.yzbox .bk-sheet .bd .ttl{padding:12px 16px 6px;font-size:.76rem;opacity:.55}',
+      '.yzbox .bk-sheet .ln,.yzbox .bk-sheet .mk{display:flex;gap:10px;align-items:baseline;padding:11px 16px;border-bottom:1px solid var(--chrome-line);font-size:.9rem;line-height:1.5}',
+      '.yzbox .bk-sheet .ln:active{background:rgba(0,0,0,.05)}',
+      '.yzbox .bk-sheet .ln .no{opacity:.4;font-size:.75rem;min-width:1.8em;text-align:right;flex:none}',
+      '.yzbox .bk-sheet .ln .tt{flex:1;min-width:0}',
+      '.yzbox .bk-sheet .ln.on{background:rgba(245,197,24,.16);font-weight:700}',
+      '.yzbox .bk-sheet .ln .now{flex:none;font-size:.68rem;padding:.05rem .35rem;border-radius:.3rem;background:var(--accent,#f5c518);color:#241b00}',
+      '.yzbox .bk-sheet .sw{padding:2px 16px 10px}',
+      '.yzbox .bk-sheet input{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--chrome-line);background:transparent;color:inherit;font-family:inherit;font-size:.9rem}',
+      '.yzbox .bk-sheet .hits{max-height:44vh;overflow:auto}',
+      '.yzbox .bk-sheet .hit{padding:10px 16px;border-bottom:1px solid var(--chrome-line);font-size:.85rem;line-height:1.6}',
+      '.yzbox .bk-sheet .hit:active{background:rgba(0,0,0,.05)}',
+      '.yzbox .bk-sheet .hit em{font-style:normal;background:rgba(245,197,24,.35);border-radius:3px;padding:0 2px}',
+      '.yzbox .bk-sheet .hit .where{display:block;font-size:.72rem;opacity:.55;margin-bottom:2px}',
+      '.yzbox .bk-sheet .none{padding:16px;opacity:.6;font-size:.85rem}',
+      '.yzbox .bk-sheet .mk{display:flex;gap:8px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--chrome-line)}',
+      '.yzbox .bk-sheet .mk .tt{flex:1;min-width:0;font-size:.85rem;line-height:1.55;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}',
+      '.yzbox .bk-sheet .mk .x{flex:none;padding:2px 8px;font-size:.78rem}',
+      '.yzbox .bk-sheet .mk .pos{flex:none;font-size:.72rem;opacity:.5}',
+      '.yzbox .bk-menu .hd{padding:12px 16px 6px;font-size:.78rem;opacity:.55}',
+      '.yzbox .bk-menu .it{padding:14px 18px;font-size:.98rem;border-bottom:1px solid rgba(0,0,0,.06)}',
+      '.yzbox .bk-menu .it:active{background:rgba(0,0,0,.06)}',
+      '.yzbox .bk-menu .it.cancel{border-bottom:0;text-align:center;opacity:.65;font-size:.9rem}',
+      '.yzbox .bk-toc .hd{padding:12px 16px 8px;font-size:.82rem;opacity:.6;letter-spacing:.04em}',
+      '.yzbox .bk-toc .it{display:flex;gap:10px;align-items:baseline;padding:11px 16px;border-bottom:1px solid rgba(0,0,0,.06);font-size:.95rem;line-height:1.5}',
+      '.yzbox .bk-toc .it:active{background:rgba(0,0,0,.06)}',
+      '.yzbox .bk-toc .it .no{opacity:.42;font-size:.78rem;min-width:1.8em;text-align:right;flex:none}',
+      '.yzbox .bk-toc .it .tt{flex:1}',
       /* 阅读进度条：3px，贴在底部按钮栏上方 */
       '.yzbox .bk-prog{flex:0 0 auto;height:3px;background:rgba(128,128,128,.22);overflow:hidden}',
       '.yzbox .bk-prog i{display:block;height:100%;width:0;background:var(--panel-accent,#f5c518);transition:width .2s}',
@@ -173,8 +227,8 @@
       '.yzbox.chrome-off .bk-prog{display:none!important}',
       /* Aa 排版面板 */
       '.yzbox .bk-aa{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 52px);z-index:3;',
-      '  min-width:210px;padding:10px 12px;border-radius:12px;background:var(--panel-bg2,#241414);',
-      '  border:1px solid var(--panel-line,rgba(255,255,255,.18));box-shadow:0 8px 22px rgba(0,0,0,.34)}',
+      '  min-width:210px;padding:10px 12px;border-radius:12px;background:var(--chrome-bg2);color:var(--chrome-fg);',
+      '  border:1px solid var(--chrome-line);box-shadow:0 8px 22px rgba(0,0,0,.22)}',
       '.yzbox .bk-aa[hidden]{display:none}',
       '.yzbox .bk-aa .row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:.82rem}',
       '.yzbox .bk-aa .row>span{flex:0 0 62px;opacity:.75}',
@@ -182,7 +236,7 @@
       '.yzbox .bk-aa .row .on{background:var(--panel-accent,#f5c518);color:#241b00;border-color:transparent;font-weight:700}',
       /* 划词卡片：选中正文里的词，弹本站自己的解释（术语/概念/人物/事件） */
       '.yzbox .bk-word{position:absolute;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:4;',
-      '  padding:11px 13px;border-radius:14px;background:var(--panel-bg2,#241414);border:1px solid var(--panel-line,rgba(255,255,255,.2));',
+      '  padding:11px 13px;border-radius:14px;background:var(--chrome-bg2);color:var(--chrome-fg);border:1px solid var(--chrome-line);',
       '  box-shadow:0 10px 28px rgba(0,0,0,.4)}',
       '.yzbox .bk-word[hidden]{display:none}',
       '.yzbox .bk-word .w-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}',
@@ -196,26 +250,30 @@
       /* ---- 阅读态配色：和站点深红主题解耦 ----
          PDF 页图是白底的，压在一片深红上边缘会特别刺眼。阅读器自己一套配色：
          纸白（日间）与夜间两档，退出阅读器就还原成站点主题。 */
-      'html body .yzbox.bk-read{background:#ece7dc;color:#26221c}',
-      'html body .yzbox.bk-read .bk-top{background:#e3ddce;border-bottom-color:rgba(0,0,0,.1)}',
-      'html body .yzbox.bk-read .bk-foot{background:#e3ddce;border-top-color:rgba(0,0,0,.1)}',
+      /* 阅读态统一色板：顶栏、底栏、Aa 面板、目录、分享菜单、划词卡全部引用这一组，
+         避免「顶栏米色、面板深褐、菜单白色」四套颜色打架。
+         书架（非读态）仍用 --panel-* 深色，不受影响。 */
+      'html body .yzbox.bk-read{background:#ece7dc;color:#26221c;',
+      '  --chrome-bg:#e3ddce;--chrome-bg2:#f5f0e6;--chrome-fg:#26221c;--chrome-line:rgba(0,0,0,.12)}',
+      'html body .yzbox.bk-read.night{',
+      '  --chrome-bg:#1c1c1f;--chrome-bg2:#232327;--chrome-fg:#d9d5cc;--chrome-line:rgba(255,255,255,.12)}',
+      'html body .yzbox.bk-read .bk-top{background:var(--chrome-bg);border-bottom-color:var(--chrome-line)}',
+      'html body .yzbox.bk-read .bk-foot{background:var(--chrome-bg);border-top-color:var(--chrome-line)}',
       'html body .yzbox.bk-read .bk-btn{border-color:rgba(0,0,0,.16);background:rgba(0,0,0,.05);color:#26221c}',
       'html body .yzbox.bk-read.night{background:#141416;color:#d9d5cc}',
-      'html body .yzbox.bk-read.night .bk-top{background:#1c1c1f;border-bottom-color:rgba(255,255,255,.1)}',
-      'html body .yzbox.bk-read.night .bk-foot{background:#1c1c1f;border-top-color:rgba(255,255,255,.1)}',
+
       'html body .yzbox.bk-read.night .bk-btn{border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#d9d5cc}',
       'html body .yzbox.bk-read.night .bk-pdfimg{box-shadow:0 1px 3px rgba(0,0,0,.6),0 6px 22px rgba(0,0,0,.5)}',
       'html body .yzbox.bk-read.night .bk-txt{color:#c9c5bd}',
       /* 纯黑档：OLED 上省电，也给喜欢全黑的人。字依然不是纯白 */
-      'html body .yzbox.bk-read.black{background:#000;color:#b8b4ac}',
-      'html body .yzbox.bk-read.black .bk-top{background:#0a0a0b;border-bottom-color:rgba(255,255,255,.08)}',
-      'html body .yzbox.bk-read.black .bk-foot{background:#0a0a0b;border-top-color:rgba(255,255,255,.08)}',
-      'html body .yzbox.bk-read.black .bk-btn{border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#b8b4ac}',
-      'html body .yzbox.bk-read.black .bk-pdfimg,.yzbox.bk-read.black .bk-pg img{box-shadow:none}',
       /* 只作用于「正在读 PDF」的书架主体。原来只写了 .fit-page .bk-body，
          结果点过「整页」之后回到书架，书架列表也被 flex 居中挤压，
          表现为「主体大片空白、只剩一条书居中」——就是用户截图那个画面。 */
       '.yzbox.fit-page .bk-body.pdfread{display:flex;align-items:center;justify-content:center}',
+      /* 适宽：铺满宽度 + 上下也居中。用 margin:auto 而不是 align-items:center ——
+         后者在内容比容器高时会把顶部裁掉，前者的滚动是安全的。 */
+      '.yzbox.fit-width .bk-body{display:flex;overflow:auto;padding:8px 8px calc(env(safe-area-inset-bottom,0px) + 8px)}',
+      '.yzbox.fit-width .bk-pdfimg{margin:auto;width:100%;height:auto;max-width:100%;border-radius:2px}',
       '.yzbox.fit-page .bk-pdfimg{width:auto;height:auto;max-width:100%;max-height:100%}',
       '.yzbox .bk-toc{padding:6px 0 24px}',
       '.yzbox .bk-toc a{display:block;padding:11px 16px;border-bottom:1px solid var(--panel-line,rgba(255,255,255,.08));color:inherit;text-decoration:none;font-size:.9rem}',
@@ -264,6 +322,7 @@
         + '<button class="bk-btn" type="button" id="yzbkTheme" style="display:none">🌙</button>'
         + '<button class="bk-btn" type="button" id="yzbkAA" style="display:none">Aa</button>'
         + '<button class="bk-btn" type="button" id="yzbkAct">目录</button>'
+        + '<button class="bk-btn" type="button" id="yzbkMore" aria-label="更多">⋯</button>'
         + '<button class="bk-btn" type="button" onclick="YZAppBooks.close()">✕</button></div>'
         + '<div class="bk-body" id="yzbkBody"></div>'
         + '<div class="bk-prog" id="yzbkProg" style="display:none"><i></i></div>'
@@ -450,7 +509,7 @@
       + '</div>'
       + '<div class="bk-tip">书（EPUB / PDF / TXT / MD）进书架，照片自动进相册 —— 选完按类型自己分，不用先挑格式。</div>'
       /* 浏览器里打开（没有 App 桥）：书目照常能看，但导入和阅读要用 App——得说清楚，别让人点了没反应 */
-      + (webOnly ? '<div class="bk-tip" style="color:#e6b422">现在是在浏览器里预览：书目能看，但「导入」和「打开阅读」需要在 App 内使用。</div>' : '');
+      + (webOnly ? '<div class="bk-tip" style="color:#e6b422">没读到 App 桥（AndroidApp）：站内自带的书和 TXT/MD 照样能读；「＋ 导入文件」、EPUB/PDF 阅读要在 App 内。若你确实是在 App 里，请把这条提示截图反馈。</div>' : '');
 
     /* 继续阅读：最近读过的那本，一条就够，别做成第二个书架 */
     if (cont) {
@@ -504,6 +563,17 @@
     renderShelf();
   }
 
+  /* 站内自带正文打在安装包里，删不掉——删了下次启动还在。
+     以前「删除选中」对它们照样调原生 bookRemove，文件根本不存在，
+     书架刷新一遍又冒出来，看着像没删掉。现在改为记一份隐藏名单，只从书架收起。 */
+  var HIDE_KEY = 'yzShelfHide';
+  function hideSet() { try { return JSON.parse(localStorage.getItem(HIDE_KEY) || '[]') || []; } catch (e) { return []; } }
+  function isHidden(id) { return hideSet().indexOf(id) >= 0; }
+  function hideBook(id) {
+    var a = hideSet(); if (a.indexOf(id) < 0) a.push(id);
+    try { localStorage.setItem(HIDE_KEY, JSON.stringify(a)); } catch (e) { }
+  }
+
   /* 统一渲染：标签页切换 / 排序 / 视图切换都只调它，不再各自拼 HTML */
   function renderShelf() {
     var A = app(), body = document.getElementById('yzsBody');
@@ -514,7 +584,10 @@
 
     var booksE = native.filter(function (b) { return b.type === 'pdf' || b.type === 'epub'; });
     var booksT = native.filter(function (b) { return b.type === 'txt' || b.type === 'md'; });
-    _list = booksE.concat(booksT);          /* open() 按 id 找 meta，两类都要在 */
+    /* 站内自带正文：算「有原文」，不算「只有书壳」；被收起来的除外 */
+    var st = stationBooks().filter(function (b) { return !isHidden(b.id); });
+    var stId = {}; for (var si = 0; si < st.length; si++) stId[st[si].id] = 1;
+    _list = booksE.concat(booksT).concat(st);   /* open() 按 id 找 meta，三类都要在 */
 
     var BOK = /^(TXT|MD|MARKDOWN|EPUB|PDF)$/;
     var goods = txt.filter(function (b) { return BOK.test(String(b.fmt || '').toUpperCase()); });
@@ -525,14 +598,16 @@
     try {
       var R = window.SITE_RESOURCES || [];
       shells = R.filter(function (r) {
-        return r && r.cat !== '我的书' && !r.local && String(r.id || '').indexOf('local-') !== 0;
+        return r && r.cat !== '我的书' && !r.local
+            && String(r.id || '').indexOf('local-') !== 0
+            && !stId[r.id];      /* 有原文的别再以「书壳」出现一次 */
       });
     } catch (e) { shells = []; }
     SHELF.shell = shells;
 
     /* 继续阅读：最近读过的一本 */
     var cont = null;
-    var all = booksE.concat(booksT).concat(goods);
+    var all = booksE.concat(booksT).concat(goods).concat(st);
     var bestT = 0;
     for (var i = 0; i < all.length; i++) {
       var pp = posGet(all[i].id) || {};
@@ -540,7 +615,7 @@
       if (t > bestT) { bestT = t; cont = { id: all[i].id, name: all[i].name || all[i].title, pct: progPct(all[i]) }; }
     }
 
-    var mineN = booksE.length + booksT.length + goods.length;
+    var mineN = booksE.length + booksT.length + goods.length + st.length;
     var h = headHTML(mineN, shells.length, photoCountText(), cont, !A);
 
     if (!mineN && !shells.length) {
@@ -574,6 +649,19 @@
         h2 += (SHELF.view === 'grid' ? '<div class="bk-grid">' : '')
           + sortList(goods, SHELF.sort).map(function (b) {
             return itemHTML(b, { click: 'YZAppBooks.openText(\'' + esc(b.id) + '\')', ic: '📃', title: b.title || b.id });
+          }).join('')
+          + (SHELF.view === 'grid' ? '</div>' : '');
+      }
+      if (st.length) {
+        h2 += '<div class="bk-sec">站内自带 · 装了就能读（' + st.length + ' 本）</div>'
+          + '<div style="padding:0 12px .4rem;font-size:.8rem;opacity:.72">'
+          + '这些正文随安装包一起带着，不用导入、不占额外空间，点开就能读。</div>'
+          + (SHELF.view === 'grid' ? '<div class="bk-grid">' : '')
+          + sortList(st, SHELF.sort).map(function (b) {
+            return itemHTML(b, {
+              click: 'YZAppBooks.open(\'' + esc(b.id) + '\')', ic: '📗',
+              sub: '站内正文 · 已在包里'
+            });
           }).join('')
           + (SHELF.view === 'grid' ? '</div>' : '');
       }
@@ -665,21 +753,28 @@
     var A = app();
     var ids = Object.keys(SEL).filter(function (k) { return SEL[k]; });
     if (!ids.length) { toast('先选几本'); return; }
+    var meta = {};
+    (_list || []).forEach(function (b) { if (b && b.id) meta[b.id] = b; });
+    var nStation = ids.filter(function (id) { return meta[id] && meta[id].station; }).length;
+    var msg = nStation === ids.length
+      ? '从书架收起这 ' + ids.length + ' 本？\n\n这些书是安装包自带的，不会真删，只是不再显示在书架里。'
+      : '从本机删除这 ' + ids.length + ' 本？\n\n只删 App 里的副本，不影响你手机里原来的文件。'
+        + (nStation ? '\n其中 ' + nStation + ' 本是安装包自带的，只从书架收起。' : '');
     var ok = true;
-    try { ok = window.confirm('从本机删除这 ' + ids.length + ' 本？\n\n只删 App 里的副本，不影响你手机里原来的文件。'); } catch (e) { ok = true; }
+    try { ok = window.confirm(msg); } catch (e) { ok = true; }
     if (!ok) return;
-    var listed = {};
-    (_list || []).forEach(function (b) { if (b && b.id) listed[b.id] = 1; });
     ids.forEach(function (id) {
       try {
-        if (listed[id]) { if (A && A.bookRemove) A.bookRemove(id); }
+        var m = meta[id];
+        if (m && m.station) { hideBook(id); return; }        /* 站内自带：不进原生，只收起 */
+        if (m) { if (A && A.bookRemove) A.bookRemove(id); }
         else if (window.yzBooks && yzBooks.remove) { yzBooks.remove(id); return; }
         shellDetach(id);
       } catch (e) { }
     });
     SEL = {};
     setTimeout(function () {
-      toast('已删除 ' + ids.length + ' 本');
+      toast(nStation === ids.length ? ('已从书架收起 ' + ids.length + ' 本') : ('已删除 ' + (ids.length - nStation) + ' 本' + (nStation ? '，收起 ' + nStation + ' 本' : '')));
       renderShelf();
     }, 320);
   }
@@ -715,11 +810,632 @@
 
   /* 读 TXT / MD：正文从 _booktext/ 同源地址 fetch（Java 只传地址，不搬字符串）。
      段落按空行切分——纯文本里最稳的分段依据就是空行。 */
+  /* ---------- 通用底部面板 ---------- */
+  function sheet(id, title, bodyHTML) {
+    var old = document.getElementById(id);
+    if (old) old.remove();
+    var sc = document.getElementById('bkScrim'); if (sc) sc.remove();
+    var host = document.getElementById('yzbk') || document.body;
+    var scrim = document.createElement('div');
+    scrim.id = 'bkScrim'; scrim.className = 'bk-scrim';
+    host.appendChild(scrim);
+    var d = document.createElement('div');
+    d.id = id; d.className = 'bk-sheet';
+    d.innerHTML = '<div class="hd"><i></i></div>'
+      + '<div class="tabs"><span class="tb on">' + esc(title) + '</span>'
+      + '<button class="x" type="button" data-a="close">✕</button></div>'
+      + '<div class="bd">' + bodyHTML + '</div>';
+    host.appendChild(d);
+    scrim.onclick = function () { closeTopPanel(); };
+    d.onclick = function (ev) {
+      if (ev.target.closest && ev.target.closest('[data-a="close"]')) closeTopPanel();
+    };
+    return d;
+  }
+
+  /* ---------- 书签 ---------- */
+  var MK_KEY = 'yzBkMarks';
+  function marksAll() { try { return JSON.parse(localStorage.getItem(MK_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function marksOf(id) { var m = marksAll(); return (m[id] || []); }
+  function marksSave(o) { try { localStorage.setItem(MK_KEY, JSON.stringify(o)); } catch (e) { } }
+
+  /* 当前读到的位置：TXT 记百分比 + 最近一段文字；PDF 记页码；EPUB 记章 + 章内比例 */
+  function curAnchor() {
+    var body = document.getElementById('yzbkBody');
+    if (!cur || !body) return null;
+    if (cur.type === 'txt' || cur.type === 'md') {
+      var max = body.scrollHeight - body.clientHeight;
+      var pct = max > 0 ? body.scrollTop / max : 0;
+      var top = body.getBoundingClientRect().top, label = '';
+      var ps = body.querySelectorAll('h3.bk-h, p[id^="bkp-"]');
+      for (var i = 0; i < ps.length; i++) {
+        if (ps[i].getBoundingClientRect().top - top >= -12) { label = (ps[i].textContent || '').trim().slice(0, 34); break; }
+      }
+      return { pct: pct, label: label || '正文', kind: 'txt' };
+    }
+    if (cur.type === 'pdf') {
+      return { page: cur.idx || 0, label: '第 ' + ((cur.idx || 0) + 1) + ' 页 / 共 ' + (cur.count || '?') + ' 页', kind: 'pdf' };
+    }
+    return { ch: cur.idx || 0, pct: 0, label: '第 ' + ((cur.idx || 0) + 1) + ' 章', kind: 'epub' };
+  }
+
+  function addMark() {
+    if (!cur) { toast('请从「我的藏书」打开正文后再加书签'); return; }
+    var a = curAnchor(); if (!a) return;
+    var all = marksAll(), list = all[cur.id] || [];
+    list.unshift({ id: 'm' + Date.now(), t: Date.now(), label: a.label, pos: a });
+    all[cur.id] = list.slice(0, 200);
+    marksSave(all);
+    toast('已加书签：' + a.label.slice(0, 16));
+  }
+
+  function jumpMark(m) {
+    if (!cur || !m || !m.pos) return;
+    var body = document.getElementById('yzbkBody');
+    if (m.pos.kind === 'pdf') { try { goto(m.pos.page || 0); } catch (e) { } return; }
+    if (m.pos.kind === 'epub') { try { goto(m.pos.ch || 0); } catch (e) { } return; }
+    if (body) {
+      var max = body.scrollHeight - body.clientHeight;
+      body.scrollTop = Math.max(0, max * (m.pos.pct || 0));
+    }
+  }
+
+  function delMark(id) {
+    if (!cur) return;
+    var all = marksAll(), list = (all[cur.id] || []).filter(function (x) { return x.id !== id; });
+    all[cur.id] = list; marksSave(all);
+    var p = document.getElementById('bkMarks'); if (p) p.remove();
+    marksPanel();
+  }
+
+  function marksPanel() { libPanel('marks'); }
+  function notesPanel() { libPanel('notes'); }
+
+  /* ---------- 划线 / 摘录（长按选中文字） ---------- */
+  var NT_KEY = 'yzBkNotes';
+  function notesAll() { try { return JSON.parse(localStorage.getItem(NT_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function notesOf(id) { return notesAll()[id] || []; }
+  function notesSave(o) { try { localStorage.setItem(NT_KEY, JSON.stringify(o)); } catch (e) { } }
+
+  var selBarEl = null;
+  function hideSelBar() { if (selBarEl) { selBarEl.remove(); selBarEl = null; } }
+
+  /* 只处理「同一段内」的选区：跨段落包 <mark> 会把 HTML 结构切坏 */
+  function rangeInOnePara(r) {
+    var a = r.startContainer, b = r.endContainer;
+    function paraOf(n) { while (n && n !== document.body) { if (n.nodeType === 1 && (n.tagName === 'P' || n.tagName === 'H3')) return n; n = n.parentNode; } return null; }
+    var pa = paraOf(a), pb = paraOf(b);
+    return (pa && pa === pb) ? pa : null;
+  }
+
+  function showSelBar(range, text) {
+    hideSelBar();
+    var host = document.getElementById('yzbk');
+    if (!host) return;
+    var rect = range.getBoundingClientRect(), hr = host.getBoundingClientRect();
+    var d = document.createElement('div');
+    d.className = 'bk-selbar2';
+    d.innerHTML = '<button data-s="copy" type="button">复制</button>'
+      + '<button data-s="mark" type="button">划线</button>'
+      + '<button data-s="note" type="button">摘录</button>'
+      + '<button data-s="x" type="button">✕</button>';
+    host.appendChild(d);
+    var top = rect.top - hr.top - 46;
+    if (top < 8) top = rect.bottom - hr.top + 10;
+    d.style.top = Math.max(8, top) + 'px';
+    d.style.left = Math.max(8, Math.min(rect.left - hr.left, hr.width - 230)) + 'px';
+    selBarEl = d;
+    d.onmousedown = function (e) { e.preventDefault(); };   /* 别把选区弄丢 */
+    d.onclick = function (ev) {
+      var b = ev.target.closest ? ev.target.closest('button') : null;
+      if (!b) return;
+      var act = b.getAttribute('data-s');
+      if (act === 'x') { hideSelBar(); return; }
+      if (act === 'copy') { copyPlain(text); hideSelBar(); return; }
+      if (act === 'mark') { markRange(range); hideSelBar(); return; }
+      if (act === 'note') { saveNote(text); hideSelBar(); return; }
+    };
+  }
+
+  function copyPlain(t) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t); toast('已复制'); return;
+      }
+    } catch (e) { }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove(); toast('已复制');
+    } catch (e) { toast('复制失败'); }
+  }
+
+  function markRange(r) {
+    try {
+      var mk = document.createElement('mark');
+      mk.className = 'bk-hl';
+      r.surroundContents(mk);
+      try { window.getSelection().removeAllRanges(); } catch (e) { }
+      toast('已划线');
+    } catch (e) {
+      toast('跨段落选区分不了线，请一段一段选');
+    }
+  }
+
+  function saveNote(text) {
+    if (!cur) return;
+    var all = notesAll(), list = all[cur.id] || [];
+    list.unshift({ id: 'n' + Date.now(), t: Date.now(), text: String(text).slice(0, 500), note: '' });
+    all[cur.id] = list.slice(0, 300);
+    notesSave(all);
+    try { window.getSelection().removeAllRanges(); } catch (e) { }
+    toast('已存摘录（可在「目录 → 摘录」里写想法）');
+  }
+
+  var _selTimer = null;
+  /* 选中文字 → 弹「复制 / 划线 / 摘录」操作条；与原有的划词弹词典并存：
+     这里管操作，那边管解释。 */
+  function onSelChangeOps() {
+    clearTimeout(_selTimer);
+    _selTimer = setTimeout(function () {
+      if (!cur) return;
+      var sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { hideSelBar(); return; }
+      var txt = String(sel).trim();
+      if (txt.length < 2 || txt.length > 600) { hideSelBar(); return; }
+      var r = sel.getRangeAt(0);
+      var body = document.getElementById('yzbkBody');
+      if (!body || !body.contains(r.commonAncestorContainer)) { hideSelBar(); return; }
+      if (!rangeInOnePara(r)) { hideSelBar(); return; }
+      showSelBar(r, txt);
+    }, 220);
+  }
+
+  /* ---------- 书内搜索 ---------- */
+  function markHits(q, text) {
+    var t = String(text || ''), i = t.indexOf(q);
+    if (i < 0) return esc(t);
+    return esc(t.slice(0, i)) + '<em>' + esc(t.slice(i, i + q.length)) + '</em>' + esc(t.slice(i + q.length));
+  }
+
+  function searchPanel() {
+    if (!cur) { toast('请从「我的藏书」打开正文后再搜（这里是简易阅读器）'); return; }
+    if (cur.type === 'pdf') { toast('PDF 是页图，没有文字层，搜不了正文（可以搜书库，或在 EPUB/TXT 里搜）'); return; }
+    var d = sheet('bkSearch', '搜索本书',
+      '<div class="sw"><input id="bkQ" type="search" placeholder="输入关键词，回车搜索" autocomplete="off"></div>'
+      + '<div id="bkHits" class="hits"></div>'
+      + '<div class="it cancel" data-a="cancel">关闭</div>');
+    var inp = d.querySelector('#bkQ'), box = d.querySelector('#bkHits');
+    var timer = null;
+    function run() {
+      var q = (inp.value || '').trim();
+      if (!q) { box.innerHTML = ''; return; }
+      var out = '';
+      if (cur.items) {
+        var n = 0;
+        for (var i = 0; i < cur.items.length && n < 80; i++) {
+          var it = cur.items[i];
+          if (!it || it.t.indexOf(q) < 0) continue;
+          n++;
+          out += '<div class="hit" data-p="' + i + '">' + markHits(q, it.t.slice(0, 140)) + '</div>';
+        }
+        box.innerHTML = n ? out : '<div class="none">没找到「' + esc(q) + '」</div>';
+      } else if (window.AndroidApp && typeof AndroidApp.bookSearch === 'function') {
+        box.innerHTML = '<div class="none">搜索中…</div>';
+        try {
+          var r = JSON.parse(AndroidApp.bookSearch(cur.id, q) || '{}');
+          var hs = r.hits || [];
+          box.innerHTML = hs.length
+            ? hs.map(function (h) {
+                return '<div class="hit" data-ch="' + h.ch + '"><span class="where">' + esc(h.t || '') + '</span>' + markHits(q, h.s || '') + '</div>';
+              }).join('')
+            : '<div class="none">没找到「' + esc(q) + '」</div>';
+        } catch (e) { box.innerHTML = '<div class="none">搜索出错：' + esc(e.message || '') + '</div>'; }
+      } else {
+        box.innerHTML = '<div class="none">这本书的搜索需要在 App 内使用</div>';
+      }
+    }
+    inp.oninput = function () { clearTimeout(timer); timer = setTimeout(run, 260); };
+    inp.onkeydown = function (e) { if (e.key === 'Enter') { clearTimeout(timer); run(); } };
+    d.onclick = function (ev) {
+      if (ev.target.closest && ev.target.closest('[data-a="close"]')) { closeTopPanel(); return; }
+      var hit = ev.target.closest ? ev.target.closest('.hit') : null;
+      if (hit) {
+        var pi = hit.getAttribute('data-p'), ch = hit.getAttribute('data-ch');
+        d.remove();
+        if (pi != null) {
+          var el = document.getElementById('bkp-' + pi);
+          if (el) { el.scrollIntoView({ block: 'center' }); el.style.transition = 'background .4s'; el.style.background = 'rgba(245,197,24,.35)'; setTimeout(function () { el.style.background = ''; }, 1200); }
+        } else if (ch != null) { try { goto(parseInt(ch, 10) || 0); } catch (e) { } }
+        return;
+      }
+      if (ev.target.closest && ev.target.closest('[data-a="cancel"]')) closeTopPanel();
+    };
+    setTimeout(function () { try { inp.focus(); } catch (e) { } }, 120);
+  }
+
+  /* ---------- 朗读（逐段跟随：读到哪段高亮哪段并自动滚） ----------
+     纯文本走「自己逐段投喂」的路线，好处是进度完全掌握在网页侧：
+     一段念完再喂下一段，就能把高亮和滚动跟上。PDF / EPUB 仍交给 speech.js 整篇念。 */
+  var ttsJob = null;
+
+  function ttsStopFollow() {
+    if (ttsJob) { clearTimeout(ttsJob.timer); ttsJob = null; }
+    try { if (window.AndroidApp && AndroidApp.ttsStop) AndroidApp.ttsStop(); } catch (e) { }
+    var on = document.querySelectorAll('#yzbkBody .bk-readnow');
+    for (var i = 0; i < on.length; i++) { on[i].classList.remove('bk-readnow'); }
+  }
+
+  function ttsMark(el) {
+    var on = document.querySelectorAll('#yzbkBody .bk-readnow');
+    for (var i = 0; i < on.length; i++) { on[i].classList.remove('bk-readnow'); }
+    if (!el) return;
+    el.classList.add('bk-readnow');
+    try { el.scrollIntoView({ block: 'center' }); } catch (e) { }
+  }
+
+  function ttsPlayNext() {
+    if (!ttsJob) return;
+    if (ttsJob.pos >= ttsJob.list.length) { ttsStopFollow(); toast('读完了'); return; }
+    var it = ttsJob.list[ttsJob.pos];
+    ttsMark(it.el);
+    var ok = 0;
+    try { ok = AndroidApp.ttsSpeak(it.text, '1.0'); } catch (e) { ok = -1; }
+    var st = 0;
+    try { st = AndroidApp.ttsState ? AndroidApp.ttsState() : 0; } catch (e) { }
+    if (st !== 0) {
+      ttsStopFollow();
+      toast(st === -2 ? '系统没有中文语音包：到设置 → 无障碍 → 文字转语音里装一个'
+                      : '语音引擎没起来，稍后再试');
+      return;
+    }
+    /* 等这一段念完：连续两次「不在朗读」才推进，避免刚开始那一下误判 */
+    var idle = 0;
+    (function poll() {
+      if (!ttsJob) return;
+      ttsJob.timer = setTimeout(function () {
+        if (!ttsJob) return;
+        var busy = false;
+        try { busy = AndroidApp.ttsBusy ? AndroidApp.ttsBusy() : false; } catch (e) { busy = false; }
+        if (busy) { idle = 0; poll(); return; }
+        idle++;
+        if (idle < 2) { poll(); return; }
+        ttsJob.pos++;
+        ttsPlayNext();
+      }, 450);
+    })();
+  }
+
+  function ttsToggle() {
+    if (ttsJob) { ttsStopFollow(); toast('已停止朗读'); return; }
+    var A = app();
+    var isText = cur && (cur.type === 'txt' || cur.type === 'md');
+    if (isText && A && typeof A.ttsBusy === 'function') {
+      /* 收集从当前视口开始的段落（每段单独喂，最多 40 段） */
+      var body = document.getElementById('yzbkBody');
+      var top = body.getBoundingClientRect().top;
+      var ps = body.querySelectorAll('h3.bk-h, p[id^="bkp-"]');
+      var start = 0;
+      for (var i = 0; i < ps.length; i++) {
+        if (ps[i].getBoundingClientRect().top - top >= -12) { start = i; break; }
+      }
+      var list = [];
+      for (var k = start; k < ps.length && list.length < 40; k++) {
+        var tx = (ps[k].textContent || '').trim();
+        if (tx.length < 2) continue;
+        list.push({ el: ps[k], text: tx.slice(0, 800) });
+      }
+      if (!list.length) { toast('这一段没有可读的文字'); return; }
+      ttsJob = { list: list, pos: 0, timer: null };
+      toast('开始朗读（再点一次停止）');
+      ttsPlayNext();
+      return;
+    }
+    /* PDF / EPUB / 浏览器：交给 speech.js 整篇念 */
+    var sp = window.YZSPEECH;
+    if (!sp || typeof sp.speak !== 'function') { toast('朗读模块没加载'); return; }
+    if (typeof sp.available === 'function' && !sp.available()) {
+      toast('这台设备没有可用的语音引擎：到系统设置里装一个中文语音包再试');
+      return;
+    }
+    var text = readingText();
+    if (!text) { toast('没有可读的正文'); return; }
+    sp.speak(text, 1.0);
+    toast('开始朗读（再点一次停止）');
+  }
+
+  /* 关闭阅读器时把朗读停掉，免得退出去还在念 */
+  function stopAllSpeech() { ttsStopFollow(); try { if (window.YZSPEECH) YZSPEECH.stop(); } catch (e) { } }
+
+  /* 从当前视口开始取正文，最多 3000 字——太长引擎会排队很久，用户也不好停 */
+  function readingText() {
+    var body = document.getElementById('yzbkBody');
+    if (!body) return '';
+    if (cur && (cur.type === 'txt' || cur.type === 'md')) {
+      var top = body.getBoundingClientRect().top;
+      var ps = body.querySelectorAll('h3.bk-h, p[id^="bkp-"]');
+      var start = 0;
+      for (var i = 0; i < ps.length; i++) {
+        if (ps[i].getBoundingClientRect().top - top >= -12) { start = i; break; }
+      }
+      var out = [], len = 0;
+      for (var k = start; k < ps.length && len < 3000; k++) {
+        var tx = (ps[k].textContent || '').trim();
+        if (!tx) continue;
+        out.push(tx); len += tx.length;
+      }
+      return out.join('\n');
+    }
+    return (body.textContent || '').trim().slice(0, 3000);
+  }
+
+  /* ---------- 书籍信息：回到这本书的「书壳」详情 ---------- */
+  function bookInfo() {
+    if (!cur) return;
+    var R = window.SITE_RESOURCES || [], idx = -1;
+    for (var i = 0; i < R.length; i++) { if (R[i] && R[i].id === cur.id) { idx = i; break; } }
+    if (idx < 0) { toast('这本是本机导入的，书库里没有对应条目'); return; }
+    close();
+    setTimeout(function () { try { openShell(idx); } catch (e) { } }, 140);
+  }
+
+  /* 「更多」：用其他应用打开 / 分享 / 搜索 / 书签 / 朗读 / 书籍信息 */
+  function outMenu(kind, key, title) {
+    var old = document.getElementById('bkMenu');
+    if (old) { old.remove(); return; }
+    var A = app();
+    var host = document.getElementById('yzbk') || document.body;
+    var nMk = cur ? marksOf(cur.id).length : 0;
+    var nNt = cur ? notesOf(cur.id).length : 0;
+    var canInfo = false;
+    if (cur) {
+      var R = window.SITE_RESOURCES || [];
+      for (var i = 0; i < R.length; i++) { if (R[i] && R[i].id === cur.id) { canInfo = true; break; } }
+    }
+    var speakOn = !!ttsJob || !!(window.YZSPEECH && window.YZSPEECH.busy && window.YZSPEECH.busy());
+    var d = document.createElement('div');
+    d.id = 'bkMenu'; d.className = 'bk-menu';
+    d.innerHTML = '<div class="hd">' + esc(title || '这本书') + '</div>'
+      + '<div class="it" data-a="open">↗ 用其他应用打开</div>'
+      + '<div class="it" data-a="share">⤴ 分享给…</div>'
+      + '<div class="it" data-a="search">🔍 搜索本书</div>'
+      + '<div class="it" data-a="mark">🔖 加书签</div>'
+      + '<div class="it" data-a="marks">📑 书签' + (nMk ? '（' + nMk + '）' : '') + '</div>'
+      + '<div class="it" data-a="notes">✍️ 摘录' + (nNt ? '（' + nNt + '）' : '') + '</div>'
+      + '<div class="it" data-a="tts">' + (speakOn ? '■ 停止朗读' : '🔊 朗读') + '</div>'
+      + (canInfo ? '<div class="it" data-a="info">ℹ️ 书籍信息</div>' : '')
+      + ((cur && window.YZTextEdit && (cur.src ? /\.(txt|md)$/i.test(cur.src) : (cur.type === 'txt' || cur.type === 'md')))
+          ? '<div class="it" data-a="edit">✏️ 编辑正文</div>' : '')
+      + '<div class="it cancel" data-a="cancel">取消</div>';
+    host.appendChild(d);
+    d.onclick = function (ev) {
+      var it = ev.target.closest ? ev.target.closest('.it') : null;
+      if (!it) return;
+      var a = it.getAttribute('data-a');
+      d.remove();
+      if (a === 'cancel') return;
+      if (a === 'search') { searchPanel(); return; }
+      if (a === 'mark') { addMark(); return; }
+      if (a === 'marks') { marksPanel(); return; }
+      if (a === 'notes') { notesPanel(); return; }
+      if (a === 'tts') { ttsToggle(); return; }
+      if (a === 'info') { bookInfo(); return; }
+      if (a === 'edit') { try { window.YZTextEdit.open(cur.src || cur.id, cur.title || '', cur.items || []); } catch (e) { toast('编辑器打不开：' + e.message); } return; }
+      if (!A || typeof A.bookShare !== 'function') { toast('这个 App 版本还不支持分享，请更新 App'); return; }
+      try {
+        if (a === 'share') A.bookShare(kind, key, title || '');
+        else A.bookOpenExternal(kind, key, title || '');
+      } catch (e) { toast('调用失败：' + (e.message || '未知原因')); }
+    };
+  }
+
+  /* 从阅读器顶栏「⋯」进：按当前书判断来源 */
+  function outMenuCur() {
+    if (!cur) return;
+    if (cur.src) outMenu('asset', cur.src, cur.title || '');
+    else outMenu('local', cur.id, cur.title || '');
+  }
+
+  /* 目录 / 书签：同一个底部半屏面板，靠 tab 切换。
+     参考通行做法：面板从底部升起 + 遮罩 + 把手，高度不超过屏高 62%，
+     上半屏仍露着正文；遮罩与 ✕ 是两个关闭出口，面板打开时正文不翻页。 */
+  function libPanel(tab) {
+    if (!cur) { toast('请从「我的藏书」打开正文后再用'); return; }
+    var old = document.getElementById('bkLib');
+    if (old) { closeTopPanel(); return; }        /* 再点一次收起 */
+    var scOld = document.getElementById('bkScrim'); if (scOld) scOld.remove();
+    var host = document.getElementById('yzbk') || document.body;
+    var scrim = document.createElement('div');
+    scrim.id = 'bkScrim'; scrim.className = 'bk-scrim';
+    host.appendChild(scrim);
+    var d = document.createElement('div');
+    d.id = 'bkLib'; d.className = 'bk-sheet';
+    host.appendChild(d);
+    scrim.onclick = function () { closeTopPanel(); };
+
+    function render(t) {
+      var chs = cur.chs || [];
+      var list = marksOf(cur.id);
+      var nts = notesOf(cur.id);
+      var head = '<div class="hd"><i></i></div><div class="tabs">'
+        + '<button class="tb' + (t === 'toc' ? ' on' : '') + '" type="button" data-t="toc">目录' + (chs.length ? ' ' + chs.length : '') + '</button>'
+        + '<button class="tb' + (t === 'marks' ? ' on' : '') + '" type="button" data-t="marks">书签' + (list.length ? ' ' + list.length : '') + '</button>'
+        + '<button class="tb' + (t === 'notes' ? ' on' : '') + '" type="button" data-t="notes">摘录' + (nts.length ? ' ' + nts.length : '') + '</button>'
+        + '<button class="x" type="button" data-a="close">✕</button></div>';
+      var body = '';
+      if (t === 'toc') {
+        var curI = curChIdx();
+        body = chs.length
+          ? chs.map(function (c, k) {
+              return '<div class="ln' + (k === curI ? ' on' : '') + '" data-ch="' + c.i + '">'
+                + '<span class="no">' + (k + 1) + '</span><span class="tt">' + esc(c.t) + '</span>'
+                + (k === curI ? '<span class="now">当前</span>' : '') + '</div>';
+            }).join('')
+          : '<div class="none">这本书没有识别到章节标题，是整篇正文</div>';
+      } else if (t === 'notes') {
+        body = nts.length
+          ? nts.map(function (n) {
+              return '<div class="nt" data-nid="' + esc(n.id) + '">'
+                + '<div class="q" data-goto="' + esc(n.id) + '">' + esc(n.text) + '</div>'
+                + (n.note ? '<div class="n">想法：' + esc(n.note) + '</div>' : '')
+                + '<div class="ops"><button type="button" data-edit="' + esc(n.id) + '">写想法</button>'
+                + '<button type="button" data-del2="' + esc(n.id) + '">删除</button></div></div>';
+            }).join('')
+          : '<div class="none">还没有摘录。长按正文选中一段，点「摘录」。</div>';
+      } else {
+        body = list.length
+          ? list.map(function (m) {
+              var dt = new Date(m.t || Date.now());
+              var hh = ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2);
+              return '<div class="mk"><span class="no">' + hh + '</span><span class="tt" data-j="' + esc(m.id) + '">' + esc(m.label || '') + '</span>'
+                + '<button class="bk-btn x2" type="button" data-del="' + esc(m.id) + '">删</button></div>';
+            }).join('')
+          : '<div class="none">还没有书签。读到要记的地方，用「⋯ → 加书签」。</div>';
+      }
+      d.innerHTML = head + '<div class="bd">' + body + '</div>';
+      /* 打开时把「当前」那一行带进视野，不用自己翻 */
+      var on = d.querySelector('.bd .ln.on');
+      if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'center' }); } catch (e) { } }
+    }
+    render(tab);
+
+    d.onclick = function (ev) {
+      var t = ev.target;
+      if (t.closest('[data-a="close"]')) { closeTopPanel(); return; }
+      var tb = t.closest('[data-t]');
+      if (tb) { render(tb.getAttribute('data-t')); return; }
+      var del = t.closest('[data-del]');
+      if (del) { delMark(del.getAttribute('data-del')); render('marks'); return; }
+      var jm = t.closest('[data-j]');
+      if (jm) {
+        var id = jm.getAttribute('data-j');
+        var m = marksOf(cur.id).filter(function (x) { return x.id === id; })[0];
+        closeTopPanel(); if (m) jumpMark(m); return;
+      }
+      var ed = t.closest('[data-edit]');
+      if (ed) {
+        var nid = ed.getAttribute('data-edit');
+        var ntEl = ed.closest('.nt');
+        if (ntEl && !ntEl.querySelector('.nbox')) {
+          var box = document.createElement('div');
+          box.className = 'nbox';
+          box.innerHTML = '<textarea class="ni" placeholder="写一句想法…"></textarea>'
+            + '<button class="bk-btn" type="button" data-save="' + esc(nid) + '">保存</button>';
+          ntEl.appendChild(box);
+          try { box.querySelector('.ni').focus(); } catch (e) { }
+        }
+        return;
+      }
+      var sv = t.closest('[data-save]');
+      if (sv) {
+        var sid = sv.getAttribute('data-save');
+        var ni = sv.closest('.nbox').querySelector('.ni');
+        var val = ni ? String(ni.value || '').slice(0, 300) : '';
+        var all = notesAll(), ls = all[cur.id] || [];
+        for (var q = 0; q < ls.length; q++) { if (ls[q].id === sid) { ls[q].note = val; break; } }
+        all[cur.id] = ls; notesSave(all); render('notes');
+        return;
+      }
+      var d2 = t.closest('[data-del2]');
+      if (d2) {
+        var did = d2.getAttribute('data-del2');
+        var a2 = notesAll();
+        a2[cur.id] = (a2[cur.id] || []).filter(function (x) { return x.id !== did; });
+        notesSave(a2); render('notes');
+        return;
+      }
+      var gt = t.closest('[data-goto]');
+      if (gt) {
+        var gid = gt.getAttribute('data-goto');
+        var nt = notesOf(cur.id).filter(function (x) { return x.id === gid; })[0];
+        closeTopPanel();
+        if (nt) gotoText(nt.text);
+        return;
+      }
+      var ln = t.closest('.ln[data-ch]');
+      if (ln) {
+        var el = document.getElementById('bkch-' + ln.getAttribute('data-ch'));
+        closeTopPanel();
+        if (el) el.scrollIntoView({ block: 'start' });
+      }
+    };
+  }
+
+  /* 当前读到哪一章：视口顶部之上最后一个章节标题 */
+  function curChIdx() {
+    var body = document.getElementById('yzbkBody');
+    if (!body || !cur || !cur.chs) return -1;
+    var top = body.getBoundingClientRect().top, idx = -1;
+    for (var i = 0; i < cur.chs.length; i++) {
+      var el = document.getElementById('bkch-' + cur.chs[i].i);
+      if (!el) continue;
+      if (el.getBoundingClientRect().top - top <= 12) idx = i;
+    }
+    return idx;
+  }
+
+  /* 按摘录文字定位：找出包含这段文字前 12 个字的段落并滚过去 */
+  function gotoText(text) {
+    var key = String(text || '').slice(0, 12);
+    if (!key) return;
+    var body = document.getElementById('yzbkBody');
+    if (!body) return;
+    var ps = body.querySelectorAll('h3.bk-h, p[id^="bkp-"]');
+    for (var i = 0; i < ps.length; i++) {
+      if ((ps[i].textContent || '').indexOf(key) >= 0) {
+        ps[i].scrollIntoView({ block: 'center' });
+        ps[i].style.transition = 'background .4s';
+        ps[i].style.background = 'rgba(245,197,24,.35)';
+        setTimeout(function () { ps[i].style.background = ''; }, 1200);
+        return;
+      }
+    }
+    toast('这段文字在当前视图里没找到');
+  }
+
+  function showToc() { libPanel('toc'); }
+
+  /* 左右滑动切章：横向位移明显大于纵向才认，避免和上下滚动打架 */
+  var _swX = 0, _swY = 0;
+  function bindTxtSwipe() {
+    var bd = document.getElementById('yzbkBody');
+    if (!bd) return;
+    bd.ontouchstart = function (e) {
+      var t = e.touches && e.touches[0]; if (!t) return;
+      _swX = t.clientX; _swY = t.clientY;
+    };
+    bd.ontouchend = function (e) {
+      var t = e.changedTouches && e.changedTouches[0]; if (!t) return;
+      var dx = t.clientX - _swX, dy = t.clientY - _swY;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6) jumpCh(dx < 0 ? 1 : -1);
+    };
+  }
+
+  /* 上一章 / 下一章：按「当前视口顶部之上最后一个章节」定位，再 ±1 */
+  function jumpCh(step) {
+    if (!cur || !cur.chs || !cur.chs.length) { toast('这本书没有章节'); return; }
+    var body = document.getElementById('yzbkBody');
+    var top = body ? body.getBoundingClientRect().top : 0;
+    var idx = -1, st = (body ? body.scrollTop : 0) + 70;
+    for (var i = 0; i < cur.chs.length; i++) {
+      var el = document.getElementById('bkch-' + cur.chs[i].i);
+      if (!el) continue;
+      var abs = el.getBoundingClientRect().top - top + (body ? body.scrollTop : 0);
+      if (abs <= st) idx = i;
+    }
+    var n = Math.max(0, Math.min(cur.chs.length - 1, idx + step));
+    var target = document.getElementById('bkch-' + cur.chs[n].i);
+    if (target) { target.scrollIntoView({ block: 'start' }); showChrome(1200); }
+  }
+
   function loadTxt() {
     var A = app();
     var body = document.getElementById('yzbkBody');
-    var url = '';
-    try { url = A && A.bookTextUrl ? A.bookTextUrl(cur.id) : ''; } catch (e) { url = ''; }
+    var url = cur && cur.src ? cur.src : '';
+    if (!url) {
+      try { url = A && A.bookTextUrl ? A.bookTextUrl(cur.id) : ''; } catch (e) { url = ''; }
+    }
     if (!url) {
       body.innerHTML = '<p class="sub">这本书的正文找不到了（可能已被清理）。</p>';
       return;
@@ -732,22 +1448,50 @@
       var str = String(txt || '');
       if (!str.trim()) { body.innerHTML = '<p class="sub">文件是空的。</p>'; return; }
       var paras = str.replace(/\r\n/g, '\n').split(/\n\s*\n/);
-      var html = '<div class="bk-txt">' + paras.map(function (p) {
-        var t = p.trim();
-        if (!t) return '';
-        /* Markdown 的一级/二级标题给点层次，其余按段落 */
-        var m = t.match(/^(#{1,3})\s+(.+)$/);
-        if (m) return '<h3 class="bk-h">' + esc(m[2]) + '</h3>';
-        return '<p>' + esc(t).replace(/\n/g, '<br>') + '</p>';
+      var items = [], chs = [];
+      for (var pi = 0; pi < paras.length; pi++) {
+        var pt = paras[pi].trim();
+        if (!pt) { items.push(null); continue; }
+        var pm = pt.match(/^(#{1,3})\s+(.+)$/);
+        /* 三种算章节：Markdown 标题、符合「第X章 / 一、/ 序言…」的短行 */
+        var isCh = !!pm || (pt.length <= 34 && CH_RE.test(pt));
+        if (isCh) chs.push({ i: items.length, t: (pm ? pm[2].trim() : pt) });
+        items.push(isCh ? { k: 'h', t: (pm ? pm[2].trim() : pt) } : { k: 'p', t: pt });
+      }
+      cur.chs = chs;
+      cur.items = items;
+      /* 本机对正文的改动（textedit.js 写的段落 patch）：空串表示删掉这一段 */
+      var _tk = cur.src || cur.id;
+      var html = '<div class="bk-txt">' + items.map(function (it, i) {
+        if (!it) return '';
+        var _pv = (window.YZTextPatchGet ? window.YZTextPatchGet(_tk, i) : undefined);
+        if (_pv === '') return '';
+        var _t = (_pv == null) ? it.t : _pv;
+        if (it.k === 'h') return '<h3 class="bk-h" id="bkch-' + i + '">' + esc(_t) + '</h3>';
+        return '<p id="bkp-' + i + '">' + esc(_t).replace(/\n/g, '<br>') + '</p>';
       }).join('') + '</div>';
       body.innerHTML = html;
+      /* 没有章节就别摆「上一章/下一章」——按了没反应的按钮比没有更糟 */
+      try {
+        var fEl = document.getElementById('yzbkFoot');
+        if (fEl) fEl.style.display = (cur.chs && cur.chs.length > 1) ? 'flex' : 'none';
+        var iEl = document.getElementById('yzbkInfo');
+        if (iEl && cur.chs && cur.chs.length > 1) iEl.textContent = '共 ' + cur.chs.length + ' 章';
+      } catch (e) { }
       setFoot(Math.round(str.length / 1000) + ' 千字 · 约 ' + Math.max(1, Math.round(str.length / 900)) + ' 分钟');
       updateProgress();
       /* 记住读到哪里（按滚动百分比） */
       body.onscroll = function () {
         var el = body;
         var max = el.scrollHeight - el.clientHeight;
-        if (max > 0) posSet(cur.id, { pct: Math.min(99, Math.round(el.scrollTop / max * 100)) });
+        if (max <= 0) return;
+        var pct = Math.min(100, Math.round(el.scrollTop / max * 100));
+        posSet(cur.id, { pct: Math.min(99, pct) });
+        /* 滑块跟着走：以前 TXT 模式滑块是死的（被写死成 max=0），拖也拖不动、滚也不动 */
+        var sk2 = document.getElementById('yzbkSeek');
+        if (sk2 && !sk2.__dragging) sk2.value = String(Math.round(el.scrollTop / max * 1000));
+        var inf = document.getElementById('yzbkInfo');
+        if (inf) inf.textContent = '已读 ' + pct + '%';
       };
       var p = posGet(cur.id);
       if (p && typeof p.pct === 'number' && p.pct > 0) {
@@ -763,11 +1507,54 @@
 
   /* 打开纯文本（交给 books.js 原本的阅读器，不另做一套） */
   function openText(id) {
+    /* 先看 App 桥能不能给出正文地址：能给就用全屏阅读器（目录 / 进度 / 摘录 / 朗读都在），
+       桥没有（网页版、或老版本 App）才退回 books.js 那套轻量阅读器。
+       以前这里无条件转给 yzBooks，于是同样是 TXT，从「我的书」点进来和从 EPUB 点进来
+       是两套界面，横屏时轻量那套上下工具条要吃掉半屏。 */
+    var A = app(), url = '';
+    try { url = (A && A.bookTextUrl) ? A.bookTextUrl(id) : ''; } catch (e) { url = ''; }
+    if (url) {
+      try { closeBookShelfOnly(); open(id); return; }
+      catch (e) { /* 落到下面的回退 */ }
+    }
     try {
       if (!window.yzBooks || !window.yzBooks.read) { toast('纯文本阅读器未加载'); return; }
       close();                       /* 先收起书架，避免两层全屏叠在一起 */
       window.yzBooks.read(id);
     } catch (e) { toast('打不开这本书：' + (e.message || '未知原因')); }
+  }
+
+  /* 从搜索/摘录等入口「打开这本书并落到那一句」。
+     正文是 fetch 来的，得等渲染完再定位：每 120ms 试一次，最多 4.8 秒。 */
+  function openAt(id, needle, backFn) {
+    open(id, backFn);
+    if (!needle) return;
+    var key = String(needle).replace(/\s+/g, '').slice(0, 16);
+    if (!key) return;
+    var tries = 0;
+    var timer = setInterval(function () {
+      tries++;
+      var bd = document.getElementById('yzbkBody');
+      var ready = bd && bd.querySelector('.bk-txt');
+      if (!ready && tries < 40) return;
+      clearInterval(timer);
+      if (!ready) return;
+      var ps = bd.querySelectorAll('p, h3, blockquote');
+      for (var i = 0; i < ps.length; i++) {
+        var t = ps[i].textContent.replace(/\s+/g, '');
+        if (t.indexOf(key) >= 0) {
+          var y = ps[i].getBoundingClientRect().top - bd.getBoundingClientRect().top + bd.scrollTop - 90;
+          try { bd.scrollTop = Math.max(0, y); } catch (e) { }
+          try {
+            ps[i].style.transition = 'background .35s';
+            ps[i].style.background = 'rgba(255,214,102,.30)';
+            ps[i].style.borderRadius = '4px';
+            setTimeout(function () { try { ps[i].style.background = ''; } catch (e) { } }, 1800);
+          } catch (e) { }
+          break;
+        }
+      }
+    }, 120);
   }
 
   /* 导入纯文本：转给 books.js 的选文件流程 */
@@ -786,7 +1573,8 @@
 
   function pick() {
     var A = app();
-    if (!A || !A.bookPick) { toast('电子书阅读需要在 App 内使用'); return; }
+    if (!A) { toast('没读到 App 桥（AndroidApp）。你如果是在 App 里，请更新到 0.17.67 以上再试'); return; }
+    if (!A.bookPick) { toast('这个 App 版本还没有文件选择器（缺 bookPick），请更新 App'); return; }
     try { A.bookPick(); toast('正在打开文件选择器…'); } catch (e) { toast('无法打开选择器'); }
   }
 
@@ -843,10 +1631,15 @@
 
   /* 阅读配色三档。夜间不是「纯白字压纯黑底」——那样反而刺眼：
      字用浅灰、底用近黑偏暖，对比度降下来才是能久看的夜间模式。 */
-  var READ_THEMES = ['day', 'night', 'black'];
-  var READ_THEME_NAME = { day: '日间', night: '夜间', black: '纯黑' };
+  /* 纯黑档已下线（0.17.70）：只剩日间/夜间。老配置里存 black 的，读到时落回夜间 */
+  var READ_THEMES = ['day', 'night'];
+  var READ_THEME_NAME = { day: '日间', night: '夜间' };
   function readTheme() {
-    try { var t = localStorage.getItem('yzBkTheme'); if (READ_THEMES.indexOf(t) >= 0) return t; } catch (e) { }
+    try {
+      var t = localStorage.getItem('yzBkTheme');
+      if (READ_THEMES.indexOf(t) >= 0) return t;
+      if (t === 'black') { try { localStorage.setItem('yzBkTheme', 'night'); } catch (e) { } return 'night'; }
+    } catch (e) { }
     return 'day';
   }
   function applyReadTheme(on) {
@@ -855,11 +1648,10 @@
     var t = readTheme();
     el.classList.toggle('bk-read', !!on);
     el.classList.toggle('night', !!on && t === 'night');
-    el.classList.toggle('black', !!on && t === 'black');
     var b = document.getElementById('yzbkTheme');
     if (b && on) {
       b.style.display = 'inline-block';
-      b.textContent = t === 'day' ? '🌙' : (t === 'night' ? '🌓' : '☀');
+      b.textContent = t === 'day' ? '🌙' : '☀';
     }
   }
   function setReadTheme(t) {
@@ -916,6 +1708,7 @@
     if (!el) return;
     var m = pdfMode();
     el.classList.toggle('fit-page', m === 'page');
+    el.classList.toggle('fit-width', m === 'width');
     el.classList.toggle('fit-scroll', m === 'scroll');
     var body = document.getElementById('yzbkBody');
     if (body) body.classList.toggle('pdfscroll', m === 'scroll');
@@ -1062,7 +1855,8 @@
         + '</div>'
         + '<div class="row"><span>两端对齐</span>'
         + '<button class="bk-btn' + (c.jc ? ' on' : '') + '" type="button" data-a="jc">' + (c.jc ? '已开' : '关闭') + '</button>'
-        + '</div>';
+        + '</div>'
+
   }
   function readCfgAction(a) {
     var c = readCfg();
@@ -1122,13 +1916,15 @@
   function immersive(on) {
     try { var A = app(); if (A && A.setImmersive) A.setImmersive(!!on); } catch (e) { }
   }
+  /* 工具栏：点屏幕中间出来、再点一下收进；不再定时自动消失。
+     定时消失会让人「想调个字号，手还没到按钮它就缩回去了」——iBooks 一类的做法
+     是只有用户主动收才收。ms 参数保留只为兼容调用点。 */
   function showChrome(ms) {
     var el = document.getElementById('yzbk');
     if (!el) return;
     el.classList.remove('chrome-off');
     if (cur) immersive(false);          /* 工具栏出来 → 状态栏也出来 */
     clearTimeout(chromeTimer);
-    if (ms !== 0) chromeTimer = setTimeout(function () { hideChrome(); }, ms || 2800);
   }
   function hideChrome() {
     var el = document.getElementById('yzbk');
@@ -1142,9 +1938,6 @@
     if (!el) return;
     if (el.classList.contains('chrome-off')) showChrome(2800); else hideChrome();
   }
-  /* 点任何操作都算「还在用」，把自动收起的时间往后推 */
-  function keepChrome() { if (document.getElementById('yzbk') &&
-      !document.getElementById('yzbk').classList.contains('chrome-off')) showChrome(2800); }
 
   /* 一屏一屏地翻：章很长的时候，点一下应该先滚一屏，到章末才进下一章。
      以前点右 1/3 直接 goto(下一章)，一整章内容被跳过。 */
@@ -1174,13 +1967,50 @@
   /* ---- 点按分区翻页（只给分章的书用）----
      左 1/3 上一章、右 1/3 下一章、中间收起/展开顶栏底栏。
      PDF 不走这套：它用手势（左右滑 / 上下滚），点区会和它们打架。 */
+  /* 关掉最上面那层浮层；返回是否真的关掉了东西 */
+  function closeTopPanel() {
+    hideSelBar();
+    var closed = false;
+    var aa = document.getElementById('yzbkAAPanel');
+    if (aa && !aa.hasAttribute('hidden')) { aa.setAttribute('hidden', ''); closed = true; }
+    var wd = document.getElementById('yzbkWord');
+    if (wd && !wd.hasAttribute('hidden')) { wd.setAttribute('hidden', ''); closed = true; }
+    var lib = document.getElementById('bkLib'); if (lib) { lib.remove(); closed = true; }
+    var sc = document.getElementById('bkScrim'); if (sc) { sc.remove(); closed = true; }
+    var se = document.getElementById('bkSearch'); if (se) { se.remove(); closed = true; }
+    var mn = document.getElementById('bkMenu'); if (mn) { mn.remove(); closed = true; }
+    return closed;
+  }
+
+  var _lastPgTap = { el: null, t: 0 };
+
   function onReaderClick(ev) {
     var el = document.getElementById('yzbk');
     if (!cur || !el || !el.classList.contains('open')) return;
     /* PDF 也要能点中央呼出工具栏。上一次这里直接 return 了，导致读 PDF 时怎么点都没反应。
        轻点不会和缩放/拖拽冲突：拖拽之后浏览器不会派发 click。 */
     var t = ev.target;
-    if (t && t.closest && t.closest('a,button,input,select,textarea,.bk-toc,.bk-aa,.bk-txt a')) return;
+    if (t && t.closest && t.closest('a,button,input,select,textarea,.bk-toc,.bk-menu,.bk-sheet,.bk-aa,.bk-word,.bk-txt a')) return;
+    /* 连续滚动档不适合双指缩放（放大和上下滚动打架），但总得能看大字：
+       双击某一页 → 切到「整页」并停在那页，那里可以捏合放大。 */
+    if (cur && cur.type === 'pdf' && el.classList.contains('fit-scroll')) {
+      var pg = t.closest && t.closest('.bk-pg');
+      if (pg) {
+        var now = Date.now();
+        if (_lastPgTap.el === pg && now - _lastPgTap.t < 460) {
+          _lastPgTap = { el: null, t: 0 };
+          setPdfMode('page');
+          goto(parseInt(pg.getAttribute('data-p'), 10) || 0);
+          toast('已切到「整页」，双指可放大');
+          return;
+        }
+        _lastPgTap = { el: pg, t: now };
+      }
+    }
+    /* 面板开着时，点正文什么都不做：面板只能手动关（点面板上的「收起」或再点同一按钮）。
+       以前点正文会顺手把面板和工具栏一起收掉，正在调字号时特别容易误触。 */
+    /* 面板开着 → 这一下用来关面板（相当于点遮罩），不翻页、不收工具栏 */
+    if (closeTopPanel()) return;
     var w = el.clientWidth || 390;
     var x = ev.clientX;
     if (x < w * 0.33) flowUp();
@@ -1292,6 +2122,7 @@
     b.removeAttribute('hidden');
   }
   function onSelChange() {
+    try { onSelChangeOps(); } catch (e) { }
     if (__wordTimer) clearTimeout(__wordTimer);
     __wordTimer = setTimeout(function () {
       __wordTimer = 0;
@@ -1314,10 +2145,16 @@
     var st = document.getElementById('bkStage');
     if (zoom) { try { zoom.destroy(); } catch (e) { } zoom = null; }
     if (!st || !window.YZZoom || !cur) return;
-    if (!document.getElementById('yzbk').classList.contains('fit-page')) return;
     if (cur.type !== 'pdf') return;
+    var box = document.getElementById('yzbk');
+    var isPage = box.classList.contains('fit-page');
+    var isWidth = box.classList.contains('fit-width');
+    /* 连续滚动模式放大和上下滚动会打架，不挂手势；整页与适宽都能双指放大。
+       以前这里写死只认 fit-page，于是「适宽」怎么捏都没反应。 */
+    if (!isPage && !isWidth) return;
     zoom = window.YZZoom.attach(st, {
       max: 3,
+      fit: isPage ? 'page' : 'width',
       onSwipe: function (dir) { goto(cur.idx + dir); },
       onTap: function () { /* 单击不翻页，避免误触 */ }
     });
@@ -1325,6 +2162,27 @@
 
   /* 从原生读一次书目列表。以前只有渲染书架时才填 _list，
      于是「没进过书架就直接打开一本书」（冷启动深链、快捷方式）会查不到 meta，被弹回书架。 */
+  /* 站内自带正文：书库里 url 指向包里 books/*.txt 的条目（原著、导读、讲堂整理稿等）。
+     这些书不需要「导入」——文件本来就打在安装包里，直接 fetch 就能读。
+     以前它们只出现在「只有书壳」里，点开还要走另一套简易阅读器，
+     很多人因此以为这些书「没有原文」。现在它们进「有原文」，走同一个阅读器。 */
+  var ST_RE = /^(books|data|assets)\/.+\.(txt|md)$/i;
+  /* 章节标题识别：与 books.js 的 splitChapters 同一套规则，只认「短行」 */
+  var CH_RE = /^(?:第\s*[〇零一二三四五六七八九十百千0-9]+\s*[章节篇部卷讲]|[〇零一二三四五六七八九十]{1,3}\s*[、.．]|[0-9]{1,3}\s*[、.．)）]|序\s*[言章]|前\s*言|引\s*言|导\s*言|结\s*语|后\s*记|附\s*录|尾\s*声)/;
+  function stationBooks() {
+    var R = [];
+    try { R = window.SITE_RESOURCES || []; } catch (e) { R = []; }
+    var out = [];
+    for (var i = 0; i < R.length; i++) {
+      var r = R[i];
+      if (!r || r.cat === '我的书' || r.local) continue;
+      if (!ST_RE.test(String(r.url || ''))) continue;
+      out.push({ id: r.id, title: r.title, name: r.title, type: 'txt',
+                 src: r.url, station: true, size: 0 });
+    }
+    return out;
+  }
+
   function refreshList() {
     var A = app(), native = [];
     if (A && A.bookList) { try { native = JSON.parse(A.bookList() || '[]') || []; } catch (e) { native = []; } }
@@ -1332,18 +2190,32 @@
     return _list;
   }
 
-  function open(id) {
-    var A = app();
-    if (!A) { toast('电子书阅读需要在 App 内使用'); return; }
+  /* 按 id 找「这本书的元信息」：先找 App 桥返回的导入书，再找站内自带正文。
+     以前只查 App 桥那一份，于是书架里「站内自带 · 装了就能读」那组点下去找不到 meta，
+     open() 直接调 shelf() 重绘书架 —— 用户看到的就是「点了没反应」。 */
+  function findMeta(id) {
     if (!_list || !_list.length) refreshList();
-    var meta = null;
-    for (var i = 0; i < _list.length; i++) if (_list[i].id === id) meta = _list[i];
+    var i;
+    for (i = 0; i < _list.length; i++) if (_list[i].id === id) return _list[i];
+    var st = stationBooks();
+    for (i = 0; i < st.length; i++) if (st[i].id === id) return st[i];
+    return null;
+  }
+
+  function open(id, backFn) {
+    var A = app();
+    var meta = findMeta(id);
+    /* 站内自带正文（meta.src）不经过 App 桥：文件就在包里，fetch 即可 */
+    if (!A && !(meta && meta.src)) { toast('这本要读过 App 的导入功能才能读：请更新到最新版，或在 App 内打开'); return; }
     if (!meta) { shelf(); return; }
     var p = posGet(id) || {};
     cur = {
-      id: id, type: meta.type, title: meta.name || '',
+      id: id, type: meta.type, title: meta.name || meta.title || '',
+      src: meta.src || '',
       idx: meta.type === 'pdf' ? (p.page || 0) : (p.ch || 0),
-      count: 0
+      count: 0,
+      /* 从讲堂 / 搜索结果点进来时记下来路，关阅读器回原处，而不是一律落到书架 */
+      backFn: (typeof backFn === 'function') ? backFn : null
     };
     readerShell().classList.add('open');
     try { document.body.classList.add('yzbk-open'); } catch (e) { }
@@ -1364,13 +2236,18 @@
     var prog = document.getElementById('yzbkProg');
     if (prog) prog.style.display = 'block';
     var bd0 = document.getElementById('yzbkBody');
-    if (bd0) { bd0.onscroll = onReaderScroll; bd0.onclick = onReaderClick; }
+    if (bd0) {
+      bd0.onscroll = onReaderScroll; bd0.onclick = onReaderClick;
+      bd0.ontouchstart = null; bd0.ontouchend = null;   /* 换书先清掉上一本的手势 */
+    }
     applyReadCfg();
     bindSeek();
     applyBright();
     syncPdfNight();
     var infoBtn = document.getElementById('yzbkInfo');
     if (infoBtn) infoBtn.onclick = function () { jumpPage(); };
+    var moreBtn = document.getElementById('yzbkMore');
+    if (moreBtn) moreBtn.onclick = function () { outMenuCur(); };
     /* 进书先给一眼工具栏（连状态栏一起露一下），1.6 秒后自动全收 */
     showChrome(1600);
     var aa = document.getElementById('yzbkAA');
@@ -1406,9 +2283,14 @@
     if (_bd) _bd.classList.add('pdfread');
 
     if (cur.type === 'txt' || cur.type === 'md') {
-      /* 纯文本没有目录和页码，只有正文 */
-      if (act) act.style.display = 'none';
-      document.getElementById('yzbkFoot').style.display = 'none';
+      /* 纯文本：给目录 + 上一章/下一章。正文里本来就是按章排的，
+         不给跳转只能一路滑到底，等于白带了目录。 */
+      if (act) { act.style.display = 'inline-block'; act.textContent = '目录'; act.onclick = function () { showToc(); }; }
+      var f0 = document.getElementById('yzbkFoot');
+      if (f0) f0.style.display = 'flex';
+      if (prev) { prev.textContent = '‹ 上一章'; prev.onclick = function () { jumpCh(-1); }; }
+      if (next) { next.textContent = '下一章 ›'; next.onclick = function () { jumpCh(1); }; }
+      bindTxtSwipe();
       loadTxt();
       return;
     }
@@ -1472,9 +2354,18 @@
     if (info) info.textContent = txt;
     var sk = document.getElementById('yzbkSeek');
     if (sk && cur) {
-      var maxIdx = Math.max(0, (cur.count || 1) - 1);
-      sk.max = String(maxIdx);
-      sk.value = String(Math.min(maxIdx, Math.max(0, cur.idx)));
+      if (cur.type === 'txt' || cur.type === 'md') {
+        /* 纯文本用 0~1000 表示百分比，滚动时由 onReaderScroll 同步 */
+        sk.min = '0'; sk.max = '1000';
+        var bd = document.getElementById('yzbkBody');
+        var mx = bd ? (bd.scrollHeight - bd.clientHeight) : 0;
+        sk.value = String(mx > 0 ? Math.round(bd.scrollTop / mx * 1000) : 0);
+      } else {
+        sk.min = '0';
+        var maxIdx = Math.max(0, (cur.count || 1) - 1);
+        sk.max = String(maxIdx);
+        sk.value = String(Math.min(maxIdx, Math.max(0, cur.idx)));
+      }
     }
     var prev = document.getElementById('yzbkPrev'), next = document.getElementById('yzbkNext');
     if (prev) prev.disabled = cur.idx <= 0;
@@ -1489,14 +2380,23 @@
     sk.addEventListener('input', function () {
       var n = parseInt(sk.value, 10) || 0;
       var info = document.getElementById('yzbkInfo');
-      if (info && cur) {
-        info.textContent = (cur.type === 'pdf')
-          ? ('第 ' + (n + 1) + ' / ' + (cur.count || '?') + ' 页')
-          : ('第 ' + (n + 1) + ' 章');
-      }
+      if (!info || !cur) return;
+      if (cur.type === 'txt' || cur.type === 'md') info.textContent = '已读 ' + Math.round(n / 10) + '%';
+      else if (cur.type === 'pdf') info.textContent = '第 ' + (n + 1) + ' / ' + (cur.count || '?') + ' 页';
+      else info.textContent = '第 ' + (n + 1) + ' 章';
     });
     sk.addEventListener('change', function () {
       var n = parseInt(sk.value, 10) || 0;
+      /* 纯文本没有“页/章”可跳，滑块按滚动百分比算——以前这里一律走 goto()，
+         于是 TXT 拖着滑块完全没反应。 */
+      if (cur && (cur.type === 'txt' || cur.type === 'md')) {
+        var body = document.getElementById('yzbkBody');
+        if (body) {
+          var max = body.scrollHeight - body.clientHeight;
+          body.scrollTop = Math.max(0, max * (n / 1000));
+        }
+        return;
+      }
       goto(n);
     });
   }
@@ -1624,8 +2524,22 @@
      · 正在读书 → 先回书架（你从书架点进来的，关书不该直接把你甩到别处）
      · 已经在书架 → 才真的关掉，并且回主页；同时把抽屉收掉，
        否则从「个人中心」进来的用户会看到抽屉从书架底下露出来（之前就是这样）。 */
+  /* 关闭阅读器。默认回书架；如果这本书是从别的页面点进来的（讲堂条目、搜索结果），
+     就回到那个页面——不然从讲堂点进去读了两段，一关直接落到首页，找不回原来那条。 */
+  function closeReaderTo() {
+    var backFn = cur && cur.backFn ? cur.backFn : null;
+    cur = null;
+    var rd = document.getElementById('yzbk');
+    if (rd) rd.classList.remove('open');
+    try { document.body.classList.remove('yzbk-open'); } catch (e) { }
+    if (backFn) { try { backFn(); } catch (e) { } return true; }
+    try { shelf(); } catch (e) { }
+    return true;
+  }
+
   function close() {
-    if (cur) { shelf(); return; }
+    try { stopAllSpeech(); } catch (e) { }
+    if (cur) { closeReaderTo(); return; }
     var el = document.getElementById('yzshelf');
     if (el) el.classList.remove('open');
     try { document.body.classList.remove('yzbk-open'); } catch (e) { }
@@ -1637,7 +2551,7 @@
 
   /* 给系统返回键用：true 表示这次返回被吞掉 */
   function back() {
-    if (cur) { shelf(); return true; }
+    if (cur) { closeReaderTo(); return true; }
     var sh = document.getElementById('yzshelf');
     if (sh && sh.classList.contains('open')) { close(); return true; }
     return false;
@@ -1650,12 +2564,20 @@
     return !!(sh && sh.classList.contains('open'));
   }
 
-  /* 长按选词时浏览器会发 selectionchange；只绑一次，靠 #yzbk.open 与 cur.type 过滤 */
-  try { document.addEventListener('selectionchange', onSelChange); } catch (e) { }
+  /* 长按选词时浏览器会发 selectionchange；只绑一次：
+     一个负责人子里的操作条，一个负责原有划词词典（后者内部再调前者）。 */
+  try { document.addEventListener('selectionchange', function () { try { onSelChange(); } catch (e) { } }); } catch (e) { }
+
+  function reloadCur() {
+    if (!cur) return false;
+    try { open(cur.id, cur.backFn); return true; } catch (e) { return false; }
+  }
 
   window.YZAppBooks = {
     /* 供测试/调试创建阅读器容器（正常流程由 open() 懒创建） */
     readerShell: readerShell,
+    toc: showToc, jumpCh: jumpCh, outMenu: outMenu, outMenuCur: outMenuCur, reload: reloadCur,
+    search: searchPanel, marks: marksPanel, notes: notesPanel, addMark: addMark, tts: ttsToggle, info: bookInfo,
     tab: shelfTab, sortBy: shelfSort, toggleView: shelfView, moreShell: moreShell, openShell: openShell,
     pickFor: pickFor, shellFor: shellFor, shellAttach: shellAttach, shellDetach: shellDetach, matchShell: matchShell,
     wordClose: hideWordCard,
@@ -1695,7 +2617,7 @@
       } catch (e) { toast('打不开相册'); }
     }, delText: delText,
     shelf: shelf, pick: pick, open: open, close: close, back: back, isOpen: isOpen,
-    openText: openText, pickText: pickText,
+    openText: openText, pickText: pickText, openAt: openAt, findMeta: findMeta,
     gotoChapter: gotoChapter,
     get list() { return _list; },
     get current() { return cur; }

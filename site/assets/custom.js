@@ -360,9 +360,11 @@
     }).join('');
     var addBtn = '<button class="sbtn" data-act="yzMetaAdd" data-arg="' + esc(kind + '|' + id) + '">＋ 添加标注</button>';
     /* 概念 / 事件没有编辑台，这里给一个就地编辑入口（仅开启自助编辑时显示） */
+    /* 以前只给概念/事件显示，其余类型连按钮都没有（或点了报「不支持的条目类型」）。
+       现在统一走 yzEdit：认识的类型给专用字段，不认识的回退通用编辑器。 */
     var canEdit = false;
-    try { canEdit = (kind === 'concept' || kind === 'event') && window.YZY && YZY.editorEnabled && YZY.editorEnabled(); } catch (e) {}
-    var editBtn = canEdit ? ' <button class="sbtn" onclick="yzEditCur(\'' + esc(kind) + '\',\'' + esc(id) + '\')">✏️ 改介绍</button>' : '';
+    try { canEdit = !!window.yzEdit && !!(window.YZY && YZY.editorEnabled && YZY.editorEnabled()); } catch (e) {}
+    var editBtn = canEdit ? ' <button class="sbtn" onclick="yzEdit(\'' + esc(kind) + '\',\'' + esc(id) + '\')">✏️ 编辑</button>' : '';
     return '<div class="yz-meta" style="margin-top:18px">' +
       '<h2 class="sub-title">🏷 我的标注' + (list.length ? '（' + list.length + '）' : '') + '</h2>' +
       (list.length ? '<table style="width:100%;border-collapse:collapse;font-size:.82rem">' + rows + '</table>'

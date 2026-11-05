@@ -39,6 +39,23 @@
     };
     /* 世界图谱：与「主图谱」同一批人物/思想/组织，但落到真实世界经纬度（geo）。
        单列为一个内置图谱，避免和主图谱（纯关系网）互相争夺视图模式。 */
+    /* 旧民图谱（1840—1919）：与主图谱同批注入（data/graph-old.js，41KB）。
+       始终注册——即使数据还没到，下拉与首页入口也要先出现，否则首屏少一项。 */
+    m.old = {
+      name: '旧民图谱',
+      get: function () {
+        var W = window.SITE_GRAPH_OLD;
+        return (W && Array.isArray(W.nodes)) ? W : { nodes: [], links: [] };
+      }
+    };
+    /* 新民图谱（1919—1949）：与旧民图谱并列，同批注入（data/graph-new.js）。 */
+    m['new'] = {
+      name: '新民图谱',
+      get: function () {
+        var W = window.SITE_GRAPH_NEW;
+        return (W && Array.isArray(W.nodes)) ? W : { nodes: [], links: [] };
+      }
+    };
     m.world = {
       name: '世界图谱',
       get: function () {
@@ -176,7 +193,7 @@
       people: { edited: {}, moved: {}, added: [], avatars: {} },
       /* 概念 / 事件的本机改动（通用条目编辑）：id 或 name → 字段覆盖 */
       concepts: { edited: {} },
-      events: { edited: {} },
+      events: { edited: {}, added: [], removed: [] },
       /* 史料补充内容：推荐人物 / 思想组织 / 答疑（键 = 人物名 / 条目名 / 答疑 id） */
       /* 术语卡（data/glossary.js）：改 / 增 / 删，与史料四类同一套机制 */
       term: { edited: {}, added: [], removed: [] },
@@ -493,22 +510,44 @@
 
     /* 概念 / 事件的本机改动 */
     sub(OV, 'concepts', {}); sub(OV, 'events', {});
-    function normEdits(obj, allow) {
+    function normEdits(obj, allow, arrFields) {
       var out = {}, src = (obj && typeof obj === 'object') ? obj : {};
+      var ARR = arrFields || ['points'];
       Object.keys(src).forEach(function (k) {
         var kk = clean(k, 80); if (!kk) return;
         var v = src[k] || {}, o2 = {};
         allow.forEach(function (f) {
           if (v[f] === undefined || v[f] === null) return;
-          if (f === 'points') { var l = cleanList(v[f], 300, 12); if (l.length) o2.points = l; }
+          if (ARR.indexOf(f) >= 0) { var l = cleanList(v[f], 300, 20); if (l.length) o2[f] = l; }
           else { var t = clean(v[f], MAX); if (t) o2[f] = t; }
         });
         if (Object.keys(o2).length) out[kk] = o2;
       });
       return out;
     }
-    OV.concepts.edited = normEdits(OV.concepts.edited, ['name', 'role', 'desc', 'points']);
-    OV.events.edited = normEdits(OV.events.edited, ['name', 'year', 'desc', 'points']);
+    /* 可编辑字段要「全」：以前概念只能改 name/role/desc/points，出处、相关文献、关键词都改不了；
+       事件也只能改概述，人物、思潮、影响都动不了。这里把能编辑的字段一次列全。 */
+    OV.concepts.edited = normEdits(OV.concepts.edited,
+      ['name', 'role', 'desc', 'points', 'source', 'works', 'tags', 'quotes'],
+      ['points', 'works', 'tags', 'quotes']);
+    OV.events.edited = normEdits(OV.events.edited,
+      ['name', 'year', 'desc', 'points', 'bg', 'impact', 'people', 'schools', 'src'],
+      ['points', 'people', 'schools']);
+    /* 事件的新增 / 删除：added 是整条记录，removed 是名字列表 */
+    var evAdd = (OV.events.added && OV.events.added.length) ? OV.events.added : [];
+    OV.events.added = evAdd.filter(function (x) {
+      return x && typeof x.name === 'string' && clean(x.name, 120);
+    }).map(function (x) {
+      var o = { name: clean(x.name, 120) };
+      if (x.year !== undefined && x.year !== null) o.year = clean(x.year, 20);
+      ['desc', 'bg', 'impact'].forEach(function (f) { if (x[f]) o[f] = clean(x[f], MAX); });
+      ['people', 'schools', 'points'].forEach(function (f) {
+        if (x[f] && x[f].length) { var l = cleanList(x[f], 300, 20); if (l.length) o[f] = l; }
+      });
+      return o;
+    });
+    OV.events.removed = (OV.events.removed || []).map(function (x) { return clean(x, 120); })
+      .filter(function (x) { return !!x; });
     return OV;
   }
 
@@ -561,8 +600,10 @@
     // 概念 / 事件的本机改动（个人后写覆盖官方）
     r.concepts = r.concepts || { edited: {} };
     r.concepts.edited = Object.assign({}, (r.concepts.edited || {}), ((b.concepts || {}).edited) || {});
-    r.events = r.events || { edited: {} };
+    r.events = r.events || { edited: {}, added: [], removed: [] };
     r.events.edited = Object.assign({}, (r.events.edited || {}), ((b.events || {}).edited) || {});
+    r.events.added = (r.events.added || []).concat((b.events || {}).added || []);
+    r.events.removed = (r.events.removed || []).concat((b.events || {}).removed || []);
     // meta（自定义字段）：按条目合并，个人后写覆盖官方
     r.meta = Object.assign({}, r.meta || {}, b.meta || {});
     // hub
@@ -592,21 +633,34 @@
   function applyResources(OV) {
     var R = window.SITE_RESOURCES;
     if (!Array.isArray(R)) return;
-    var i, k, e;
-    if (OV.resources.removed.length) {
-      for (i = R.length - 1; i >= 0; i--) if (OV.resources.removed.indexOf(R[i].id) >= 0) R.splice(i, 1);
+    /* ★ 从基线重建，而不是在原数组上就地删改。
+       原来删除资源是 splice 掉，撤销时基线已经被吃掉，条目再也回不来
+       （「删了还想撤回」会失效）。现在首次应用时留一份原始副本，
+       之后每次重算：基线 − 删除 + 新增 + 字段覆盖。数组引用保持不变，
+       别的模块拿到的 R 依然是同一个数组。 */
+    if (!window.__YZY_BASE_RES) {
+      try { window.__YZY_BASE_RES = JSON.parse(JSON.stringify(R)); }
+      catch (e) { window.__YZY_BASE_RES = R.map(clone); }
     }
-    var ed = OV.resources.edited;
-    for (i = 0; i < R.length; i++) {
-      e = ed[R[i].id];
-      if (e) for (k in e) if (Object.prototype.hasOwnProperty.call(e, k)) R[i][k] = clone(e[k]);
+    var base = window.__YZY_BASE_RES || [];
+    var rm = OV.resources.removed || [], ed = OV.resources.edited || {};
+    var out = [], i, k, e, c;
+    for (i = 0; i < base.length; i++) {
+      if (rm.indexOf(base[i].id) >= 0) continue;
+      c = clone(base[i]);
+      e = ed[c.id];
+      if (e) for (k in e) if (Object.prototype.hasOwnProperty.call(e, k)) c[k] = clone(e[k]);
+      out.push(c);
     }
-    for (i = 0; i < OV.resources.added.length; i++) {
-      if (!R.some(function (x) { return x.id === OV.resources.added[i].id; })) R.push(clone(OV.resources.added[i]));
+    var added = OV.resources.added || [];
+    for (i = 0; i < added.length; i++) {
+      if (!out.some(function (x) { return x.id === added[i].id; })) out.push(clone(added[i]));
     }
     if (OV.resources.catLabels) {
-      for (i = 0; i < R.length; i++) if (R[i].cat && OV.resources.catLabels[R[i].cat]) R[i].cat = OV.resources.catLabels[R[i].cat];
+      for (i = 0; i < out.length; i++) if (out[i].cat && OV.resources.catLabels[out[i].cat]) out[i].cat = OV.resources.catLabels[out[i].cat];
     }
+    R.length = 0;
+    for (i = 0; i < out.length; i++) R.push(out[i]);
   }
 
   function personGroups() {
@@ -767,44 +821,169 @@
     var per = window.__yzSafeMode ? normalize(null) : normalize(stored());
     var base = merge(off, per);
     S = normalize(base);
+    var now = JSON.stringify(S);
+    /* 历史：优先接上本机存档（刷新、重开 App 都还在），再接当前状态 */
+    if (!_histLoaded) {
+      _histLoaded = true;
+      var had = histLoad();
+      if (!had) { _hist = [now]; _pos = 0; _histBytes = now.length; }
+      else if (_hist[_pos] !== now) histPush(now);   /* 存档与当前不一致（外部改过）→ 以当前为新一步 */
+    } else if (!_suppHist && (_pos < 0 || _hist[_pos] !== now)) {
+      /* reapply 里的这次 load 不算「用户改了一步」：merge 会补默认字段，
+         stringify 出来与存档不完全相同，若在此入栈，撤销会「原地踏步」
+         （一次操作变成两步，undo 之后又被动多出一步）。 */
+      histPush(now);
+    }
     return S;
   }
+  /* ---------- 撤销 / 重做 ----------
+     所有写入都经过 persist()，所以入栈只挂在 persist 上。
+     存「写入之后的完整 JSON」：实测一次普通编辑约 1KB、连续改 50 处约 5KB，
+     所以内存里留 1000 步也才几百 KB，不必每步做差量。
+     满了以后**不丢**「最初状态」：_hist[0] 永远是第一次装载时的样子，
+     只在它之后挤掉最老的，任何时候都能一路撤回到刚装软件的状态。
+     另外用本机 localStorage 'yzHist' 存一份（最初 + 最近 100 步），
+     刷新页面、重开 App 历史都还在；存储写满时静默退回只在本会话有效。 */
+  var _hist = [], _pos = -1, _histBytes = 0, _histLoaded = false;
+  var _HIST_MAX = 1000, _HIST_BYTES = 3 * 1024 * 1024;
+  var _HIST_KEY = 'yzHist', _histSaveT = 0;
+  function histLoad() {
+    try {
+      var o = JSON.parse(localStorage.getItem(_HIST_KEY) || 'null');
+      if (!o || o.v !== 1 || typeof o.base !== 'string' || !o.base) return false;
+      var arr = [o.base].concat(o.tail || []);
+      var b = 0; for (var i = 0; i < arr.length; i++) b += (arr[i] || '').length;
+      _hist = arr; _histBytes = b;
+      _pos = Math.max(0, Math.min(arr.length - 1, typeof o.pos === 'number' ? o.pos : arr.length - 1));
+      return true;
+    } catch (e) { return false; }
+  }
+  function histSave() {
+    if (_histSaveT) return;
+    _histSaveT = setTimeout(function () {
+      _histSaveT = 0;
+      try {
+        if (!_hist.length) return;
+        var tail = [], bytes = 0, from = 1, i;
+        for (i = _hist.length - 1; i >= 1 && tail.length < 100; i--) {
+          if (bytes + _hist[i].length > 900 * 1024) break;
+          tail.unshift(_hist[i]); bytes += _hist[i].length;
+        }
+        from = i + 1;                                   /* tail[0] 在原数组里的下标 */
+        localStorage.setItem(_HIST_KEY, JSON.stringify({
+          v: 1, base: _hist[0], tail: tail, pos: _pos - from + 1
+        }));
+      } catch (e) { /* 配额不足：只保留本会话历史，不影响主数据写入 */ }
+    }, 600);
+  }
+  function histPush(json) {
+    if (_hist[_pos] === json) return;
+    _hist = _hist.slice(0, _pos + 1);
+    _hist.push(json); _histBytes += json.length;
+    while ((_hist.length > _HIST_MAX || _histBytes > _HIST_BYTES) && _hist.length > 1) {
+      _histBytes -= (_hist[1] || '').length;
+      _hist.splice(1, 1);                              /* 留 _hist[0]：最初的版本 */
+    }
+    _pos = _hist.length - 1;
+    histSave();
+  }
   function persist() {
-    var ok = rawSet(JSON.stringify(S));
+    var json = JSON.stringify(S);
+    histPush(json);
+    var ok = rawSet(json);
     if (!ok && window.console) console.warn('[YZY] 存储降级：', S_warn);
     return ok;
+  }
+  function histApply(json) {
+    rawSet(json);
+    reapply();
   }
   /* 概念 / 事件：把本机改动直接写回页面正在用的数据对象（就地覆盖，宁可少改不弄坏结构） */
   function applyConcepts(OV) {
     try {
       var nodes = (window.SITE_CONCEPTS && window.SITE_CONCEPTS.nodes) || [];
+      if (!Array.isArray(nodes) || !window.SITE_CONCEPTS) return;
+      var FIELDS = ['name', 'role', 'desc', 'source', 'points', 'works', 'tags', 'quotes'];
+      var ARR = ['points', 'works', 'tags', 'quotes'];
+
+      /* 幂等的做法：先「还原上一次应用前记下的原始值」，再应用本次改动。
+         不建独立基线——concepts.js 是懒加载的，overlay 启动时它可能还没到，
+         按「首次捕获基线」会把空数组当基线，之后整张概念表就被清空了。 */
+      var prev = window.__YZY_APPLIED_CONCEPTS || [];
+      prev.forEach(function (rec) {
+        if (rec.added) {
+          for (var i = nodes.length - 1; i >= 0; i--) if (nodes[i].id === rec.id) nodes.splice(i, 1);
+          return;
+        }
+        var n = nodes.filter(function (x) { return x.id === rec.id; })[0];
+        if (!n) return;
+        Object.keys(rec.orig).forEach(function (f) {
+          if (ARR.indexOf(f) >= 0) n[f] = rec.orig[f].slice(); else n[f] = rec.orig[f];
+        });
+      });
+      var applied = [];
+
       var ed = (OV.concepts && OV.concepts.edited) || {};
       Object.keys(ed).forEach(function (id) {
-        var n = nodes.find(function (x) { return x.id === id; });
+        var n = nodes.filter(function (x) { return x.id === id; })[0];
         if (!n) return;
-        var e = ed[id];
-        ['name', 'role', 'desc'].forEach(function (f) { if (e[f]) n[f] = e[f]; });
-        if (e.points && e.points.length) n.points = e.points.slice();
+        var e = ed[id], orig = {};
+        FIELDS.forEach(function (f) { if (n[f] !== undefined) orig[f] = (ARR.indexOf(f) >= 0) ? n[f].slice() : n[f]; });
+        ['name', 'role', 'desc', 'source'].forEach(function (f) { if (e[f]) n[f] = e[f]; });
+        ARR.forEach(function (f) { if (e[f] && e[f].length) n[f] = e[f].slice(); });
+        applied.push({ id: id, orig: orig });
       });
-      /* 支持「新增概念」：直接 push（id 由用户给，重复则跳过） */
+
       ((OV.concepts && OV.concepts.added) || []).forEach(function (c) {
-        if (!c || !c.id || nodes.some(function (x) { return x.id === c.id; })) return;
-        nodes.push(c);
+        if (!c || !c.id) return;
+        if (nodes.some(function (x) { return x.id === c.id; })) return;
+        var cc; try { cc = JSON.parse(JSON.stringify(c)); } catch (e) { cc = Object.assign({}, c); }
+        nodes.push(cc);
+        applied.push({ id: c.id, added: true, orig: {} });
       });
+
+      window.__YZY_APPLIED_CONCEPTS = applied;
     } catch (e) {}
   }
+
   function applyEvents(OV) {
     try {
       var list = (window.SITE_EXTRA && window.SITE_EXTRA.events) || [];
+      if (!Array.isArray(list) || !window.SITE_EXTRA) return;
+      /* 基线：第一次应用时留一份原始副本，之后每次都从基线重建。
+         这样「新增 / 删除 / 撤销 / 重复 apply」都是幂等的，不会越点越多。 */
+      if (!window.__YZY_BASE_EVENTS) {
+        try { window.__YZY_BASE_EVENTS = JSON.parse(JSON.stringify(list)); }
+        catch (e) { window.__YZY_BASE_EVENTS = list.map(function (x) { return Object.assign({}, x); }); }
+      }
+      var base = window.__YZY_BASE_EVENTS || [];
+      var rm = (OV.events && OV.events.removed) || [];
+      var add = (OV.events && OV.events.added) || [];
+      var out = [];
+      base.forEach(function (x) {
+        if (rm.indexOf(x.name) >= 0) return;
+        var c; try { c = JSON.parse(JSON.stringify(x)); } catch (e) { c = Object.assign({}, x); }
+        out.push(c);
+      });
+      add.forEach(function (x) {
+        if (!x || !x.name) return;
+        if (out.some(function (y) { return y.name === x.name; })) return;
+        var c; try { c = JSON.parse(JSON.stringify(x)); } catch (e) { c = Object.assign({}, x); }
+        out.push(c);
+      });
       var ed = (OV.events && OV.events.edited) || {};
       Object.keys(ed).forEach(function (name) {
-        var n = list.find(function (x) { return x.name === name; });
+        var n = out.filter(function (x) { return x.name === name; })[0];
         if (!n) return;
         var e = ed[name];
-        ['year', 'desc'].forEach(function (f) { if (e[f]) n[f] = e[f]; });
+        ['year', 'desc', 'bg', 'impact', 'src'].forEach(function (f) { if (e[f]) n[f] = e[f]; });
         if (e.name) n.name = e.name;
-        if (e.points && e.points.length) n.points = e.points.slice();
+        ['points', 'people', 'schools'].forEach(function (f) {
+          if (e[f] && e[f].length) n[f] = e[f].slice();
+        });
       });
+      list.length = 0;
+      out.forEach(function (x) { list.push(x); });
     } catch (e) {}
   }
 
@@ -999,7 +1178,28 @@
     });
   }
 
+  /* 批量操作取「可写记录」：自己新增的返回原对象；官方条目返回覆盖层里的补丁对象，
+     并把原来没改过的字段（如 tags）先继承过来，否则批量加标签会把手上的标签全清掉。 */
+  function resWritable(id) {
+    id = clean(id, 120); if (!id) return null;
+    var i;
+    for (i = 0; i < S.resources.added.length; i++) if (S.resources.added[i].id === id) return S.resources.added[i];
+    var base = ((window.SITE_RESOURCES) || []).filter(function (x) { return x.id === id; })[0];
+    if (!base) return null;
+    var cur = S.resources.edited[id];
+    if (!cur) {
+      cur = {};
+      ['tags', 'chapters', 'related'].forEach(function (f) { if (base[f]) cur[f] = clone(base[f]); });
+      S.resources.edited[id] = cur;
+    }
+    return cur;
+  }
+  var _suppHist = 0;
   function reapply() {
+    _suppHist++;
+    try { return reapplyInner(); } finally { _suppHist--; }
+  }
+  function reapplyInner() {
     load();
     applyResources(S);
     applyPeople(S);
@@ -1025,6 +1225,7 @@
     reapply: function () { try { reapply(); return true; } catch (e) { return false; } },
     /* 延迟图谱数据到位后，让下一轮 reapply 重新捕获基线（否则基线还是那个空占位） */
     resetBaseGraph: function () { try { window.__YZY_BASE_GRAPH = null; } catch (e) { } return true; },
+    resetBaseRes: function () { try { window.__YZY_BASE_RES = null; window.__YZY_BASE_EVENTS = null; } catch (e) { } return true; },
     state: function () { return clone(S); },
 
     /* ---- 总开关 ---- */
@@ -1037,26 +1238,26 @@
       var rec = normRes(obj);
       if (!rec.title) return { ok: false, msg: '标题不能为空' };
       if (S.resources.added.some(function (x) { return x.id === rec.id; })) rec.id = uid('r');
-      S.resources.added.push(rec); persist();
+      S.resources.added.push(rec); persist(); reapply();
       return { ok: true, id: rec.id, backend: S_backend };
     },
     editResource: function (id, patch) {
       patch = patch || {}; var p = normEdit(patch);
       for (var i = 0; i < S.resources.added.length; i++) {
-        if (S.resources.added[i].id === id) { Object.assign(S.resources.added[i], p); persist(); return { ok: true }; }
+        if (S.resources.added[i].id === id) { Object.assign(S.resources.added[i], p); persist(); reapply(); return { ok: true }; }
       }
       S.resources.edited[id] = Object.assign(S.resources.edited[id] || {}, p);
-      persist(); return { ok: true };
+      persist(); reapply(); return { ok: true };
     },
     removeResource: function (id) {
       S.resources.added = S.resources.added.filter(function (x) { return x.id !== id; });
       if (S.resources.removed.indexOf(id) < 0) S.resources.removed.push(id);
       delete S.resources.edited[id];
-      persist(); return { ok: true };
+      persist(); reapply(); return { ok: true };
     },
     restoreResource: function (id) {
       S.resources.removed = S.resources.removed.filter(function (x) { return x !== id; });
-      persist(); return { ok: true };
+      persist(); reapply(); return { ok: true };
     },
     moveResource: function (id, toCat) { return this.editResource(id, { cat: clean(toCat, 40) }); },
 
@@ -1192,7 +1393,10 @@
     },
     setMeta: function (key, arr) {
       var k = clean(key, 80);
-      if (!k || !/^(book|person|concept|event):/.test(k)) return { ok: false, err: '不支持的条目类型' };
+      /* 以前这里只放行 book/person/concept/event 四种前缀，别处（会议、频道、
+         术语……）一点「添加标注」就报「不支持的条目类型」。标注只是本机自定义字段，
+         与内容类型无关，改成：只要有「类型:」的形状就接受。 */
+      if (!k || k.indexOf(':') <= 0) return { ok: false, err: '标注键格式不对' };
       var list = [];
       (Array.isArray(arr) ? arr : []).slice(0, 20).forEach(function (f) {
         var kk = clean(f && f.k, 30), vv = clean(f && f.v, 300);
@@ -1225,12 +1429,114 @@
       S = normalize(S); persist(); reapply();
       return { ok: true };
     },
+    clearConceptEdit: function (id) {
+      var k = clean(id, 60); if (!k) return { ok: false };
+      if (S.concepts && S.concepts.edited) delete S.concepts.edited[k];
+      S = normalize(S); persist(); reapply();
+      return { ok: true };
+    },
     editEvent: function (name, patch) {
       var k = clean(name, 80); if (!k) return { ok: false };
       S.events = S.events || { edited: {} };
       S.events.edited[k] = Object.assign(S.events.edited[k] || {}, patch || {});
       S = normalize(S); persist(); reapply();
       return { ok: true };
+    },
+
+    clearEventEdit: function (name) {
+      var k = clean(name, 80); if (!k) return { ok: false };
+      if (S.events && S.events.edited) delete S.events.edited[k];
+      S = normalize(S); persist(); reapply();
+      return { ok: true };
+    },
+    /* ---- 事件：新增 / 删除 / 恢复（编辑见 editEvent）---- */
+    listEvents: function () {
+      return (((window.SITE_EXTRA || {}).events) || []).map(function (x) { return clone(x); });
+    },
+    addEvent: function (o) {
+      o = o || {};
+      var nm = clean(o.name, 120);
+      if (!nm) return { ok: false, msg: '事件名称不能为空' };
+      S.events = S.events || { edited: {}, added: [], removed: [] };
+      var cur = ((window.SITE_EXTRA || {}).events) || [];
+      if (cur.some(function (x) { return x.name === nm; })) return { ok: false, msg: '已有同名事件，请直接编辑它' };
+      var rec = { name: nm };
+      if (o.year !== undefined && o.year !== null && String(o.year) !== '') rec.year = clean(o.year, 20);
+      ['desc', 'bg', 'impact'].forEach(function (f) { if (o[f]) rec[f] = clean(o[f], MAX); });
+      ['people', 'schools', 'points'].forEach(function (f) {
+        if (o[f] && o[f].length) { var l = cleanList(o[f], 300, 20); if (l.length) rec[f] = l; }
+      });
+      S.events.added.push(rec);
+      S.events.removed = S.events.removed.filter(function (x) { return x !== nm; });
+      S = normalize(S); persist(); reapply();
+      return { ok: true, name: nm };
+    },
+    removeEvent: function (name) {
+      var nm = clean(name, 120); if (!nm) return { ok: false, msg: '名称为空' };
+      S.events = S.events || { edited: {}, added: [], removed: [] };
+      var i, idx = -1;
+      for (i = 0; i < S.events.added.length; i++) if (S.events.added[i].name === nm) { idx = i; break; }
+      if (idx >= 0) S.events.added.splice(idx, 1);           /* 自己加的：直接拿掉 */
+      else if (S.events.removed.indexOf(nm) < 0) S.events.removed.push(nm);   /* 官方的：记一笔删除 */
+      delete S.events.edited[nm];
+      S = normalize(S); persist(); reapply();
+      return { ok: true };
+    },
+    restoreEvent: function (name) {
+      var nm = clean(name, 120); if (!nm) return { ok: false };
+      S.events = S.events || { edited: {}, added: [], removed: [] };
+      S.events.removed = S.events.removed.filter(function (x) { return x !== nm; });
+      S = normalize(S); persist(); reapply();
+      return { ok: true };
+    },
+
+    /* ---- 批量：一次改一批条目，只入一次撤销栈（否则 50 条会塞 50 步）---- */
+    bulkTag: function (ids, tags, mode) {
+      ids = Array.isArray(ids) ? ids : []; tags = Array.isArray(tags) ? tags : [];
+      mode = mode === 'replace' || mode === 'remove' ? mode : 'add';
+      if (!ids.length) return { ok: false, msg: '没有选中条目' };
+      if (!tags.length) return { ok: false, msg: '标签为空' };
+      var n = 0;
+      ids.forEach(function (id) {
+        var rec = resWritable(id); if (!rec) return;
+        var cur = (rec.tags || []).slice(), i;
+        if (mode === 'replace') cur = [];
+        if (mode === 'remove') {
+          tags.forEach(function (t) { var k = cur.indexOf(t); if (k >= 0) cur.splice(k, 1); });
+        } else {
+          tags.forEach(function (t) { if (cur.indexOf(t) < 0 && cur.length < 12) cur.push(t); });
+        }
+        rec.tags = cleanList(cur, 30, 12);
+        n++;
+      });
+      if (!n) return { ok: false, msg: '没有可改的条目' };
+      persist(); reapply();
+      return { ok: true, n: n };
+    },
+    bulkMove: function (ids, toCat) {
+      ids = Array.isArray(ids) ? ids : [];
+      var cat = clean(toCat, 40);
+      if (!ids.length) return { ok: false, msg: '没有选中条目' };
+      if (!cat) return { ok: false, msg: '目录名不能为空' };
+      var n = 0;
+      ids.forEach(function (id) { var rec = resWritable(id); if (!rec) return; rec.cat = cat; n++; });
+      if (!n) return { ok: false, msg: '没有可改的条目' };
+      persist(); reapply();
+      return { ok: true, n: n };
+    },
+    bulkRemove: function (ids) {
+      ids = Array.isArray(ids) ? ids : [];
+      var n = 0;
+      ids.forEach(function (id) {
+        if (!clean(id, 120)) return;
+        S.resources.added = S.resources.added.filter(function (x) { return x.id !== id; });
+        if (S.resources.removed.indexOf(id) < 0) S.resources.removed.push(id);
+        delete S.resources.edited[id];
+        n++;
+      });
+      if (!n) return { ok: false, msg: '没有选中条目' };
+      persist(); reapply();
+      return { ok: true, n: n };
     },
 
     /* ---- 目录（分类）---- */
@@ -1285,6 +1591,26 @@
       if (GROUPS_PERSON.indexOf(toGroup) < 0) return { ok: false, msg: '目标目录不合法' };
       S.people.moved[fromGroup + '|' + name] = toGroup; persist(); return { ok: true };
     },
+    undo: function () {
+      if (_pos <= 0) return { ok: false, msg: '没有可撤销的操作' };
+      _pos--; histApply(_hist[_pos]);
+      return { ok: true, left: _pos };
+    },
+    redo: function () {
+      if (_pos >= _hist.length - 1) return { ok: false, msg: '没有可重做的操作' };
+      _pos++; histApply(_hist[_pos]);
+      return { ok: true, left: _hist.length - 1 - _pos };
+    },
+    canUndo: function () { return _pos > 0; },
+    canRedo: function () { return _pos < _hist.length - 1; },
+    histInfo: function () { return { steps: _hist.length, pos: _pos, bytes: _histBytes, saved: !!_histSaveT || !!localStorage.getItem(_HIST_KEY) }; },
+    /* 一路撤回到「最初」（第一次装载时的样子）；可再用 redo 回来，不会丢 */
+    undoAll: function () {
+      if (_pos <= 0) return { ok: false, msg: '已经在最初状态' };
+      _pos = 0; histApply(_hist[0]);
+      return { ok: true, left: 0 };
+    },
+    histClear: function () { try { localStorage.removeItem(_HIST_KEY); } catch (e) { } return { ok: true }; },
     undoMovePerson: function (fromGroup, name) { delete S.people.moved[fromGroup + '|' + name]; persist(); return { ok: true }; },
     setAvatar: function (key, dataUrl) {
       key = clean(key, 80);

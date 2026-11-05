@@ -567,6 +567,40 @@
     return out;
   }
   /* 从答案里收集要挂链接的节点：主实体 + 证据链两端 */
+  /* 原文出处：问句里提到某个人或某个概念时，指出「哪几篇原文里讲过」，并附一句原句。
+     数据来自 data/person-index.js 与 data/book-index.js（都是构建时算好的，不做在线检索）。
+     只在该问句确实指着一个人/一个概念时才挂，避免「国家」这类高频词把每条回答都糊满。 */
+  function attachTexts(res, raw) {
+    if (!res) return res;
+    var q = String(raw || '').trim();
+    if (!q || q.length > 30) return res;
+    var cands = [], i;
+    var PI = window.SITE_PERSON_INDEX || {};
+    Object.keys(PI).forEach(function (pid) {
+      var e = PI[pid];
+      if (!e || !e.name || !e.f || !e.f.length) return;
+      var short = e.name.split('·').pop();
+      if (short.length >= 2 && q.indexOf(short) >= 0) cands.push({ k: 'person', key: short, e: e });
+    });
+    var CI = window.SITE_CONCEPT_INDEX || {};
+    Object.keys(CI).forEach(function (cid) {
+      var e = CI[cid];
+      if (!e || !e.name || !e.f || !e.f.length) return;
+      if (e.name.length >= 2 && q.indexOf(e.name) >= 0) cands.push({ k: 'concept', key: e.name, e: e });
+    });
+    /* 命中词越长的越具体，先留它 */
+    cands.sort(function (a, b) { return b.key.length - a.key.length; });
+    var out = [], seen = {};
+    for (i = 0; i < cands.length && out.length < 2; i++) {
+      var c = cands[i];
+      if (seen[c.e.name]) continue;
+      seen[c.e.name] = 1;
+      out.push({ kind: c.k, name: c.e.name, n: c.e.n, files: c.e.f.slice(0, 3) });
+    }
+    if (out.length) res.texts = out;
+    return res;
+  }
+
   function attachLinks(res, raw) {
     if (!res || res.links) return res;
     var ids = [], seen = {};
@@ -600,6 +634,7 @@
     var r = null;
     try { r = askCore(q); } catch (e) { r = { ok: false, intent: 'error', answer: '查询出错：' + (e && e.message), notes: [], evidence: [] }; }
     try { attachLinks(r, String(q || '').trim()); } catch (e) {}
+    try { attachTexts(r, String(q || '').trim()); } catch (e) {}
     return r;
   }
 
@@ -614,6 +649,7 @@
         return { to: e.to, toName: o ? o.name : e.to, rel: e.rel, cat: e.cat, dir: e.dir };
       });
     },
+    _texts: attachTexts,
     relCat: relCat,
     use: use,
     graphs: function () {
