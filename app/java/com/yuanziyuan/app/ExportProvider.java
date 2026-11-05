@@ -28,6 +28,18 @@ public class ExportProvider extends ContentProvider {
         return Uri.parse("content://" + AUTHORITY + "/" + Uri.encode(name == null ? "" : name));
     }
 
+    /** 分享用的出口：content://authority/share/<名字>，文件在 cache/share 下。
+     *  与「导出」分开，是因为分享是临时动作，不该写进用户的下载目录。 */
+    public static Uri uriForShare(String name) {
+        return Uri.parse("content://" + AUTHORITY + "/share/" + Uri.encode(name == null ? "" : name));
+    }
+
+    private File shareBase() {
+        File d = new File(getContext().getCacheDir(), "share");
+        if (!d.exists()) d.mkdirs();
+        return d;
+    }
+
     @Override public boolean onCreate() { return true; }
 
     /** 与应用导出使用同一个目录：getExternalFilesDir(DIRECTORY_DOWNLOADS)，兜底到内部 files/export */
@@ -39,15 +51,18 @@ public class ExportProvider extends ContentProvider {
         return d;
     }
 
-    /** 解析为文件；只允许 base 下的单层文件 */
+    /** 解析为文件；只允许 base 下的单层文件；路径 /share/x 走 cache/share */
     private File resolve(Uri uri) {
-        String name = uri.getLastPathSegment();
+        java.util.List<String> segs = uri.getPathSegments();
+        if (segs == null || segs.isEmpty() || segs.size() > 2) return null;
+        boolean isShare = segs.size() == 2 && "share".equals(segs.get(0));
+        String name = segs.get(segs.size() - 1);
         if (name == null) return null;
         try { name = Uri.decode(name); } catch (Throwable t) { /* 保持原样 */ }
         if (name.length() == 0 || name.length() > 200) return null;
         if (name.indexOf('/') >= 0 || name.indexOf('\\') >= 0) return null;
         if (name.equals(".") || name.equals("..") || name.contains("..")) return null;
-        return new File(base(), name);
+        return new File(isShare ? shareBase() : base(), name);
     }
 
     @Override public String getType(Uri uri) {

@@ -13,6 +13,7 @@ import android.graphics.Color;
 import android.graphics.RenderEffect;
 import android.graphics.Shader;
 import android.net.Uri;
+import android.webkit.MimeTypeMap;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -1759,6 +1760,191 @@ public class MainActivity extends Activity {
 
         /* 导出全部书（书文件本身，标准格式）——「换台设备还能打开」的前提。
            返回 JSON：{ok, n, bytes, skipped, folder, failed:[...]} */
+        /* ---------------- 用其他应用打开 / 分享（0.17.70） ----------------
+           三类来源都要能出去：
+             · 站内自带 —— kind=asset，key 是包内相对路径（books/xxx.txt）
+             · 导入的 TXT/MD/PDF —— kind=local，key 是书 id（booksRoot 下的同名文件）
+             · 导入的 EPUB —— kind=local，booksRoot 下是解包目录，要重新打包成标准 epub
+           流程：读字节 → 写 cache/share/ → ExportProvider 给 content:// →
+                 ACTION_VIEW（打开）或 ACTION_SEND chooser（分享）。
+           不写系统「下载」目录：分享是临时动作，不该在用户下载里堆文件。 */
+        private void bookOut(final String kind, final String key, final String title, final boolean share) {
+            if (!trusted()) return;
+            new Thread(new Runnable() { public void run() {
+                try {
+                    byte[] data = null;
+                    String fname, mime = "application/octet-stream";
+                    final String k = (key == null) ? "" : key.trim();
+                    final String tt = (title == null) ? "" : title.trim();
+                    if ("asset".equals(kind)) {
+                        String rel = k.replaceAll("^/+", "");
+                        if (rel.length() == 0 || rel.indexOf("..") >= 0) throw new Exception("路径不合法");
+                        java.io.InputStream in = getAssets().open("site/" + rel);
+                        java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                        byte[] buf = new byte[1 << 13]; int n;
+                        try { while ((n = in.read(buf)) > 0) bo.write(buf, 0, n); } finally { try { in.close(); } catch (Throwable x) {} }
+                        data = bo.toByteArray();
+                        String ext = extOf(rel);
+                        if (ext.length() == 0) ext = "txt";
+                        String base = tt.length() > 0 ? tt : rel.substring(rel.lastIndexOf('/') + 1).replaceFirst("\\.[^.]+$", "");
+                        fname = safeName(base, "book") + "." + ext;
+                        mime = mimeOfExt(ext);
+                    } else {
+                        File root = booksRoot();
+                        File dir = new File(root, k);
+                        if (k.length() > 0 && dir.isDirectory()) {
+                            data = zipEpubDir(dir);
+                            fname = safeName(tt.length() > 0 ? tt : k, "book") + ".epub";
+                            mime = "application/epub+zip";
+                        } else {
+                            File file = null;
+                            String[] exts = {".txt", ".md", ".pdf"};
+                            for (int i = 0; i < exts.length; i++) {
+                                File t = new File(root, k + exts[i]);
+                                if (t.isFile()) { file = t; break; }
+                            }
+                            if (file == null) throw new Exception("找不到这本书的文件");
+                            data = java.nio.file.Files.readAllBytes(file.toPath());
+                            String ext = extOf(file.getName());
+                            fname = safeName(tt.length() > 0 ? tt : k, "book") + "." + ext;
+                            mime = mimeOfExt(ext);
+                        }
+                    }
+                    File out = writeShareFile(fname, data);
+                    final Uri uri = ExportProvider.uriForShare(out.getName());
+                    final String m = mime;
+                    runOnUiThread(new Runnable() { public void run() {
+                        try {
+                            if (share) {
+                                Intent i = new Intent(Intent.ACTION_SEND);
+                                i.setType(m);
+                                i.putExtra(Intent.EXTRA_STREAM, uri);
+                                if (tt.length() > 0) { i.putExtra(Intent.EXTRA_SUBJECT, tt); i.putExtra(Intent.EXTRA_TEXT, tt); }
+                                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                startActivity(Intent.createChooser(i, tt.length() > 0 ? ("分享《" + tt + "》") : "分享"));
+                            } else {
+                                Intent i = new Intent(Intent.ACTION_VIEW);
+                                i.setDataAndType(uri, m);
+                                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                                if (i.resolveActivity(getPackageManager()) == null) { toast("没有能打开 " + m + " 的应用"); return; }
+                                startActivity(i);
+                            }
+                        } catch (Exception e) { toast("打开失败：" + msgOf(e)); }
+                    }});
+                } catch (Throwable e) { toast("失败：" + msgOf(e)); }
+            }}).start();
+        }
+
+        /* ---------------- 书内搜索（EPUB，0.17.72） ----------------
+           逐章读 HTML、去标签、找关键词。返回 JSON：{ok, total, hits:[{ch,t,s}]}
+           TXT/MD 在网页侧直接搜（文本本来就在内存里），不走这里。 */
+        @JavascriptInterface public String bookSearch(String id, String q) {
+            try {
+                String needle = (q == null) ? "" : q.trim();
+                if (needle.length() == 0) return "{\"ok\":true,\"total\":0,\"hits\":[]}";
+                File dir = new File(booksRoot(), id);
+                if (!dir.isDirectory()) return "{\"ok\":false,\"total\":0,\"hits\":[]}";
+                File map = new File(dir, "_chapters.txt");
+                if (!map.exists()) return "{\"ok\":false,\"total\":0,\"hits\":[]}";
+                String[] lines = new String(java.nio.file.Files.readAllBytes(map.toPath()), "UTF-8").split("\n");
+                StringBuilder sb = new StringBuilder();
+                sb.append("{\"ok\":true,\"total\":").append(lines.length).append(",\"hits\":[");
+                int got = 0, scanned = 0;
+                for (int i = 0; i < lines.length && got < 60 && scanned < 300; i++) {
+                    String ln = lines[i].trim();
+                    if (ln.length() == 0) continue;
+                    int tb = ln.indexOf('\t');
+                    if (tb <= 0) continue;
+                    String idxS = ln.substring(0, tb), href = ln.substring(tb + 1);
+                    String html;
+                    try { html = Epub.chapterHTML(dir, Integer.parseInt(idxS)); } catch (Throwable t) { continue; }
+                    if (html == null || html.length() == 0) continue;
+                    scanned++;
+                    String text = html.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " ")
+                                       .replaceAll("<[^>]+>", " ")
+                                       .replace("&nbsp;", " ").replace("&amp;", "&")
+                                       .replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
+                                       .replaceAll("\\s+", " ").trim();
+                    int at = text.indexOf(needle);
+                    if (at < 0) continue;
+                    int a = Math.max(0, at - 24), b2 = Math.min(text.length(), at + needle.length() + 46);
+                    String snip = (a > 0 ? "…" : "") + text.substring(a, b2) + (b2 < text.length() ? "…" : "");
+                    String title = chapterTitleOf(dir, Integer.parseInt(idxS));
+                    if (got > 0) sb.append(',');
+                    sb.append("{\"ch\":").append(idxS)
+                      .append(",\"t\":\"").append(jsEscape(title))
+                      .append("\",\"s\":\"").append(jsEscape(snip)).append("\"}");
+                    got++;
+                }
+                sb.append("]}");
+                return sb.toString();
+            } catch (Throwable t) {
+                return "{\"ok\":false,\"total\":0,\"hits\":[]}";
+            }
+        }
+
+        /** 章节标题：取该章 HTML 里第一个 h1~h3 的文字，取不到就用“第 N 章” */
+        private String chapterTitleOf(File dir, int idx) {
+            try {
+                String html = Epub.chapterHTML(dir, idx);
+                if (html != null) {
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("(?is)<h[1-3][^>]*>(.*?)</h[1-3]>").matcher(html);
+                    if (m.find()) {
+                        String t = m.group(1).replaceAll("<[^>]+>", " ")
+                                   .replace("&nbsp;", " ").replace("&amp;", "&")
+                                   .replaceAll("\\s+", " ").trim();
+                        if (t.length() > 0) return t.length() > 40 ? t.substring(0, 40) : t;
+                    }
+                }
+            } catch (Throwable t) {}
+            return "第 " + (idx + 1) + " 章";
+        }
+
+        /** 分享到别的应用（系统分享面板） */
+        @JavascriptInterface public void bookShare(String kind, String key, String title) { bookOut(kind, key, title, true); }
+        /** 用其他应用打开 */
+        @JavascriptInterface public void bookOpenExternal(String kind, String key, String title) { bookOut(kind, key, title, false); }
+
+        /** 写进 cache/share：每次只留一份，避免读过多本书后堆积 */
+        private File writeShareFile(String rawName, byte[] data) throws Exception {
+            File d = new File(getCacheDir(), "share");
+            if (!d.exists()) d.mkdirs();
+            File[] olds = d.listFiles();
+            if (olds != null) { for (int i = 0; i < olds.length; i++) { try { olds[i].delete(); } catch (Throwable x) {} } }
+            String name = cleanFileName(rawName == null ? "book.bin" : rawName);
+            if (name == null || name.length() == 0) name = "book.bin";
+            File f = new File(d, name);
+            FileOutputStream fos = new FileOutputStream(f);
+            try { fos.write(data); } finally { try { fos.close(); } catch (Throwable x) {} }
+            return f;
+        }
+
+        private String extOf(String n) {
+            if (n == null) return "";
+            int i = n.lastIndexOf('.');
+            if (i < 0 || i == n.length() - 1) return "";
+            return n.substring(i + 1).toLowerCase();
+        }
+
+        private String mimeOfExt(String ext) {
+            if ("pdf".equals(ext)) return "application/pdf";
+            if ("epub".equals(ext)) return "application/epub+zip";
+            if ("md".equals(ext)) return "text/markdown";
+            if ("txt".equals(ext)) return "text/plain";
+            String m = null;
+            try { m = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext); } catch (Throwable t) {}
+            return (m == null || m.length() == 0) ? "application/octet-stream" : m;
+        }
+
+        /** 标题转安全文件名：去掉分隔符与控制字符，限长 */
+        private String safeName(String raw, String fallback) {
+            String s = cleanFileName(raw == null ? "" : raw.trim());
+            if (s == null || s.length() == 0) s = fallback;
+            if (s.length() > 60) s = s.substring(0, 60);
+            return s;
+        }
+
         @JavascriptInterface public String exportLibrary() {
             File root = booksRoot();
             File[] items = root.listFiles();

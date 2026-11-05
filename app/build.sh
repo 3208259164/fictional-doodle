@@ -26,8 +26,8 @@ export LC_ALL=C.UTF-8 TZ=UTC
 NAME="${NAME:?需要 NAME（如 NAME=0.17.52）}"
 CODE="${CODE:?需要 CODE（如 CODE=231）}"
 P="${P:-$(cd "$(dirname "$0")" && pwd)}"
-SITE="${SITE:-$P/../site}"
-TC="${TC:-$P/../toolchain}"      # 也可以显式传 BT / AJ / R8 / KS
+SITE="${SITE:-$P/../site_new}"
+TC="${TC:-/sandbox/workspace/toolchain}"
 BT="${BT:-$TC/build-tools-36}"
 AJ="${AJ:-$TC/android-sdk/platforms/android-36/android.jar}"
 R8="${R8:-$TC/r8.jar}"
@@ -86,7 +86,10 @@ else
   ok "3D 引擎就绪（$EB 字节 · ES2015 校验通过）"
 fi
 
-say "[0c/8] 固定时间戳（可复现构建）"
+say "[0c/8] 站点 JS 压缩（只压产物，源码保持可读）"
+python3 "$P/tools/minify_site.py" "$P/assets/site" "$ESBUILD" | sed 's/^/  /' || ok "压缩失败，改用未压缩文件"
+
+say "[0d/8] 固定时间戳（可复现构建）"
 find "$P/assets/site" -exec touch -h -d @$SOURCE_DATE_EPOCH_FIXED {} +
 
 say "[1/8] 写版本号"
@@ -218,8 +221,11 @@ ok "安全基线：无 INTERNET 权限 / 非 debuggable"
 grep -q 'usesCleartextTraffic="false"' "$P/AndroidManifest.xml" || die "清单里 cleartext 不是 false"
 grep -q 'allowBackup="false"' "$P/AndroidManifest.xml" || die "清单里 allowBackup 不是 false"
 ok "安全基线：cleartext=false / allowBackup=false"
-unzip -l "$CHECK_APK" | grep -q 'assets/site/index.html' || die "包内缺 assets/site"
-ok "包内 assets/site 文件数：$(unzip -l "$CHECK_APK" | grep -c 'assets/site/')"
+# 注意：不能写 `unzip -l | grep -q` —— grep 一匹配就退出，unzip 写管道会收到 SIGPIPE(141)，
+# 在 set -o pipefail 下整条管道算失败，会偶发误报「包内缺 assets/site」（2026-11-02 实际踩到）。
+unzip -l "$CHECK_APK" > "$WORK/plist.txt" 2>/dev/null || die "无法列出包内条目"
+grep -q 'assets/site/index.html' "$WORK/plist.txt" || die "包内缺 assets/site"
+ok "包内 assets/site 文件数：$(grep -c 'assets/site/' "$WORK/plist.txt")"
 
 SZ=$(stat -c%s "$OUT")
 SHA=$(sha256sum "$OUT" | cut -d' ' -f1)
