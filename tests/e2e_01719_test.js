@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require(__dirname + '/node_modules/jsdom');
 
-const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/';
+const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/';
 let pass = 0, fail = 0;
 function ok(n, c, x) { if (c) { pass++; console.log('  ✅ ' + n + (x ? '   ⟨' + x + '⟩' : '')); } else { fail++; console.log('  ❌ ' + n + (x ? '   ⟨' + x + '⟩' : '')); } }
 

@@ -3,7 +3,7 @@
 const fs = require('fs');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
 
-const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/';
+const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/';
 const DATA = ['glossary', 'concepts', 'guides', 'answers', 'knowledge', 'content', 'resources'];
 
 let pass = 0, fail = 0, finished = false;

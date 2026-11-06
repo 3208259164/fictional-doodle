@@ -42,4 +42,24 @@ module.exports = function installLazyHook(w, SITE) {
     });
     return el;
   };
+
+  /* 等按需数据加载完：没有 "loading" 状态的项就算完成（有 fail 也算完成，别把超时当成功）。
+     返回 { waitData(cb, ms) }。 */
+  const waitData = (cb, ms) => {
+    const t0 = Date.now();
+    (function tick() {
+      const d = w.YZData;
+      const st = d ? d.state() : {};
+      const keys = Object.keys(st);
+      const loading = keys.some(k => st[k] === 'loading');
+      // 必须「全部排到队尾」才算完成：只看 started && 无 loading 会撞上一个空档
+      // （kick 已经把 started 置 true，但第一个文件还没开始 loading），那时数据还是 0 条
+      const want = d && d.lazy ? d.lazy.length : 1;
+      const done = (d && d.started() && keys.length >= want && !loading);
+      if (done || Date.now() - t0 > (ms || 20000)) return cb();
+      setTimeout(tick, 60);
+    })();
+  };
+
+  return { waitData: waitData };
 };

@@ -5,7 +5,7 @@
             四类题型都出得来、同种子可复现、不同种子会变、判对判错与防重复作答。 */
 const fs = require('fs');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
-const SITE = process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/';
+const SITE = process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/';
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only', url: 'https://local.test/' });
 const w = dom.window, d = w.document;

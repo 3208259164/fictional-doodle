@@ -4,7 +4,7 @@
  */
 const fs = require('fs');
 const vm = require('vm');
-const DIR = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/';
+const DIR = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/';
 
 const sandbox = { window: {}, console, JSON };
 sandbox.window.window = sandbox.window;

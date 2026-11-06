@@ -2,7 +2,7 @@
  * 统一检索测试：证明用户不需要选图谱
  */
 const fs = require('fs'), vm = require('vm');
-const DIR = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/';
+const DIR = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/';
 let pass = 0, fail = 0;
 const ok = (c, m, x) => { if (c) { pass++; console.log('  ✓ ' + m); } else { fail++; console.log('  ✗ ' + m + (x ? ' → ' + x : '')); } };
 

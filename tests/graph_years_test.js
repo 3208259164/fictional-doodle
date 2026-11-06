@@ -5,7 +5,7 @@
         年份依据说明（org/idea 的 yearBasis）。 */
 const path = require('path'), fs = require('fs');
 const { JSDOM, VirtualConsole } = require(path.join(__dirname, 'node_modules', 'jsdom'));
-const BASE = (process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/');
+const BASE = (process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const IGN = m => /scrollTo|Not implemented/.test(m || '');
 function fakeCtx() { return new Proxy({}, { get(t, p) { if (p === 'measureText') return () => ({ width: 10 }); if (p === 'createLinearGradient' || p === 'createRadialGradient') return () => ({ addColorStop() {} }); if (p === 'canvas') return { width: 1, height: 1 }; if (typeof p === 'string' && /^(font|fillStyle|strokeStyle|lineWidth|globalAlpha|shadowBlur|shadowColor|textAlign|textBaseline|lineDashOffset|lineJoin|lineCap|miterLimit|globalCompositeOperation|filter)$/.test(p)) return undefined; return function () {}; }, set() { return true; } }); }
@@ -35,7 +35,7 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
 
   /* ② 开关能真正打开（原来 yearsAvailable() 恒假 → 点了没反应） */
   ok('yearsAvailable() 为真', typeof w.yearsAvailable === 'function' && w.yearsAvailable() === true);
-  w.toggleYears();
+  w.toggleTime();
   ok('时间轴已开启', w.yearOn === true);
   const cb3 = d.getElementById('cb3');
   ok('按钮进入选中态', !!cb3 && cb3.classList.contains('on'));
@@ -56,7 +56,7 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
   w.yearVal = 2016;
   ok('2016 年：活到 1990 年代的人仍可见', w.spot(mao) < 0.3 && w.spot(w.ix['deng_xiaoping']) < 0.3);
 
-  w.toggleYears();
+  w.toggleTime();
   ok('再点一次关闭，滑块隐藏', w.yearOn === false && (!d.getElementById('yearbar') || d.getElementById('yearbar').style.display === 'none'));
 
   if (errs.length) { console.log('\n JS 错误: ' + errs.slice(0, 3).join(' | ')); fail++; }

@@ -2,18 +2,11 @@
 # CI 不会因它们变红，但也不许「变多」——名单外的新失败一律阻断。
 # 修好一个就从这里删掉（run_all.js 会提示）。
 #
-author_alias_test.js      懒加载改造后，别名/简介表按需加载，测试没等 YZData.need 完成（读到 0 条）
-guides_bg_test.js         同上：导读数据走懒加载
-quote_match_test.js       同上：引文库懒加载
 graph_years_test.js       同上：世界图谱懒加载
-world_event_bg_test.js    同上：世界图谱懒加载
-wenge_points_test.js      同上：文革图谱 400ms 后动态加载
 graph_wenge_render_test.js 同上
-enhance_test.js           同上
-graph_draw_audit_test.js  同上
-agg_dedup_test.js         同上
+enhance_test.js           时间轴 API 改名后部分断言仍指向旧函数，需重写
+graph_draw_audit_test.js  图谱数据懒加载，等待条件仍需按新加载流程重写
 e2e_01718_test.js         新增模块后页面脚本变多，测试的加载器漏了新文件
-e2e_01719_test.js         同上
 ui_click_test.js          按钮文案/结构变过（我的文件、诊断导出）
 edit_visible_test.js      入口改名
 edu_edit_test.js          编辑弹层结构变过
@@ -23,8 +16,5 @@ figures_edit_test.js      同上
 answer_import_test.js     YZStudy.importAnswers 改为懒加载后未暴露 _parseAnswerText
 speech_test.js            朗读改为「长按选段」后按钮结构变化
 exportdata_test.js        导出改「文件通道」后 4 条断言仍在断言旧 blob 流程
-graph_home_test.js        首页图谱入口开关口径改过（关光了不留提示）
-graph_ui_test.js          列表搜索高亮断言与实际渲染不一致
 chan_book_test.js         频道数据量变化（断言写死了旧数量）
-delegate_test.js          onclick 残留数变化（资源导航按钮已删）
-yearbook_test.js          「1516 年能看到空想社会主义」依赖 concepts 数据的年份归属，懒加载后断言口径不一致（年鉴本身可用）
+yearbook_test.js          年鉴功能正常；仅「1516 年能看到空想社会主义」这条内容断言与当前数据归属不一致，待人工核对

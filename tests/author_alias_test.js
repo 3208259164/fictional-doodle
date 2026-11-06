@@ -5,7 +5,7 @@
             有书无页的作者显示简介、真没有的作者仍走原文案。 */
 const fs = require('fs'), path = require('path');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
-const SITE = process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/';
+const SITE = process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/';
 let html = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8');
 html = html.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>/g, (m, src) => {
   try { return '<script>' + fs.readFileSync(path.join(SITE, src.split('?')[0]), 'utf8') + '</script>'; } catch (e) { return ''; }
@@ -19,7 +19,8 @@ const dom = new JSDOM(html, {
   }
 });
 const w = dom.window;
-setTimeout(() => {
+const { waitData } = require('./_lazy_hook')(w, SITE);   /* 别名/简介等数据是按需注入的 */
+waitData(() => {
   let fail = 0; const ok = (n, c, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + n + (x ? (' — ' + x) : '')); if (!c) fail++; };
 
   ok('别名表已加载', !!w.YZ_AUTHOR_ALIAS, Object.keys(w.YZ_AUTHOR_ALIAS || {}).length + ' 条');
@@ -61,4 +62,4 @@ setTimeout(() => {
 
   console.log(fail ? `\n失败 ${fail} 项` : '\n全部通过');
   process.exit(fail ? 1 : 0);
-}, 1500);
+});

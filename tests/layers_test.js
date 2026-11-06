@@ -3,7 +3,7 @@
  */
 const fs = require('fs');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
-const DIR = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/';
+const DIR = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/';
 
 let pass = 0, fail = 0;
 const ok = (c, m, x) => { if (c) { pass++; console.log('  ✓ ' + m); } else { fail++; console.log('  ✗ ' + m + (x ? ' → ' + x : '')); } };

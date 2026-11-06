@@ -2,7 +2,7 @@
 const path = require('path');
 const fs = require('fs');
 const { JSDOM, VirtualConsole } = require(path.join(__dirname, 'node_modules', 'jsdom'));
-const BASE = (process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (require('fs').existsSync(require('path').join(__dirname, '..', 'site', 'graph.html')) ? (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/' : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/'));
+const BASE = (process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (require('fs').existsSync(require('path').join(__dirname, '..', 'site', 'graph.html')) ? (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/' : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function fakeCtx() {
   return new Proxy({}, {
@@ -31,6 +31,7 @@ function inline(html) {
   });
   const w = dom.window, d = w.document;
   w.addEventListener('error', e => errors.push('window.error: ' + (e.error && e.error.stack || e.message)));
+  require('./_lazy_hook')(dom.window, BASE);   /* 图谱数据是动态注入的，jsdom 需要真的加载 */
   await sleep(900);
   let fail = 0;
   const ok = (n, c, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + n + (x ? (' — ' + x) : '')); if (!c) fail++; };

@@ -15,7 +15,8 @@ const dom=new JSDOM(html,{runScripts:'dangerously',url:'https://local.test/',pre
     w.scrollTo=()=>{}; w.matchMedia=()=>({matches:false,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}});
   }});
 const w=dom.window,d=w.document;
-setTimeout(()=>{
+const { waitData } = require('./_lazy_hook')(w, SITE);   /* 导读数据是按需注入的 */
+waitData(()=>{
   let fail=0;
   const t=(ok,m)=>{console.log((ok?'  ✓ ':'  ✗ ')+m);if(!ok)fail++;};
   t(!!w.YZStudy,'YZStudy 已加载');
@@ -54,4 +55,4 @@ setTimeout(()=>{
   t(!!prog,'导读页有进度显示');
   console.log(fail?`\n失败 ${fail} 项`:'\n全部通过');
   process.exit(fail?1:0);
-},1200);
+});

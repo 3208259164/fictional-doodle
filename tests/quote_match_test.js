@@ -4,7 +4,7 @@
             避免把 1.7MB 数据脚本塞进 index.html 解析流程导致超时。 */
 const fs = require('fs');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
-const SITE = process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/';
+const SITE = process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/';
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only', url: 'https://local.test/' });
 const w = dom.window;
@@ -75,7 +75,11 @@ ok('单次结果按加权分降序', all.every((x, i) => i === 0 || all[i - 1].s
 /* ⑩ 集成：源码里确实挂了兜底，且被 index.html / sw.js 引用 */
 const appjs = fs.readFileSync(SITE + 'assets/app.js', 'utf8');
 ok('app.js 在精确检索零结果时调用 YZQUOTE', /YZQUOTE\.match\(/.test(appjs));
-ok('index.html 已引入 quote-match.js', /quote-match\.js/.test(fs.readFileSync(SITE + 'index.html', 'utf8')));
+// 0.18 起这个模块改成「按需注入」：首页不引它，搜索时才 need 一份。
+// 断言要跟着口径走：只要能被加载到（首屏引用 / 懒加载清单 / 搜索路径里 need）就算过。
+const _qref = ['index.html', 'assets/lazydata.js', 'assets/app.js']
+  .filter(f => { try { return /quote-match\.js/.test(fs.readFileSync(SITE + f, 'utf8')); } catch (e) { return false; } });
+ok('quote-match.js 会被加载（首屏或按需）', _qref.length > 0, _qref.join(' / ') || '一处都没有');
 ok('sw.js 已预缓存 quote-match.js', /quote-match\.js/.test(fs.readFileSync(SITE + 'sw.js', 'utf8')));
 
 console.log(fail ? `\n失败 ${fail} 项` : '\n全部通过');

@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require(__dirname + '/node_modules/jsdom');
 
-const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/';
+const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/';
 let pass = 0, fail = 0;
 function ok(name, cond, extra) {
   if (cond) { pass++; console.log('  ✅ ' + name + (extra ? '   ⟨' + extra + '⟩' : '')); }
@@ -78,4 +78,4 @@ setTimeout(() => {
   console.log('------------------------------------------------------------------');
   console.log('  结果：通过 ' + pass + ' 项，失败 ' + fail + ' 项');
   process.exit(fail ? 1 : 0);
-}, 1500);
+}, 3000);

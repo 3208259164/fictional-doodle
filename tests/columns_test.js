@@ -2,7 +2,7 @@
 const path = require('path');
 const fs = require('fs');
 const { JSDOM, VirtualConsole } = require(path.join(__dirname, 'node_modules', 'jsdom'));
-const BASE = (process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (require('fs').existsSync(require('path').join(__dirname, '..', 'site', 'graph.html')) ? (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/' : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/'));
+const BASE = (process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (require('fs').existsSync(require('path').join(__dirname, '..', 'site', 'graph.html')) ? (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/' : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/'));
 /* 容错读文件：CHANGELOG.md 等可选文件缺失时按空串处理，不让整条测试崩掉 */
 function rt(f){ try { return fs.readFileSync(BASE+f,'utf8'); } catch(e) { return ''; } }
 const sleep = ms => new Promise(r => setTimeout(r, ms));

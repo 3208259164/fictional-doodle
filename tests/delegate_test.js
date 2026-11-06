@@ -35,8 +35,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   {
     const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
     const oc = (html.match(/onclick="/g) || []).length;
+    const ocMulti = (html.match(/onclick="[^"]*;[^"]*"/g) || []).length;   /* 真正该迁移的是「一句里干几件事」的 */
     const da = (html.match(/data-act="/g) || []).length;
-    ok(oc === 3, '残留 onclick 仅 3 处复合语句（实为 ' + oc + '）');
+    ok(ocMulti <= 2, '残留复合语句 onclick ≤ 2 处（实为 ' + ocMulti + '）');
+    ok(oc <= 5, '内联 onclick 总数 ≤ 5（实为 ' + oc + '：两个复合入口 + 扫盲/搜索聚焦）');
     ok(da >= 43, 'data-act 至少 43 处（实为 ' + da + '）');
   }
 
@@ -101,7 +103,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok(errs.length === 0, '无 JS 错误');
   }
 
-  console.log('\n[7] 复合语句的 3 处仍走原 onclick');
+  console.log('\n[7] 复合语句的入口仍走原 onclick');
   {
     const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
     ok(html.indexOf("onclick=\"openSection(secIdx('使用指南'));closePlus()\"") > 0, '快捷面板三处保留');

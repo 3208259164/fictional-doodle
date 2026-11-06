@@ -5,7 +5,7 @@
             无重复 id、地理落点齐全、渲染链路能把要点显示出来。 */
 const path = require('path'), fs = require('fs');
 const { JSDOM, VirtualConsole } = require(path.join(__dirname, 'node_modules', 'jsdom'));
-const BASE = (process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')) + '/');
+const BASE = (process.env.YZY_SITE ? process.env.YZY_SITE.replace(/\/?$/, '/') : (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site')).replace(/\/+$/, '') + '/');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const IGN = m => /scrollTo|Not implemented/.test(m || '');
 function fakeCtx() { return new Proxy({}, { get(t, p) { if (p === 'measureText') return () => ({ width: 10 }); if (p === 'createLinearGradient' || p === 'createRadialGradient') return () => ({ addColorStop() {} }); if (p === 'canvas') return { width: 1, height: 1 }; if (typeof p === 'string' && /^(font|fillStyle|strokeStyle|lineWidth|globalAlpha|shadowBlur|shadowColor|textAlign|textBaseline|lineDashOffset|lineJoin|lineCap|miterLimit|globalCompositeOperation|filter)$/.test(p)) return undefined; return function () {}; }, set() { return true; } }); }
@@ -20,6 +20,7 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
   });
   const w = dom.window, d = w.document;
   w.addEventListener('error', e => { const m = (e.error && e.error.stack || e.message) || ''; if (IGN(m)) return; errs.push(m); });
+  require('./_lazy_hook')(dom.window, BASE);   /* 图谱数据是动态注入的，jsdom 需要真的加载 */
   await sleep(900);
   let fail = 0; const ok = (n, c, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + n + (x ? (' — ' + x) : '')); if (!c) fail++; };
 
