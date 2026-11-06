@@ -29,9 +29,14 @@ const read = p => { try { return fs.readFileSync(path.join(root, p), 'utf8'); } 
 const exists = p => { try { return fs.statSync(path.join(root, p)).isFile(); } catch (e) { return false; } };
 
 let acorn = null, acornVer = '';
-for (const c of ['acorn', path.join(root, 'node_modules/acorn'), '/sandbox/workspace/qa/node_modules/acorn',
-  '/sandbox/workspace/toolchain/js/node_modules/acorn',
-  '/sandbox/workspace/output/yuanziyuan-modern/node_modules/acorn']) {
+// 依赖解析顺序：ACORN_PATH 环境变量 > 常规 require > 本站 node_modules > tools/node_modules
+// （不在代码里写死开发机绝对路径，否则 CI 与其他机器上直接降级成「正则粗测」）
+for (const c of [
+  ...(process.env.ACORN_PATH ? [process.env.ACORN_PATH] : []),
+  'acorn',
+  path.join(root, 'node_modules/acorn'),
+  path.join(root, 'tools/node_modules/acorn'),
+]) {
   try {
     const m = require(c);
     if (m && m.parse) {
@@ -187,7 +192,7 @@ const bad = [];
 called.forEach((c, n) => { if (!declared.has(n) && !BUILTIN.has(n) && !VENDOR.has(n)) bad.push(n); });
 if (!acorn) {
   console.log('  ⚠️⚠️ 严重：未找到 acorn → 已降级为「正则粗测」，下面 A/C/D 项全是误报，请勿据此改代码！');
-  console.log('     修复：npm i --prefix /sandbox/workspace/qa acorn，或把 acorn 放进任一搜索路径。');
+  console.log('     修复：cd ' + path.join(root, 'tools') + ' && npm i（按 package.json 装 acorn），或设 ACORN_PATH=<acorn 目录>。');
   console.log('  · 以下仅为粗测结果：');
   const re = /(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g;
   const found = new Map();

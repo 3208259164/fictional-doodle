@@ -1,0 +1,11 @@
+{
+  "name": "xuetong-tests",
+  "private": true,
+  "description": "学通回归测试（jsdom）。跑法：npm i && node run_all.js --site ../site",
+  "scripts": {
+    "test": "node run_all.js --site ../site"
+  },
+  "dependencies": {
+    "jsdom": "^29.1.1"
+  }
+}

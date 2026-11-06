@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: 校验与测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装校验依赖（acorn）
+        run: cd site/tools && npm i --no-audit --no-fund
+
+      - name: 门禁（版本 / 预缓存 / 语法 / 数据 / 代码）
+        run: python3 site/tools/check_all.py --quick
+
+      - name: 安装测试依赖（jsdom）
+        run: cd tests && npm i --no-audit --no-fund
+
+      - name: 回归测试
+        run: node tests/run_all.js --site site
+
+      - name: 体积报告（不阻断）
+        run: |
+          echo "### 站点体积" >> $GITHUB_STEP_SUMMARY
+          du -sh site site/data site/assets site/lib 2>/dev/null | sed 's/^/  /' >> $GITHUB_STEP_SUMMARY || true

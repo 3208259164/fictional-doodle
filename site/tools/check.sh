@@ -65,7 +65,7 @@ else
     echo "（跳过：缺少 tools/regress_site.mjs）"
   else
     SERVE=""
-    for cand in tools/serve.py /sandbox/workspace/serve.py; do [ -f "$cand" ] && SERVE="$cand"; done
+    for cand in tools/serve.py "$(dirname "$0")/serve.py"; do [ -f "$cand" ] && SERVE="$cand"; done
     if [ -n "$SERVE" ]; then
       python3 "$SERVE" "$PORT" "$SITE" >/tmp/yzy_check_server.log 2>&1 &
     else

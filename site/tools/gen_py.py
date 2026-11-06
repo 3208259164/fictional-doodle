@@ -7,7 +7,9 @@
 """
 import json, os, re, subprocess, sys
 import sys as _sys
-for _p in ('/sandbox/workspace/pylibs',):
+_here = os.path.dirname(os.path.abspath(__file__))
+for _p in (os.environ.get('PYPINYIN_LIBS', ''), os.path.join(_here, 'pylibs')):
+    if not _p: continue
     if _p not in _sys.path:
         _sys.path.insert(0, _p)
 from pypinyin import lazy_pinyin

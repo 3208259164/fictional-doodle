@@ -1,54 +1,54 @@
-# site/tools/ — 维护者用的辅助脚本
+# 学通 · 站点工具
 
-这些脚本用来**维护站点内容与代码质量**，不参与运行时，也不会被 App 调用。
-放在 `site/tools/` 里是为了跟着站点走，改了数据顺手能验证。
+这里放**长期要用**的脚本。文件名以下划线开头、或叫 `verify_*.mjs` / `shot_*.mjs` / `probe_*.mjs`
+的那批是**一次性诊断脚本**（当初排查某个具体问题时写的），留作参考，不参与构建与校验，
+不要指望它们在任何机器上都能跑。
 
-## 体检 / 校验
-
-| 脚本 | 作用 | 依赖 |
-|---|---|---|
-| `audit_code.js` | 用 acorn 语法树做静态体检：悬空函数调用、只定义未调用、重复定义、重复 id、无用资源、未引用的 CSS 类 | `npm i acorn` |
-| `audit_data.js` | 数据结构体检（字段缺失、类型错误、引用不存在的 id） | 无 |
-| `validate_data.js` | 校验书目 / 图谱 / 分类数据完整性，可当 CI 门禁 | 无 |
-| `check_resources.js` | 检查书库条目里没有被引用的字段与失效链接 | 无 |
-| `check.sh` | 一键跑上面几项 + 起本地服务预览 | 无 |
-
-## 生成
+## 长期脚本（CI 会跑这几个）
 
 | 脚本 | 作用 | 依赖 |
 |---|---|---|
-| `gen_resources.js` | 由原始书目清单生成 `data/resources.js` | 无 |
-| `gen_pages.js` | 生成静态栏目页 | 无 |
-| `gen_feed.js` | 生成 `feed.xml` | 无 |
-| `gen_avatars.js` | 批量处理头像（裁剪 + 转 webp 保留 alpha） | ImageMagick |
-| `gen_py.py` | 生成拼音检索表 `data/py.js` | `pip install pypinyin` |
-| `build_graph3d.js` | 由主图谱生成 3D 用的数据集 `data/graph3d.js` | 无 |
-| `gen_snapshot.py` | 把整个工程打成一个可还原的 Markdown 快照 | 无 |
+| `validate_data.js` | 数据结构校验：分类、字段、引用 | 无 |
+| `audit_data.js` | 数据体检：坐标范围、头像文件、id 唯一 | 无 |
+| `check_resources.js` | 书库条目完整性（链接、正文、来源） | 无 |
+| `audit_code.js` | 代码体检：悬空调用 / 死函数 / 重复 id / 无用资源（acorn 语法树） | `acorn` |
+| `sync_version.py` | **版本号唯一真相源**：把 `version.json` 写进 config.js / sw.js / README / `.last_code` | Python 3 |
+| `gen_sw_core.py` | **自动生成** `sw.js` 的预缓存清单（CORE），并校验清单里的文件都存在 | Python 3 |
+| `verify_apk.py` | 包内验证（第三层）：站点是否完整进包、版本对齐、签名指纹 | 可选 aapt2/apksigner |
+| `gen_py.py` | 重建 `data/py.js` 拼音索引 | `pypinyin` |
+| `gen_snapshot.py` | 生成给 AI 读的源码快照 | Python 3 |
+| `serve.py` | 本地预览静态站点 | Python 3 |
+| `check.sh` | 一键跑上面几项 | 视上面而定 |
 
-## 数据补充（一次性/增量脚本）
+## 版本号怎么改（只改一个地方）
 
-`add_main_people.js`、`add_world_events.js`、`link_world_events.js`、`fill_meta.js`、`find_sources.js`
-—— 都是「往数据里补一批条目」的脚本，跑完即弃，保留是为了留痕（能看出某个字段是哪一批加进来的）。
+```bash
+# 升到 0.18.29 / versionCode 310 / 站点 0.37.13
+python3 tools/sync_version.py --set app=0.18.29 --set code=310 --set site=0.37.13 --apply
 
-## 其他
+# 体检（不一致会列出来，退出码 1）
+python3 tools/sync_version.py --check
+```
 
-- `serve.py`：本地静态服务器（`python3 tools/serve.py 8080`），带正确的 MIME 与 SW 调试开关
-- `downlevel-lib.sh`：把第三方库降到老内核能解析的语法级别
-- `archive_changelog.py`：归档历史 CHANGELOG
+`version.json` 是唯一真相源。`data/config.js`、`sw.js` 的 `VERSION`、`README.md` 的版本行、
+`app/.last_code` 全部由它派生，**不要手改**。构建脚本在第一步就会校验一致性，不一致直接中止。
 
----
+## 预缓存清单怎么改
 
-## ⚠️ 关于路径
+```bash
+python3 tools/gen_sw_core.py --apply     # 按磁盘现状重新生成
+python3 tools/gen_sw_core.py --check     # 体检：漏收 / 多余 / 引用了但没进清单
+```
 
-部分脚本里写死了开发机上的绝对路径（`/sandbox/workspace/...`，指向 Node 依赖、
-Python 库、输出目录）。**在自己机器上跑之前请改成你的路径**，或者用环境变量覆盖。
+规则写在脚本顶部：页面 + HTML 静态引用的 js/css + `assets/` 全部 + `data/` 的小于 400 KB 的数据
++ 图标。`lib/`（3D 引擎）、`books/`、`images/`、`audio/`、`tools/` 不进预缓存。
+超过 400 KB 但确实必需的，加进脚本里的 `FORCE_CORE` 并写明理由。
 
-这不是刻意为之，是长期在固定环境里迭代留下的痕迹。要拿去跑 CI 的话，
-建议先改成「从脚本所在目录向上查找」的写法。
+## 依赖安装
 
-## 跑之前
+```bash
+cd tools && npm i        # 只装 acorn（audit_code.js 用）
+```
 
-- Node 脚本：`node >= 18`
-- `audit_code.js` 需要 `acorn`（`npm i acorn`，或放到任一 `node_modules` 里并被脚本找到）
-- `gen_py.py` 需要 `pypinyin`
-- 其余为纯标准库，无第三方依赖
+装在哪都行，脚本按 `ACORN_PATH` 环境变量 → 常规 `require` → `site/node_modules` →
+`site/tools/node_modules` 的顺序找。找不到会**明确警告并降级为正则粗测**，不会假装成功。

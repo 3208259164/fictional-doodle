@@ -15,7 +15,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 部署前先过一遍门禁：数据/代码/版本/预缓存清单。
+  # 以前是「推上去就直接发布」，一个坏掉的数据文件能直接上线。
+  checks:
+    name: 部署前校验
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 安装校验依赖
+        run: cd site/tools && npm i --no-audit --no-fund
+      - name: 门禁
+        run: python3 site/tools/check_all.py --quick
+
   deploy:
+    needs: checks
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

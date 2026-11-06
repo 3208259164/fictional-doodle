@@ -2530,7 +2530,7 @@ function chanDel(kEnc){
     try { localStorage.setItem('chanDels', JSON.stringify(del)); } catch(e){}
   }
   /* 回到频道列表 */
-  try { closeContent && closeContent(); } catch(e){}
+  if (window.closeContent) window.closeContent();   /* 回列表前先收掉详情页（当前无此函数，安全跳过） */
   if (typeof openChannel === 'function') openChannel();
   toast('已删除');
 }

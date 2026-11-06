@@ -1,0 +1,6 @@
+{
+  "_说明": "历史欠账基线：门禁不允许问题变多，但也不把既有问题变成红灯。数字下降了就把这里调小（check_all.py 会提醒）。",
+  "validate_data": { "max_problems": 0, "max_warns": 1 },
+  "audit_data": { "max_problems": 1, "max_warns": 0 },
+  "check_resources": { "max_problems": 35, "max_warns": 114 }
+}

@@ -23,11 +23,49 @@ set -euo pipefail
 # 用 C.UTF-8：既能保证排序/时间格式可复现，又能正确处理 UTF-8 文件名。
 export LC_ALL=C.UTF-8 TZ=UTC
 
-NAME="${NAME:?需要 NAME（如 NAME=0.17.52）}"
-CODE="${CODE:?需要 CODE（如 CODE=231）}"
 P="${P:-$(cd "$(dirname "$0")" && pwd)}"
-SITE="${SITE:-$P/../site_new}"
+
+# 站点目录：仓库里叫 site/，本地开发目录叫 site_new/ —— 自动探测，不再写死其中一个。
+if [ -z "${SITE:-}" ]; then
+  for cand in "$P/../site" "$P/../site_new"; do
+    if [ -f "$cand/index.html" ]; then SITE="$cand"; break; fi
+  done
+fi
+[ -n "${SITE:-}" ] || { echo "  ❌ 找不到站点目录（试过 ../site、../site_new），请传 SITE=/path" >&2; exit 1; }
+
+# 工具链：环境变量 > 工程同级 toolchain/ > 本机默认位置
+if [ -z "${TC:-}" ]; then
+  for cand in "$P/../toolchain" /sandbox/workspace/toolchain "$HOME/toolchain"; do
+    if [ -d "$cand" ]; then TC="$cand"; break; fi
+  done
+fi
 TC="${TC:-/sandbox/workspace/toolchain}"
+
+# 版本号：唯一真相源是 $SITE/version.json。NAME/CODE 可以不传；
+# 传了就必须与它一致，否则中止 —— 防止「README 写一个版本、包里是另一个」。
+VJ="$SITE/version.json"
+if [ -f "$VJ" ]; then
+  V_NAME=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8'))['versionName'])" "$VJ")
+  V_CODE=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8'))['versionCode'])" "$VJ")
+  V_SITE=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8'))['siteVersion'])" "$VJ")
+  if [ -n "${NAME:-}" ] && [ "$NAME" != "$V_NAME" ]; then
+    echo "  ❌ NAME=$NAME 与 version.json 的 $V_NAME 不一致" >&2
+    echo "     改版本：python3 $SITE/tools/sync_version.py --set app=$NAME --apply" >&2
+    exit 1
+  fi
+  if [ -n "${CODE:-}" ] && [ "$CODE" != "$V_CODE" ]; then
+    echo "  ❌ CODE=$CODE 与 version.json 的 $V_CODE 不一致" >&2
+    echo "     改版本：python3 $SITE/tools/sync_version.py --set code=$CODE --apply" >&2
+    exit 1
+  fi
+  NAME="${NAME:-$V_NAME}"
+  CODE="${CODE:-$V_CODE}"
+  SITE_VER="${SITE_VER:-$V_SITE}"
+else
+  echo "  ⚠️  站点里没有 version.json，回退到手工传 NAME/CODE" >&2
+fi
+NAME="${NAME:?需要 NAME（可在 version.json 里写 versionName，或用 sync_version.py 改）}"
+CODE="${CODE:?需要 CODE（可在 version.json 里写 versionCode，或用 sync_version.py 改）}"
 BT="${BT:-$TC/build-tools-36}"
 AJ="${AJ:-$TC/android-sdk/platforms/android-36/android.jar}"
 R8="${R8:-$TC/r8.jar}"
@@ -50,6 +88,20 @@ die() { printf '  ❌ %s\n' "$*" >&2; exit 1; }
 
 for f in "$BT/aapt2" "$AJ" "$R8" "$ESBUILD"; do [ -e "$f" ] || die "工具链缺件：$f"; done
 
+say "[00/8] 一致性门禁（版本号 / 预缓存清单）"
+if [ -f "$SITE/tools/sync_version.py" ]; then
+  python3 "$SITE/tools/sync_version.py" --check --quiet \
+    || die "版本号不一致：先跑 python3 $SITE/tools/sync_version.py --apply"
+  ok "版本号一致（config.js / sw.js / version.json / .last_code）"
+fi
+if [ -f "$SITE/tools/gen_sw_core.py" ]; then
+  if ! python3 "$SITE/tools/gen_sw_core.py" --check > "$WORK/swcore.log" 2>&1; then
+    cat "$WORK/swcore.log" | sed 's/^/  /' >&2
+    die "预缓存清单与磁盘不一致：先跑 python3 $SITE/tools/gen_sw_core.py --apply（否则离线会缺文件）"
+  fi
+  ok "预缓存清单与磁盘一致"
+fi
+
 say "[0/8] 版本门禁"
 LAST=$(cat "$P/.last_code" 2>/dev/null || echo 0)
 if [ "$FORCE" != "1" ] && [ "$CODE" -le "$LAST" ]; then
@@ -57,22 +109,30 @@ if [ "$FORCE" != "1" ] && [ "$CODE" -le "$LAST" ]; then
 fi
 ok "NAME=$NAME CODE=$CODE（上次 $LAST）"
 
+# 临时构建目录：源码树在构建过程中**零写入**（除最后写 .last_code 这一处版本状态）。
+# 以前直接把站点复制进 $BUILD/assets/site、改写 $P/AndroidManifest.xml，
+# 构建一次 git 状态就脏一片，出问题时也分不清「源错了还是副本错了」。
+BUILD="$WORK/app"
+mkdir -p "$BUILD/assets"
+cp -a "$P/java" "$P/res" "$BUILD/"
+cp -a "$P/r8.pro" "$P/AndroidManifest.xml" "$BUILD/"
+
 say "[0b/8] 重新生成 assets/site（排除 tools/，HTML 注入 __YZV 与 ?v=$CODE）"
-python3 "$P/tools/inject_app_site.py" "$SITE" "$P/assets/site" "$CODE"
-N_SITE=$(find "$P/assets/site" -type f | wc -l)
+python3 "$P/tools/inject_app_site.py" "$SITE" "$BUILD/assets/site" "$CODE"
+N_SITE=$(find "$BUILD/assets/site" -type f | wc -l)
 ok "assets/site：$N_SITE 个文件"
 
 say "[0b+/8] 讲堂全文索引（data/jtfull.js，搜索用）"
 if [ -f "$P/../gen_jtfull.py" ]; then
   python3 "$P/../gen_jtfull.py" | sed 's/^/  /'
-  cp "$SITE/data/jtfull.js" "$P/assets/site/data/jtfull.js"
+  cp "$SITE/data/jtfull.js" "$BUILD/assets/site/data/jtfull.js"
   ok "jtfull.js 已同步到包内"
 else
   ok "无 gen_jtfull.py，跳过"
 fi
 
 say "[0a/8] 3D 引擎（ES2015 基线）"
-ENGINE="$P/assets/site/lib/3d-force-graph.min.js"
+ENGINE="$BUILD/assets/site/lib/3d-force-graph.min.js"
 [ -f "$ENGINE" ] || die "缺 $ENGINE"
 EB=$(stat -c%s "$ENGINE")
 if [ "$DOWNLEVEL" = "1" ]; then
@@ -87,13 +147,13 @@ else
 fi
 
 say "[0c/8] 站点 JS 压缩（只压产物，源码保持可读）"
-python3 "$P/tools/minify_site.py" "$P/assets/site" "$ESBUILD" | sed 's/^/  /' || ok "压缩失败，改用未压缩文件"
+python3 "$P/tools/minify_site.py" "$BUILD/assets/site" "$ESBUILD" | sed 's/^/  /' || ok "压缩失败，改用未压缩文件"
 
 say "[0d/8] 固定时间戳（可复现构建）"
-find "$P/assets/site" -exec touch -h -d @$SOURCE_DATE_EPOCH_FIXED {} +
+find "$BUILD/assets/site" -exec touch -h -d @$SOURCE_DATE_EPOCH_FIXED {} +
 
 say "[1/8] 写版本号"
-python3 - "$P/AndroidManifest.xml" "$NAME" "$CODE" <<'PY'
+python3 - "$BUILD/AndroidManifest.xml" "$NAME" "$CODE" <<'PY'
 import re, sys
 p, name, code = sys.argv[1], sys.argv[2], sys.argv[3]
 s = open(p, encoding='utf-8').read()
@@ -103,7 +163,7 @@ open(p, 'w', encoding='utf-8').write(s)
 print('  ✅ AndroidManifest：versionCode=%s versionName=%s' % (code, name))
 PY
 if [ -n "$SITE_VER" ]; then
-  python3 - "$P/assets/site/data/config.js" "$SITE_VER" <<'PY'
+  python3 - "$BUILD/assets/site/data/config.js" "$SITE_VER" <<'PY'
 import re, sys
 p, ver = sys.argv[1], sys.argv[2]
 s = open(p, encoding='utf-8').read()
@@ -112,12 +172,12 @@ open(p, 'w', encoding='utf-8').write(s2)
 print('  ✅ data/config.js version=%s' % ver)
 PY
 else
-  CUR=$(grep -oE "version[[:space:]]*:[[:space:]]*'[^']*'" "$P/assets/site/data/config.js" | head -1 | grep -oE "'[^']*'" | tr -d "'")
+  CUR=$(grep -oE "version[[:space:]]*:[[:space:]]*'[^']*'" "$BUILD/assets/site/data/config.js" | head -1 | grep -oE "'[^']*'" | tr -d "'")
   ok "站点版本沿用 $CUR（要改就传 SITE_VER=）"
 fi
-SWVER=$(grep -oE "const VERSION *= *'[^']*'" "$P/assets/site/sw.js" | head -1 | grep -oE "v[0-9]+")
+SWVER=$(grep -oE "const VERSION *= *'[^']*'" "$BUILD/assets/site/sw.js" | head -1 | grep -oE "v[0-9]+")
 if [ "$SW_SYNC" = "1" ]; then
-  python3 - "$P/assets/site/sw.js" "v$CODE" <<'PY'
+  python3 - "$BUILD/assets/site/sw.js" "v$CODE" <<'PY'
 import re, sys
 p, v = sys.argv[1], sys.argv[2]
 s = open(p, encoding='utf-8').read()
@@ -125,17 +185,21 @@ s = re.sub(r"(const VERSION\s*=\s*')[^']*(')", r"\g<1>%s\g<2>" % v, s, count=1)
 open(p, 'w', encoding='utf-8').write(s)
 print('  ✅ sw.js VERSION=%s（SW_SYNC=1 强制同步）' % v)
 PY
+elif [ "$SWVER" != "v$CODE" ]; then
+  # 这条是真出过事的：0.18.28 的包里 sw.js 还是 v302（源码手写值没跟着 CODE 走）。
+  # 后果是用户升级后 Service Worker 仍命中旧缓存，界面看着「改了没生效」。
+  die "sw.js 缓存版本 $SWVER ≠ v$CODE：升级后会命中旧缓存。先跑 python3 $SITE/tools/sync_version.py --apply"
 else
-  ok "sw.js VERSION $SWVER（保留手写值；要跟 CODE 同步请传 SW_SYNC=1）"
+  ok "sw.js 缓存版本 $SWVER（与 versionCode 一致）"
 fi
 
 say "[2/8] aapt2 compile（--no-crunch：PNG 逐字节保留）"
-"$BT/aapt2" compile --no-crunch --dir "$P/res" -o "$WORK/res.zip"
+"$BT/aapt2" compile --no-crunch --dir "$BUILD/res" -o "$WORK/res.zip"
 ok "资源编译 $(stat -c%s "$WORK/res.zip") 字节"
 
 say "[3/8] aapt2 link"
 "$BT/aapt2" link -o "$WORK/base.apk" -I "$AJ" \
-  --manifest "$P/AndroidManifest.xml" -A "$P/assets" \
+  --manifest "$BUILD/AndroidManifest.xml" -A "$BUILD/assets" \
   --java "$WORK/gen" \
   --min-sdk-version 29 --target-sdk-version 36 \
   --version-code "$CODE" --version-name "$NAME" \
@@ -145,7 +209,7 @@ ok "base.apk $(stat -c%s "$WORK/base.apk") 字节"
 say "[4/8] javac（-source 8 -target 8，classpath=android.jar）"
 mkdir -p "$WORK/classes"
 javac -source 8 -target 8 -nowarn -encoding UTF-8 -classpath "$AJ" \
-  -d "$WORK/classes" $(find "$P/java" -name '*.java') "$WORK/gen/com/yuanziyuan/app/R.java" 2>&1 \
+  -d "$WORK/classes" $(find "$BUILD/java" -name '*.java') "$WORK/gen/com/yuanziyuan/app/R.java" 2>&1 \
   | grep -vE '警告|warning|^注:|^Note:' || true
 [ -f "$WORK/classes/com/yuanziyuan/app/MainActivity.class" ] || die "javac 未产出 MainActivity.class"
 NCLS=$(find "$WORK/classes" -name '*.class' | wc -l)
@@ -155,12 +219,13 @@ ok "编译 $NCLS 个 class"
 say "[5/8] R8（shrink + optimize，保留 JS 桥方法名）"
 mkdir -p "$WORK/r8out"
 java -cp "$R8" com.android.tools.r8.R8 --release --min-api 29 \
-  --lib "$AJ" --pg-conf "$P/r8.pro" \
-  --pg-map-output "$P/mapping-$NAME.txt" \
+  --lib "$AJ" --pg-conf "$BUILD/r8.pro" \
+  --pg-map-output "$WORK/mapping-$NAME.txt" \
   --output "$WORK/r8out" "$WORK/classes.jar" 2>&1 | grep -vE '^\s+at |^Info in|Proguard configuration rule' || true
 DEX="$WORK/r8out/classes.dex"
 [ -f "$DEX" ] || die "R8 未产出 classes.dex（发布模式不静默退回 d8）"
-ok "classes.dex $(stat -c%s "$DEX") 字节 ｜ 映射 mapping-$NAME.txt"
+cp "$WORK/mapping-$NAME.txt" "$P/mapping-$NAME.txt"
+ok "classes.dex $(stat -c%s "$DEX") 字节 ｜ 映射已归档 mapping-$NAME.txt"
 # ★ 必须校验 @JavascriptInterface 注解还在（0.18.25）：
 #   注解被 R8 裁掉时，方法名仍然保留、大小也不变，但网页拿到的 AndroidApp 是个空壳——
 #   朗读/导入/导出/分享/返回键全部失效，而且从包外面看不出来。

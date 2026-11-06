@@ -1,0 +1,15 @@
+{
+  "name": "xuetong-site-tools",
+  "private": true,
+  "description": "学通站点校验脚本的依赖（只有代码体检需要，其余脚本零依赖）",
+  "version": "1.0.0",
+  "scripts": {
+    "check": "node audit_code.js . --strict",
+    "check:data": "node validate_data.js && node audit_data.js && node check_resources.js",
+    "check:sw": "python3 gen_sw_core.py --check",
+    "check:ver": "python3 sync_version.py --check"
+  },
+  "devDependencies": {
+    "acorn": "^8.11.3"
+  }
+}

@@ -80,14 +80,15 @@ xuetong/
 │   ├── lib/                   # 第三方库（3d-force-graph 等）
 │   ├── images/ icons/         # 站点图形资源
 │   ├── sw.js                  # Service Worker 离线缓存
-│   └── tools/                 # 代码体检 / 数据校验脚本
+│   └── tools/                 # 校验脚本 + 版本/预缓存清单生成器
+├── tests/                     # 回归测试（jsdom，由 CI 运行）
 └── app/                       # Android 工程
     ├── build.sh               # 一键构建（aapt2 + javac + R8 + zipalign + apksigner）
     ├── AndroidManifest.xml
     ├── r8.pro                 # R8 保留规则（混淆配置）
     ├── java/                  # MainActivity 等（零第三方依赖）
     ├── res/                   # 图标、主题
-    └── tools/verify_apk.sh    # 产物自检（62 项）
+    └── tools/verify_release.py # 交付自检（字节/版本/站点版本/JS 桥注解）
 ```
 
 ---
@@ -108,6 +109,21 @@ python3 -m http.server 8080
 
 部署到任何静态托管（Netlify / Vercel / GitHub Pages / Nginx）直接上传 `site/` 目录即可，`netlify.toml` 与 `_headers` 已带好缓存策略。
 
+### 本地校验（等价于 CI）
+
+```bash
+python3 site/tools/check_all.py            # 版本 / 预缓存 / 语法 / 数据 / 代码 / 回归测试
+python3 site/tools/check_all.py --quick    # 跳过需要 jsdom 的回归测试
+
+node tests/run_all.js --site site          # 只跑测试
+python3 site/tools/gen_sw_core.py --check  # 只查预缓存清单
+python3 site/tools/sync_version.py --check # 只查版本一致性
+```
+
+门禁的判断原则是「**没跑**和**跑过了**必须能区分」：解析不到断言数就算失败，
+已知的历史欠账记在 `site/tools/check-baseline.json` 与 `tests/known-failing.txt`，
+只允许变少、不允许变多。
+
 ### 构建 APK
 
 需要准备（都不进仓库）：
@@ -125,7 +141,6 @@ python3 -m http.server 8080
 
 ```bash
 cd app
-NAME=1.0.0 CODE=1 \
 BT=/path/to/build-tools \
 AJ=/path/to/platforms/android-36/android.jar \
 R8=/path/to/r8.jar \
@@ -133,20 +148,38 @@ KS=/path/to/your.keystore KS_PW=你的口令 \
 bash build.sh
 ```
 
+`NAME` / `CODE` **可以不传** —— 它们从 `site/version.json` 读取（唯一的版本真相源）。
+传了就必须与它一致，否则构建中止（防止「文档写一个版本、包里是另一个」）。
+
+改版本只改一个地方：
+
+```bash
+python3 site/tools/sync_version.py --set app=1.0.1 --set code=11 --set site=0.1.1 --apply
+```
+
 构建脚本会自动：
 
 > `CODE` 必须大于仓库里的 `app/.last_code`（历史上用过的最大 versionCode），否则构建会在第一步中止 —— 这是为了防止出现「新包版本号比旧包小、用户装不上」的降级事故。
-1. 把 `../site` 复制进 `assets/site`（站点是唯一真源，不在 App 里手改副本）
-2. 对齐 `sw.js` 的缓存版本号与构建号
-3. 编译、压缩、混淆、对齐、签名
+1. 校验版本号与预缓存清单一致（不一致直接中止，给出修复命令）
+2. 把 `../site` 复制进**临时目录**（源码树零写入），站点是唯一真源
+3. 校验 `sw.js` 缓存版本 == 构建号（不等则中止：否则升级后会命中旧缓存）
+4. 校验 R8 产物里 `@JavascriptInterface` 注解还在（被裁掉 = 所有 App 功能变空壳）
+5. 编译、压缩、混淆、对齐、签名
 
 不签名（例如给 F-Droid 或自己做可复现构建）加 `UNSIGNED=1`。
 
 构建完自检：
 
 ```bash
-bash tools/verify_apk.sh 学通-1.0.0.apk
+# 本地产物
+python3 tools/verify_release.py 学通-1.0.1.apk
+
+# 或者直接核对下载链接（发出去之前自己先按用户的方式取一遍）
+python3 tools/verify_release.py --url <下载链接> --sha <期望的 sha256>
 ```
+
+它会核对：字节与 SHA-256、versionCode/Name、minSdk/targetSdk、无 INTERNET 权限、
+包内站点版本、包内 `sw` 缓存版本、预缓存清单文件是否齐全、JS 桥注解数量。全过才打印 PASS。
 
 ---
 
