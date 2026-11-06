@@ -2,7 +2,7 @@
 
 > 一个离线的马克思主义理论学习 App：书库 + 关系图谱 + 史料 + 离线问答，全部本地运行，不联网、不注册、不上传。
 
-**当前版本：v0.18.28（versionCode 309）｜ 站点 0.37.12 ｜ 要求 Android 10+**
+**当前版本：v0.18.29（versionCode 310）｜ 站点 0.37.13 ｜ 要求 Android 10+**
 
 学通把「读原著、看关系、考理解」三件事放在同一个离线应用里。站点用纯静态 HTML/CSS/JS（无框架、无构建依赖），Android 客户端用原生 WebView 壳，Java 侧零第三方依赖（仅 Android framework）。
 
@@ -26,15 +26,15 @@
 
 ```bash
 # 任选其一
-curl -L -o xuetong.apk "https://ghproxy.net/https://github.com/3208259164/fictional-doodle/releases/download/v0.18.28/xuetong-0.18.28.apk"
-curl -L -o xuetong.apk "https://gh-proxy.com/https://github.com/3208259164/fictional-doodle/releases/download/v0.18.28/xuetong-0.18.28.apk"
+curl -L -o xuetong.apk "https://ghproxy.net/https://github.com/3208259164/fictional-doodle/releases/download/v0.18.29/xuetong-0.18.29.apk"
+curl -L -o xuetong.apk "https://gh-proxy.com/https://github.com/3208259164/fictional-doodle/releases/download/v0.18.29/xuetong-0.18.29.apk"
 
 # 校验（应与 Release 说明里的 SHA-256 一致）
 sha256sum xuetong.apk
 ```
 
 > 第三方代理存在被篡改、甚至传输提前截断的可能，**只认 SHA-256，不看来源**。
-> 已实测 v0.18.28 经 `gh-proxy.com` 完整下载（3,631,545 字节）且逐字节一致；若某个代理下回来的大小不对，换另一个重试即可。
+> 已实测 v0.18.29 经 `gh-proxy.com` 完整下载（3,631,615 字节，SHA-256 `e3a5e431…4113f0`）且逐字节一致；若某个代理下回来的大小不对，换另一个重试即可。
 
 > **升级提示**：versionCode 严格递增（构建脚本会拒绝小于历史最大值的构建），因此新包总能覆盖旧包。
 > 应用不申请 INTERNET 权限，无法联网上传任何东西。

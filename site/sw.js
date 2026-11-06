@@ -8,7 +8,7 @@
      页面导航 = network-first（带超时，失败回退缓存，再失败回退 offline.html）。
    · sw.js 由 _headers 设定 no-cache；注册时 updateViaCache:'none'（见 app.js）。
    ------------------------------------------------------------------ */
-const VERSION = 'v309';
+const VERSION = 'v310';
 const SHELL = 'yuanziyuan-' + VERSION;      // 应用外壳缓存
 const RUNTIME = 'yuanziyuan-rt-' + VERSION; // 运行时缓存
 const OFFLINE = './offline.html';
