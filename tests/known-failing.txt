@@ -2,9 +2,10 @@
 # CI 不会因它们变红，但也不许「变多」——名单外的新失败一律阻断。
 # 修好一个就从这里删掉（run_all.js 会提示）。
 #
-graph_years_test.js       同上：世界图谱懒加载
+# 2026-11-06：graph_years_test.js 已删除——它断言的是 11-02 重构前的 toggleYears/#yearbar，
+# 功能本身由新写的 time_range_test.js 覆盖（区间模型 / 淡化比例 / 播放 / 无年份兜底）。
+#
 graph_wenge_render_test.js 同上
-enhance_test.js           时间轴 API 改名后部分断言仍指向旧函数，需重写
 graph_draw_audit_test.js  图谱数据懒加载，等待条件仍需按新加载流程重写
 e2e_01718_test.js         新增模块后页面脚本变多，测试的加载器漏了新文件
 answer_import_test.js     YZStudy.importAnswers 改为懒加载后未暴露 _parseAnswerText
