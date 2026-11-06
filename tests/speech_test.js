@@ -103,7 +103,9 @@ function longText(n) {
     const { w } = newWin({});
     ok('① 无桥无合成 → available() 为 false', w.YZSPEECH.available() === false);
     const st = w.YZSPEECH.status();
-    ok('① 无桥无合成 → status() 说明不支持', /不支持语音朗读/.test(st), st);
+    // 0.18.26 起 status() 会区分「桥在但没接口」与「压根没拿到桥」两种情况，
+    // 两种文案都算「说清楚了为什么不支持」。
+    ok('① 无桥无合成 → status() 说明不支持', /不支持|没拿到 App 桥/.test(st), st);
     const r = w.YZSPEECH.speak('测试文字');
     ok('① 无桥无合成 → speak() 返回 false', r === false);
     ok('① 无桥无合成 → 有 toast 提示', w.__toasts.length >= 1, w.__toasts.join('|'));

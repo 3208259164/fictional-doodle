@@ -23,7 +23,8 @@ const w = dom.window, d = w.document;
 let fail = 0;
 const ok = (n, c, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + n + (x !== undefined ? (' — ' + x) : '')); if (!c) fail++; };
 
-setTimeout(() => {
+const { waitData } = require('./_lazy_hook')(w, SITE);   /* 编辑/术语等数据按需注入，jsdom 要真加载 */
+waitData(() => {
   try {
     /* ---------- ① 给人物加书：完成之后页面上要能看到 ---------- */
     const nodes = w.allGraphNodes();
@@ -99,4 +100,4 @@ setTimeout(() => {
     console.log('✗ 运行出错：', e.message, (e.stack || '').split('\n')[1]);
     process.exit(1);
   }
-}, 2000);
+});

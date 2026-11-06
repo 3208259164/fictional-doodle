@@ -94,6 +94,13 @@ function loadPage(file, url, seed, before) {
   return { dom, w: dom.window, d: dom.window.document, errors };
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+/* 等条件成立再继续：机器慢/负载高时，固定 sleep 会偶发不够（本地 163 项 vs 181 项那次就是它）。
+   判据是「该在的东西到了」，不是「过了多久」。 */
+async function until(fn, ms, step) {
+  const t0 = Date.now(), lim = ms || 10000;
+  while (Date.now() - t0 < lim) { try { if (fn()) return true; } catch (e) {} await sleep(step || 50); }
+  return false;
+}
 const SEED_ON = { v: 3, editor: { enabled: true, userSet: true } };
 const SEED_OFF = { v: 3, editor: { enabled: false, userSet: true } };
 function mkRunner(name) {
@@ -125,6 +132,8 @@ async function suiteEditor() {
   w.addEventListener('error', e => errs.push('window.error: ' + (e.error && e.error.stack || e.message)));
   for (const f of FILES) { try { w.eval(fs.readFileSync(BASE + f, 'utf8')); } catch (e) { errs.push('EVAL ' + f + ': ' + e.message); } }
   await sleep(700);
+  // 高负载下 700ms 有时不够：再等到 boot 钩子真的挂上为止（最多再多等 8 秒）
+  await until(() => typeof w.__yzEditorBoot === 'function', 8000);
 
   R.section('★ 默认关闭（新需求）');
   R.ok(w.YZY.editorEnabled() === false, '首次默认：自助编辑=关闭');
@@ -343,7 +352,10 @@ async function suitePage() {
   R.ok(w.selfEditOn() === true, '开关状态函数 selfEditOn 与 YZY 一致（已开启）');
   w.toggleSelfEdit(); R.ok(w.YZY.editorEnabled() === false && w.selfEditOn() === false, 'toggleSelfEdit 关闭并同步状态');
   w.toggleSelfEdit(); R.ok(w.YZY.editorEnabled() === true, '再切换回开启');
-  w.YZY.setEditorEnabled(true); w.__yzEditorBoot();
+  w.YZY.setEditorEnabled(true);
+  // editor.js 是懒加载的：整页冒烟时必须等 boot 钩子到位，否则这条会偶发抛错
+  await until(() => typeof w.__yzEditorBoot === 'function', 8000);
+  w.__yzEditorBoot();
   w.openSelfEdit(); const wrap = d.getElementById('zzyWrap');
   R.ok(!!wrap && wrap.classList.contains('open'), '设置里「打开编辑器」能打开面板');
   R.ok(String(wrap.getAttribute('style') || '').indexOf('inset') < 0, '编辑器面板未使用 inset 简写（旧内核兼容）');

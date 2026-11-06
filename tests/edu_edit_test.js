@@ -25,7 +25,8 @@ const w = dom.window;
 const R = [];
 const ok = (n, c, x) => R.push([c, n, x]);
 
-setTimeout(() => {
+const { waitData } = require('./_lazy_hook')(w, SITE);   /* 编辑/术语等数据按需注入，jsdom 要真加载 */
+waitData(() => {
   try {
     w.YZY.setEditorEnabled(true);
     ok('① openEduEdit 已定义', typeof w.openEduEdit === 'function');
@@ -162,4 +163,4 @@ setTimeout(() => {
   });
   console.log(`\n—— 史料四类编辑：失败 ${bad} / 断言 ${R.length}`);
   process.exit(bad ? 1 : 0);
-}, 900);
+});

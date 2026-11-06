@@ -7,14 +7,6 @@ graph_wenge_render_test.js 同上
 enhance_test.js           时间轴 API 改名后部分断言仍指向旧函数，需重写
 graph_draw_audit_test.js  图谱数据懒加载，等待条件仍需按新加载流程重写
 e2e_01718_test.js         新增模块后页面脚本变多，测试的加载器漏了新文件
-ui_click_test.js          按钮文案/结构变过（我的文件、诊断导出）
-edit_visible_test.js      入口改名
-edu_edit_test.js          编辑弹层结构变过
-person_edit_test.js       同上
-term_edit_test.js         同上
-figures_edit_test.js      同上
 answer_import_test.js     YZStudy.importAnswers 改为懒加载后未暴露 _parseAnswerText
-speech_test.js            朗读改为「长按选段」后按钮结构变化
-exportdata_test.js        导出改「文件通道」后 4 条断言仍在断言旧 blob 流程
 chan_book_test.js         频道数据量变化（断言写死了旧数量）
 yearbook_test.js          年鉴功能正常；仅「1516 年能看到空想社会主义」这条内容断言与当前数据归属不一致，待人工核对

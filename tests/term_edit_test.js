@@ -19,7 +19,8 @@ const dom = new JSDOM(html, {
   }
 });
 const w = dom.window, d = w.document;
-setTimeout(() => {
+const { waitData } = require('./_lazy_hook')(w, SITE);   /* 编辑/术语等数据按需注入，jsdom 要真加载 */
+waitData(() => {
   let fail = 0; const ok = (n, c, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + n + (x ? (' — ' + x) : '')); if (!c) fail++; };
   const Y = w.YZY;
   ok('YZY 覆盖层 API 齐全', !!(Y && Y.editTerm && Y.addTerm && Y.removeTerm && Y.importTerms));
@@ -97,4 +98,4 @@ setTimeout(() => {
 
   console.log(fail ? `\n失败 ${fail} 项` : '\n全部通过');
   process.exit(fail ? 1 : 0);
-}, 1600);
+});

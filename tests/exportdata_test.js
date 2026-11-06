@@ -47,8 +47,10 @@ function mkEnv(opts) {
   /* 桥：有/无 AndroidApp 两种 */
   if (opts.bridge) {
     w.__bridge = [];
+    // 0.18.28 起导出统一走「文件通道」：AndroidApp.shareFile(文件名, base64, mime)
+    // 再由系统「用其他应用打开 / 保存」面板落地（saveBase64 只作为旧接口保留）
     w.AndroidApp = {
-      saveBase64: function (name, b64, mime) {
+      shareFile: function (name, b64, mime) {
         w.__bridge.push({ name: name, b64: b64, mime: mime });
         if (opts.bridgeThrow) throw new Error('bridge-boom');
       }
@@ -236,7 +238,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const expect = C.w.YZEXPORT.allMd();
   const b64 = C.w.__bridge[0] || {};
   const decoded = b64.b64 ? decodeURIComponent(escape(Buffer.from(b64.b64, 'base64').toString('binary'))) : '';
-  ok('⑩ 有桥时优先走 AndroidApp.saveBase64', chC === 'app' && C.w.__bridge.length === 1, chC);
+  ok('⑩ 有桥时优先走 AndroidApp.shareFile（文件通道）', (chC === 'share' || chC === 'app') && C.w.__bridge.length === 1, chC);
   ok('⑩ 桥参数：文件名 / mime / base64 内容正确',
     b64.name === '学通-笔记-' + today + '.md' && /text\/markdown/.test(b64.mime || '') && decoded === expect,
     (b64.name || '') + ' ' + (b64.mime || '') + ' len=' + decoded.length);

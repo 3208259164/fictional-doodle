@@ -16,7 +16,8 @@ const dom = new JSDOM(html, { runScripts:'dangerously', url:'https://local.test/
   }});
 const w = dom.window; const R = []; const ok = (n,c,x) => R.push([c,n,x]);
 
-setTimeout(() => {
+const { waitData } = require('./_lazy_hook')(w, SITE);   /* 编辑/术语等数据按需注入，jsdom 要真加载 */
+waitData(() => {
   try {
     ok('自助编辑开关默认是关的', w.YZY.editorEnabled() === false);
 
@@ -73,4 +74,4 @@ setTimeout(() => {
   for (const [c,n,x] of R) { console.log(`  ${c?'✓':'✗'} ${n}${x!==undefined?'  → '+x:''}`); c?p++:f++; }
   console.log(`\n结果：通过 ${p} 项，失败 ${f} 项`);
   process.exit(f?1:0);
-}, 1500);
+});
