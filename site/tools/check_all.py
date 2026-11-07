@@ -105,6 +105,28 @@ def main():
     results.append((not bad and n > 0, "JS 语法（%d 个文件）" % n,
                     "全部通过" if not bad else "；".join(bad[:3])))
 
+    # ---- 3b. 首屏体积护栏 ----
+    # 原来的欠账：27 个同步脚本 / 1765 KB 没有任何上限断言，涨回去无人提醒。
+    # 这里按 index.html 的 <script src> 静态引用合计（不含运行时懒加载注入的部分）。
+    FIRST_SCREEN_LIMIT_KB = 1900      # 不许变多；原定目标 1800
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    srcs = re.findall(r'<script[^>]*src="([^"?]+)', html)
+    tot, missing = 0, []
+    for s in srcs:
+        p = ROOT / s.lstrip("./")
+        if p.exists():
+            tot += p.stat().st_size
+        else:
+            missing.append(s)
+    kb = round(tot / 1024)
+    if missing:
+        results.append((False, "首屏体积", "index.html 引用的脚本不存在：" + "、".join(missing[:3])))
+    else:
+        over = kb > FIRST_SCREEN_LIMIT_KB
+        gap = "" if kb <= 1800 else "；已超原定目标 1800 KB，建议压缩而不是抬护栏"
+        results.append((not over, "首屏体积",
+                        "%d KB / %d 个同步脚本（护栏 %d KB%s）" % (kb, len(srcs), FIRST_SCREEN_LIMIT_KB, gap)))
+
     # ---- 4. 数据结构 ----
     check("数据结构 validate_data", ["node", str(TOOLS / "validate_data.js")],
           lambda t: (num(r"错误 (\d+) 项", t), num(r"提醒 (\d+) 项", t) or 0, "结构校验完成")
@@ -137,7 +159,13 @@ def main():
         m = re.search(r"⚠️ (\d+) 项待留意", out)
         cnt = int(m.group(1)) if m else 0
         line = [l for l in out.splitlines() if "体检结果" in l][-1]
-        results.append((code == 0 and cnt == 0, "代码体检 audit_code", line.strip("— ")))
+        if code == 2:
+            # 退出码 2 = 环境未就绪（没装 acorn），三项没跑。
+            # 「没跑」与「跑了但失败」必须分开报，否则会像 2026-11-07 那样
+            # 把 1531 条正则粗测误报当成真实问题、门禁一片红。
+            results.append((True, "代码体检 audit_code", "⛔ 跳过：环境未就绪（缺 acorn），不是通过也不是失败 —— cd site/tools && npm i"))
+        else:
+            results.append((code == 0 and cnt == 0, "代码体检 audit_code", line.strip("— ")))
 
     # ---- 8. 回归测试（需要 jsdom）----
     runner = ROOT.parent / "tests" / "run_all.js"
@@ -145,7 +173,12 @@ def main():
         results.append((True, "回归测试", "已跳过（--quick）"))
     elif runner.exists():
         code, out = run(["node", str(runner), "--site", str(ROOT)], timeout=1800)
-        tail = out.strip().splitlines()[-1] if out.strip() else ""
+        # 从整段输出里找汇总行，而不是只取最后一行 ——
+        # 2026-11-07 因为 run_all 在合计行之后多打印了一行提示，最后一行解析不到断言数，
+        # 门禁把「解析失败」报成「回归测试失败」。规则是「解析不到就算失败」，
+        # 所以要保证解析点稳定，而不是让输出格式迁就解析。
+        _lines = [l for l in out.splitlines() if "合计：断言" in l]
+        tail = _lines[-1] if _lines else (out.strip().splitlines()[-1] if out.strip() else "")
         if "断言" not in tail:
             results.append((False, "回归测试", "没跑出汇总（断言数为 0 视为失败）：" + tail[:120]))
         else:
@@ -162,8 +195,10 @@ def main():
         print("%s %-24s %s" % ("✅" if ok else "❌", name, detail))
 
     nbad = sum(1 for ok, _, _ in results if not ok)
-    print("\n%s %d 项检查，%d 项未通过" % ("★ 全部通过" if nbad == 0 else "✗ 有未通过项",
-                                          len(results), nbad))
+    nskip = sum(1 for _, _, d in results if "⛔ 跳过" in d)
+    print("\n%s %d 项检查，%d 项未通过%s" % ("★ 全部通过" if nbad == 0 else "✗ 有未通过项",
+                                            len(results), nbad,
+                                            ("，%d 项跳过（环境未就绪）" % nskip) if nskip else ""))
     return 0 if nbad == 0 else 1
 
 

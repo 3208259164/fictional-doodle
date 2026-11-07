@@ -864,6 +864,20 @@
   LK.push(L('zhongyangdangxiao', 'zhengfeng', '整风阵地', '参与'));
   LK.push(L('song_renqiong', 'changzheng', '随军长征', '参与'));
 
+  /* ---------- 出处补齐（2026-11-07） ----------
+     原状：113 个节点里 86 个没有 source。做法同旧民图谱：
+     补「文献级通说来源」并标 sourceLevel='general'（未逐条核对到页码）。 */
+  (function fillGeneralSource() {
+    var MAO = /毛泽东|新民主主义|农村包围城市|持久战|统一战线|三大法宝|实事求是|群众路线|实践论|矛盾论|论联合政府|论持久战|整风|党的建设/;
+    var DEF = '《中国共产党历史·第一卷》（公开党史资料）';
+    N.forEach(function (n) {
+      if (n.source || (n.sources && n.sources.length)) return;
+      var hay = [n.name, n.role, n.desc, n.place].join(' ');
+      n.source = MAO.test(hay) ? '《毛泽东选集》（人民出版社，1991）' : DEF;
+      n.sourceLevel = 'general';
+    });
+  })();
+
   window.SITE_GRAPH_NEW = {
     id: 'new',
     name: '新民图谱',

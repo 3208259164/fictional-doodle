@@ -127,6 +127,10 @@ form button{
 form button:disabled{opacity:.4}
 .ev-g{font-style:normal;font-size:10.5px;color:var(--sub);border:1px solid var(--line);
   border-radius:6px;padding:0 5px;margin-left:6px;white-space:nowrap}
+.ev-src{font-style:normal;font-size:10.5px;color:var(--accent);margin-left:6px}
+.ev-none{font-style:normal;font-size:10.5px;color:var(--sub);opacity:.7;margin-left:6px}
+.ev-node{color:var(--sub)}
+details.ev-fact summary{color:var(--sub)}
 .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .lnk{display:inline-flex;align-items:center;gap:4px;padding:7px 13px;border-radius:999px;
   border:1px solid var(--line);background:var(--card);color:var(--accent);
@@ -197,6 +201,8 @@ form button:disabled{opacity:.4}
 <div class="foot">答案来自本机图谱；查不到会直说。</div>
 
 <script src="data/graph.js"></script>
+<script src="data/graph-old.js"></script>
+<script src="data/graph-new.js"></script>
 <script src="data/concepts.js"></script>
 <script src="data/graph-wenge.js"></script>
 <script src="data/graph-world.js"></script>
@@ -336,11 +342,35 @@ form button:disabled{opacity:.4}
       }).join('') + '</div>';
     }
     if (res.evidence && res.evidence.length){
-      var lis = res.evidence.slice(0, 40).map(function(e){
-        var s = e.rel ? (e.from + ' —[' + e.rel + ']→ ' + e.to) : (e.from + '：' + e.to);
-        return '<li>' + esc(s) + (e.g ? '<i class="ev-g">' + esc(e.g) + '</i>' : '') + '</li>';
-      }).join('');
-      html += '<details class="ev"><summary>依据 ' + res.evidence.length + ' 条（可核对）</summary><ul>' + lis + '</ul></details>';
+      /* 证据分两类：关系依据（kind 缺省或 edge）与条目信息（fact）。
+         以前混在一起，且一律标「可核对」——但「贺龙 类型 人物」这种不是依据，
+         关系边上也常常没有出处。现在分开显示，并按实际标注情况说实话。 */
+      var evE = res.evidence.filter(function(e){ return e.kind !== 'fact'; });
+      var evF = res.evidence.filter(function(e){ return e.kind === 'fact'; });
+      var nCited = evE.filter(function(e){ return e.srcLevel === 'edge'; }).length;
+      var nNode = evE.filter(function(e){ return e.srcLevel === 'node'; }).length;
+      if (evE.length){
+        var lis = evE.slice(0, 40).map(function(e){
+          var s = e.from + ' —[' + e.rel + ']→ ' + e.to;
+          var tail;
+          if (e.srcLevel === 'edge') tail = '<i class="ev-src">出处：' + esc(e.src) + '</i>';
+          else if (e.srcLevel === 'node') tail = '<i class="ev-src ev-node">条目出处：' + esc(e.src) + '（此关系未单列依据）</i>';
+          else tail = '<i class="ev-none">未标出处</i>';
+          return '<li>' + esc(s) + tail + (e.g ? '<i class="ev-g">' + esc(e.g) + '</i>' : '') + '</li>';
+        }).join('');
+        var head;
+        if (nCited) head = '关系依据 ' + evE.length + ' 条（' + nCited + ' 条标了这一关系本身的出处）';
+        else if (nNode) head = '关系依据 ' + evE.length + ' 条（关系本身未标出处；其中 ' + nNode + ' 条只能核到条目级文献）';
+        else head = '关系依据 ' + evE.length + ' 条（图谱未标注出处，只表示收录了这条关系）';
+        html += '<details class="ev"><summary>' + head + '</summary><ul>' + lis + '</ul></details>';
+      }
+      if (evF.length){
+        var lf = evF.slice(0, 40).map(function(e){
+          var s = e.rel ? (e.from + ' 的' + e.rel + '：' + e.to) : (e.from + '：' + e.to);
+          return '<li>' + esc(s) + (e.g ? '<i class="ev-g">' + esc(e.g) + '</i>' : '') + '</li>';
+        }).join('');
+        html += '<details class="ev ev-fact"><summary>条目信息 ' + evF.length + ' 条（属性与出处，不是关系依据）</summary><ul>' + lf + '</ul></details>';
+      }
     }
     d.innerHTML = html;
     main.appendChild(d);

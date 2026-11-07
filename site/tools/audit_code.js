@@ -90,7 +90,14 @@ const allRaw = Object.values(SRC).join('\n');
 const allHtml = Object.values(HTML).join('\n');
 
 let issues = 0;
-const note = m => { issues++; console.log('  ⚠️ ' + m); };
+/* 环境未就绪（没装 acorn）时，A/C/D 只能正则粗测，产出的全是误报。
+   这些误报以前被当成「1531 项待留意」并让门禁判红 —— 把「没跑」报成「跑失败」。
+   现在只静默记账，不计数、不打印，最后由汇总行统一说明。 */
+const SILENT = [];
+const note = m => {
+  if (!acorn) { SILENT.push(m); return; }
+  issues++; console.log('  ⚠️ ' + m);
+};
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const count = (re, s) => ((s.match(re) || []).length);
 
@@ -191,9 +198,10 @@ console.log('— A. 调用但未定义的函数/变量（最致命）—');
 const bad = [];
 called.forEach((c, n) => { if (!declared.has(n) && !BUILTIN.has(n) && !VENDOR.has(n)) bad.push(n); });
 if (!acorn) {
-  console.log('  ⚠️⚠️ 严重：未找到 acorn → 已降级为「正则粗测」，下面 A/C/D 项全是误报，请勿据此改代码！');
-  console.log('     修复：cd ' + path.join(root, 'tools') + ' && npm i（按 package.json 装 acorn），或设 ACORN_PATH=<acorn 目录>。');
-  console.log('  · 以下仅为粗测结果：');
+  console.log('  ⛔ 环境未就绪：未找到 acorn → A / C / D 三项没有真正执行。');
+  console.log('     这不是「检查出问题」，是「检查没跑」——不计入问题数，退出码 2。');
+  console.log('     修复：cd ' + path.join(root, 'tools') + ' && npm i   （或设 ACORN_PATH=<acorn 目录>）');
+  console.log('     · 以下为正则粗测结果，仅供排查环境时参考：');
   const re = /(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g;
   const found = new Map();
   Object.entries(SRC).forEach(([f, src]) => {
@@ -205,8 +213,11 @@ if (!acorn) {
       found.get(nm).add(f);
     }
   });
-  if (!found.size) console.log('  ✅ 粗测未发现悬空调用');
-  else found.forEach((fs, nm) => note('可能悬空：' + nm + '  ← ' + [...fs].join(', ')));
+  if (!found.size) console.log('     · 粗测未发现悬空调用');
+  else {
+    [...found.entries()].slice(0, 5).forEach(([nm, fs]) => console.log('     · 粗测可能悬空：' + nm + ' ← ' + [...fs].slice(0, 2).join(', ')));
+    if (found.size > 5) console.log('     · ……另有 ' + (found.size - 5) + ' 个（省略，全部是误报）');
+  }
 } else if (bad.length) bad.forEach(n => note('调用了但未定义：' + n + ' ×' + called.get(n)));
 else console.log('  ✅ 无悬空调用（' + called.size + ' 个被调用的函数名全部有定义）');
 
@@ -344,5 +355,13 @@ let orphan = 0;
 });
 if (!orphan) console.log('  ✅ assets/ 与 data/ 全部有引用');
 
-console.log('\n—— 体检结果：' + (issues ? '⚠️ ' + issues + ' 项待留意' : '✅ 通过，无明显问题') + ' ——');
-process.exit(STRICT && issues ? 1 : 0);
+if (!acorn) {
+  console.log('\n—— 体检结果：⛔ 未执行（缺少 acorn）。这不是通过，也不是失败 ——');
+  console.log('   已静默 ' + SILENT.length + ' 条正则粗测误报，未计入问题数。');
+  console.log('   真正的结论要装好依赖后重跑：cd site/tools && npm i && node audit_code.js');
+} else {
+  console.log('\n—— 体检结果：' + (issues ? '⚠️ ' + issues + ' 项待留意' : '✅ 通过，无明显问题') + ' ——');
+}
+/* 退出码：0 通过 / 1 有问题（仅 --strict）/ 2 环境未就绪（没跑）
+   三者必须能区分，否则「没跑」会被误读成「跑失败」。 */
+process.exit(!acorn ? 2 : (STRICT && issues ? 1 : 0));

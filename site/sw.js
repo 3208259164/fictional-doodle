@@ -158,13 +158,18 @@ self.addEventListener('fetch', e => {
 
   /* 1) 页面导航：网络优先（3s 超时）→ 缓存 → 离线页 */
   if (req.mode === 'navigate') {
-    /* 离线优先：无网时直接走缓存，不再空等网络超时（对完全离线的 App 尤其重要） */
+    /* 离线优先：无网时直接走缓存，不再空等网络超时（对完全离线的 App 尤其重要）
+       ⚠️ 必须 ignoreSearch：预缓存里存的是 './graph.html'，
+       而页内链接常带查询串（'graph.html?g=old'、'ask.html?q=…'）。
+       以前 navigation 分支没带 ignoreSearch，带参数的导航一律匹配失败，
+       于是回落到 './index.html' —— 离线时打开图谱页会看到首页内容（2026-11-07 冒烟抓到）。
+       同文件下方静态资源分支本来就用了 ignoreSearch，只有这里漏了。 */
     var offline = (self.navigator && self.navigator.onLine === false);
     var nav = offline
-      ? caches.match(req).then(r => r || caches.match('./index.html'))
+      ? caches.match(req, { ignoreSearch: true }).then(r => r || caches.match('./index.html'))
       : timeout(fetch(req), 3000)
           .then(res => { put(RUNTIME, req, res.clone()); return res; })
-          .catch(() => caches.match(req))
+          .catch(() => caches.match(req, { ignoreSearch: true }))
           .then(r => r || caches.match('./index.html'));
     e.respondWith(nav.then(r => r || caches.match(OFFLINE)));
     return;
