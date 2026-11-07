@@ -212,8 +212,8 @@
           : '包含 ' + meta.nodes.length + ' 个关卡：' + meta.nodes.slice(0, 5).map(function (n) { return n.title; }).join('、') +
             (meta.nodes.length > 5 ? ' 等' : '') + '\n') +
         '版本 ' + (meta.version || '—') + '\n\n' +
-        '⚠️ 内容与 App 同源运行，可以读取本机的书库与记录（但无法联网外传）。\n' +
-        '请只导入你自己制作或信任来源的文件。';
+        '⚠️ 内容在独立沙箱中运行：读不到 App 的任何数据（书库、存档、书签），也无法联网。\n' +
+        '进度由软件代为保存。仍建议只导入你自己制作或信任来源的文件。';
       if (risks.length) msg += '\n\n⛔ 检测到可疑行为：\n· ' + risks.join('\n· ') + '\n\n仍要导入吗？';
       if (!confirm(msg)) return;
 
@@ -309,6 +309,49 @@
     });
   }
 
+  /* ---------------- 沙箱存档桥（2026-11-07） ----------------
+     背景：iframe 原来是 allow-scripts + allow-same-origin，等于没有沙箱 ——
+     包里的脚本能读 parent.document、直接读写 App 的 localStorage、还能调原生桥。
+     现在去掉 allow-same-origin（iframe 变成 opaque origin），parent.document / cookie /
+     localStorage 全部抛 SecurityError，隔离才成立。
+
+     代价：包不能再用 localStorage 直接存档。实测（Chromium）在 opaque origin 下
+     `Object.defineProperty(window,'localStorage',…)` 仍然成功，所以这里注入一个内存版
+     localStorage：读同步走内存、写同步更新内存 + postMessage 交给父页落盘。
+     旧包不用改一个字，键名与语义都不变。 */
+  var SHIM = '(function(){' +
+    'var SEED=window.__YZQ_SEED||{},mem={},has=Object.prototype.hasOwnProperty;' +
+    'Object.keys(SEED).forEach(function(k){mem[k]=String(SEED[k]);});' +
+    'function post(d){try{d.__yzq=1;parent.postMessage(d,"*");}catch(e){}}' +
+    'var LS={' +
+      'getItem:function(k){k=String(k);return has.call(mem,k)?mem[k]:null;},' +
+      'setItem:function(k,v){k=String(k);v=String(v);mem[k]=v;post({t:"yzq:set",k:k,v:v});},' +
+      'removeItem:function(k){k=String(k);delete mem[k];post({t:"yzq:del",k:k});},' +
+      'clear:function(){Object.keys(mem).forEach(function(k){delete mem[k];});post({t:"yzq:clear"});},' +
+      'key:function(i){var ks=Object.keys(mem);return (i>=0&&i<ks.length)?ks[i]:null;}' +
+    '};' +
+    'try{Object.defineProperty(LS,"length",{get:function(){return Object.keys(mem).length;}});}catch(e){}' +
+    'try{Object.defineProperty(window,"localStorage",{value:LS,configurable:true});}catch(e){}' +
+    'try{Object.defineProperty(window,"sessionStorage",{value:LS,configurable:true});}catch(e){}' +
+  '})();';
+
+  /* 把 App 里已有关卡的存档喂回给包（键名不变，包读到的是自己的进度） */
+  function packSeed() {
+    var o = {};
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('yzq_') === 0) o[k] = localStorage.getItem(k) || '';
+      }
+    } catch (e) {}
+    return o;
+  }
+
+  function buildBoot(p) {
+    return '<script>window.YZQ_BOOT=' + JSON.stringify({ packId: p.packId, version: p.version }) +
+           ';window.__YZQ_SEED=' + JSON.stringify(packSeed()) + ';' + SHIM + '<\/script>';
+  }
+
   /* ---------------- 打开 / 关闭 ---------------- */
   var curPack = null;
   function openPack(p) {
@@ -318,9 +361,8 @@
     $('loading').classList.remove('off');
     var f = $('game');
     f.removeAttribute('src');
-    /* 注入启动参数：包自己决定从哪开始（地图 / 继续上次） */
-    var boot = '<script>window.YZQ_BOOT=' + JSON.stringify({ packId: p.packId, version: p.version }) + ';<\/script>';
-    f.srcdoc = boot + p.html;
+    /* 注入启动参数 + 存档桥：包自己决定从哪开始（地图 / 继续上次） */
+    f.srcdoc = buildBoot(p) + p.html;
     setTimeout(function () { $('loading').classList.add('off'); }, 900);
   }
   function closePlayer() {
@@ -338,6 +380,25 @@
       if (!f || e.source !== f.contentWindow) return;
       var m = e.data;
       if (!m || typeof m !== 'object' || typeof m.t !== 'string') return;
+
+      /* 存档桥：包在无 same-origin 的沙箱里只能发消息，落盘由父页做。
+         只接受 yzq_ 前缀 —— 不允许包往 App 的其它键里写任何东西。 */
+      if (m.t === 'yzq:set' || m.t === 'yzq:del' || m.t === 'yzq:clear') {
+        try {
+          if (m.t === 'yzq:clear') {
+            for (var ci = localStorage.length - 1; ci >= 0; ci--) {
+              var ck = localStorage.key(ci);
+              if (ck && ck.indexOf('yzq_') === 0) localStorage.removeItem(ck);
+            }
+          } else {
+            var pk = String(m.k || '');
+            if (pk.indexOf('yzq_') !== 0) return;
+            if (m.t === 'yzq:set') localStorage.setItem(pk, String(m.v == null ? '' : m.v).slice(0, 20000));
+            else localStorage.removeItem(pk);
+          }
+        } catch (err) {}
+        return;
+      }
 
       if (m.t === 'yz:ready') {
         /* 包自报「起来了」——立刻撤掉载入遮罩，比死等 900ms 更准 */
@@ -371,8 +432,7 @@
       var f = $('game');
       f.srcdoc = '';
       setTimeout(function () {
-        var bootJs = '<script>window.YZQ_BOOT=' + JSON.stringify({ packId: curPack.packId, version: curPack.version }) + ';<\/script>';
-        f.srcdoc = bootJs + curPack.html;
+        f.srcdoc = buildBoot(curPack) + curPack.html;
         setTimeout(function () { $('loading').classList.add('off'); }, 700);
       }, 60);
     };

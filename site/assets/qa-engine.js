@@ -104,7 +104,12 @@
         var key = a + '>' + b + '>' + (l.rel || '');
         if (seen[key]) return;
         seen[key] = 1;
-        links.push({ source: a, target: b, rel: l.rel, kind: l.kind });
+        /* 出处要带过来：合并图谱是问答实际读的那一份，以前这里只留 rel/kind，
+           补上的 src 会在合并时被丢掉，问答永远显示不出关系级出处。 */
+        var lsrc = l.src || l.source_ref || l.ref || '';
+        var row = { source: a, target: b, rel: l.rel, kind: l.kind };
+        if (lsrc) row.src = lsrc;
+        links.push(row);
       });
     });
 

@@ -259,7 +259,9 @@ else
   cp "$WORK/signed.apk" "$OUT"
   ok "已签名 → $(basename "$OUT")"
 fi
-echo "$CODE" > "$P/.last_code"
+# 这里**不写** .last_code：自检（签名/清单/权限/包内容/桥注解）还没跑，
+# 若自检失败而版本号已推进，重试同一个 CODE 会被 [0/8] 的降级门禁拒掉。
+# 写入放到自检全部通过之后（见文件末尾「构建完成」之前）。
 
 say "[8/8] 自检"
 CHECK_APK="$OUT"
@@ -299,6 +301,10 @@ ok "安全基线：cleartext=false / allowBackup=false"
 unzip -l "$CHECK_APK" > "$WORK/plist.txt" 2>/dev/null || die "无法列出包内条目"
 grep -q 'assets/site/index.html' "$WORK/plist.txt" || die "包内缺 assets/site"
 ok "包内 assets/site 文件数：$(grep -c 'assets/site/' "$WORK/plist.txt")"
+
+# 全部自检通过后才推进「历史最大构建号」：
+# 失败时 .last_code 不动，可以用同一个 CODE 重试，不会把自己锁死。
+echo "$CODE" > "$P/.last_code"
 
 SZ=$(stat -c%s "$OUT")
 SHA=$(sha256sum "$OUT" | cut -d' ' -f1)

@@ -35,3 +35,7 @@ Thumbs.db
 *.bak
 *.bak_*
 *.bak.*
+
+# 本地依赖软链（指向 /root/nm2，绝不能提交）
+site/tools/node_modules
+tests/node_modules

@@ -170,10 +170,12 @@
   }
 
   /* ---------- 与 base 对比 ---------- */
-  /* 官方层 = 三个随包分发的图谱，不含 user、不含合并视图（否则会把自己算成官方） */
+  /* 官方层 = 随包分发的全部图谱，不含 user、不含合并视图（否则会把自己算成官方）。
+     2026-11-07 补上旧民 / 新民：问答引擎早就注册了这两套，这里没跟上，
+     导致导入「林则徐」「长征」这类节点时被当成"新增"而不是"与官方节点冲突"。 */
   function baseIndex() {
     var idx = {};
-    ['SITE_GRAPH', 'SITE_GRAPH_WENGE', 'SITE_GRAPH_WORLD', 'SITE_CONCEPTS'].forEach(function (k) {
+    ['SITE_GRAPH', 'SITE_GRAPH_OLD', 'SITE_GRAPH_NEW', 'SITE_GRAPH_WENGE', 'SITE_GRAPH_WORLD', 'SITE_CONCEPTS'].forEach(function (k) {
       if (window[k] && window[k].nodes) {
         window[k].nodes.forEach(function (n) { if (!idx[n.id]) idx[n.id] = n; });
       }

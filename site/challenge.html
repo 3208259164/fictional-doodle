@@ -108,10 +108,15 @@ body{padding:calc(8px + env(safe-area-inset-top,0px)) 14px calc(20px + env(safe-
     <span class="pn" id="pName"></span>
     <button class="btn" id="pReload" title="重新载入">↻</button>
   </div>
-  <!-- 允许 same-origin：包要用 localStorage 自己存档。
-       代价是包能读到本机数据（书库/导入记录），导入前会提示只装可信来源。
-       包没有任何网络能力（App 无 INTERNET 权限），数据出不去。 -->
-  <iframe id="game" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-pointer-lock"
+  <!-- 2026-11-07 安全收紧：去掉了 allow-same-origin。
+       以前同时给 allow-scripts + allow-same-origin，等于没有沙箱——包里的脚本可以
+       读 parent.document、直接读写 App 的 localStorage、调用原生桥 AndroidApp。
+       现在 iframe 是 opaque origin：parent.document / document.cookie / localStorage
+       一律抛 SecurityError；存档改由注入的内存版 localStorage + postMessage 交给父页落盘
+       （见 assets/challenge.js 的 SHIM / packSeed / buildBoot），旧包无需改动。
+       保留 allow-scripts 是因为关卡本身是脚本游戏；allow-forms / allow-modals /
+       allow-pointer-lock 是游戏交互所需，均不涉及数据访问。 -->
+  <iframe id="game" sandbox="allow-scripts allow-forms allow-modals allow-pointer-lock"
           referrerpolicy="no-referrer" title="关卡内容"></iframe>
 </div>
 
