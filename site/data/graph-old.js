@@ -688,6 +688,29 @@
   LK.push(L('xu_xilin', 'guangfuhui', '成员', '成员'));
   LK.push(L('xu_xilin', 'huanghuagang', '前驱影响', '影响'));
 
+  /* ---------- 出处补齐（2026-11-07） ----------
+     原状：83 个节点里 68 个没有 source。问答与图谱面板对这批节点只能显示「待补」。
+     做法：按主题把缺的补成「文献级通说来源」，并标 sourceLevel='general' ——
+     general 的含义是「该条依据的通行叙述见于这本书，未逐条核对到页码/章节」。
+     不填具体页码，是因为填了也无法核实；宁可标得保守，也不伪造精确出处。 */
+  (function fillGeneralSource() {
+    var RULES = [
+      [/太平天国|洪秀全|杨秀清|冯云山|萧朝贵|韦昌辉|石达开|拜上帝会|金田|天朝田亩|资政新篇|永安|天京/, '《太平天国史》（罗尔纲）'],
+      [/戊戌|维新|康有为|梁启超|谭嗣同|严复|光绪|公车上书|时务报|强学会|保国会|万木草堂|君主立宪/, '《戊戌变法史》（汤志钧）'],
+      [/辛亥|革命党|孙中山|黄兴|宋教仁|章太炎|邹容|陈天华|徐锡麟|秋瑾|同盟会|兴中会|华兴会|光复会|武昌起义|黄花岗|中华民国|三民主义|民报|共进会|文学社|保路/, '《辛亥革命史》（章开沅）'],
+      [/五四|新文化|陈独秀|李大钊|胡适|蔡元培|新青年|民主与科学|文学革命/, '《五四运动史》（彭明）']
+    ];
+    var DEF = '《中国近代史》（范文澜）';
+    N.forEach(function (n) {
+      if (n.source || (n.sources && n.sources.length)) return;
+      var hay = [n.name, n.role, n.desc, n.place].join(' ');
+      var pick = DEF;
+      for (var i = 0; i < RULES.length; i++) if (RULES[i][0].test(hay)) { pick = RULES[i][1]; break; }
+      n.source = pick;
+      n.sourceLevel = 'general';
+    });
+  })();
+
   window.SITE_GRAPH_OLD = {
     id: 'old',
     name: '旧民图谱',

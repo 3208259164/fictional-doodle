@@ -33,11 +33,16 @@
     links.forEach(function (l) {
       var cat = relCat(l.rel, l.kind);
       var dir = relDir(l.rel, cat);
-      addAdj(l.source, { to: l.target, rel: l.rel, kind: l.kind, cat: cat, dir: 'out', sem: dir });
-      addAdj(l.target, { to: l.source, rel: l.rel, kind: l.kind, cat: cat, dir: 'in',  sem: dir });
+      /* src：关系边可选出处（data/graph.js 头部注释里的约定字段）。
+         以前这里丢弃了它，导致问答给出的「依据」无法回溯到任何材料。
+         兼容三种写法：src / source_ref / ref。 */
+      var lsrc = l.src || l.source_ref || l.ref || '';
+      addAdj(l.source, { to: l.target, rel: l.rel, kind: l.kind, cat: cat, dir: 'out', sem: dir, src: lsrc });
+      addAdj(l.target, { to: l.source, rel: l.rel, kind: l.kind, cat: cat, dir: 'in',  sem: dir, src: lsrc });
     });
 
-    GRAPHS[id] = { id: id, label: label || id, nodes: nodes, links: links, byId: byId, adj: adj };
+    GRAPHS[id] = { id: id, label: label || id, nodes: nodes, links: links, byId: byId, adj: adj,
+                   refs: (raw && raw.refs) ? raw.refs : [] };
     if (!CUR) CUR = GRAPHS[id];
   }
 
@@ -214,9 +219,20 @@
   }
 
   function find(text) {
+    /* 问句常带疑问尾缀（「洋务运动是什么」「林则徐是什么人」）。
+       实体名本身不会带这些字，直接整句比对必然 0 分 —— 实测「洋务运动是什么」匹配不到，
+       「洋务运动」却 100 分。这里对去掉尾缀的版本再匹配一次，取高分。 */
+    var alts = [text];
+    var t2 = String(text || '').replace(/[?？。！!]+$/, '')
+      .replace(/(是什么|是谁|是啥|有什么|有哪些|怎么样|如何|干什么的|什么人|什么样|怎么|吗|呢|的)$/, '');
+    if (t2 && t2 !== String(text)) alts.push(t2);
     var out = [];
     CUR.nodes.forEach(function (n) {
-      var s = scoreMatch(n, text);
+      var s = 0;
+      for (var i = 0; i < alts.length; i++) {
+        var x = scoreMatch(n, alts[i]);
+        if (x > s) s = x;
+      }
       if (s > 0) out.push({ node: n, score: s });
     });
     out.sort(function (a, b) { return b.score - a.score; });
@@ -254,6 +270,10 @@
     if (n.source) return String(n.source);
     if (Array.isArray(n.sources) && n.sources.length) return n.sources.filter(Boolean).join('；');
     if (typeof n.sources === 'string') return n.sources;
+    /* 节点自身没有出处 → 回落到所属图谱的参考书目。
+       这是「文献级通说来源」，不是这一条的具体依据，所以必须把性质写在字面上，
+       不能让它看起来跟逐条核对过的出处一样。旧民 68 个、新民 86 个节点走这条回落。 */
+    if (CUR && CUR.refs && CUR.refs.length) return CUR.refs[0] + '（图谱通说来源，未逐条核对）';
     return '';
   }
 
@@ -275,6 +295,32 @@
     return out;
   }
 
+  /* 关系名能不能直接当名词性宾语用：「战友」「同志」「父子」可以，
+     「先前定为接班人」「其间召开」不行。判断不了就走安全句式，不猜词性。
+     历史病句（2026-11-07 实跑复现）：
+       「毛泽东是林彪的先前定为接班人」   ← rel 被塞进「是……的 X」
+       「遵义会议与长征：其间召开」       ← rel 是谓语短语，缺主语 */
+  function relLooksNoun(rel) {
+    var s = String(rel || '').trim();
+    if (!s) return false;
+    if (s.length > 10) return false;
+    if (s.indexOf('的') >= 0) return false;
+    /* ① 谓语性短语的强标记：时间/情状状语、被动、V为结构。
+       「先前定为接班人」「其间召开」「被批判」都在这里被拦下。 */
+    if (/(先前|此前|其后|后来|当时|其间|期间|随后|此后|同年|次年|继而|被|定为|指定为|改为|转为|成为|当选为|誉为|称为|为)/.test(s)) return false;
+    /* ② 身份/角色类后缀（「创建人之一」「缔造者之一」「入党介绍人」「总司令」）本来是名词，
+       可以安全地放进「是……的 X」。 */
+    if (/(之一|者|人|员|长|书记|主席|委员|代表|领袖|导师|战友|同志|朋友|对手|敌人|父亲|母亲|儿子|女儿|妻子|丈夫|兄弟|姐妹|学生|老师|元老|前辈|元勋|骨干)$/.test(s)) return true;
+    /* ③ 其余含动词词干的，一律走安全句式（宁可生硬，不生造语法）。 */
+    if (/(定为|指定|担任|当选|任命|领导|率领|创建|创立|缔造|提出|参与|参加|发动|批判|批评|支持|声援|影响|继承|发展|改编|组建|成立|负责|主持|起草|翻译|介绍|吸收|开除|撤销|恢复|合并|分裂|转移|到达|经过|途经|隶属|下辖|包含|追随|辅佐|协助|接任|兼任|出席|签署|签订|访问|会见|谈判|起义|会师|作战|牺牲|逝世|去世|病逝|召开|成为|转为|调任|赞扬|肯定|否定|反对|攻击|打击|保卫|解救|指挥|统领|接管|整编|收编|分化自|奠基|奠立|建党|共事|承继|阐释|总结)/.test(s)) return false;
+    return true;
+  }
+
+  /* 安全句式：把原始关系名原样加引号报出。宁可读着生硬，也不生造语法。 */
+  function looseRel(a, b, rel) {
+    return a.name + ' 与 ' + b.name + ' 的关系：「' + rel + '」';
+  }
+
   /* 用自然语言描述一条边（站在 a 的视角） */
   function describeEdge(a, e) {
     var b = CUR.byId[e.to];
@@ -282,20 +328,24 @@
     var isOut = e.dir === 'out';
     var subj = isOut ? a : b;
     var obj  = isOut ? b : a;
+    var noun = relLooksNoun(e.rel);
     switch (e.cat) {
-      case '合作':   return subj.name + '与' + obj.name + '是' + e.rel + '关系';
-      case '对立':   return subj.name + '与' + obj.name + '存在' + e.rel;
+      case '合作':   return noun ? (subj.name + '与' + obj.name + '是' + e.rel + '关系') : looseRel(subj, obj, e.rel);
+      case '对立':   return noun ? (subj.name + '与' + obj.name + '存在' + e.rel) : looseRel(subj, obj, e.rel);
       case '领导':   return isOut ? (subj.name + '领导或影响了' + obj.name) : (obj.name + '领导或影响了' + subj.name);
       case '创立':   return isOut ? (subj.name + '创立或提出了' + obj.name) : (obj.name + '创立或提出了' + subj.name);
       /* 「继承·发展 / 影响 / 源流」这类关系的方向在原始数据里并不统一，
          强行断言「谁继承谁」会说反，因此只报关系名，不判断方向。 */
-      case '承继':   return subj.name + ' 与 ' + obj.name + ' 的关系：' + e.rel;
-      case '组织成员': return isOut ? (subj.name + '是' + obj.name + '的' + e.rel) : (obj.name + '是' + subj.name + '的' + e.rel);
-      case '亲属':   return subj.name + '与' + obj.name + '是' + e.rel + '关系';
+      case '承继':   return looseRel(subj, obj, e.rel);
+      case '组织成员': return noun ? (isOut ? (subj.name + '是' + obj.name + '的' + e.rel) : (obj.name + '是' + subj.name + '的' + e.rel)) : looseRel(subj, obj, e.rel);
+      case '亲属':   return noun ? (subj.name + '与' + obj.name + '是' + e.rel + '关系') : looseRel(subj, obj, e.rel);
       case '包含':   return isOut ? (subj.name + '包含' + obj.name) : (obj.name + '包含' + subj.name);
-      default:       return subj.name + '与' + obj.name + '：' + e.rel;
+      default:       return soilSafe(subj, obj, e.rel);
     }
   }
+
+  /* default 分支单列：避免在 switch 里调外部函数名笔误 */
+  function soilSafe(a, b, rel) { return looseRel(a, b, rel); }
 
   /* BFS 最短路（限定 4 跳以内，避免答非所问） */
   function shortestPath(a, b, maxDepth) {
@@ -347,7 +397,7 @@
           ? '来源：答疑库（人工审定，附原文依据）'
           : '来源：术语卡' + (_top.basis && _top.basis[0] ? '（' + _top.basis[0] + '）' : ''));
         if (_top.note) res.notes.push(_top.note);
-        (_top.basis || []).forEach(function (b) { res.evidence.push({ from: '依据', to: b, g: _top.kind }); });
+        (_top.basis || []).forEach(function (b) { res.evidence.push({ kind: 'fact', from: '依据', to: b, g: _top.kind }); });
         var _rest = _hits.filter(function (x) { return x !== _top; }).slice(0, 3);
         if (_rest.length) res.notes.push('还可能是：' + _rest.map(function (x) { return x.title; }).join(' ｜ '));
         res.ok = true;
@@ -369,7 +419,7 @@
           res.intent = 'guide';
           res.answer = _hits[_j].text + '\n（这本书的导读骨架在「书详情页 → 导读骨架」，正文需自己填写。）';
           res.notes.push('来源：导读骨架（结构由软件提供，正文由读者填写）');
-          (_hits[_j].basis || []).forEach(function (b) { res.evidence.push({ from: '同读', to: b, g: 'guide' }); });
+          (_hits[_j].basis || []).forEach(function (b) { res.evidence.push({ kind: 'fact', from: '同读', to: b, g: 'guide' }); });
           res.ok = true;
           return res;
         }
@@ -386,7 +436,7 @@
         var lines = edges.map(function (e) { return describeEdge(a, e); });
         res.answer = lines.join('；') + '。';
         res.evidence = edges.map(function (e) {
-          return { from: a.name, to: CUR.byId[e.to].name, rel: e.rel, cat: e.cat };
+          return { kind: 'edge', from: a.name, to: CUR.byId[e.to].name, rel: e.rel, cat: e.cat, src: e.src || '' };
         });
         res.ok = true;
         return res;
@@ -399,7 +449,7 @@
         }).join('\n');
         res.answer = a.name + ' 与 ' + b.name + ' 之间没有直接关系。图谱中的关联路径：\n' + chain;
         res.notes.push('这是图谱里已有的关联链，不是直接关系，也不能推出因果。');
-        res.evidence = path.map(function (s) { return { from: s.from.name, to: s.to.name, rel: s.edge.rel, cat: s.edge.cat }; });
+        res.evidence = path.map(function (s) { return { kind: 'edge', from: s.from.name, to: s.to.name, rel: s.edge.rel, cat: s.edge.cat, src: s.edge.src || '' }; });
         res.ok = true;
         return res;
       }
@@ -425,7 +475,7 @@
           ? n.name + '的代表文献有 ' + w.length + ' 部：' + w.join('、') + '。'
           : n.name + '在图谱中没有登记代表文献。';
         res.ok = w.length > 0;
-        res.evidence = [{ from: n.name, rel: '代表文献', to: w.join('、') }];
+        res.evidence = [{ kind: 'fact', from: n.name, rel: '代表文献', to: w.join('、') }];
         return res;
       }
 
@@ -437,7 +487,7 @@
           ? n.name + '的主要要点：\n' + p.map(function (x, i) { return (i + 1) + '. ' + x; }).join('\n')
           : n.name + '在图谱中没有登记要点。';
         res.ok = p.length > 0;
-        res.evidence = p.map(function (x) { return { from: n.name, rel: '要点', to: x }; });
+        res.evidence = p.map(function (x) { return { kind: 'fact', from: n.name, rel: '要点', to: x }; });
         return res;
       }
 
@@ -474,7 +524,7 @@
         res.ok = nb.length > 0;
         res.evidence = (CUR.adj[n.id] || []).map(function (e) {
           var o = CUR.byId[e.to];
-          return o ? { from: n.name, to: o.name, rel: e.rel, cat: e.cat } : null;
+          return o ? { kind: 'edge', from: n.name, to: o.name, rel: e.rel, cat: e.cat, src: e.src || '' } : null;
         }).filter(Boolean);
         return res;
       }
@@ -495,8 +545,10 @@
       if (src) res.answer += '\n\n📖 来源：' + src;
       else res.answer += '\n\n📖 来源：待补（该条目尚未标注文献）';
       res.ok = true;
-      res.evidence = [{ from: n.name, rel: '类型', to: typeName(n.type) }];
-      if (src) res.evidence.push({ from: n.name, rel: '来源', to: src });
+      res.evidence = [];
+      /* 「类型＝人物」是节点属性，不是依据，不进证据（以前它会显示成一条「证据」，等于假证据）。
+         真正的出处才进，标成 fact：kind 区分「关系依据」与「条目出处」两类。 */
+      if (src) res.evidence.push({ kind: 'fact', from: n.name, rel: '出处', to: src });
       return res;
     }
 
@@ -635,12 +687,39 @@
     try { r = askCore(q); } catch (e) { r = { ok: false, intent: 'error', answer: '查询出错：' + (e && e.message), notes: [], evidence: [] }; }
     try { attachLinks(r, String(q || '').trim()); } catch (e) {}
     try { attachTexts(r, String(q || '').trim()); } catch (e) {}
+    /* 证据可分度统计 + 出处回落：
+       关系边本身几乎都没标 src（1360 条边 0 条），但两端节点有出处。
+       这时候不能显示「未标出处」就完了，也不能假装那是这条关系的出处 ——
+       标成 srcLevel='node'（条目级出处），界面据此用不同措辞。 */
+    try {
+      var ev = r.evidence || [], nEdgeSrc = 0, nNodeSrc = 0, nNone = 0, factN = 0, edgeN = 0;
+      function nodeByName(nm) {
+        if (!CUR || !CUR.nodes) return null;
+        for (var j = 0; j < CUR.nodes.length; j++) if (CUR.nodes[j].name === nm) return CUR.nodes[j];
+        return null;
+      }
+      for (var i = 0; i < ev.length; i++) {
+        var e = ev[i];
+        if (e.kind === 'fact') { factN++; if (e.src || e.to) e.srcLevel = e.src ? 'edge' : 'none'; continue; }
+        edgeN++;
+        if (e.src) { e.srcLevel = 'edge'; nEdgeSrc++; continue; }
+        var a = nodeByName(e.from), b = nodeByName(e.to);
+        var s1 = a ? srcOf(a) : '', s2 = b ? srcOf(b) : '';
+        if (s1 || s2) { e.src = s1 || s2; e.srcLevel = 'node'; nNodeSrc++; }
+        else { e.srcLevel = 'none'; nNone++; }
+      }
+      r.cited = nEdgeSrc;          /* 关系级出处（真正可核对的） */
+      r.citedNode = nNodeSrc;      /* 条目级出处（只能核到文献，不能核到这条关系） */
+      r.edgeCount = edgeN; r.factCount = factN; r.noSrcCount = nNone;
+    } catch (e) {}
     return r;
   }
 
   window.YZQA = {
     ask: ask,
     find: find,
+    /* 供测试与调试用：关系名能否直接当「是……的 X」的名词宾语 */
+    _relLooksNoun: relLooksNoun,
     /* 供 RAG 层使用：返回某节点的直接邻居（带中文名，便于拼 context） */
     _src: srcOf,
     _adj: function (id) {
@@ -662,6 +741,10 @@
 
   /* ---------- 初始化：主图谱必载，其余有则加载 ---------- */
   buildGraph('main', window.SITE_GRAPH, '主图谱');
+  /* 旧民 / 新民两套 2026-11 起已进站点（graph.html 第七、八套），但问答引擎一直没注册，
+     结果是「林则徐」「康有为」「长征」这类问题全答不到 —— 196 个节点在问答里不存在。 */
+  buildGraph('old', window.SITE_GRAPH_OLD, '旧民图谱');
+  buildGraph('new', window.SITE_GRAPH_NEW, '新民图谱');
   buildGraph('wenge', window.SITE_GRAPH_WENGE, '文革图谱');
   buildGraph('world', window.SITE_GRAPH_WORLD, '世界图谱');
   buildGraph('concepts', window.SITE_CONCEPTS, '理论概念');

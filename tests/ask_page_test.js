@@ -69,7 +69,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok(d.getElementById('q').value === '', '输入框已清空');
   }
 
-  console.log('\n[4] 依据可核对');
+  console.log('\n[4] 依据的可核性要说实话');
   {
     const { w, d } = boot();
     await sleep(100);
@@ -79,7 +79,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const ev = d.querySelector('details.ev');
     ok(!!ev, '有依据折叠块');
     ok(ev.querySelectorAll('li').length > 0, '依据条目 ' + ev.querySelectorAll('li').length + ' 条');
-    ok(ev.querySelector('summary').textContent.indexOf('可核对') >= 0, '明确标注可核对');
+    const sum = ev.querySelector('summary').textContent;
+    /* 2026-11-07 起不再一律宣称「可核对」：
+       图谱 1360 条关系边一条都没标出处，写「可核对」是不实承诺。
+       现在必须按实际情况区分「关系级出处 / 只有条目级出处 / 未标出处」。 */
+    ok(/关系依据/.test(sum), '文案点明这是关系依据');
+    ok(/这一关系本身的出处|只能核到条目级文献|未标注出处/.test(sum), '出处强度说得清楚：' + sum.slice(0, 48));
+    const li0 = ev.querySelector('li');
+    ok(/未标出处|条目出处|出处：/.test(li0.textContent), '每条都带出处状态标记');
   }
 
   console.log('\n[5] 查不到要说实话');
