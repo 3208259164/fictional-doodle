@@ -170,13 +170,18 @@ def main():
         old = readme.read_text(encoding="utf-8")
         targets.append(("README.md", readme, render_readme(old, truth), old))
 
+    # .last_code 不在这里写。它记的是「已成功构建过的最大号」，由 build.sh 在构建成功后写入。
+    # 以前这里会提前把它写成本次的 code，紧接着 build.sh 的降级门禁（要求 CODE > .last_code）
+    # 就把自己的构建拦住了 —— 用 sync_version 正常提版本后，第一次构建必然失败（2026-11-07）。
     last = app_dir / ".last_code" if app_dir else None
-    if last is not None:
-        old = last.read_text(encoding="utf-8").strip() if last.exists() else "0"
-        prev = int(old or 0)
-        # .last_code 只增不减：它是「历史最大构建号」，构建门禁靠它防降级
-        want = max(prev, truth["code"])
-        targets.append(("app/.last_code", last, "%d\n" % want, "%d\n" % prev if last.exists() else ""))
+    if last is not None and last.exists():
+        try:
+            prev = int((last.read_text(encoding="utf-8").strip() or "0"))
+            if prev > truth["code"]:
+                print("⚠️  app/.last_code=%d 大于目标 versionCode=%d，构建门禁会拒绝这次构建。"
+                      % (prev, truth["code"]))
+        except ValueError:
+            pass
 
     drift = [(lbl, p, new, old) for (lbl, p, new, old) in targets if new != old]
 

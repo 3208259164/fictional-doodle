@@ -159,7 +159,9 @@ def main():
             full = [n for n in names if n.endswith("assets/site/data/resources.js")]
             if cfg:
                 txt = z.read(cfg[0]).decode("utf-8", "ignore")
-                m = re.search(r"version\s*:\s*'([^']*)'", txt)
+                # 注意：构建时站点 JS 会被 minify，config.js 里的单引号会变成双引号，
+                # 只匹配单引号会导致「包内站点版本 ?」的假失败（2026-11-07 遇到）。
+                m = re.search(r"version\s*:\s*['\"]([^'\"]*)['\"]", txt)
                 got_site = m.group(1) if m else "?"
                 results.append(log(expect_site is None or got_site == expect_site, "包内站点版本",
                                    "%s（期望 %s）" % (got_site, expect_site)))

@@ -92,7 +92,7 @@ say "[00/8] 一致性门禁（版本号 / 预缓存清单）"
 if [ -f "$SITE/tools/sync_version.py" ]; then
   python3 "$SITE/tools/sync_version.py" --check --quiet \
     || die "版本号不一致：先跑 python3 $SITE/tools/sync_version.py --apply"
-  ok "版本号一致（config.js / sw.js / version.json / .last_code）"
+  ok "版本号一致（config.js / sw.js / version.json）"
 fi
 if [ -f "$SITE/tools/gen_sw_core.py" ]; then
   if ! python3 "$SITE/tools/gen_sw_core.py" --check > "$WORK/swcore.log" 2>&1; then
