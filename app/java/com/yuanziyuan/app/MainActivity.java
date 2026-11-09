@@ -326,6 +326,22 @@ public class MainActivity extends Activity {
             if (last != cur) { web.clearCache(true); sp.edit().putInt("lastVersionCode", cur).apply(); }
         } catch (Throwable ignored) {}
 
+        /* 内容包存档回传：PackActivity 退出时把 yzq_* 交回来，写进主站 localStorage，
+           这样「内容包」列表里的进度显示与以前一致。 */
+        try {
+            PackActivity.setSink(new PackActivity.Sink() {
+                @Override public void onPackSave(final String pid, final String json) {
+                    runOnUiThread(new Runnable() { public void run() {
+                        try {
+                            if (web != null) web.evaluateJavascript(
+                                "window.__yzqAbsorb&&window.__yzqAbsorb(" + org.json.JSONObject.quote(json) + ")",
+                                null);
+                        } catch (Throwable ignored) {}
+                    }});
+                }
+            });
+        } catch (Throwable ignored) {}
+
         web.loadUrl(ASSET_BASE + "index.html");
 
         String route = routeFromIntent();
@@ -2361,6 +2377,54 @@ public class MainActivity extends Activity {
                     }});
                 } catch (Exception e) { toast("打开失败：" + e.getMessage()); }
             }}).start();
+        }
+
+        /* 内容包：交给「不带桥的独立 WebView」承载（0.18.48）。
+           iframe 里的桥是所有 frame 都能调的（官方文档明确），加 sandbox 也挡不住，
+           所以内容包不再跑在主 WebView 里。失败时前端会自动降级回 iframe。 */
+        @JavascriptInterface public void openPack(final String payload) {
+            if (!trusted()) return;
+            if (payload == null || payload.length() == 0) { toast("内容包数据为空"); return; }
+            if (payload.length() > 8 * 1024 * 1024) { toast("内容包过大（上限 8MB）"); return; }
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    Intent i = new Intent(MainActivity.this, PackActivity.class);
+                    i.putExtra("pack", payload);
+                    startActivity(i);
+                } catch (Throwable t) { toast("无法打开内容包"); }
+            }});
+        }
+
+        /* 意见反馈专用：直接唤起邮件应用，**收件人预填**。
+           为什么不用 shareText：ACTION_SEND 进分享面板后，用户选「邮件」时收件人是空的，
+           得自己手打地址；ACTION_SENDTO + mailto: 只匹配邮件类应用，收件人 / 主题 / 正文
+           全部预填好（多个邮件客户端时系统会弹「用哪个应用打开」，与用户预期一致）。
+           设备上没有邮件应用时（国产 ROM 常见）抛 ActivityNotFoundException，
+           这里退回分享面板，至少能把正文发到微信 / QQ / 备忘录。 */
+        @JavascriptInterface public void sendMail(final String to, final String subject, final String body) {
+            if (!trusted()) return;
+            /* 收件人只保留地址合法字符：防 "a@b.c?subject=..." 这类参数注入 */
+            final String addr = (to == null) ? "" : to.replaceAll("[^A-Za-z0-9._%+@-]", "").trim();
+            if (addr.length() == 0) { toast("反馈地址无效"); return; }
+            final String sub = (subject == null) ? "" : subject;
+            final String txt = (body == null) ? "" : body;
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    Intent i = new Intent(Intent.ACTION_SENDTO);
+                    i.setData(Uri.parse("mailto:" + addr));
+                    i.putExtra(Intent.EXTRA_SUBJECT, sub);
+                    i.putExtra(Intent.EXTRA_TEXT, txt);
+                    startActivity(i);
+                } catch (Exception e) {
+                    try {
+                        Intent s = new Intent(Intent.ACTION_SEND);
+                        s.setType("text/plain");
+                        s.putExtra(Intent.EXTRA_SUBJECT, sub);
+                        s.putExtra(Intent.EXTRA_TEXT, txt + "\n\n收件人：" + addr);
+                        startActivity(Intent.createChooser(s, "没有邮件应用，用其他应用发送"));
+                    } catch (Exception e2) { toast("没有可用的邮件或分享应用"); }
+                }
+            }});
         }
 
         @JavascriptInterface public void shareText(final String title, final String text, final String url) {

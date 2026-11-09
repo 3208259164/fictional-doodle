@@ -348,14 +348,68 @@
   }
 
   function buildBoot(p) {
-    return '<script>window.YZQ_BOOT=' + JSON.stringify({ packId: p.packId, version: p.version }) +
+    /* 内容包沙箱第一道闸（0.18.47）：原生桥是注入到**每个 frame** 的，
+       iframe 加了 sandbox 也拿得到（Android 官方文档：any frame could obtain the
+       object name and call methods on it）。内容包本来就不需要桥（存档走
+       postMessage 交给父页），所以进来第一件事就是把桥从本 frame 的全局抹掉。
+       抹不掉也不影响主页面，只是这条兜底失效——真正的彻底隔离要等下一版用
+       不带桥的独立 WebView 承载内容包。 */
+    var shield = 'try{delete window.AndroidApp}catch(e){}'
+               + 'try{Object.defineProperty(window,"AndroidApp",{value:undefined,writable:false,configurable:false})}catch(e){}'
+               + 'try{window.AndroidApp=undefined}catch(e){}';
+    return '<script>' + shield + 'window.YZQ_BOOT=' + JSON.stringify({ packId: p.packId, version: p.version }) +
            ';window.__YZQ_SEED=' + JSON.stringify(packSeed()) + ';' + SHIM + '<\/script>';
   }
+
+  /* ---------------- 独立 WebView 模式的启动脚本（0.18.48 / A7） ----------------
+     无桥环境里原生 localStorage 是可用的（独立 origin https://yzpack.local），
+     所以不需要内存版 shim：能存就直接存，存不了才退内存。
+     seed 只在**首次**写入，否则每次打开都会把进度冲回打开前的快照。 */
+  function buildStandaloneBoot(p) {
+    var seed = packSeed();
+    return '<script>window.YZQ_BOOT=' + JSON.stringify({ packId: p.packId, version: p.version }) +
+      ';window.__YZQ_SEED=' + JSON.stringify(seed) + ';' +
+      '(function(){' +
+        'var SEED=window.__YZQ_SEED||{},mem={},has=Object.prototype.hasOwnProperty,ok=false;' +
+        'try{localStorage.setItem("__yzq_probe","1");localStorage.removeItem("__yzq_probe");ok=true;}catch(e){ok=false;}' +
+        'if(ok){try{if(!localStorage.getItem("__yzq_seeded")){' +
+          'Object.keys(SEED).forEach(function(k){localStorage.setItem(k,String(SEED[k]));});' +
+          'localStorage.setItem("__yzq_seeded","1");}}catch(e){}}' +
+        'else{Object.keys(SEED).forEach(function(k){mem[k]=String(SEED[k]);});' +
+          'var LS={getItem:function(k){k=String(k);return has.call(mem,k)?mem[k]:null;},' +
+          'setItem:function(k,v){mem[String(k)]=String(v);},removeItem:function(k){delete mem[String(k)];},' +
+          'clear:function(){mem={};},key:function(i){var ks=Object.keys(mem);return (i>=0&&i<ks.length)?ks[i]:null;}};' +
+          'try{Object.defineProperty(LS,"length",{get:function(){return Object.keys(mem).length;}});}catch(e){}' +
+          'try{Object.defineProperty(window,"localStorage",{value:LS,configurable:true});}catch(e){}}' +
+      '})();' +
+      '<\/script>';
+  }
+
+  /* 内容包退出后，原生把存档交回来 → 写回主站 localStorage（进度显示不受影响） */
+  window.__yzqAbsorb = function (json) {
+    try {
+      var o = JSON.parse(json || '{}');
+      Object.keys(o).forEach(function (k) {
+        if (k.indexOf('yzq_') === 0) { try { localStorage.setItem(k, String(o[k])); } catch (e) {} }
+      });
+      try { renderList(); } catch (e) {}
+    } catch (e) {}
+  };
 
   /* ---------------- 打开 / 关闭 ---------------- */
   var curPack = null;
   function openPack(p) {
     curPack = p;
+    /* 首选：交给不带桥的独立 WebView（0.18.48）。任何异常都自动降级回 iframe。 */
+    try {
+      if (window.AndroidApp && typeof window.AndroidApp.openPack === 'function') {
+        window.AndroidApp.openPack(JSON.stringify({
+          id: p.packId, title: p.title, version: p.version,
+          html: buildStandaloneBoot(p) + p.html
+        }));
+        return;
+      }
+    } catch (e) { /* 落到下面的 iframe */ }
     $('pName').textContent = p.title + ' · v' + p.version;
     $('player').classList.add('on');
     $('loading').classList.remove('off');

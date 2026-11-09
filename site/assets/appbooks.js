@@ -1448,7 +1448,7 @@
         var gid = gt.getAttribute('data-goto');
         var nt = notesOf(cur.id).filter(function (x) { return x.id === gid; })[0];
         closeTopPanel();
-        if (nt) gotoText(nt.text);
+        if (nt) { if (nt.p != null && gotoPara(nt.p)) return; gotoText(nt.text); }
         return;
       }
       var ln = t.closest('.ln[data-ch]');
@@ -1471,6 +1471,54 @@
       if (el.getBoundingClientRect().top - top <= 12) idx = i;
     }
     return idx;
+  }
+
+  /* 取当前书的文本结构（data/bstruct.js，构建期由 tools/gen_bstruct.py 生成）。
+     目前记录：段数 n、原书锚点 an = [[段序, "第 N 号", "上册"], ...] */
+  function bookStruct() {
+    try {
+      var B = window.SITE_BSTRUCT || {};
+      var f = cur && cur.src ? String(cur.src).split('/').pop() : '';
+      return (f && B[f]) || null;
+    } catch (e) { return null; }
+  }
+  /* 跳到原书某一篇（锚点如「第 7 号」） */
+  function jumpAnchor(label) {
+    var st = bookStruct();
+    if (!st || !st.an) return false;
+    var want = String(label || '').trim();
+    for (var i = 0; i < st.an.length; i++) {
+      if (st.an[i][1] === want) return gotoPara(st.an[i][0]);
+    }
+    return false;
+  }
+
+  /* 按段落号定位（bkp-N）。摘录/标注里存了段号就直接跳这里，
+     不再依赖「前 12 个字」的模糊匹配 —— 文字一旦被改过就找不到了。 */
+  function gotoPara(p) {
+    if (p == null || p === '') return false;
+    var el = document.getElementById('bkp-' + p) || document.getElementById('bkch-' + p);
+    if (!el) return false;
+    el.scrollIntoView({ block: 'center' });
+    el.style.transition = 'background .4s';
+    el.style.background = 'rgba(245,197,24,.35)';
+    setTimeout(function () { try { el.style.background = ''; } catch (e) {} }, 1400);
+    return true;
+  }
+  /* 取当前选区所在的段落号（用于把摘录钉在某一段上） */
+  function paraOfSelection() {
+    try {
+      var sel = window.getSelection();
+      if (!sel || !sel.anchorNode) return null;
+      var n = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentNode;
+      while (n && n !== document) {
+        if (n.id && (n.id.indexOf('bkp-') === 0 || n.id.indexOf('bkch-') === 0)) {
+          return parseInt(String(n.id).split('-')[1], 10);
+        }
+        n = n.parentNode;
+      }
+    } catch (e) {}
+    return null;
   }
 
   /* 按摘录文字定位：找出包含这段文字前 12 个字的段落并滚过去 */
@@ -2563,11 +2611,34 @@
     posSet(cur.id, { page: cur.idx, t: Date.now() });
   }
 
+  /* 章节 HTML 的第二道净化（0.18.47）。
+     原生侧 Epub.clean() 已经剥了标签，但那是「正则减法」，一旦漏一种写法
+     （例如无引号的 onerror=、srcdoc）就会直接在同源页面里执行。
+     这里再用 DOMParser 做一次白名单：DOMParser 生成的文档是惰性的
+     ——不执行脚本、不加载图片，所以「先解析再删」不会触发 payload。 */
+  function sanitizeChapter(html) {
+    try {
+      var doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+      var bad = doc.querySelectorAll('script,style,iframe,object,embed,form,input,button,select,textarea,link,meta,base,svg,math,applet,frame,frameset');
+      for (var i = bad.length - 1; i >= 0; i--) { if (bad[i].parentNode) bad[i].parentNode.removeChild(bad[i]); }
+      var all = doc.querySelectorAll('*');
+      for (var j = 0; j < all.length; j++) {
+        var el = all[j];
+        for (var k = el.attributes.length - 1; k >= 0; k--) {
+          var a = el.attributes[k], n = String(a.name).toLowerCase(), v = String(a.value || '');
+          if (n.indexOf('on') === 0 || n === 'srcdoc' || n === 'formaction') { el.removeAttribute(a.name); continue; }
+          if ((n === 'href' || n === 'src' || n === 'xlink:href') && /^\s*(javascript|vbscript|data:text\/html)/i.test(v)) el.removeAttribute(a.name);
+        }
+      }
+      return doc.body ? doc.body.innerHTML : '';
+    } catch (e) { return ''; }     /* 解析失败就宁可空着，也不把原始串塞进 DOM */
+  }
   function renderEpub() {
     var A = app(), body = document.getElementById('yzbkBody');
     body.innerHTML = '<p class="sub" style="opacity:.7">正在打开…</p>';
     var html = '';
     try { html = A.bookChapter(cur.id, cur.idx) || ''; } catch (e) { html = ''; }
+    html = sanitizeChapter(html);
     body.innerHTML = html || '<p class="sub">这一章是空的</p>';
     body.scrollTop = 0;
     setFoot('第 ' + (cur.idx + 1) + ' 章');
@@ -2684,6 +2755,9 @@
   window.YZAppBooks = {
     /* 供测试/调试创建阅读器容器（正常流程由 open() 懒创建） */
     readerShell: readerShell,
+    /* 段落级定位：摘录/标注/引文回跳统一走这里（不依赖文字匹配） */
+    jumpPara: gotoPara, paraOfSelection: paraOfSelection, gotoText: gotoText,
+    jumpAnchor: jumpAnchor, bookStruct: bookStruct,
     toc: showToc, jumpCh: jumpCh, outMenu: outMenu, outMenuCur: outMenuCur, reload: reloadCur,
     search: searchPanel, marks: marksPanel, notes: notesPanel, addMark: addMark, tts: ttsToggle, info: bookInfo,
     tab: shelfTab, sortBy: shelfSort, toggleView: shelfView, moreShell: moreShell, openShell: openShell,
@@ -2707,7 +2781,7 @@
       try {
         var a = JSON.parse(localStorage.getItem('yzExcerpts') || '[]');
         if (!Array.isArray(a)) a = [];
-        a.unshift({ b: cur.id, txt: __wordSel, note: '', t: Date.now() });
+        a.unshift({ b: cur.id, txt: __wordSel, note: '', t: Date.now(), p: paraOfSelection() });
         localStorage.setItem('yzExcerpts', JSON.stringify(a.slice(0, 500)));
         toast('已存为摘录');
         hideWordCard();

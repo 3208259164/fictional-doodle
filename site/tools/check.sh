@@ -54,7 +54,10 @@ if [ -f "$SITE/../qa/tools/run_epubpack_test.sh" ]; then
     || { echo "  ❌ EPUB 重打包有问题（见 /tmp/yzy_epubpack.log）"; FAIL=1; }
 fi
 node tools/audit_data.js || FAIL=1         # 补充：3D 数据集、世界地理坐标、孤立节点
-node tools/check_meetings.js || FAIL=1     # 会议条目：人物名/书目 id/事件名能否在站内解析
+[ -f tools/check_edgemeta.js ] && { node tools/check_edgemeta.js || FAIL=1; }   # 关系时序与溯源标注         # 补充：3D 数据集、世界地理坐标、孤立节点
+[ -f tools/check_graph_nodes.js ] && { node tools/check_graph_nodes.js || FAIL=1; }  # 五张图谱：悬空边 / id 冲突 / 字段缺失 / 重名提示
+if [ -f tools/check_meetings.js ]; then node tools/check_meetings.js || FAIL=1     # 会议条目：人物名/书目 id/事件名能否在站内解析
+else echo "  · 跳过会议条目校验（本仓库未包含 tools/check_meetings.js）"; fi
 
 if [ "${SKIP_RUNTIME:-0}" = "1" ]; then
   echo; echo "（已跳过运行时回归：SKIP_RUNTIME=1）"

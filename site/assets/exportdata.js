@@ -275,6 +275,12 @@
   /* ---------------- CSV ---------------- */
   function csvCell(v) {
     var t = s(v);
+    /* 公式注入（0.18.47）：以 = + - @ 开头（含全角变体与制表/换行）的单元格，
+       在 Excel / WPS 里会被当公式执行。OWASP 给的对 Excel 有效的做法是
+       「引号内加一个前导 TAB」，这里照做并强制加引号。 */
+    if (/^[=+\-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20]/.test(t)) {
+      return '"' + ('\t' + t).replace(/"/g, '""') + '"';
+    }
     if (/[",\r\n]/.test(t)) return '"' + t.replace(/"/g, '""') + '"';
     return t;
   }

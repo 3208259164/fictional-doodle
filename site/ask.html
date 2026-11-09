@@ -283,8 +283,11 @@ details.ev-fact summary{color:var(--sub)}
   histRender();
 
   function esc(s){
+    /* 0.18.47：补上引号。原来只转 & < >，而它被用在 title="…" 里，
+       提问过的句子用双引号就能把属性打断、注入事件处理器。 */
     return String(s == null ? '' : s)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
   /* 系统提示（导入/导出/清空的结果反馈）。

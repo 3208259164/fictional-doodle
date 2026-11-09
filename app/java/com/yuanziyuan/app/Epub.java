@@ -326,6 +326,33 @@ public final class Epub {
         if (b.find()) s = b.group(1);
         s = s.replaceAll("(?i)\\son\\w+\\s*=\\s*(\"[^\"]*\"|'[^']*')", "");
         s = s.replaceAll("(?i)(href|src)\\s*=\\s*(\"|')\\s*javascript:[^\"']*(\"|')", "");
+
+        /* ---------------- 0.18.47 安全补漏 ----------------
+           上一版只清「带引号」的 on* 属性，但 HTML 允许无引号写法：
+             <img src=x onerror=alert(1)>      ← 值到空格/斜杠/大于号结束
+             <svg onload=alert(1)>
+           clean() 漏掉这两类，章节 HTML 又被 appbooks.js 直接 innerHTML 插进同源页面，
+           于是「导入一本恶意 EPUB 即执行脚本」，可调原生桥读走本机数据。
+           下面按「无引号值」再清一遍，并删掉正常书里不会出现的高危容器标签。
+           注意：这里只做**减法**，不动段落/标题/图片/列表/引用等正常排版标签，
+           避免影响阅读效果（回归测试覆盖）。 */
+        s = s.replaceAll("(?i)\\son\\w+\\s*=\\s*[^\\s>\"']+", "");
+        /* 成对的高危容器：连内容一起删（svg/math 里常藏 onload） */
+        s = s.replaceAll("(?is)<svg\\b[^>]*>.*?</svg>", "");
+        s = s.replaceAll("(?is)<math\\b[^>]*>.*?</math>", "");
+        s = s.replaceAll("(?is)<script\\b[^>]*>.*?</script>", "");
+        s = s.replaceAll("(?is)<style\\b[^>]*>.*?</style>", "");
+        s = s.replaceAll("(?is)<iframe\\b[^>]*>.*?</iframe>", "");
+        s = s.replaceAll("(?is)<object\\b[^>]*>.*?</object>", "");
+        s = s.replaceAll("(?is)<form\\b[^>]*>.*?</form>", "");
+        s = s.replaceAll("(?is)<frameset\\b[^>]*>.*?</frameset>", "");
+        /* 单标签 / 未闭合 / 自闭合形式 */
+        s = s.replaceAll("(?is)</?(iframe|object|embed|applet|frame|frameset|svg|math|form|input|button|select|textarea|link|meta|base|noscript)\\b[^>]*>", "");
+        /* 间接加载 / 提交点 */
+        s = s.replaceAll("(?i)\\s(srcdoc|formaction|action|xlink:href)\\s*=\\s*(\"[^\"]*\"|'[^']*'|[^\\s>]+)", "");
+        /* CSS 表达式与 javascript: url */
+        s = s.replaceAll("(?i)expression\\s*\\(", "(");
+        s = s.replaceAll("(?i)url\\s*\\(\\s*['\"]?\\s*javascript:[^)]*\\)", "none");
         return s.trim();
     }
 

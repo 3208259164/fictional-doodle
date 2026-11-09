@@ -352,8 +352,8 @@ function crumbFrom(items){
   CUR_TRAIL = items.slice();
   const parts = [`<button class="aslink" onclick="goHome()">首页</button>`]
     .concat(items.map((x, i) => (i === items.length - 1)
-      ? `<span class="cur">${x.t}</span>`
-      : `<button class="aslink" onclick="openTrail(${i})">${x.t}</button>`));
+      ? `<span class="cur">${escHtml(x.t)}</span>`
+      : `<button class="aslink" onclick="openTrail(${i})">${escHtml(x.t)}</button>`));
   return `<nav class="crumb" aria-label="面包屑导航">${parts.join(' <span class="sep">›</span> ')}</nav>`;
 }
 function openTrail(i){ const x = CUR_TRAIL[i]; if (x && x.fn) x.fn(); }
@@ -373,10 +373,10 @@ function rowHTML(idx){
      想看书目信息（简介/标签/笔记/摘录）点右侧「详情」。 */
   const prev = (window.JT_PREV && window.JT_PREV[it.id]) || '';
   const inline = isInlineText(it);
-  return `<button class="lcard aslink" onclick="openItemDetail(${idx})"><span class="li">${it.icon||'📕'}</span>` +
-    `<span style="flex:1;min-width:0"><span class="pname">${it.title}${badge}${linkOf(it) ? ' <i class="badge-link" title="有链接">🔗</i>' : ''}</span>` +
+  return `<button class="lcard aslink" onclick="openItemDetail(${idx})"><span class="li">${escHtml(it.icon||'📕')}</span>` +
+    `<span style="flex:1;min-width:0"><span class="pname">${escHtml(it.title)}${badge}${linkOf(it) ? ' <i class="badge-link" title="有链接">🔗</i>' : ''}</span>` +
     (prev ? `<span class="prole prev2">${escHtml(prev)}</span>` : '') +
-    `<span class="prole">${it.author} · ${it.cat}${it.size && it.size!=='—' ? ' · ' + it.size : ''} · ${hasBody(it) ? statusMap[it.status] : '📭 暂无原文'}</span></span>` +
+    `<span class="prole">${escHtml(it.author)} · ${escHtml(it.cat)}${it.size && it.size!=='—' ? ' · ' + escHtml(it.size) : ''} · ${hasBody(it) ? statusMap[it.status] : '📭 暂无原文'}</span></span>` +
     `<span style="opacity:.4">›</span></button>`;
 }
 /* ---------- 本机存储写入：统一入口，配额写满时给出提示（原先是静默失败） ---------- */
@@ -676,6 +676,29 @@ function buildDataObj(){
   Object.keys(kv).forEach(k => { if (k.indexOf('note_') === 0) data.notes[k] = kv[k]; });
   return data;
 }
+/* 备份导入通道的白名单（0.18.47）
+   以前只相信「自助编辑」那条入口（overlay 的 clean / cleanUrl / cleanAvatar），
+   备份 JSON 是原样落库的：avatar 能塞进  " onerror=…（img src 属性打断），
+   links 能塞进 javascript:…（绕过 normLink 直接进 location.href）。 */
+function safeAvatarVal(v){
+  var s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  if (/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(s)) return (s.length > 400000 ? '' : s);
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^(images|assets|data|avatar|icons)\//i.test(s) || /^\.\//.test(s)) return s;
+  return '';                       /* 其它一律丢弃（只影响这一项，不影响整份备份导入） */
+}
+function filterLinksJSON(v){
+  var m = null;
+  try { m = JSON.parse(v); } catch (e) { return v; }   /* 解析不了就原样保留，避免无谓的数据丢失 */
+  if (!m || typeof m !== 'object') return '';
+  var out = {}, n = 0;
+  Object.keys(m).forEach(function (k) {
+    var u = normLink(m[k]);          /* 只留 http(s) 与站内相对路径 */
+    if (u) { out[k] = u; n++; }
+  });
+  return n ? JSON.stringify(out) : '';
+}
 function applyImportedData(d){
   let fail = 0;
   const put = (k, v) => { if (v != null && !lset(k, v)) fail++; };
@@ -685,9 +708,14 @@ function applyImportedData(d){
   DATA_PREFIX.forEach(p => {
     Object.keys(d).forEach(k => { if (k.indexOf(p) === 0 && kv[k] == null) kv[k] = d[k]; });
   });
-  Object.keys(kv).forEach(k => put(k, kv[k]));
+  Object.keys(kv).forEach(function (k) {
+    var v = kv[k];
+    if (k === 'acctAvatar') v = safeAvatarVal(v);
+    else if (k === 'links' || k === 'libLinks') v = filterLinksJSON(v);
+    put(k, v);
+  });
   if (d.name != null) put('acctName', d.name);
-  if (d.avatar != null) put('acctAvatar', d.avatar);
+  if (d.avatar != null) put('acctAvatar', safeAvatarVal(d.avatar));
   Object.entries(d.notes || {}).forEach(([k, v]) => put(k, v));
   if (Array.isArray(d.quizBank)) { try { quizSave(d.quizBank); } catch (e) { fail++; } }
   /* 自助编辑覆盖层：交给 overlay 归一化后合并，保证结构与运行时一致 */
@@ -1400,13 +1428,159 @@ function yzOpenRef(kind, id) {
   return '';
 }
 /* 外层：拼音查询先映射成中文名，再合并结果按相关度排序 */
+/* ---------- 问句净化 ----------
+   站内搜索是「整串包含」匹配，用户按口语提问（「什么是群众路线」「怎样防止手机被监控」）
+   整串必然落空。这里把疑问词与标点剥掉再检索一次，两次结果合并去重。
+   只做前缀/后缀剥除，不改动中间的词序，避免把专名改坏。 */
+var YZ_Q_PREFIX = /^(?:请问一下|请问|帮我查一下|帮我找|帮我|我想知道|想知道|问一下|问下|查一下|查查|搜一下|什么是|啥是|什么叫|是什么|如何|怎么样|怎样|怎么|为什么|为何|有哪些|哪些|哪个|介绍一下|解释一下|说说|讲一下|讲一讲|谈谈)+/;
+var YZ_Q_SUFFIX = /(?:是什么|是什么意思|是怎么回事|是什么样|怎么样|怎么办|怎么做|怎么开|怎么弄|怎么用|有什么用|有啥用|有必要吗|行不行|好不好|能不能|可以吗|有哪些|为什么|如何|吗|呢|吧|呀)+$/;
+function yzCleanQuery(q){
+  var s = String(q || '');
+  s = s.replace(/[?？!！。，,、；;：:"'“”‘’《》〈〉（）()\[\]【】\s]+/g, '');
+  s = s.replace(YZ_Q_PREFIX, '');
+  s = s.replace(YZ_Q_SUFFIX, '');
+  return s;
+}
+/* 兜底召回：整串匹配不到时，用 2-gram 覆盖率在书库/概念/人物里找最相近的几条。
+   只在主结果少于 3 条时启用，阈值 0.4，取前 5，避免噪声淹没精确命中。 */
+function yzGrams(s){ var t = String(s || ''), a = []; for (var i = 0; i < t.length - 1; i++) a.push(t.substr(i, 2)); return a; }
+function yzCoverage(text, grams){
+  if (!text || !grams.length) return 0;
+  var t = String(text), seen = {}, n = 0;
+  grams.forEach(function(g){ if (!seen[g] && t.indexOf(g) >= 0) { seen[g] = 1; n++; } });
+  return n / grams.length;
+}
+function yzFuzzyHits(q){
+  var grams = yzGrams(yzCleanQuery(q));
+  if (grams.length < 3) return [];
+  var cand = [];
+  (RES || []).forEach(function(it, i){
+    var c = yzCoverage((it.title || '') + (it.desc || '') + (it.intro || '') + (it.author || ''), grams);
+    if (c >= 0.4) cand.push({ c: c, cat: '书库', t: it.title, sub: (it.author || '') + (it.cat ? ' · ' + it.cat : ''), fn: 'openItemDetail(' + i + ')' });
+  });
+  ((window.SITE_CONCEPTS && SITE_CONCEPTS.nodes) || []).forEach(function(x){
+    var c = yzCoverage((x.name || '') + (x.role || '') + (x.desc || '') + ((x.tags || []).join('')), grams);
+    if (c >= 0.4) cand.push({ c: c, cat: '概念', t: x.name, sub: x.role || '', fn: "openConcept('" + x.id + "')" });
+  });
+  try {
+    figuresList().forEach(function(p){
+      var c = yzCoverage((p.name || '') + (p.role || '') + (p.desc || ''), grams);
+      if (c >= 0.4) cand.push({ c: c, cat: '人物', t: p.name, sub: p.role || '', fn: "openFigure('" + p.id + "')" });
+    });
+  } catch (e) {}
+  cand.sort(function(a, b){ return b.c - a.c; });
+  return cand.slice(0, 5);
+}
+/* ---------- P1：图增强检索 ----------
+   实体链接（data/entity.js）→ 图上 1 跳扩展 → 产出「关联」结果；
+   再配合 JT_FULL 的段落级命中，产出「原文」原句结果。
+   全部纯前端计算，不引入模型、不联网。 */
+function yzEntityHits(q){
+  var cq = yzCleanQuery(q); if (!cq || cq.length < 2) return [];
+  var list = window.SITE_ENTITY || [], out = [];
+  for (var i = 0; i < list.length; i++) {
+    var e = list[i], n = e[0] || '', al = e[3] || '';
+    if (n.indexOf(cq) >= 0 || cq.indexOf(n) >= 0 || (al && al.indexOf(cq) >= 0)) out.push(e);
+  }
+  out.sort(function(a, b){ return (b[0] || '').length - (a[0] || '').length; });
+  return out.slice(0, 6);
+}
+var _yzAdj = null, _yzNodeMap = null;
+function yzGraphIndex(){
+  if (_yzAdj) return;
+  var adj = {}, map = {};
+  [['SITE_GRAPH', 'main'], ['SITE_GRAPH_WENGE', 'wenge'], ['SITE_GRAPH_WORLD', 'world']].forEach(function(p){
+    var G = window[p[0]]; if (!G) return;
+    (G.nodes || []).forEach(function(n){ if (!map[n.id]) map[n.id] = { n: n.name, t: n.type, ds: p[1] }; });
+    (G.links || []).forEach(function(l){
+      (adj[l.source] = adj[l.source] || []).push({ id: l.target, rel: l.rel || '关联' });
+      (adj[l.target] = adj[l.target] || []).push({ id: l.source, rel: l.rel || '关联' });
+    });
+  });
+  _yzAdj = adj; _yzNodeMap = map;
+}
+function yzOpenNodeFn(id, info){
+  if (info.t === 'person') return "openFigure('" + id + "')";
+  return "openGraphJump('" + id + "','" + info.ds + "')";
+}
+function yzOpenEntityFn(e){
+  var raw = String(e[2] || ''), ds = raw.split('@')[1] || 'main', id = raw.split('@')[0];
+  if (e[1] === '概念') return "openConcept('" + id + "')";
+  if (e[1] === '书') {
+    var idx = (RES || []).findIndex(function(r){ return r.id === id; });
+    return idx >= 0 ? 'openItemDetail(' + idx + ')' : '';
+  }
+  return "openGraphJump('" + id + "','" + ds + "')";
+}
+/* 查一条边的时序/溯源标注（data/edge-meta.js）。两个方向都试，因为标注只写了一次。 */
+function yzEdgeMeta(a, b, rel){
+  var M = window.SITE_EDGE_META || {};
+  return M[a + '|' + b + '|' + rel] || M[b + '|' + a + '|' + rel] || null;
+}
+function yzGraphHits(q){
+  var hits = yzEntityHits(q); if (!hits.length) return [];
+  yzGraphIndex();
+  var out = [], seen = Object.create(null);
+  hits.forEach(function(e){
+    if (!seen['E|' + e[0]]) {
+      seen['E|' + e[0]] = 1;
+      var fn = yzOpenEntityFn(e);
+      if (fn) out.push({ cat: e[1], t: e[0], sub: '直接命中', fn: fn, w: 1 });
+    }
+    var raw = String(e[2] || ''), id = raw.split('@')[0];
+    (_yzAdj[id] || []).slice(0, 8).forEach(function(x){
+      var info = _yzNodeMap[x.id]; if (!info) return;
+      var key = 'N|' + info.n;
+      if (seen[key]) return; seen[key] = 1;
+      /* P2：这条边若标了时序，就把有效区间写进副标题（例：1967—1979） */
+      var em = yzEdgeMeta(id, x.id, x.rel);
+      var span = (em && em.t) ? ' · ' + em.t[0] + '—' + (em.t[1] || '今') : '';
+      out.push({ cat: '关联', t: info.n, sub: '经「' + e[0] + '」· ' + x.rel + span, fn: yzOpenNodeFn(x.id, info), w: 0.5 });
+    });
+  });
+  out.sort(function(a, b){ return b.w - a.w; });
+  return out.slice(0, 10);
+}
+function yzQuoteHits(q){
+  var F = window.JT_FULL; if (!F || !F.length) return [];
+  var cq = yzCleanQuery(q); if (!cq || cq.length < 2) return [];
+  var HCH = /^(?:第\s*[〇零一二三四五六七八九十百千0-9]+\s*[章节篇部卷讲]|[〇零一二三四五六七八九十]{1,3}\s*[、.．]|[0-9]{1,3}\s*[、.．)）]|序\s*[言章]|前\s*言|引\s*言|结\s*语)/;
+  var out = [];
+  F.forEach(function(bk){
+    var ch = '';
+    (bk.t || []).forEach(function(p){
+      var s = String(p || '');
+      if (s.length <= 34 && HCH.test(s)) { ch = s; return; }
+      if (s.indexOf(cq) < 0) return;
+      out.push({
+        cat: '原文', t: bk.title, sub: ch || bk.title,
+        snip: s.slice(0, 90) + (s.length > 90 ? '…' : ''),
+        fn: '', w: s.length < 400 ? 1 : 0.7
+      });
+    });
+  });
+  out.sort(function(a, b){ return b.w - a.w; });
+  return out.slice(0, 6);
+}
 function omniSearch(q){
+  var cq = yzCleanQuery(q);
   var raw = omniSearchRaw(q);
+  if (cq && cq !== q && cq.length >= 2) raw = raw.concat(omniSearchRaw(cq));
+  var seen = {}, uniq = [];
+  raw.forEach(function(h){ var k = (h.cat || '') + '|' + (h.t || ''); if (!seen[k]) { seen[k] = 1; uniq.push(h); } });
+  if (uniq.length < 3) uniq = uniq.concat(yzFuzzyHits(q));
+  /* P1：图关联与原文原句并进结果（去重后保留原有顺序：关联 → 精确命中 → 原句） */
+  var gh = yzGraphHits(q), qh = yzQuoteHits(q);
+  if (gh.length || qh.length) {
+    var s2 = Object.create(null), u2 = [];
+    gh.concat(uniq, qh).forEach(function(h){ var k = (h.cat || '') + '|' + (h.t || ''); if (!s2[k]) { s2[k] = 1; u2.push(h); } });
+    uniq = u2;
+  }
   var names = pyQuery(q);
-  if (!names.length) return sortHits(raw, q, []);
+  if (!names.length) return sortHits(uniq, q, []);
   var extra = [];
   names.slice(0, 5).forEach(function (n) { extra = extra.concat(omniSearchRaw(n)); });
-  return sortHits(raw.concat(extra), q, names);
+  return sortHits(uniq.concat(extra), q, names);
 }
 /* ---------- 全站命中：把「史料」也纳入检索 ---------- */
 /* ---------- 运行时自检 ----------
@@ -1496,7 +1670,10 @@ function omniSearchRaw(q){
   schoolGroups().forEach((g, gi) => { if (hit(g.note)) out.push({ cat:(g.group || '流派'), t:'流派说明', sub:g.note, fn:`openHub('${gi === 0 ? 'thoughts' : 'orgs'}')` }); });
   (CT.help || []).forEach(([k, v]) => { if (hit(k) || hit(v)) out.push({ cat:'使用指南', t:k, sub:v, fn:`openSection(secIdx('使用指南'))` }); });
   (CT.faq || []).forEach(([qq, aa]) => { if (hit(qq) || hit(aa)) out.push({ cat:'常见问题', t:qq, sub:aa, fn:`openSection(secIdx('使用指南'))` }); });
-  (channelList() || []).forEach(c => { const _s = [c.author, c.text, c.critique && c.critique.text].filter(Boolean).join(' '); if (hit(_s)) out.push({ cat:'频道', t:c.author || '发言', sub:_s, fn:'openChannel()' }); });
+  (articleList() || []).forEach(a => {
+    const _s = [a.title, a.lede, a.author, (a.tags || []).join(' ')].filter(Boolean).join(' ');
+    if (hit(_s)) out.push({ cat:'文章', t:a.title, sub:(a.lede || ''), fn:"openArticle('" + a.id + "')" });
+  });
   /* 书库：全站搜索要能搜到书名 / 作者 / 简介（此前只在书库页内可搜，首页搜不到书名） */
   (RES || []).forEach((it, i) => {
     if (!it) return;
@@ -1838,7 +2015,7 @@ function render(){
     emptyEl.style.display = 'block';
     const sug = suggest(curQ);
     emptyEl.innerHTML = '没有找到匹配的资源<br>换个关键词试试，或回首页按分类浏览' +
-      (sug.length ? `<div class="sugg">你是不是想找：${sug.map(s => `<span class="tag" onclick="quickSearch('${escAttr(s)}')">${s}</span>`).join('')}</div>` : '');
+      (sug.length ? `<div class="sugg">你是不是想找：${sug.map(s => `<span class="tag" onclick="quickSearch('${escAttr(s)}')">${escHtml(s)}</span>`).join('')}</div>` : '');
   }
 
   const title = terms.length ? '🔎 搜 索 结 果'
@@ -1875,8 +2052,8 @@ function renderContinue(){
     ? `openLocalBook('${escAttr(_lid2)}')`
     : `openItemDetail(${idx})`;
   el.innerHTML = `<button class="continue aslink" onclick="${act}">
-    <span class="ci">${it.icon || '📕'}</span>
-    <span class="ct"><span class="cn">${hint}</span><span>${it.title}</span></span>
+    <span class="ci">${escHtml(it.icon || '📕')}</span>
+    <span class="ct"><span class="cn">${hint}</span><span>${escHtml(it.title)}</span></span>
     <span style="opacity:.4">›</span></button>`;
 }
 
@@ -1984,7 +2161,7 @@ function renderPc(){
   var av = localStorage.getItem('acctAvatar') || '';
   el.innerHTML =
     '<div class="pc-head">' +
-      '<button class="pc-ava" onclick="openAccountView()" title="我的资料">' + (av ? '<img src="' + av + '" alt="">' : '👤') + '</button>' +
+      '<button class="pc-ava" onclick="openAccountView()" title="我的资料">' + (av ? '<img src="' + escAttr(av) + '" alt="">' : '👤') + '</button>' +
       '<div class="pc-meta"><div class="pc-name">' + escHtml(name) + '</div>' +
         '<div class="pc-sign">我的资料 · 账号与本机数据 →</div></div>' +
       '<button class="pc-x" onclick="closeDrawer()" aria-label="关闭">✕</button>' +
@@ -2000,6 +2177,18 @@ function renderPc(){
       pcRow('📦','内容包','自己做的 HTML 小应用 · 导入即可运行','location.href=\'challenge.html\'') +
       pcRow('📚','我的资料','书架 · 收藏 · 书签 · 摘录 · 标注','yzOpenMine()') +
       pcRow('🎛','自定义','外观 · 片段 · 版式 · 首页','openCustom()') +
+      /* 意见反馈放在抽屉根（个人中心）而不是设置页：这里少点一层，且不必进设置才能找到。
+         地址本身就是复制按钮（点一下即复制，不再单占一个「复制」按钮）：
+         反馈场景下「拿到地址」远比「看着地址」常用，少一个按钮也少一次误触。 */
+      '<div class="pc-row" style="gap:8px">' +
+        '<span class="pc-ic">✉️</span>' +
+        '<span class="pc-tx"><span class="pc-t">意见反馈</span>' +
+          '<span class="pc-s" role="button" tabindex="0" title="点一下即复制邮箱" ' +
+            'style="word-break:break-all;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" ' +
+            'onclick="event.stopPropagation();copyFeedback()">' + YZ_FEEDBACK_MAIL + '</span></span>' +
+        '<button class="sbtn" style="font-size:.72rem;padding:3px 9px;flex:none" title="用邮件发送：收件人已填好" onclick="event.stopPropagation();shareFeedback()">邮件</button>' +
+        '<button class="sbtn" style="font-size:.72rem;padding:3px 9px;flex:none" onclick="event.stopPropagation();openFeedbackIssue()">GitHub</button>' +
+      '</div>' +
     '</div>' +
     '<div class="pc-bottom">' +
       '<button class="pc-b" onclick="openSettings()">⚙️ 设置</button>' +
@@ -2312,9 +2501,8 @@ function chanFootHTML(p){
     '<button class="ch-act" onclick="event.stopPropagation();chanCopy(\'' + k + '\')">📋<i>复制</i></button>' +
     '</div>';
 }
-function chanCardHTML(p){
-  return '<article class="ch-post' + (p.critic ? ' ch-crit' : '') + '" onclick="openChannelPost(\'' + encKey(p) + '\')">' + chanBodyHTML(p) + chanFootHTML(p) + '</article>';
-}
+/* chanCardHTML 已移除：人物频道停用。 */
+
 function copyText(t, okMsg){
   try { if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){ toast(okMsg || '已复制'); }, function(){ fallbackCopy(t, okMsg); }); return; } } catch(e){}
   fallbackCopy(t, okMsg);
@@ -2328,11 +2516,60 @@ function chanCopy(keyEnc){
   var p = channelList().find(function(x){ return chanKey(x) === key; }); if (!p) return;
   copyText((p.author || '') + '：' + (p.text || '') + (p.src ? ('（' + p.src + '）') : ''), '已复制发言');
 }
-function channelBodyHTML(list){
-  if (!list.length) return '<p class="sub" style="line-height:1.9">没有找到相关发言。</p>';
-  return list.map(chanCardHTML).join('');
+/* ---------- 意见反馈：发送（系统分享面板）/ 点地址即复制 / GitHub ----------
+   为什么不再只有「写信」一个口子：
+     mailto: 交给系统后，只有装了邮件客户端的设备才会弹「用哪个应用打开」；
+     多数国产 ROM 没装邮件 App，点了要么没反应、要么只提示「无法打开链接」。
+   现在优先走 App 桥 AndroidApp.shareText → Intent.ACTION_SEND + createChooser，
+   系统会列出微信 / QQ / 邮件 / 备忘录 / 复制到剪贴板等任意能接收文本的应用
+   （这就是「可以选择用其他应用打开」的入口）；网页版没有桥，退回 mailto。 */
+var YZ_FEEDBACK_MAIL = 'fictional-doodle.percolate882@passinbox.com';
+function feedbackBody(){
+  var ver = '';
+  try { ver = (CFG && CFG.version) ? ('站点 ' + CFG.version) : ''; } catch (e) {}
+  try { ver += appTag(); } catch (e) {}
+  return '学通 App 意见反馈\n\n（请在这里写你遇到的问题 / 建议）\n\n---\n' + ver;
 }
-/* ---------- 频道：人物频道（原有发言流）+ 概念频道（理论范畴） ---------- */
+function shareFeedback(){
+  var body = feedbackBody();
+  /* ① App 内首选：sendMail —— 直接唤起邮件应用，收件人/主题/正文全部预填。
+        只在这台设备装了邮件客户端时才会出现（多个客户端时系统弹「用哪个应用打开」）；
+        没有邮件客户端时 Java 侧自动退到分享面板，不会点了没反应。 */
+  try {
+    if (window.AndroidApp && typeof window.AndroidApp.sendMail === 'function'){
+      window.AndroidApp.sendMail(YZ_FEEDBACK_MAIL, '学通 App 意见反馈', body);
+      return;
+    }
+  } catch (e) {}
+  /* ② 旧版 App / 网页版：mailto（同样预填收件人，系统选择器里选邮箱即带上） */
+  try {
+    location.href = 'mailto:' + YZ_FEEDBACK_MAIL + '?subject=' + encodeURIComponent('学通 App 意见反馈')
+                  + '&body=' + encodeURIComponent(body);
+    return;
+  } catch (e) {}
+  /* ③ 还不行：分享面板（把地址写进正文，对方仍不用问你要地址） */
+  try {
+    if (window.AndroidApp && typeof window.AndroidApp.shareText === 'function'){
+      window.AndroidApp.shareText('学通 App 意见反馈', body, '收件人：' + YZ_FEEDBACK_MAIL);
+      return;
+    }
+  } catch (e) {}
+  /* ④ 都没有：把地址与正文一起复制走 */
+  copyText(YZ_FEEDBACK_MAIL + '\n' + body, '邮箱与正文已复制');
+}
+/* 兼容旧调用（设置页残留的 mailFeedback） */
+function mailFeedback(){ shareFeedback(); }
+/* 点地址即复制（0.18.46：不再单设「复制」按钮） */
+function copyFeedback(){ copyText(YZ_FEEDBACK_MAIL, '邮箱已复制，可直接粘贴'); }
+/* 第三个反馈渠道：GitHub 提 issue。站点没有网络权限，这里把链接交给系统浏览器打开。 */
+var YZ_FEEDBACK_ISSUE = 'https://github.com/3208259164/fictional-doodle/issues/new';
+function openFeedbackIssue(){
+  try { location.href = YZ_FEEDBACK_ISSUE; }
+  catch (e) { try { copyText(YZ_FEEDBACK_ISSUE, '链接已复制，可在浏览器打开'); } catch (e2) {} }
+}
+/* channelBodyHTML 已移除：人物频道停用后无调用入口（发言列表仅保留数据，不再渲染）。 */
+
+/* ---------- 频道：概念频道（理论范畴）+ 文章频道（中篇长文） ---------- */
 var _chanTab = 'concept';   /* 默认进概念频道（用户要求） */
 function conceptNodes(){ return (window.SITE_CONCEPTS && window.SITE_CONCEPTS.nodes) || []; }
 function conceptById(id){
@@ -2341,13 +2578,49 @@ function conceptById(id){
   return null;
 }
 function chanTabSet(k){
-  _chanTab = (k === 'concept') ? k : 'people';
+  _chanTab = (k === 'article') ? 'article' : 'concept';
   var cv = document.getElementById('contentView');
   if (cv) cv.innerHTML = channelHTML();
   var inp = document.getElementById('qSearch');
-  if (inp){ inp.value = ''; inp.placeholder = (_chanTab === 'concept') ? '搜索概念…' : '搜索发言…'; }
+  if (inp){ inp.value = ''; inp.placeholder = (_chanTab === 'article') ? '搜索文章…' : '搜索概念…'; }
   try { window.scrollTo(0, 0); } catch(e){}
 }
+/* ---------- 文章频道：放「既不能成书、也不是几十字」的中篇 ---------- */
+function articleList(){ return window.SITE_ARTICLES || []; }
+function articleById(id){
+  var L = articleList();
+  for (var i = 0; i < L.length; i++) if (L[i].id === id) return L[i];
+  return null;
+}
+function articleCardHTML(a){
+  var tags = (a.tags && a.tags.length) ? '<span class="ch-book">🏷 ' + escHtml(a.tags.slice(0, 3).join(' · ')) + '</span>' : '';
+  return '<article class="ch-post cc-post" data-act="openArticle" data-arg="' + escHtml(a.id) + '">' +
+    '<div class="cc-head"><span class="cc-ic">📄</span><span class="cc-name">' + escHtml(a.title) + '</span>' +
+      (a.date ? '<span class="cc-role">' + escHtml(a.date) + '</span>' : '') + '</div>' +
+    '<div class="cc-desc">' + escHtml(a.lede || '') + '</div>' +
+    (tags ? '<div class="cc-foot">' + tags + '</div>' : '') +
+    '</article>';
+}
+function articleListHTML(list){
+  if (!list || !list.length) return '<div style="padding:20px 16px;opacity:.7;line-height:1.9">这个频道还没有文章。<br>文章放「既不能独立成书、也不是几十字短讯」的内容：导读、方法说明、专题长文。</div>';
+  return '<div class="ch-list">' + list.map(articleCardHTML).join('') + '</div>';
+}
+function openArticle(id){
+  var a = articleById(id); if (!a) return;
+  yzSetCur({ kind: 'article', id: id });
+  var body = (a.body || []).map(function (p) {
+    var t = String(p);
+    if (t.indexOf('## ') === 0) return '<h3 class="sub-title" style="margin-top:20px">' + escHtml(t.slice(3)) + '</h3>';
+    if (t.indexOf('- ') === 0) return '<p style="line-height:1.95;margin:4px 0 4px 16px;opacity:.92">· ' + escHtml(t.slice(2)) + '</p>';
+    return '<p style="line-height:2;margin:10px 0">' + escHtml(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</p>';
+  }).join('');
+  var meta = [a.author, a.date].filter(Boolean).join(' · ');
+  openContent('📄 ' + a.title,
+    crumbFrom([{ t: '频道', fn: openChannel }, { t: '文章频道', fn: function () { chanTabSet('article'); } }, { t: a.title, fn: function () { openArticle(id); } }]) +
+    '<p class="sub" style="opacity:.7;line-height:1.8">' + escHtml(meta) + (a.src ? ' · 据：' + escHtml(a.src) : '') + '</p>' +
+    body);
+}
+window.openArticle = openArticle;
 function conceptCardHTML(c){
   var desc = String(c.desc || '');
   var lead = desc.length > 92 ? (desc.slice(0, 92) + '…') : desc;
@@ -2364,8 +2637,8 @@ function conceptListHTML(list){
   return list.map(conceptCardHTML).join('');
 }
 function channelHTML(){
-  if (_chanTab === 'concept') return conceptListHTML(conceptNodes());
-  return channelBodyHTML(channelList());
+  if (_chanTab === 'article') return articleListHTML(articleList());
+  return conceptListHTML(conceptNodes());
 }
 function channelSearch(q){
   var cv = document.getElementById('contentView'); if (!cv) return;
@@ -2379,11 +2652,11 @@ function channelSearch(q){
     cv.innerHTML = conceptListHTML(cl);
     return;
   }
-  var list = channelList().filter(function(p){
-    var hay = String(p.author || '') + String(p.text || '') + String(p.src || '') + (p.critic ? JSON.stringify(p.critique || {}) : '');
-    return hay.toLowerCase().indexOf(ql) >= 0;
+  var arts = articleList().filter(function(a){
+    var hay = [a.title, a.lede, a.author, (a.tags || []).join(' '), (a.body || []).join(' ')].filter(Boolean).join(' ').toLowerCase();
+    return hay.indexOf(ql) >= 0;
   });
-  cv.innerHTML = channelBodyHTML(list);
+  cv.innerHTML = articleListHTML(arts);
 }
 /* 概念详情 */
 /* 当前详情页。★ 两个变量必须分开：
@@ -2401,6 +2674,7 @@ function openCurrent(){
     if (_yzLast.kind === 'book') openItemDetail(_yzLast.idx);
     else if (_yzLast.kind === 'person') openFigure(_yzLast.id);
     else if (_yzLast.kind === 'concept') openConcept(_yzLast.id);
+    else if (_yzLast.kind === 'article') openArticle(_yzLast.id);
     else if (_yzLast.kind === 'event') openEvent(_yzLast.idx);
     setTimeout(function () { try { window.scrollTo(0, y); } catch (e) {} }, 0);
     return true;
@@ -2546,8 +2820,7 @@ function chanSend(kEnc){
 function openChannel(){
   openContent('📡 频道', channelHTML(), {
     root:true, search:channelSearch,
-    ph:(_chanTab === 'concept' ? '搜索概念…' : '搜索发言…'),
-    right:{ text:'📥', act:'channelImport()' },
+    ph:(_chanTab === 'article' ? '搜索文章…' : '搜索概念…'),
     right2:{ text:'📡', act:'chanPick()' }
   });
 }
@@ -2561,7 +2834,7 @@ function chanPick(){
   d.innerHTML = '<div class="chp-box" role="menu">' +
     '<div class="chp-t">选择频道</div>' +
     '<button class="chp-item' + (cur === 'concept' ? ' on' : '') + '" data-k="concept"><span>💡</span>概念频道<i>' + conceptNodes().length + ' 个概念</i></button>' +
-    '<button class="chp-item' + (cur === 'people' ? ' on' : '') + '" data-k="people"><span>📡</span>人物频道<i>讲话 · 语录</i></button>' +
+    '<button class="chp-item' + (cur === 'article' ? ' on' : '') + '" data-k="article"><span>📄</span>文章频道<i>' + articleList().length + ' 篇长文</i></button>' +
     '</div>';
   document.body.appendChild(d);
   d.addEventListener('click', function(e){
@@ -2572,29 +2845,13 @@ function chanPick(){
   });
 }
 function closeChanPick(){ var e = document.getElementById('chanPick'); if (e && e.parentNode) e.parentNode.removeChild(e); }
-function renderChannel(){ var cv = document.getElementById('contentView'); if (cv) cv.innerHTML = channelHTML(); }
-function channelImport(){
-  var old = document.getElementById('chImport'); if (old) old.remove();
-  var d = document.createElement('div'); d.id = 'chImport'; d.className = 'leave open';
-  d.innerHTML = '<div class="leave-card"><b>📥 \u5bfc\u5165\u9891\u9053\u5185\u5bb9</b>' +
-    '<p class="leave-note" style="line-height:1.7">\u7c98\u8d34 JSON \u6570\u7ec4\uff0c\u6bcf\u9879\u5982\uff1a<br><code>{"author":"\u59d3\u540d","text":"\u53d1\u8a00","src":"\u51fa\u5904"}</code><br>\u88ab\u6279\u5224\u4eba\u7269\u53ef\u52a0 <code>"critic":true,"critique":{"by":"\u5bfc\u5e08","text":"\u6279\u5224","books":["\u4e66\u540d"]}</code>\u3002</p>' +
-    '<textarea id="chImportTa" spellcheck="false" style="width:100%;height:150px;margin:6px 0;padding:8px;border-radius:8px;border:1px solid var(--card-border);background:var(--card);color:var(--text);font-size:.72rem;font-family:ui-monospace,Menlo,Consolas,monospace;resize:vertical"></textarea>' +
-    '<div class="leave-ops"><button class="go" onclick="channelImportDo()">\u5bfc\u5165</button><button onclick="channelImportClose()">\u53d6\u6d88</button></div>' +
-    '<p class="leave-note">\u6570\u636e\u53ea\u5b58\u672c\u673a\u3002</p></div>';
-  document.body.appendChild(d);
-}
-function channelImportClose(){ var e = document.getElementById('chImport'); if (e) e.remove(); }
-function channelImportDo(){
-  var ta = document.getElementById('chImportTa'); if (!ta) return;
-  var arr; try { arr = JSON.parse(ta.value || '[]'); } catch(e){ toast('JSON \u683c\u5f0f\u6709\u8bef'); return; }
-  if (!Array.isArray(arr) || !arr.length){ toast('\u8bf7\u63d0\u4f9b\u975e\u7a7a JSON \u6570\u7ec4'); return; }
-  var ok = arr.filter(function(x){ return x && x.author && x.text; });
-  if (!ok.length){ toast('\u6bcf\u9879\u9700\u542b author \u4e0e text'); return; }
-  var cur = []; try { cur = JSON.parse(localStorage.getItem('channelExtra') || '[]'); } catch(e){}
-  cur = cur.concat(ok);
-  try { lset('channelExtra', JSON.stringify(cur)); } catch(e){ toast('\u5b58\u4e0d\u4e0b\uff0c\u5185\u5bb9\u8fc7\u591a'); return; }
-  channelImportClose(); renderChannel(); toast('\u5df2\u5bfc\u5165 ' + ok.length + ' \u6761');
-}
+/* renderChannel 已移除：人物频道停用，频道页改为 chanTabSet 重绘。 */
+/* channelImport 已移除：人物频道与发言导入入口已停用。 */
+
+/* channelImportClose 已移除：人物频道与发言导入入口已停用。 */
+
+/* channelImportDo 已移除：人物频道与发言导入入口已停用。 */
+
 
 /* 网站版（Netlify 部署）：App 内无网络权限，交给系统浏览器打开 */
 function openRepo(){
@@ -3761,7 +4018,7 @@ function openFigure(id, fromRoute){
        <h3>${p.name}</h3><div class="prole">${[p.years, p.role].filter(Boolean).join(' · ')}</div>
        <p>${p.desc || ''}</p>
      </div>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + pts + works + src + personResourcesHTML(p.name) + relatedEventsHTML(p.name) + relatedConceptsHTML(p.name) + relatedSchoolsHTML(p.name) + personMentionsHTML(p.id) +
-    `<p style="margin-top:18px"><a href="graph.html#${p.id}" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在关系图谱中查看 →</a></p>`,
+    `<p style="margin-top:18px"><a href="${graphUrlOf(p.id)}" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在关系图谱中查看 →</a></p>`,
     { right: (window.YZY && typeof YZY.editPerson === 'function')
         ? { text:'✏️', act:"openPersonEdit('" + p.id + "')" } : null });
   if (!fromRoute) setHash('#/p/' + slugOf(p.name));
@@ -3862,7 +4119,10 @@ function relatedSchoolsHTML(name){
   if (!hits.length) return '';
   return `<h2 class="sub-title" style="margin-top:18px">🧩 相关思想 · 组织</h2><div class="tagrow">` + hits.map(h => `<span class="tag" onclick="openSchoolItem(${h.gi},${h.ii})">${h.it.name}</span>`).join('') + `</div>`;
 }
-function graphNodeByName(name){ var G = (window.SITE_GRAPH && window.SITE_GRAPH.nodes) || []; return G.find(function(n){ return n.name === name; }) || null; }
+/* 按名字找节点：必须查「五张图谱合起来」，只查主图谱时，
+   旧民 / 新民 / 文革 / 世界图谱里的条目（如「中学为体，西学为用」）
+   在详情页就没有「在关系图谱中查看」按钮——用户会以为图谱里没有它。 */
+function graphNodeByName(name){ return allGraphNodes().find(function(n){ return n && n.name === name; }) || null; }
 function graphNodeById(id){ var A = allGraphNodes(); for (var i = 0; i < A.length; i++){ if (A[i].id === id) return A[i]; } return null; }
 /* 图谱名 → 史料名 的别名（对不上的那几个） */
 var G_ALIAS = window.SITE_ALIAS || { '爱德华·伯恩施坦':'伯恩施坦', '卡尔·考茨基':'考茨基', '列夫·托洛茨基':'托洛茨基',
@@ -3897,41 +4157,142 @@ function resolveEntryOfNode(g){
   }
   return null;
 }
+/* ---------- 五张内置图谱：id → 数据集 ----------
+   顺序与 allGraphNodes() 合并顺序一致（主 → 文革 → 旧民 → 新民 → 世界），
+   同一个 id 在多张图谱里出现时，以靠前的那张为准。 */
+var GRAPH_SETS = [
+  ['main',  function () { return window.SITE_GRAPH; }],
+  ['wenge', function () { return window.SITE_GRAPH_WENGE; }],
+  ['old',   function () { return window.SITE_GRAPH_OLD; }],
+  ['new',   function () { return window.SITE_GRAPH_NEW; }],
+  ['world', function () { return window.SITE_GRAPH_WORLD; }]
+];
+/* 某个节点 id 属于哪张图谱（返回 ds：main/old/new/wenge/world；都不是则空串）。
+   用途：生成「在关系图谱中查看」链接时带上 ?g=，否则图谱页按上次选中的那张打开，
+   节点在别的图谱里就静默定位失败——看起来就是「点开没有找到」。 */
+function graphOfNode(id){
+  if (!id) return '';
+  for (var i = 0; i < GRAPH_SETS.length; i++){
+    var g = null; try { g = GRAPH_SETS[i][1](); } catch (e) { g = null; }
+    if (g && Array.isArray(g.nodes)){
+      for (var j = 0; j < g.nodes.length; j++){ if (g.nodes[j] && g.nodes[j].id === id) return GRAPH_SETS[i][0]; }
+    }
+  }
+  return '';
+}
+/* 生成「在关系图谱中查看」的链接：必须带上节点所属图谱（?g=ds）。
+   不带的时候，图谱页按上次选中的那张打开，节点在别的图谱里就静默定位不到，
+   用户看到的就是「点开没有找到」。 */
+function graphUrlOf(id){
+  var ds = ''; try { ds = graphOfNode(id); } catch (e) { ds = ''; }
+  return 'graph.html' + (ds && ds !== 'main' ? '?g=' + encodeURIComponent(ds) : '') + '#' + encodeURIComponent(id);
+}
+/* 把还没到位的图谱数据全部按需拉一次（并行，不等待已就绪的）。
+   lazydata 的队列里已有 graph.js / graph-old.js / graph-new.js，走 YZData.need 不会重复下载；
+   文革与世界图谱本来就有各自的加载器。全部结束（成功或失败）后回调一次。 */
+var _allGraphsPulled = false;
+function ensureAllGraphs(cb){
+  var left = 5, fired = false;
+  /* 兜底：任何一张图谱文件卡住（弱网 / 文件损坏）都要在 6 秒内放手，
+     否则页面会一直停在首页，用户以为点了没反应。 */
+  var guard = setTimeout(function () { if (!fired){ fired = true; try { cb(); } catch (e) {} } }, 6000);
+  function one(){
+    left--;
+    if (left <= 0 && !fired){ fired = true; clearTimeout(guard); setTimeout(cb, 0); }
+  }
+  function dataOf(get){ var g = null; try { g = get(); } catch (e) { g = null; } return (g && Array.isArray(g.nodes) && g.nodes.length) ? g : null; }
+  var need = (window.YZData && typeof window.YZData.need === 'function') ? window.YZData.need : null;
+  function pullFile(path, get){
+    if (dataOf(get)) { one(); return; }
+    if (need) { try { need(path, function () { one(); }); return; } catch (e) {} }
+    try {
+      var s = document.createElement('script');
+      s.src = path + (window.__YZV ? '?v=' + window.__YZV : '');
+      s.onload = one; s.onerror = one;
+      document.head.appendChild(s);
+    } catch (e) { one(); }
+  }
+  try {
+    pullFile('data/graph.js', GRAPH_SETS[0][1]);
+    pullFile('data/graph-old.js', GRAPH_SETS[2][1]);
+    pullFile('data/graph-new.js', GRAPH_SETS[3][1]);
+    if (dataOf(GRAPH_SETS[1][1])) one(); else loadWengeGraph(one);
+    if (dataOf(GRAPH_SETS[4][1])) one(); else loadWorldGraph(one);
+  } catch (e) {
+    /* 任何一步异常都不能把回调吞掉，否则页面永远停在首页 */
+    if (!fired){ fired = true; setTimeout(cb, 0); }
+  }
+}
+/* 找不到节点时给几个「可能是你想找的」：按 id 的 2-gram 相似度排，最多 6 个 */
+function nearGraphNodes(id){
+  var key = String(id || '').toLowerCase().replace(/[_\-\s]/g, '');
+  if (key.length < 2) return [];
+  function grams(s){ var o = {}; for (var i = 0; i < s.length - 1; i++) o[s.substr(i, 2)] = 1; return o; }
+  var gk = grams(key), gkn = Object.keys(gk).length || 1;
+  var all = allGraphNodes().filter(function (n) { return n && n.id && n.name; });
+  var scored = [];
+  for (var i = 0; i < all.length; i++){
+    var nid = String(all[i].id).toLowerCase().replace(/[_\-\s]/g, '');
+    var g2 = grams(nid), hit = 0;
+    for (var k in gk){ if (g2[k]) hit++; }
+    var sc = hit / gkn;
+    if (sc >= 0.34) scored.push({ n: all[i], sc: sc });
+  }
+  scored.sort(function (a, b) { return b.sc - a.sc; });
+  return scored.slice(0, 6).map(function (x) { return x.n; });
+}
+/* 「用这个词搜一搜」：找不到节点时的兜底出口（先走页内搜索，退不到就用 URL 参数重开首页） */
+function yzSearchMissing(q){
+  try { if (typeof quickSearch === 'function') { quickSearch(q); return; } } catch (e) {}
+  try { location.href = 'index.html?q=' + encodeURIComponent(q); } catch (e) {}
+}
 function openGraphNodeById(id, fromRoute, _tries){
+  _tries = _tries || 0;
+  /* 每次新的跳转（_tries 为 0）都允许重新按需拉一次：
+     以前 _wengeTried/_wldTried 一旦置真就永不复位，第一次没命中之后，
+     后面点任何文革/世界图谱里的节点都直接判「没有找到」。 */
+  if (_tries === 0) _allGraphsPulled = false;
   var g = graphNodeById(id);
   if (!g){
-    _tries = _tries || 0;
-    /* ① 主图谱是懒加载的（lazydata 在页面 load 后 80ms 才注入 data/graph.js）。
-         从图谱页点「在革命史料中查看」是整页跳到 index.html#/g/xxx，
-         这时 route() 跑得比数据注入早，直接判「没有这个节点」会误报。
-         所以先等数据到位（最多约 3 秒）。 */
-    if (_tries < 25 && !(window.SITE_GRAPH && (window.SITE_GRAPH.nodes || []).length)) {
+    /* ① 五张图谱都还没齐：先并行拉齐再重试。
+         主图谱「先到」并不能说明其它图谱也到了——旧民 83 个、新民 94 个节点
+         只存在于各自图谱里（例如「中学为体，西学为用」id=zhongtixiyong），
+         真机上 old/new 排在主图谱后面注入，常比「主+文革+世界」更晚到。
+         实测：只等主图谱时，1.3 秒就误报「没有找到」；节点实际 5 秒后才可用。 */
+    if (!_allGraphsPulled){
+      _allGraphsPulled = true;
+      /* 弱机/弱网下要等一会儿才有结果：超过 500ms 还没落到详情，就先说一句，
+         否则用户看到的是首页原地不动，会以为点击失败。 */
+      var hintT = setTimeout(function () {
+        var got = null; try { got = graphNodeById(id); } catch (e) {}
+        if (!got) { try { toast('正在加载图谱…'); } catch (e) {} }
+      }, 500);
+      ensureAllGraphs(function () { clearTimeout(hintT); openGraphNodeById(id, fromRoute, 1); });
+      return;
+    }
+    /* ② 数据齐了还没有：覆盖层（本机编辑）重放可能稍晚，再轮询最多约 4 秒 */
+    if (_tries < 32){
       setTimeout(function () { openGraphNodeById(id, fromRoute, _tries + 1); }, 120);
-      return;
-    }
-    /* ② 主图谱到了还是没有：文革图谱是 400ms 后才动态加载的（142KB），
-         阎红彦、康生这类只在文革图谱里的人物，整页跳过来时它还没到。
-         实测：漏掉这一步时，文革图谱 77 个人物全部误报「未收录」。 */
-    if (!_wengeTried && !(window.SITE_GRAPH_WENGE && (window.SITE_GRAPH_WENGE.nodes || []).length)) {
-      _wengeTried = true;
-      loadWengeGraph(function () { openGraphNodeById(id, fromRoute, 0); });
-      return;
-    }
-    /* ③ 再试世界图谱（185KB，用到才拉） */
-    if (!_wldTried){
-      _wldTried = true;
-      loadWorldGraph(function () { openGraphNodeById(id, fromRoute, 0); });
       return;
     }
   }
   if (!g){
-    /* 三张图谱都没有这个节点：给一页说明，别只弹一句 toast 就什么都不做 */
+    /* 五张图谱都没有这个节点：给一页说明 + 相近节点，别只弹一句 toast 就什么都不做 */
+    var near = nearGraphNodes(id);
+    var nearHTML = near.length
+      ? '<h2 class="sub-title" style="margin-top:16px">🔎 是不是要找这些</h2><div class="tagrow">' +
+        near.map(function (n) {
+          return '<button class="tag" onclick="openGraphNodeById(\'' + String(n.id).replace(/'/g, "\\'") + '\')">' + esc(n.name) + '</button>';
+        }).join('') + '</div>'
+      : '';
     openContent('❓ 找不到这个节点',
       crumbFrom([{ t: HUB_NAME, fn: function () { openSection(0); } }, { t: '未收录', fn: function () { } }]) +
       '<div class="ldetail"><h3>没有找到「' + esc(id) + '」</h3>' +
-      '<p class="sub" style="line-height:1.9;opacity:.85">主图谱、文革图谱、世界图谱里都没有这个节点。<br>' +
-      '常见原因：这条链接来自更早的版本，或者节点在别的图谱里被改过名。</p>' +
-      '<p style="margin-top:14px"><button class="tag" onclick="openSection(0)">← 回到关系图谱</button></p></div>');
+      '<p class="sub" style="line-height:1.9;opacity:.85">主图谱、旧民图谱、新民图谱、文革图谱、世界图谱里都没有这个节点。<br>' +
+      '常见原因：这条链接来自更早的版本，或者节点在别的图谱里被改过名。</p>' + nearHTML +
+      '<p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="tag" onclick="openSection(0)">← 回到关系图谱</button>' +
+      '<button class="tag" onclick="yzSearchMissing(\'' + String(id).replace(/[\\']/g, '') + '\')">🔍 用这个词搜一搜</button></p></div>');
     return;
   }
   var e = resolveEntryOfNode(g);
@@ -3955,7 +4316,7 @@ function graphDetailHTML(name, skipDesc){
   if (g.works && g.works.length) h += '<h2 class="sub-title" style="margin-top:14px">📚 代表文献</h2><div class="tagrow">' + g.works.map(function(w){return '<span class="tag">'+w+'</span>';}).join('') + '</div>';
   return h;
 }
-function graphLinkHTMLByName(name){ var g = graphNodeByName(name); if (!g) return ''; return '<p style="margin-top:16px"><a href="graph.html#'+g.id+'" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在关系图谱中查看 →</a></p>'; }
+function graphLinkHTMLByName(name){ var g = graphNodeByName(name); if (!g) return ''; return '<p style="margin-top:16px"><a href="'+graphUrlOf(g.id)+'" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在关系图谱中查看 →</a></p>'; }
 function openPerson(name){ openNodeByName(name); }
 function openNodeByName(name, fromRoute){
   const i = leaders.findIndex(p => p.name === name);
@@ -4203,6 +4564,11 @@ function openNoBodyPage(idx){
 function openBookLink(idx){
   var it = RES[idx]; if (!it) return;
   var u = linkOf(it); if (!u) { openNoBodyPage(idx); return; }
+  /* 0.18.47：链接统一过白名单。以前只在「链接编辑器」保存时调 normLink，
+     备份 JSON 导入的 links 是原样落的库，于是 javascript: 能直接进 location.href。 */
+  var safeU = normLink(u);
+  if (!safeU) { toast('这条链接不可用（已拦下非 http/站内地址）'); return; }
+  u = safeU;
   if (/^https?:\/\//i.test(u)) { confirmLeave(u, it.title || '链接'); return; }
   /* 站内正文（books/*.txt｜*.md）走内置阅读器：
      直接跳 .txt 会让 WebView 裸显示纯文本（字小、无排版、无目录、无进度）。
@@ -4370,7 +4736,7 @@ function openItemDetail(idx, fromRoute){
   const relHTML = related.length ? `<section class="related"><h2 class="rl-title">📎 相关推荐</h2>` + related.map(r => {
       const ri = RES.indexOf(r);
       const why = manualRel.indexOf(r) >= 0 ? '推荐' : (r.author === it.author ? '同作者' : (r.cat === it.cat ? '同类型' : '同标签'));
-      return `<div class="lcard" onclick="openItemDetail(${ri})"><span class="li">${r.icon||'📕'}</span><div style="flex:1"><div class="pname">${r.title}</div><div class="prole">${r.author} · ${r.cat} · ${why}</div></div><span style="opacity:.4">›</span></div>`;
+      return `<div class="lcard" onclick="openItemDetail(${ri})"><span class="li">${escHtml(r.icon||'📕')}</span><div style="flex:1"><div class="pname">${escHtml(r.title)}</div><div class="prole">${escHtml(r.author)} · ${escHtml(r.cat)} · ${escHtml(why)}</div></div><span style="opacity:.4">›</span></div>`;
     }).join('') + `</section>` : '';
   const noteHTML = it.note ? `<h2 class="sub-title" style="margin-top:16px">📄 来源 · 校订说明</h2><p class="note-box">${it.note}</p>` : '';
   const metaHTML = bookMetaHTML(it);
@@ -4510,13 +4876,13 @@ function openItemDetail(idx, fromRoute){
   openContent('ℹ️ ' + it.title,
     crumbFrom(trail) +
     `<article style="text-align:left">
-       <h3 style="color:var(--accent);font-size:1rem;letter-spacing:1px">${it.title}${isNew(it) ? ' <i class="badge-new">NEW</i>' : ''}</h3>
-       <p style="margin:8px 0;font-size:.78rem;opacity:.65">${byAuthor ? `<button class="aslink" style="text-decoration:underline" onclick="openAuthor('${escAttr(it.author)}')">${it.author}</button>` : it.author} · ${it.cat}${kindTag} · ${hasBody(it) ? statusMap[it.status] : '📭 暂无原文'}</p>
+       <h3 style="color:var(--accent);font-size:1rem;letter-spacing:1px">${escHtml(it.title)}${isNew(it) ? ' <i class="badge-new">NEW</i>' : ''}</h3>
+       <p style="margin:8px 0;font-size:.78rem;opacity:.65">${byAuthor ? `<button class="aslink" style="text-decoration:underline" onclick="openAuthor('${escAttr(it.author)}')">${escHtml(it.author)}</button>` : escHtml(it.author)} · ${escHtml(it.cat)}${kindTag} · ${hasBody(it) ? statusMap[it.status] : '📭 暂无原文'}</p>
        ${briefBlock}
        <dl class="meta-grid">
-         <dt>类型</dt><dd>${it.cat}</dd>
-         <dt>格式</dt><dd>${fmt}</dd>
-         ${it.size && it.size !== '—' ? ('<dt>大小</dt><dd>' + it.size + '</dd>') : ''}
+         <dt>类型</dt><dd>${escHtml(it.cat)}</dd>
+         <dt>格式</dt><dd>${escHtml(fmt)}</dd>
+         ${it.size && it.size !== '—' ? ('<dt>大小</dt><dd>' + escHtml(it.size) + '</dd>') : ''}
          ${hasBody(it) ? `<dt>更新</dt><dd>${it.date || '—'}</dd>` : ''}
          <dt>获取</dt><dd>${it.src || '本站整理'}</dd>
          ${it.firstYear ? `<dt>原著首版</dt><dd>${it.firstYear}${it.firstYearNote ? `<span style="opacity:.6;font-size:.92em">（${it.firstYearNote}）</span>` : ''}</dd>` : ''}
@@ -4641,7 +5007,7 @@ function readlistMergedHTML(){
   const extras = [];
   (EX.topics || []).forEach(t => (t.items || []).forEach(id => {
     if (used.has(id)) return; const r = RES.find(x => x.id === id); if (!r) return; used.add(id);
-    extras.push(`<li class="rlink" onclick="openItemDetail(${RES.indexOf(r)})">${r.title}<span class="lk">前往 ↗</span></li>`);
+    extras.push(`<li class="rlink" onclick="openItemDetail(${RES.indexOf(r)})">${escHtml(r.title)}<span class="lk">前往 ↗</span></li>`);
   }));
   if (extras.length){ if (out.length) out[out.length - 1].items += extras.join(''); else out.push({ stage:'推荐阅读', items: extras.join('') }); }
   const _body = out.map(s => `<h2 class="stage">${s.stage}</h2><ul>${s.items}</ul>`).join('') + (CT.readlistNote ? `<p class="sub" style="margin-top:10px">${CT.readlistNote}</p>` : '');
@@ -4687,7 +5053,7 @@ function eventsTimelineHTML(){
 function featuresHTML(filter){
   const F = (EX.features || []).filter(function(f){ return filter ? filter(f) : true; });
   if (!F.length) return '<p class="sub">暂无专题。</p>';
-  const bookCard = i => `<div class="lcard" onclick="openItemDetail(${i})"><span class="li">${RES[i].icon || '📕'}</span><div style="flex:1"><div class="pname">${RES[i].title}</div><div class="prole">${RES[i].desc || ''}</div></div><span style="opacity:.4">›</span></div>`;
+  const bookCard = i => `<div class="lcard" onclick="openItemDetail(${i})"><span class="li">${escHtml(RES[i].icon || '📕')}</span><div style="flex:1"><div class="pname">${escHtml(RES[i].title)}</div><div class="prole">${escHtml(RES[i].desc || '')}</div></div><span style="opacity:.4">›</span></div>`;
   const H3 = t => `<h3 style="font-size:.88rem;color:var(--accent);letter-spacing:1px;margin:13px 0 6px">${t}</h3>`;
   return `<p class="sub" style="margin-top:0;line-height:1.75">按主题把「书 · 人物 · 事件 · 思想」聚合在一起，点任意项即可跳转。</p>` +
     F.map(f => {
@@ -5138,7 +5504,7 @@ function renderAccount(){
   const av = localStorage.getItem('acctAvatar') || '';
   el.innerHTML = `
     <div class="acct-head">
-      <button class="acct-ava" onclick="pickAvatar()" title="点击更换头像">${av ? `<img src="${av}" alt="头像">` : '👤'}<span class="acct-cam">📷</span></button>
+      <button class="acct-ava" onclick="pickAvatar()" title="点击更换头像">${av ? `<img src="${escAttr(av)}" alt="头像">` : '👤'}<span class="acct-cam">📷</span></button>
       <div style="flex:1;min-width:0">
         <button class="acct-name" onclick="editName()" title="点击修改名字">${name ? escAttr(name) : '未命名'} <span class="acct-pen">✏️</span></button>
         <div class="acct-sub">收藏 ${favN} · 书签 ${markN}</div>

@@ -10,6 +10,6 @@
     "check:ver": "python3 sync_version.py --check"
   },
   "devDependencies": {
-    "acorn": "^8.11.3"
+    "acorn": "^8.19.0"
   }
 }

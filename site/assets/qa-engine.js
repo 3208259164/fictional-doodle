@@ -611,6 +611,19 @@
     var L = n._g.map(function (k) { return (GRAPHS[k] && GRAPHS[k].label) || k; });
     return L.length === 1 ? L[0] : (L[0] + ' 等 ' + L.length + ' 处');
   }
+  /* 图谱定位链接必须带上节点所属图谱（?g=ds）：
+     只写 graph.html#id 时，图谱页会按「上次看的那张图」打开，
+     节点在别的图谱里就静默定位不到（用户看到的是「点开没有找到」）。 */
+  function yzGraphHref(id, node) {
+    var ds = '';
+    try {
+      var order = ['main', 'wenge', 'old', 'new', 'world'];
+      var has = (node && node._g) || [];
+      for (var i = 0; i < order.length; i++) { if (has.indexOf(order[i]) >= 0) { ds = order[i]; break; } }
+      if (!ds && window.graphOfNode) ds = window.graphOfNode(id);
+    } catch (e) {}
+    return 'graph.html' + (ds && ds !== 'main' ? '?g=' + encodeURIComponent(ds) : '') + '#' + encodeURIComponent(id);
+  }
   function linksFor(n) {
     var out = [];
     if (!n || !n.id) return out;
@@ -620,7 +633,7 @@
     }
     out.push({ label: n.name + ' · ' + ((n.type === 'person' || !n.type) ? '人物介绍' : '详情'),
                href: 'index.html#/g/' + encodeURIComponent(n.id), kind: 'detail' });
-    out.push({ label: n.name + ' · 图谱定位', href: 'graph.html#' + encodeURIComponent(n.id), kind: 'graph' });
+    out.push({ label: n.name + ' · 图谱定位', href: yzGraphHref(n.id), kind: 'graph' });
     return out;
   }
   /* 从答案里收集要挂链接的节点：主实体 + 证据链两端 */

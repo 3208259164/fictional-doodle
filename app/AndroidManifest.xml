@@ -64,6 +64,15 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- 内容包：独立 Activity + 不带 JS 桥的 WebView（0.18.48）。
+             exported=false：外部应用无法拉起；只由主 Activity 的 openPack 桥打开。 -->
+        <activity
+            android:name=".PackActivity"
+            android:exported="false"
+            android:label="内容包"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
         <!-- 导出文件的 content:// 出口：让「用其他应用打开」在 Android 7+ 也能用
              （file:// 自 API 24 起禁止经 Intent 外传给其他应用）。只读、不导出、不申请任何权限。 -->
         <provider

@@ -437,27 +437,58 @@
     });
   }
 
+  /* 全库按名称找人：当前图谱 → 主图谱 → 其他图谱。
+     内置图谱是只读资产，这里只读不改。
+     作用：手动新建一个「已经有」的人物时，不再造第二个同名的，而是复用同一个实体 id。 */
+  function findNodeByName(nm) {
+    nm = String(nm || '').trim(); if (!nm) return null;
+    var hit = null;
+    function scan(nodes) { (nodes || []).forEach(function (n) { if (!hit && String(n.name || '').trim() === nm) hit = n; }); }
+    try { scan((YZY.graphData() || {}).nodes); } catch (e) {}
+    if (hit) return hit;
+    try { scan((YZY.graphData(GID_MAIN) || {}).nodes); } catch (e) {}
+    if (hit) return hit;
+    try { YZY.listGraphs().forEach(function (g) { if (!hit) scan((YZY.graphData(g.id) || {}).nodes); }); } catch (e) {}
+    return hit;
+  }
+
   function createNodeAt(w) {
     askNodeForm(null).then(function (o) {
       if (!o) return;
       var node;
+      var curNodes = (YZY.graphData() || {}).nodes || [];
+      function inCurrent(id) { return curNodes.filter(function (n) { return n.id === id; })[0] || null; }
       if (o.ref) {
         var src = null;
-        var cur = YZY.graphData();
-        (cur.nodes || []).some(function (n) { if (n.id === o.ref) { src = n; return true; } return false; });
+        (curNodes || []).some(function (n) { if (n.id === o.ref) { src = n; return true; } return false; });
         if (!src) { (YZY.graphData(GID_MAIN).nodes || []).some(function (n) { if (n.id === o.ref) { src = n; return true; } return false; }); }
         if (!src) {
           YZY.listGraphs().forEach(function (g) { (YZY.graphData(g.id).nodes || []).some(function (n) { if (n.id === o.ref) { src = n; return true; } return false; }); });
         }
         if (!src) { toast('找不到被引用的节点', true); return; }
+        /* 同一实体在本图谱已经有了：不再造副本，提示直接连线 */
+        var dupRef = inCurrent(src.id);
+        if (dupRef) { toast('「' + (dupRef.name || dupRef.id) + '」已在当前图谱中，直接连它即可'); return; }
         node = JSON.parse(JSON.stringify(src));
-        node.id = 'u:' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        node.id = src.id;          /* 关键：沿用原 id —— 跨图谱是「同一个人引用同一实体」，不是复制一份 */
         if (o.name) node.name = o.name;
         if (o.type) node.type = o.type;
         if (o.desc) node.desc = o.desc;
       } else {
-        if (!String(o.name || '').trim()) { toast('请填写名称', true); return; }
-        node = { id: 'u:' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: String(o.name).trim(), type: o.type || 'person', desc: o.desc || '' };
+        var nm = String(o.name || '').trim();
+        if (!nm) { toast('请填写名称', true); return; }
+        var exist = findNodeByName(nm);
+        if (exist) {
+          var dupNew = inCurrent(exist.id);
+          if (dupNew) { toast('同名人物「' + nm + '」已在当前图谱中，直接连它即可'); return; }
+          toast('全库已有「' + (exist.name || nm) + '」，已引用该人物而不是新建');
+          node = JSON.parse(JSON.stringify(exist));
+          node.id = exist.id;
+          if (o.type) node.type = o.type;
+          if (o.desc) node.desc = o.desc;
+        } else {
+          node = { id: 'u:' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: nm, type: o.type || 'person', desc: o.desc || '' };
+        }
       }
       snapshot();
       node.x = Math.round(w.x); node.y = Math.round(w.y);

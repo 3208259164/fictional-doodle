@@ -441,7 +441,6 @@ body.light .qtop { }
 /* ---------- 频道（QQ 信息流 / 详情 / 评论） ---------- */
 .ch-post { border-bottom:1px solid var(--card-border); padding:11px 2px; cursor:pointer; }
 /* 被批判的发言：用左侧红条标记（列表样式下没有卡片边框可用） */
-.ch-post.ch-crit { border-left:3px solid rgba(220,80,60,.55); padding-left:10px; }
 .ch-post:active { background:var(--ev); }
 .ch-detail { cursor:default; }
 .ch-foot { display:flex; align-items:center; justify-content:flex-end; gap:20px; margin-top:7px; }

@@ -197,7 +197,10 @@
   function deepLink(id) {
     var b = siteBase();
     if (!b) return '';
-    return b + '/graph.html#' + encodeURIComponent(id);
+    /* 带上节点所属图谱，否则对方打开时按自己上次看的图谱定位，会「找不到」 */
+    var ds = '';
+    try { ds = (window.graphOfNode ? window.graphOfNode(id) : '') || ''; } catch (e) {}
+    return b + '/graph.html' + (ds && ds !== 'main' ? '?g=' + encodeURIComponent(ds) : '') + '#' + encodeURIComponent(id);
   }
   function hostOf(u) {
     var s = str(u).replace(/^https?:\/\//i, '');

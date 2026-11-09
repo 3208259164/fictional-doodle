@@ -111,7 +111,7 @@
       if (it.src === 'event' && typeof window.openEvent === 'function') return window.openEvent(it.idx);
       if (it.tag === 'wenge' && typeof window.openWengeNode === 'function') return window.openWengeNode(it.id);
       if (it.tag === 'wenge') { location.href = 'graph.html?g=wenge#' + it.id; return; }
-      if (it.id) { location.href = 'graph.html#' + it.id; return; }
+      if (it.id) { location.href = (window.graphUrlOf ? window.graphUrlOf(it.id) : ('graph.html#' + it.id)); return; }
       if (typeof window.openSearch === 'function') return window.openSearch(it.name);
     } catch (e) {}
     if (window.toast) toast('没有对应页面');
@@ -125,7 +125,7 @@
   function goNode(it) {
     try {
       if (it.tag === 'wenge' && typeof window.openWengeNode === 'function') return window.openWengeNode(it.id);
-      location.href = (it.tag === 'wenge' ? 'graph.html?g=wenge#' : 'graph.html#') + it.id;
+      location.href = (it.tag === 'wenge' ? 'graph.html?g=wenge#' : (window.graphUrlOf ? window.graphUrlOf(it.id) : ('graph.html#' + it.id)));
     } catch (e) {}
   }
 

@@ -2075,6 +2075,29 @@ function syncHash(){
     if (history.replaceState) history.replaceState(null, '', location.pathname + location.search + h);
   }catch(e){}
 }
+/* ---------- 深链跨图谱兜底（0.18.46） ----------
+   深链只写 graph.html#id 时（分享卡、年表、旧链接、问一问引用），图谱页会按
+   「上次看的那张图」打开。节点若属于别的图谱，旧逻辑什么也不做 —— 用户看到的就是
+   「点开没有找到」。这里在五张内置图谱里找一次，找到就带着深链切过去。 */
+function dsOfNodeId(id){
+  var order = ['main','old','new','wenge','world'];
+  for (var i = 0; i < order.length; i++){
+    try{
+      var d = (window.YZY && YZY.graphData) ? YZY.graphData(order[i]) : null;
+      if (!d || !d.nodes) continue;
+      for (var j = 0; j < d.nodes.length; j++){ if (d.nodes[j] && d.nodes[j].id === id) return order[i]; }
+    }catch(e){}
+  }
+  return '';
+}
+function goGraphDs(ds, hid){
+  try{
+    var qs = location.search.replace(/[?&]g=[^&]*/,'').replace(/^[?&]/,'');
+    var url = location.pathname + (qs ? '?' + qs + '&' : '?') + 'g=' + encodeURIComponent(ds)
+            + (hid ? '#' + encodeURIComponent(hid) : (location.hash || ''));
+    location.replace(url);
+  }catch(e){}
+}
 function parseHashInit(){
   try{
     var raw = String(location.hash || '').replace(/^#/, '');
@@ -2092,6 +2115,15 @@ function parseHashInit(){
     else if (idp){
       var hid = decodeURIComponent(idp);
       if (ix[hid]) setTimeout(function(){ focusN(hid); syncHash(); }, 140);
+      else {
+        /* 节点不在当前图谱：在其它四张内置图谱里找，找到就带着同一个深链切过去 */
+        var ds2 = dsOfNodeId(hid);
+        var cur = '';
+        try { cur = (window.YZY && YZY.activeGraphId) ? YZY.activeGraphId() : ''; } catch(e){}
+        if (ds2 && ds2 !== cur){ goGraphDs(ds2, hid); return true; }
+        /* 五张图谱都没有：明确告诉用户，不要静默停在原图 */
+        try { toast2('没有找到这个节点（五张图谱里都没有）'); } catch(e){}
+      }
     }
     return true;
   }catch(e){ return false; }
@@ -2220,7 +2252,7 @@ function panel(id){var n=P[id];if(!n)return;
  var _imp=n.impact?'<div class="sub2">影响 · 意义</div><div style="font-size:.84rem;line-height:1.95;opacity:.9">'+esc2(n.impact)+'</div>':'';
  document.getElementById('ppts').innerHTML=_bg+(pts.length?'<div class="sub2">要点</div><ul class="pts">'+pts.map(function(x){return '<li>'+esc2(x)+'</li>';}).join('')+'</ul>':'')+_imp;
  var w=n.works||[];
- document.getElementById('pw').innerHTML=w.length?'<div class="sub2">代表文献 <span style="font-size:.72em;opacity:.6;font-weight:normal">· 点书名到书库查看／阅读</span></div><div class="wrap">'+w.map(function(x){return '<button type="button" title="到书库查看《'+esc2(x)+'》——有原文可直接阅读，没有可导入本机文件" onclick="openBook(\''+String(x).replace(/'/g,'')+'\')">'+esc2(x)+'</button>';}).join('')+'</div>':'';
+ document.getElementById('pw').innerHTML=w.length?'<div class="sub2">代表文献 <span style="font-size:.72em;opacity:.6;font-weight:normal">· 点书名到书库查看／阅读</span></div><div class="wrap">'+w.map(function(x){return '<button type="button" title="到书库查看《'+esc2(x)+'》——有原文可直接阅读，没有可导入本机文件" onclick="openBook(decodeURIComponent(\''+encodeURIComponent(String(x))+'\'))">'+esc2(x)+'</button>';}).join('')+'</div>':'';
  /* 书库联动：按作者名动态查（不依赖手写的 works 列表） */
  try{
   var _RES = window.SITE_RESOURCES || [];
@@ -2271,7 +2303,9 @@ function yzAnyDrawer(){ var ids=['dataMenu','relTool','mgPanel','rankPanel','lis
 function yzBlankTap(){ if(yzAnyDrawer()) yzCloseDrawers(''); clearSel(); }
 var _qT=null;
 /* ---------- 节点列表视图：键盘 / 读屏的等价入口 ---------- */
-function esc2(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+/* 0.18.47：补引号转义。esc2 大量用于 title="…" 属性，只转 &<> 时，
+   一个双引号就能把属性打断（导入图谱的 works 字段保留引号 → 可注入 onclick）。 */
+function esc2(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function escA2(s){return esc2(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function toggleList(force){
   var pn=document.getElementById('listPanel'), b=document.getElementById('lb');
