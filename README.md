@@ -2,7 +2,7 @@
 
 > 一个离线的马克思主义理论学习 App：书库 + 关系图谱 + 史料 + 离线问答，全部本地运行，不联网、不注册、不上传。
 
-**当前版本：v0.18.31（versionCode 312）｜ 站点 0.37.15 ｜ 要求 Android 10+**
+**当前版本：v0.18.48（versionCode 329）｜ 站点 0.37.30 ｜ 要求 Android 10+**
 
 学通把「读原著、看关系、考理解」三件事放在同一个离线应用里。站点用纯静态 HTML/CSS/JS（无框架、无构建依赖），Android 客户端用原生 WebView 壳，Java 侧零第三方依赖（仅 Android framework）。
 
@@ -26,8 +26,8 @@
 
 ```bash
 # 任选其一
-curl -L -o xuetong.apk "https://ghproxy.net/https://github.com/3208259164/fictional-doodle/releases/download/v0.18.31/xuetong-0.18.31.apk"
-curl -L -o xuetong.apk "https://gh-proxy.com/https://github.com/3208259164/fictional-doodle/releases/download/v0.18.31/xuetong-0.18.31.apk"
+curl -L -o xuetong.apk "https://ghproxy.net/https://github.com/3208259164/fictional-doodle/releases/download/v0.18.48/xuetong-0.18.48.apk"
+curl -L -o xuetong.apk "https://gh-proxy.com/https://github.com/3208259164/fictional-doodle/releases/download/v0.18.48/xuetong-0.18.48.apk"
 
 # 校验（应与 Release 说明里的 SHA-256 一致）
 sha256sum xuetong.apk

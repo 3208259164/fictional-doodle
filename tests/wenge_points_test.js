@@ -25,7 +25,7 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
   let fail = 0; const ok = (n, c, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + n + (x ? (' — ' + x) : '')); if (!c) fail++; };
 
   const N = w.GR.nodes;
-  ok('节点 202 个 · 关系 278 条', N.length === 202 && w.GR.links.length === 278, N.length + ' / ' + w.GR.links.length);
+  ok('节点 202 个 · 关系 280 条', N.length === 202 && w.GR.links.length === 280, N.length + ' / ' + w.GR.links.length);
 
   /* ① 要点全覆盖 */
   const noPts = N.filter(n => !n.points || !n.points.length);
