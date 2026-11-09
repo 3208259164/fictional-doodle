@@ -108,7 +108,11 @@ def main():
     # ---- 3b. 首屏体积护栏 ----
     # 原来的欠账：27 个同步脚本 / 1765 KB 没有任何上限断言，涨回去无人提醒。
     # 这里按 index.html 的 <script src> 静态引用合计（不含运行时懒加载注入的部分）。
-    FIRST_SCREEN_LIMIT_KB = 1900      # 不许变多；原定目标 1800
+    # 0.18.49 抬护栏 1900 → 2100（用户决定）。0.37.30 新增 data/entity.js(83K)、
+    # data/edge-meta.js(22K)、data/articles.js(13K)、data/bstruct.js(1.5K) 四个同步引用文件后
+    # 首屏从 1891 KB 涨到 2036 KB，原护栏必然红灯。长期方向仍是 1800 KB（多余数据改懒加载），
+    # 抬到 2100 只是把「现在已知的欠账」记在账上，不允许再往上走。
+    FIRST_SCREEN_LIMIT_KB = 2100      # 不许变多；原定目标 1800
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     srcs = re.findall(r'<script[^>]*src="([^"?]+)', html)
     tot, missing = 0, []

@@ -264,6 +264,30 @@ fi
 # 写入放到自检全部通过之后（见文件末尾「构建完成」之前）。
 
 say "[8/8] 自检"
+# 包内 version.json 必须等于本次构建的 NAME/CODE/SITE_VER。
+# 源里的 version.json 与 NAME/CODE 一致（[00/8] 门禁已查）在这里再验一次落地结果——
+# 0.18.48 的包就因为构建时没校验，assets 里躺着一份「我是 0.18.31」的自述。
+PKG_VJ="$BUILD/assets/site/version.json"
+[ -f "$PKG_VJ" ] || die "包内缺 version.json（assets/site/version.json）"
+if ! python3 - "$PKG_VJ" "$NAME" "$CODE" "$SITE_VER" <<'PY'
+import json, sys
+p, name, code, site = sys.argv[1:5]
+d = json.load(open(p, encoding='utf-8'))
+bad = []
+if d.get('versionName') != name:
+    bad.append('versionName=%s≠%s' % (d.get('versionName'), name))
+if str(d.get('versionCode')) != code:
+    bad.append('versionCode=%s≠%s' % (d.get('versionCode'), code))
+if site and d.get('siteVersion') != site:
+    bad.append('siteVersion=%s≠%s' % (d.get('siteVersion'), site))
+if bad:
+    print('  ❌ 包内 version.json：' + '；'.join(bad))
+    sys.exit(1)
+print('  ✅ 包内 version.json：%s / %s / 站点 %s' % (name, code, site))
+PY
+then
+  die "包内 version.json 与构建版本不一致（见上）"
+fi
 CHECK_APK="$OUT"
 [ "$UNSIGNED" = "1" ] || CHECK_APK="$WORK/signed.apk"
 if [ "$UNSIGNED" != "1" ]; then
