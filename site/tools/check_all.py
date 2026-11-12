@@ -112,7 +112,7 @@ def main():
     # data/edge-meta.js(22K)、data/articles.js(13K)、data/bstruct.js(1.5K) 四个同步引用文件后
     # 首屏从 1891 KB 涨到 2036 KB，原护栏必然红灯。长期方向仍是 1800 KB（多余数据改懒加载），
     # 抬到 2100 只是把「现在已知的欠账」记在账上，不允许再往上走。
-    FIRST_SCREEN_LIMIT_KB = 2100      # 不许变多；原定目标 1800
+    FIRST_SCREEN_LIMIT_KB = 2600      # 0.18.64 抬护栏 2100 → 2600（用户决定：内容优先）；长期方向仍是 1800
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     srcs = re.findall(r'<script[^>]*src="([^"?]+)', html)
     tot, missing = 0, []
@@ -155,6 +155,13 @@ def main():
           if re.search(r"—— 结果：", t) else None,
           "check_resources", base)
 
+    # ---- 6b. 地名数据（0.18.54 新增）----
+    # places.js 的 events[] 是按事件名自动聚合的，事件改名后关联会静默断掉，必须有人盯着。
+    check("地名 check_places", ["node", str(TOOLS / "check_places.js"), str(ROOT)],
+          lambda t: ((num(r"未通过：(\d+) 项", t) or 0), (num(r"（(\d+) 条提醒）", t) or 0), "地名校验完成")
+          if ("地名校验通过" in t or "地名校验未通过" in t) else None,
+          "check_places", base)
+
     # ---- 7. 代码体检（严格）----
     code, out = run(["node", str(TOOLS / "audit_code.js"), str(ROOT), "--strict"])
     if "体检结果" not in out:
@@ -170,6 +177,18 @@ def main():
             results.append((True, "代码体检 audit_code", "⛔ 跳过：环境未就绪（缺 acorn），不是通过也不是失败 —— cd site/tools && npm i"))
         else:
             results.append((code == 0 and cnt == 0, "代码体检 audit_code", line.strip("— ")))
+
+    # ---- 7b. 全局命名空间（只许变少，不许新增）----
+    # 0.18.50 新增：window.* 从 152 涨到 149→（去重后基线 149），
+    # 「改一处忘一处」的根源。新增全局要挂到统一命名空间下再 --update。
+    glob_js = TOOLS / "check-globals.js"
+    if glob_js.exists():
+        code, out = run(["node", str(glob_js)] + sorted(str(f) for f in (ROOT / "assets").glob("*.js")))
+        line = [l for l in out.splitlines() if "全局数" in l or "新增全局" in l]
+        results.append((code == 0, "全局命名空间 check-globals",
+                        (line[0].strip() if line else (out.strip().splitlines() or [""])[-1])[:120]))
+    else:
+        results.append((True, "全局命名空间 check-globals", "脚本不存在，跳过"))
 
     # ---- 8. 回归测试（需要 jsdom）----
     runner = ROOT.parent / "tests" / "run_all.js"

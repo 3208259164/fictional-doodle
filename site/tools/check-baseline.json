@@ -10,7 +10,7 @@
     "max_warns": 0
   },
   "check_resources": {
-    "max_problems": 35,
+    "max_problems": 34,
     "max_warns": 150
   }
 }
