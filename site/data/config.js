@@ -7,18 +7,16 @@ window.SITE_CONFIG = {
   /* 站点基本信息 */
   siteName : '学通',
   siteUrl  : 'https://chimerical-peony-793bf1.netlify.app/',   // 站点正式地址（RSS / 分享链接 / JSON-LD 用）；绑自定义域名时改这一行
-  version: '0.37.31',
+  version: '0.37.45',
 
   /* 「正文文件清单」：把实体电子书放进站点目录（如 books/xxx.pdf）后，把相对路径填进这个数组，
      该条目才会显示「已收录 ✅」并出现阅读/预览按钮。留空 = 站内没有任何原文（只有条目/书壳）。 */
   siteHaveFiles : [],
 
-  /* 最新版下载（网站与 App 共用此入口） */
-  download : {
-    site : { title:'网站', url:'https://chimerical-peony-793bf1.netlify.app/', code:'', note:'打开网站（网页版）', btntext:'打开网站 ↗' },
-    app  : { title:'App 下载', url:'https://wwbwx.lanzout.com/b01gicy03g', code:'1976', note:'安卓 App · 蓝奏云文件夹' }
-  },                                          // 对外版本号（语义化 SemVer：主.次.修订）
-  bio      : '',
+  /* 「最新版下载」入口已于 2026-11-11 移除：全站 0 处引用，其中 app.url 指向的蓝奏云文件夹
+     长期失效，而它又迫使安卓壳对「含 lanzou 的网址」做特殊放行（见 MainActivity.handleUrl）。
+     需要恢复时再加回 download: { site:{...}, app:{...} }，并在壳侧重新评估该放行是否必要。 */
+  bio      : '',                                 // 对外版本号见上 version（语义化 SemVer：主.次.修订）
 
   /* 图书馆仅作介绍（保留 id 供介绍页排序用） */
   defaultLibrary : 'zlib',

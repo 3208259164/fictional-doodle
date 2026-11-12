@@ -8,7 +8,7 @@
      页面导航 = network-first（带超时，失败回退缓存，再失败回退 offline.html）。
    · sw.js 由 _headers 设定 no-cache；注册时 updateViaCache:'none'（见 app.js）。
    ------------------------------------------------------------------ */
-const VERSION = 'v330';
+const VERSION = 'v344';
 const SHELL = 'yuanziyuan-' + VERSION;      // 应用外壳缓存
 const RUNTIME = 'yuanziyuan-rt-' + VERSION; // 运行时缓存
 const OFFLINE = './offline.html';
@@ -87,6 +87,7 @@ const CORE = [
   './data/content.js',
   './data/edge-meta.js',
   './data/entity.js',
+  './data/events-extra.js',
   './data/geo-china.js',
   './data/geo-water.js',
   './data/geo-world.js',
@@ -101,7 +102,6 @@ const CORE = [
   './data/graph.js',
   './data/knowledge.js',
   './data/libraries.js',
-  './data/meetings.js',
   './data/netbasics.js',
   './data/nett.js',
   './data/overrides.js',
@@ -119,7 +119,10 @@ const CORE = [
   './data/guides.js',
   './data/intro-short.js',
   './data/jtprev.js',
+  './data/meetings.js',
   './data/mentors.js',
+  './data/papers.js',
+  './data/places.js',
   './data/py.js',
   /* 图标与清单 */
   './avatar.svg',
