@@ -533,8 +533,13 @@
     OV.events.edited = normEdits(OV.events.edited,
       ['name', 'year', 'desc', 'points', 'bg', 'impact', 'people', 'schools', 'src'],
       ['points', 'people', 'schools']);
-    /* 事件的新增 / 删除：added 是整条记录，removed 是名字列表 */
-    var evAdd = (OV.events.added && OV.events.added.length) ? OV.events.added : [];
+    /* 事件的新增 / 删除：added 是整条记录，removed 是名字列表。
+       ★ 类型兜底（2026-11-11）：这两个字段一旦被外部数据写成字符串（手工改过的导出文件、
+         旧格式遗留），下面的 .filter / .map 会抛 TypeError 并中断首页渲染（实测文本 434→294）。
+         统一在这里归一成数组，其它读 events.added/removed 的地方（editor/contentpack/merge）也就安全了。 */
+    if (!Array.isArray(OV.events.added)) OV.events.added = [];
+    if (!Array.isArray(OV.events.removed)) OV.events.removed = [];
+    var evAdd = OV.events.added;
     OV.events.added = evAdd.filter(function (x) {
       return x && typeof x.name === 'string' && clean(x.name, 120);
     }).map(function (x) {

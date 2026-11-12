@@ -25,7 +25,8 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
   let fail = 0; const ok = (n, c, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + n + (x ? (' — ' + x) : '')); if (!c) fail++; };
 
   const N = w.GR.nodes;
-  ok('节点 202 个 · 关系 280 条', N.length === 202 && w.GR.links.length === 280, N.length + ' / ' + w.GR.links.length);
+  /* 不写死数量：内容会持续长。守的是「规模没塌、关系比节点多」这个结构下限。 */
+  ok('节点与关系规模', N.length >= 200 && w.GR.links.length >= N.length, N.length + ' / ' + w.GR.links.length);
 
   /* ① 要点全覆盖 */
   const noPts = N.filter(n => !n.points || !n.points.length);

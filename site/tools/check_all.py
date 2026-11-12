@@ -131,6 +131,26 @@ def main():
         results.append((not over, "首屏体积",
                         "%d KB / %d 个同步脚本（护栏 %d KB%s）" % (kb, len(srcs), FIRST_SCREEN_LIMIT_KB, gap)))
 
+    # ---- 3c. 懒加载数据清单（2026-11-13 新增）----
+    # 为什么加：data/events-extra.js、papers.js、places.js 由 assets/lazydata.js 按需注入，
+    # 不在 index.html 的 <script src> 里 —— 首屏检查看不见它们，sw.js 预缓存检查只管
+    # 自己那张清单。结果 2026-11-13 发现 GitHub 仓库缺这 3 个文件、网页版对应功能 404，
+    # 而本地全绿。门禁必须能看见「不在首屏、但运行时一定会请求」的文件。
+    lazy = ROOT / "assets" / "lazydata.js"
+    if not lazy.exists():
+        results.append((False, "懒加载清单", "assets/lazydata.js 不存在"))
+    else:
+        lt = lazy.read_text(encoding="utf-8")
+        lazy_files = re.findall(r"'(data/[^']+\.js)'", lt) + re.findall(r"'(assets/[^']+\.js)'", lt)
+        lost = [f for f in lazy_files if not (ROOT / f).exists()]
+        if not lazy_files:
+            results.append((False, "懒加载清单", "lazydata.js 里没解析到任何文件路径 —— 解析规则可能过时"))
+        elif lost:
+            results.append((False, "懒加载清单", "列了但文件不存在（%d 个）：%s"
+                            % (len(lost), "、".join(lost[:4]))))
+        else:
+            results.append((True, "懒加载清单", "全部存在（%d 个按需文件）" % len(lazy_files)))
+
     # ---- 4. 数据结构 ----
     check("数据结构 validate_data", ["node", str(TOOLS / "validate_data.js")],
           lambda t: (num(r"错误 (\d+) 项", t), num(r"提醒 (\d+) 项", t) or 0, "结构校验完成")
@@ -174,7 +194,8 @@ def main():
             # 退出码 2 = 环境未就绪（没装 acorn），三项没跑。
             # 「没跑」与「跑了但失败」必须分开报，否则会像 2026-11-07 那样
             # 把 1531 条正则粗测误报当成真实问题、门禁一片红。
-            results.append((True, "代码体检 audit_code", "⛔ 跳过：环境未就绪（缺 acorn），不是通过也不是失败 —— cd site/tools && npm i"))
+            # 2026-11-13：原来这里判 True（绿），等于「没装依赖也算过」。环境没就绪就是没过。
+            results.append((False, "代码体检 audit_code", "环境未就绪（缺 acorn），请先 cd site/tools && npm i"))
         else:
             results.append((code == 0 and cnt == 0, "代码体检 audit_code", line.strip("— ")))
 
@@ -188,12 +209,13 @@ def main():
         results.append((code == 0, "全局命名空间 check-globals",
                         (line[0].strip() if line else (out.strip().splitlines() or [""])[-1])[:120]))
     else:
-        results.append((True, "全局命名空间 check-globals", "脚本不存在，跳过"))
+        # 2026-11-13：原来判 True，于是「仓库里缺这个脚本」被显示成 ✅。脚本缺失就是失败。
+        results.append((False, "全局命名空间 check-globals", "脚本缺失：tools/check-globals.js（仓库不完整）"))
 
     # ---- 8. 回归测试（需要 jsdom）----
     runner = ROOT.parent / "tests" / "run_all.js"
     if a.quick:
-        results.append((True, "回归测试", "已跳过（--quick）"))
+        results.append((True, "回归测试", "⏭ 跳过：--quick 只跑静态门禁，回归由 ci.yml 的 run_all 负责"))
     elif runner.exists():
         code, out = run(["node", str(runner), "--site", str(ROOT)], timeout=1800)
         # 从整段输出里找汇总行，而不是只取最后一行 ——
@@ -210,12 +232,17 @@ def main():
             ok = code == 0 and asserts and asserts > 0 and fails == 0
             results.append((ok, "回归测试", "断言 %s 项 / 失败 %s 项" % (asserts, fails)))
     else:
-        results.append((True, "回归测试", "仓库内没有 tests/run_all.js，跳过"))
+        # 2026-11-13：同上，缺测试运行器不能算过。
+        results.append((False, "回归测试", "缺 tests/run_all.js：仓库不完整，回归根本没跑"))
 
     # ---- 汇总 ----
     print()
+    def _is_skip(d):
+        return d.startswith("⏭") or "⛔ 跳过" in d
+
     for ok, name, detail in results:
-        print("%s %-24s %s" % ("✅" if ok else "❌", name, detail))
+        mark = "⏭" if (ok and _is_skip(detail)) else ("✅" if ok else "❌")
+        print("%s %-24s %s" % (mark, name, detail))
 
     nbad = sum(1 for ok, _, _ in results if not ok)
     nskip = sum(1 for _, _, d in results if "⛔ 跳过" in d)

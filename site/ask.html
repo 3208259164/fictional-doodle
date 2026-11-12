@@ -211,6 +211,7 @@ details.ev-fact summary{color:var(--sub)}
 <script src="data/nett.js"></script>
 <script src="data/resources.js"></script>
 <script src="data/knowledge.js"></script>
+<script src="data/events-extra.js"></script>
 <script src="data/answers.js"></script>
 <script src="data/person-index.js"></script>
 <script src="data/book-index.js"></script>
@@ -379,6 +380,43 @@ details.ev-fact summary{color:var(--sub)}
     main.appendChild(d);
   }
 
+  /* ---------- 引文溯源（0.18.54） ----------
+     粘贴一段话 → 在本机 28 本全文里找出处。研究者最常干的事是「这句话到底出自哪」，
+     而不是「给我讲讲什么叫剩余价值」，所以把它放在问答流程最前面。
+     触发条件：归一化后 ≥12 字、结尾不是问号、且不含「什么/怎么/如何…」这类问句词。 */
+  function _normC(s){
+    return String(s == null ? '' : s).replace(/[\s\u3000]+/g, '')
+      .replace(/[，。、；：！？…—－·"'“”‘’（）()《》〈〉【】\[\],.;:!?"'`~\-_/\\|]/g, '').toLowerCase();
+  }
+  function _isChap(s){
+    s = String(s == null ? '' : s).trim();
+    if (!s || s.length > 40) return false;
+    return /^(第[一二三四五六七八九十百]+[章篇节部分]|[一二三四五六七八九十]+、|[（(][一二三四五六七八九十]+[）)]|序言|引言|导言|前言|后记|结束语|注释|附录)/.test(s);
+  }
+  function _looksQuote(t){
+    var s = String(t || '').trim(), n = _normC(s);
+    if (n.length < 12) return false;
+    if (/[?？]\s*$/.test(s)) return false;
+    if (n.length < 40 && /(什么|为什么|怎么|如何|哪些|哪个|谁|吗|呢|是否|多少|介绍|讲讲|说说)/.test(s)) return false;
+    return true;
+  }
+  /* 逐段精确匹配；相邻两段拼起来再找一次（原文有的段被拆成了两条） */
+  function _traceQuote(text, list){
+    var n = _normC(text);
+    if (n.length < 12) return null;
+    for (var i = 0; i < (list || []).length; i++){
+      var bk = list[i], t = bk.t || [], chap = '';
+      for (var j = 0; j < t.length; j++){
+        var seg = String(t[j] == null ? '' : t[j]);
+        if (_isChap(seg)) chap = seg;
+        if (_normC(seg).indexOf(n) >= 0) return { bk: bk, chap: chap, ctx: seg };
+        var nx = (j + 1 < t.length) ? String(t[j + 1] == null ? '' : t[j + 1]) : '';
+        if (nx && _normC(seg + nx).indexOf(n) >= 0) return { bk: bk, chap: chap, ctx: seg + '\n' + nx };
+      }
+    }
+    return null;
+  }
+
   function ask(text){
     text = String(text || '').trim();
     if (!text) return;
@@ -386,6 +424,30 @@ details.ev-fact summary{color:var(--sub)}
     addQ(text);
     input.value = '';
     var pending = addPending();
+
+    /* 先试引文溯源：命中就给出处（可点进书目详情），不命中再走常规问答 */
+    if (_looksQuote(text)) {
+      loadJT(function (list) {
+        var hit = _traceQuote(text, list);
+        try { pending.remove(); } catch (e) {}
+        if (hit) {
+          addA({
+            answer: '📖 这段文字出自下面这本（章节见下方）：\n\n' + String(hit.ctx || '').slice(0, 600),
+            books: [{ href: 'index.html#/r/' + encodeURIComponent(hit.bk.id), title: '《' + hit.bk.title + '》', sub: hit.chap || '章节未标注' }]
+          });
+        } else {
+          addA({
+            answer: '站内 28 本全文中没有找到与这段文字相符的段落。',
+            notes: ['可能原因：① 出自站内只有书目、没有原文的书；② 是转述而不是原文；③ 译名或版本不同。',
+                    '换一段更长的连续原文再试一次，通常更容易命中。']
+          });
+        }
+        try { histSave(text, hit ? ('引文：' + hit.bk.title) : '引文未命中'); } catch (e) {}
+        main.scrollTop = main.scrollHeight;
+        input.focus();
+      });
+      return;
+    }
 
     Promise.resolve(YZQA.ask(text))
       .then(function(res){ pending.remove(); addA(res); try { histSave(text, res && res.answer); } catch (e) {} })

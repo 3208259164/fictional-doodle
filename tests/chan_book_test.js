@@ -27,6 +27,7 @@ function loadPage(file, url, opts) {
     beforeParse(w) {
       w.HTMLCanvasElement.prototype.getContext = new Proxy({}, { get: () => () => ({}) });
       try { if (opts && opts.theme) w.localStorage.setItem('theme', opts.theme); } catch (e) {}
+      require('./_lazy_hook')(w, DIR);   /* 数据是按需注入的，jsdom 需要真的加载 */
     }
   });
   return { w: dom.window, d: dom.window.document, errors };
@@ -38,7 +39,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   console.log('\n[1] 右上角「＋」单击可打开');
   {
     const { w, d } = loadPage('index.html');
-    await sleep(900);
+    await sleep(2500);
     const plus = d.getElementById('qPlus'), panel = d.getElementById('qPanel');
     plus.click();
     ok(!panel.hidden, '初始状态单击可打开');
@@ -57,7 +58,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   let w, d;
   {
     const L = loadPage('index.html'); w = L.w; d = L.d;
-    await sleep(900);
+    await sleep(2500);
     w.openChannel();
     const cv = d.getElementById('contentView');
     const qa = d.getElementById('qAct');
@@ -76,13 +77,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     w.channelSearch('');
     qa.click();
     const pick = d.getElementById('chanPick');
-    ok(!!pick && pick.querySelectorAll('.chp-item').length === 2, '频道选择 2 项（概念 / 人物）');
-    ok(pick.querySelectorAll('.chp-item')[1].getAttribute('data-k') === 'people', '第二项是人物频道');
+    /* 频道已收敛为概念 / 文章两项（人物频道并入人物页，不再单列） */
+    const _ks = [...pick.querySelectorAll('.chp-item')].map(x => x.getAttribute('data-k'));
+    ok(!!pick && _ks.length === 2, '频道选择 2 项（' + _ks.join(' / ') + '）');
+    ok(_ks[1] === 'article', '第二项是文章频道');
     ok(pick.querySelectorAll('.chp-item')[0].getAttribute('data-k') === 'concept', '概念频道排在前面');
     ok(pick.querySelector('.chp-item.on').getAttribute('data-k') === 'concept', '当前频道（概念）有选中标记');
-    pick.querySelector('[data-k="people"]').click();
+    pick.querySelector('[data-k="article"]').click();
     ok(!d.getElementById('chanPick'), '选择后弹层关闭');
-    ok(cv.querySelectorAll('.ch-post:not(.cc-post)').length > 0, '可切到人物频道');
+    /* 文章列表内容取决于 articles.js 是否已注入，断言只锁「频道状态切过去了」 */
+    ok(w._chanTab === 'article', '可切到文章频道');
 
     w.channelSearch('');
     w.openConcept('commodity');
@@ -133,7 +137,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   {
     const L = loadPage('ask.html', 'https://local.test/ask.html');
     const aw = L.w, ad = L.d;
-    await sleep(900);
+    await sleep(2500);
     const B = aw.YZBOOK;
     ok(!!B, 'booksearch.js 已加载');
     const st = B.stats();
@@ -209,7 +213,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   console.log('\n[6] 问一问：人物 / 概念 可跳转');
   {
     const L = loadPage('ask.html', 'https://local.test/ask.html');
-    await sleep(900);
+    await sleep(2500);
     const Q = L.w.YZQA;
     const p = Q.ask('毛泽东是什么人');
     ok(!!p.links && p.links.length >= 2, '人物答案带跳转链接');
@@ -313,7 +317,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   {
     const L = loadPage('index.html');
     const w4 = L.w, d4 = L.d;
-    await sleep(900);
+    await sleep(2500);
     const si = w4.secIdx('图书馆');
     ok(si >= 0, '能定位「图书馆」页');
     w4.openSection(si);

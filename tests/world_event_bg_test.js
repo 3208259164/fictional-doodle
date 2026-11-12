@@ -24,7 +24,8 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
 
   const N = w.GR.nodes;
   const ev = N.filter(n => n.type === 'event');
-  ok('世界图谱事件节点 79 个', ev.length === 79, ev.length + ' 个');
+  /* 不写死数量：事件会持续增加。守的是「世界性事件成规模」这个下限。 */
+  ok('世界图谱事件节点 ≥79 个', ev.length >= 79, ev.length + ' 个');
   ok('每个事件都有「背景」', ev.every(n => n.bg && n.bg.length >= 20),
     ev.filter(n => !n.bg).map(n => n.name).join(',') || '全部有');
   ok('每个事件都有「影响 · 意义」', ev.every(n => n.impact && n.impact.length >= 20),

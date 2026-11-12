@@ -80,6 +80,8 @@ public class MainActivity extends Activity {
     private WebView web;
     /* 主框架最近一次真实导航地址：用于来源判定，避免个别 ROM 上 web.getUrl() 取不到值导致误判 */
     private volatile String lastMainUrl = null;
+    /* 蓝奏云密码自动填充用的暂存字段。2026-11-11 起 handleUrl 不再给它赋值（lanzou 特例已删），
+       目前恒为 null；保留是为了将来若确实需要「在应用内打开带密码的分享页」时能直接复用 autofillPwd()。 */
     private String pendingPwd = null;
     private boolean errShown = false;
     private String lastSaveMethod = "";   /* tree / appfolder / download：本次实际写入方式 */
@@ -602,10 +604,10 @@ public class MainActivity extends Activity {
                 || low.startsWith("mailto:") || low.startsWith("tel:") || low.startsWith("sms:")
                 || low.startsWith("geo:") || low.startsWith("market:");
         if (!okScheme) return true;
-        if (url.contains("lanzou") && url.contains("#pwd=")) {
-            try { int i = url.indexOf("#pwd="); pendingPwd = url.substring(i + 5); web.loadUrl(url.substring(0, i)); } catch (Exception e) {}
-            return true;
-        }
+        /* 2026-11-11 移除「含 lanzou 且含 #pwd= 即在 WebView 内直接加载」的特例：
+           该判断用 contains 匹配，任意域名只要参数里带 lanzou/#pwd= 都会被当作可信页面载入，
+           是一个潜在的远程页面注入面；而站点侧对应的蓝奏云下载入口早已无引用（0 处）。
+           现在所有 http(s) 一律交给系统浏览器，与本应用「完全离线、不加载外部页面」的定位一致。 */
         try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); return true; } catch (Exception e) { toast("无法打开链接"); return true; }
     }
 

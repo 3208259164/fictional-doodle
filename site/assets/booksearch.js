@@ -257,6 +257,12 @@
       /* 全名精确命中的优先，其余视为相关 */
       var exact = hits.filter(function (h) { return h.score > h.r.title.length; });
       if (exact.length === 1) return answerOne(exact[0].r, q);
+      /* ★ 0.18.61：多本只是「书名里含这几个字」时，若问句主干是一个 ≥4 字的实体名
+         （如「文化大革命是什么」之于《河南省无产阶级文化大革命资料汇编》），
+         说明问的不是书，交回图谱引擎答实体条目。 */
+      var _ent = '';
+      try { if (window.YZQA && window.YZQA.hasEntity) _ent = window.YZQA.hasEntity(q, 4); } catch (e) {}
+      if (_ent) return null;
       return answerMany(hits, q);
     }
 
@@ -264,7 +270,12 @@
     if (/(有哪些|有什么|推荐|列一下|书单).{0,8}(书|著作|原著|文献|读物)/.test(q) ||
         /(原著|导读|词典).{0,4}(有哪些|有什么|清单|推荐)/.test(q) ||
         /读书|读什么|入门读物/.test(q)) {
-      return answerList(q, qn);
+      /* ★ 0.18.61：问句里点明了具体的人/实体时，书库不该抢答。
+         「毛泽东有哪些著作」原先被这里接走，答的是「书库共 459 条按类别分」，
+         完全没回答毛泽东有哪些著作。让回图谱引擎去列这个人的 works。 */
+      var _named = '';
+      try { if (window.YZQA && window.YZQA.hasEntity) _named = window.YZQA.hasEntity(q, 3); } catch (e) {}
+      if (!_named) return answerList(q, qn);
     }
 
     /* 4. 问「某本书」但书名没对上 —— 不接管，交回图谱引擎 */

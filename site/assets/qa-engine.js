@@ -213,9 +213,15 @@
     if (norm(node.id) === nq) return 85;
     /* 别名：合并时把同名异 id 的节点并进来了，旧 id / 旧名字也要能查到 */
     if (node.alias) {
-      for (var a = 0; a < node.alias.length; a++) {
-        var an = norm(node.alias[a]);
-        if (!an) continue;
+      /* ★ 兼容两种写法：alias 可能是数组，也可能是空格分隔的字符串。
+         写成字符串时若直接 node.alias[a] 会逐「字符」遍历（"山东四二二" → 山/东/四/二/二），
+         于是单字「要」就能命中「马克思的主要观点」→ 任何问句都被这类节点抢走。
+         0.18.57 给文革组织加 alias 时踩到了这个坑（此前没有节点带 alias，这段代码从未被触发）。
+         另外单字别名一律跳过（与 tags 同一套保护）。 */
+      var al = Array.isArray(node.alias) ? node.alias : String(node.alias).split(/\s+/);
+      for (var a = 0; a < al.length; a++) {
+        var an = norm(al[a]);
+        if (!an || an.length < 2) continue;
         if (an === nq) return 96;
         if (an.indexOf(nq) >= 0 || nq.indexOf(an) >= 0) return 58;
       }
@@ -381,6 +387,86 @@
   }
 
   /* ---------- 意图分派 ---------- */
+
+  /* 条目介绍（原 intro 分支，0.18.61 抽出来，供「问句就是条目名」直接调用） */
+  function renderIntro(n) {
+    var res = { ok: true, intent: 'intro', answer: '', notes: [], evidence: [] };
+    var head = label(n);
+    var body = [];
+    if (n.role) body.push(n.role);
+    if (n.desc) body.push(n.desc);
+    res.answer = head + '\n' + body.join('\n');
+    if (n.points && n.points.length) {
+      res.answer += '\n要点：' + n.points.slice(0, 3).join('；') + (n.points.length > 3 ? ' 等' : '');
+    }
+    var cnt = (CUR.adj[n.id] || []).length;
+    if (cnt) res.answer += '\n关联：与 ' + cnt + ' 个条目有关。';
+    var src = srcOf(n);
+    if (src) res.answer += '\n\n📖 来源：' + src;
+    else res.answer += '\n\n📖 来源：待补（该条目尚未标注文献）';
+    /* 「类型＝人物」是节点属性，不是依据，不进证据。真正的出处才进，标成 fact。 */
+    if (src) res.evidence.push({ kind: 'fact', from: n.name, rel: '出处', to: src });
+    return res;
+  }
+
+  /* 问句归一化后与某条目名完全相同（「毛泽东」「巴黎公社」）时返回该节点 */
+  function exactEntity(raw) {
+    var qn = norm(raw);
+    if (!qn || !CUR || !CUR.nodes) return null;
+    var suf = [];
+    for (var i = 0; i < CUR.nodes.length; i++) {
+      var nm = norm(CUR.nodes[i].name);
+      if (nm === qn) return CUR.nodes[i];
+      /* 常用简称：问「马克思」时节点名是「卡尔·马克思」。
+         只认后缀且必须唯一——「革命」是「文化大革命」等的后缀，命中多个就不认。 */
+      if (qn.length >= 2 && nm.length > qn.length && nm.slice(-qn.length) === qn) suf.push(CUR.nodes[i]);
+    }
+    return suf.length === 1 ? suf[0] : null;
+  }
+
+  /* 类型统计 / 计数问句（0.18.61 抽成函数，提前到实体与术语之前执行）。
+     原因：「一共有多少位革命导师」先被实体「革命」抢答成条目介绍；
+     「有多少个人物」匹配不到旧正则的「有哪些」前缀，落到兜底检索后
+     开头写「没有找到…」后面又列统计，自相矛盾。 */
+  function typeAnswer(raw) {
+    var tm = raw.match(/(有哪些|列出|所有的?|全部|有(?:多少|几)[个位名]?|共(?:有)?(?:多少|几)[个位名]?)\s*(人物|组织|思想|事件|概念|著作|革命导师|导师)/);
+    if (!tm) return null;
+    /* 问句里点名了具体的人（「毛泽东有哪些著作」）时不能走这里——
+       这里只能数全库有多少「著作」节点，而人的代表文献是节点的 works 字段。
+       让给下面的 works 分支。 */
+    var _qt = norm(raw), _hitSelf = false;
+    if (CUR && CUR.nodes) {
+      for (var _q = 0; _q < CUR.nodes.length; _q++) {
+        var _qnm = norm(CUR.nodes[_q].name);
+        if (_qnm.length >= 3 && _qt.indexOf(_qnm) >= 0) { _hitSelf = true; break; }
+      }
+    }
+    if (_hitSelf) return null;
+    var res = { ok: false, intent: 'type', answer: '', notes: [], evidence: [] };
+    /* 「有多少位革命导师」——导师不是节点类型，取站内 leaders 名单 */
+    if (tm[2] === '导师' || tm[2] === '革命导师') {
+      var lds = (window.SITE_CONTENT && window.SITE_CONTENT.leaders) || [];
+      var lnames = lds.map(function (x) { return x.name || x.title; }).filter(Boolean);
+      res.answer = '站内收录的「革命导师」共 ' + lnames.length + ' 位：' + lnames.join('、') + '。';
+      res.ok = !!lnames.length;
+      return res;
+    }
+    var want = { '人物': 'person', '组织': 'org', '思想': 'idea', '事件': 'event',
+                 '概念': 'concept', '著作': 'work' }[tm[2]];
+    var list = CUR.nodes.filter(function (n) { return n.type === want; }).map(function (n) { return n.name; });
+    if (!list.length) {
+      /* 「有哪些著作」这类问的是书库，图谱里没有 work 节点，让给书库答 */
+      if (want === 'work') return null;
+      res.answer = '当前还没有收录「' + tm[2] + '」类条目。\n'
+        + '这是已知的内容缺口，不是查询出错——分类浏览里能看到现有全部 ' + CUR.nodes.length + ' 个节点。';
+      res.ok = false;
+      return res;
+    }
+    res.answer = '图谱收录 ' + tm[2] + ' ' + list.length + ' 个：' + list.join('、') + '。';
+    res.ok = true;
+    return res;
+  }
+
   function askCore(q) {
     var raw = String(q || '').trim();
     var res = { ok: false, intent: 'unknown', answer: '', notes: [], evidence: [] };
@@ -388,12 +474,63 @@
 
     /* 0.4 人工审定的题库第一档：术语卡与答疑（精确命中优先于书库与图谱）。
        只回放静态文本，不生成任何新句子；分数不到 12 分就让给后面的检索。 */
+    /* 0.35 书名优先（0.18.50 补）：问的是书名时，不能让术语卡抢答。
+       原先「国家与革命」被术语卡「国家」命中，返回了国家的定义而不是书。
+       判据：书名与查询串归一化（去书名号/空白）后完全相同，或查询串是书名的前缀且长度 ≥ 4。 */
+    if (window.YZBOOK && typeof window.YZBOOK.search === 'function') {
+      try {
+        var _q0 = String(raw).replace(/[《》\s「」]/g, '');
+        var _bs = window.YZBOOK.search(raw) || [];
+        var _exact0 = false, _pref0 = 0;
+        for (var _k = 0; _k < _bs.length; _k++) {
+          var _t0 = String(_bs[_k].title || '').replace(/[《》\s「」]/g, '');
+          if (!_t0) continue;
+          if (_t0 === _q0) { _exact0 = true; break; }
+          /* 0.18.61：前缀命中也算书名（「资本论」→《资本论（第一至三卷）》），
+             但必须唯一一本以该前缀开头，否则「马克思」会被判成《马克思恩格斯选集》。 */
+          if (_t0.indexOf(_q0) === 0 && _q0.length >= 3) _pref0++;
+        }
+        if (_exact0 || (_pref0 >= 1 && _pref0 <= 2)) {
+          var _bk0 = window.YZBOOK.tryAnswer(raw);
+          if (_bk0) return _bk0;
+        }
+      } catch (e) {}
+    }
+
+    /* 0.18.61：问句就是条目名（「毛泽东」「巴黎公社」）时直接答该条目。
+       原先问「毛泽东」被答疑库抢答成一段无关的原理讨论。 */
+    var _ex0 = null;
+    try { _ex0 = exactEntity(raw); } catch (e) {}
+    if (_ex0) return renderIntro(_ex0);
+
+    /* 0.18.61：列举/计数问句最先判，否则会被实体或术语抢答 */
+    var _ty0 = null;
+    try { _ty0 = typeAnswer(raw); } catch (e) {}
+    if (_ty0) return _ty0;
+
     var _hits = null;
     if (window.YZStudy && typeof window.YZStudy.search === 'function') {
       try { _hits = window.YZStudy.search(raw) || []; } catch (e) { _hits = []; }
       var _top = null;
       for (var _i = 0; _i < _hits.length; _i++) {
         if ((_hits[_i].kind === 'answer' || _hits[_i].kind === 'term') && _hits[_i].score >= 12) { _top = _hits[_i]; break; }
+      }
+      /* ★ 0.18.61：术语/答疑不得抢走实体问题。
+         问「文化大革命是什么」时术语卡「革命」命中（raw.indexOf('革命') >= 0 → +13 分），
+         于是答成「革命」的定义，而问的其实是文革这个事件。
+         判据：问句里若出现比命中的术语更长的图谱实体名（≥3 字），说明主干是实体，让给后面的分支。 */
+      if (_top) {
+        var _qn0 = norm(raw), _tn0 = norm(_top.title || ''), _blocked = false;
+        /* 计数问句（有多少个人物 / 多少位革命导师）不该被术语卡接管 */
+        if (/(有(?:多少|几)|共(?:有)?(?:多少|几)|几[个位名])/.test(raw)
+            && /(人物|组织|思想|事件|概念|著作|革命导师|导师)/.test(raw)) _blocked = true;
+        if (!_blocked && CUR && CUR.nodes && _qn0) {
+          for (var _z = 0; _z < CUR.nodes.length; _z++) {
+            var _nm = norm(CUR.nodes[_z].name);
+            if (_nm.length >= 3 && _nm.length > _tn0.length && _qn0.indexOf(_nm) >= 0) { _blocked = true; break; }
+          }
+        }
+        if (_blocked) _top = null;
       }
       if (_top) {
         res.intent = _top.kind === 'term' ? 'term' : 'faq';
@@ -460,6 +597,43 @@
       }
       res.answer = a.name + ' 与 ' + b.name + ' 在图谱中既没有直接关系，也没有 2 步以内的关联。';
       res.notes.push('图谱只收录已核对的关系，缺漏不代表现实中无关。');
+      return res;
+    }
+
+    /* 1.5 史料事件（含 events-extra 扩容批）。
+       事件不是图谱节点，上面 best() 找不到，必须单独查一次；
+       放在关系问题之后、单实体之前，这样「A 和 B 什么关系」不会被事件名抢答。
+       限制：查询 ≥4 字、且图谱里没有同名实体时才接管。
+       注意：必须用「先取名、再在外层 return」的写法——IIFE 里的 return 只退出
+       它自己，不会中断 askCore（第一版就踩了这个坑，导致事件永远答不出）。 */
+    var _evHit = (function () {
+      if (!(window.SITE_EXTRA && Array.isArray(window.SITE_EXTRA.events))) return null;
+      var qs = String(raw).replace(/[?？。！!]+$/g, '')
+        .replace(/^(请问|问一下|我想知道|帮我查|查一下|说说|讲讲)/, '').trim();
+      if (qs.length < 4) return null;
+      try { if (best(qs)) return null; } catch (e) {}
+      var list = window.SITE_EXTRA.events, bestE = null, bestD = 1e9;
+      for (var i = 0; i < list.length; i++) {
+        var e = list[i];
+        if (!e || !e.name) continue;
+        var hitIt = (e.name === qs) || (e.name.indexOf(qs) === 0)
+                 || (qs.length >= 4 && e.name.indexOf(qs) >= 0)
+                 || (qs.length >= 6 && qs.indexOf(e.name) >= 0);
+        if (!hitIt) continue;
+        var d = Math.abs(e.name.length - qs.length);
+        if (d < bestD) { bestD = d; bestE = e; }
+      }
+      return bestE;
+    })();
+    if (_evHit) {
+      res.intent = 'event';
+      res.answer = (_evHit.year ? (_evHit.year + ' 年：') : '') + (_evHit.desc || _evHit.name);
+      if (_evHit.period) res.notes.push('时期：' + _evHit.period);
+      if (_evHit.src) res.notes.push('依据：' + _evHit.src);
+      (_evHit.people || []).slice(0, 4).forEach(function (p2) {
+        res.evidence.push({ kind: 'fact', from: '相关人物', to: p2, g: 'event' });
+      });
+      res.ok = true;
       return res;
     }
 
@@ -535,45 +709,10 @@
       }
 
       /* 2.5 默认：介绍 */
-      res.intent = 'intro';
-      var head = label(n);
-      var body = [];
-      if (n.role) body.push(n.role);
-      if (n.desc) body.push(n.desc);
-      res.answer = head + '\n' + body.join('\n');
-      if (n.points && n.points.length) {
-        res.answer += '\n要点：' + n.points.slice(0, 3).join('；') + (n.points.length > 3 ? ' 等' : '');
-      }
-      var cnt = (CUR.adj[n.id] || []).length;
-      if (cnt) res.answer += '\n关联：与 ' + cnt + ' 个条目有关。';
-      var src = srcOf(n);
-      if (src) res.answer += '\n\n📖 来源：' + src;
-      else res.answer += '\n\n📖 来源：待补（该条目尚未标注文献）';
-      res.ok = true;
-      res.evidence = [];
-      /* 「类型＝人物」是节点属性，不是依据，不进证据（以前它会显示成一条「证据」，等于假证据）。
-         真正的出处才进，标成 fact：kind 区分「关系依据」与「条目出处」两类。 */
-      if (src) res.evidence.push({ kind: 'fact', from: n.name, rel: '出处', to: src });
-      return res;
+      return renderIntro(n);
     }
 
-    /* 3. 类型统计：必须明确是「列举」意图，否则会把「不存在的人物xyz」误判 */
-    var tm = raw.match(/^(有哪些|列出|所有的?|全部)(人物|组织|思想|事件|概念|著作)/);
-    if (tm) {
-      res.intent = 'type';
-      var want = { '人物': 'person', '组织': 'org', '思想': 'idea', '事件': 'event',
-                   '概念': 'concept', '著作': 'work' }[tm[2]];
-      var list = CUR.nodes.filter(function (n) { return n.type === want; }).map(function (n) { return n.name; });
-      if (!list.length) {
-        res.answer = '当前还没有收录「' + tm[2] + '」类条目。\n'
-          + '这是已知的内容缺口，不是查询出错——分类浏览里能看到现有全部 ' + CUR.nodes.length + ' 个节点。';
-        res.ok = false;
-        return res;
-      }
-      res.answer = '图谱收录 ' + tm[2] + ' ' + list.length + ' 个：' + list.join('、') + '。';
-      res.ok = true;
-      return res;
-    }
+    /* 3. 类型统计：已在 askCore 开头由 typeAnswer() 处理 */
 
     /* 4. 兜底：关键词检索 */
     var kw = raw.replace(/[?？。！!]/g, '').slice(0, 12);
@@ -690,12 +829,21 @@
     });
     if (links.length) res.links = links;
 
-    /* 来源说明：三图谱合并后，同一个问题可能落到不同图谱，不标来源会像「混在一起」 */
+    /* 来源说明：三图谱合并后，同一个问题可能落到不同图谱，不标来源会像「混在一起」。
+       ★ 必须跟着「关系」走，不能跟着「最近匹配到的节点」走：
+       问「毛泽东和周恩来什么关系」时，best() 匹配到的可能是文革图谱里的「毛泽东逝世」
+       事件节点，于是来源被写成「该条收录于 文革图谱」——而这条关系在主图谱等 3 处都有，
+       用户看到的是一句与事实不符的说明。优先取 evidence 里关系自带的来源。 */
     try {
-      var main = best(raw);
-      if (main) {
-        var g = gLabelOf(main);
-        if (g) res.notes.push('该条收录于 ' + g + '。');
+      var evGs = (res.evidence || []).map(function (e) { return e && e.g; }).filter(Boolean);
+      if (evGs.length) {
+        res.notes.push('该条收录于 ' + evGs[0] + '。');
+      } else {
+        var main = best(raw);
+        if (main) {
+          var g = gLabelOf(main);
+          if (g) res.notes.push('该条收录于 ' + g + '。');
+        }
       }
     } catch (e) {}
     return res;
@@ -733,9 +881,22 @@
     return r;
   }
 
+  /* 供其它模块（书库泛问判定）复用：问句里是否含有 ≥3 字的具体实体名。
+     ask.html 不加载 overlay.js，所以不能从 YZY.graphData() 取，只能看本引擎的 CUR。 */
+  function hasEntity(text, minLen) {
+    var qn = norm(text), ml = minLen || 3;
+    if (!qn || !CUR || !CUR.nodes) return '';
+    for (var i = 0; i < CUR.nodes.length; i++) {
+      var nm = norm(CUR.nodes[i].name);
+      if (nm.length >= ml && qn.indexOf(nm) >= 0) return CUR.nodes[i].name;
+    }
+    return '';
+  }
+
   window.YZQA = {
     ask: ask,
     find: find,
+    hasEntity: hasEntity,
     /* 供测试与调试用：关系名能否直接当「是……的 X」的名词宾语 */
     _relLooksNoun: relLooksNoun,
     /* 供 RAG 层使用：返回某节点的直接邻居（带中文名，便于拼 context） */

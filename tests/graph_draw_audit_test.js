@@ -125,14 +125,19 @@ boot('world', w => {
 
     /* ⑨ 时间轴：世界图谱也该可用（以前只认 y0，一个都没有 → 按钮点了没反应） */
     ok('世界图谱：时间轴可用（years 字符串也能解析）', w.yearsAvailable() === true);
-    w.toggleYears();
-    ok('世界图谱：时间轴打开后有年份区间', w.yearOn === true && typeof w.yearMin === 'number' && typeof w.yearMax === 'number',
-      w.yearMin + '-' + w.yearMax);
+    /* 2026-11-02 时间轴重构：toggleYears/#yearbar → toggleTime/#stbar + stOn/stA/stB */
+    w.toggleTime();
+    ok('世界图谱：时间轴打开后有年份区间', w.stOn === true && typeof w.stA === 'number' && typeof w.stB === 'number',
+      w.stA + '-' + w.stB);
     const oldMan = w.ns.filter(o => /列宁/.test(o.d.name || ''))[0];
     if (oldMan) {
-      ok('时间轴真的在起作用（拉到最后一年时旧人物变淡）', w.spot(oldMan) < 0.5, w.spot(oldMan).toFixed(2));
+      /* 新区间模型：把区间收到最后一年，区间外的人应被淡化到 0.12 */
+      w.stA = w.stB;
+      if (typeof w.refreshSt === 'function') w.refreshSt();
+      ok('时间轴真的在起作用（区间收到最后一年时旧人物变淡）', w.spot(oldMan) < 0.5, w.spot(oldMan).toFixed(2));
+      w.stA = null; w.stB = null; if (typeof w.refreshSt === 'function') w.refreshSt();
     }
-    w.toggleYears();
+    w.toggleTime();
 
     /* 抽一个圈验证展开条数 */
     const AGG = w.AGG || [];

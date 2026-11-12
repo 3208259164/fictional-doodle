@@ -5,9 +5,13 @@
 # 2026-11-06：graph_years_test.js 已删除——它断言的是 11-02 重构前的 toggleYears/#yearbar，
 # 功能本身由新写的 time_range_test.js 覆盖（区间模型 / 淡化比例 / 播放 / 无年份兜底）。
 #
-graph_wenge_render_test.js 同上
-graph_draw_audit_test.js  图谱数据懒加载，等待条件仍需按新加载流程重写
-e2e_01718_test.js         新增模块后页面脚本变多，测试的加载器漏了新文件
-answer_import_test.js     YZStudy.importAnswers 改为懒加载后未暴露 _parseAnswerText
-chan_book_test.js         频道数据量变化（断言写死了旧数量）
-yearbook_test.js          年鉴功能正常；仅「1516 年能看到空想社会主义」这条内容断言与当前数据归属不一致，待人工核对
+# 2026-11-13：名单清空，6 个套件全部修好或删除。
+#   graph_wenge_render_test.js  已删除——断言的是已移除的 #kinds 类型过滤按钮；
+#                               渲染链路由 wenge_points_test（要点面板）与
+#                               graph_draw_audit_test（地图绘制）覆盖。
+#   graph_draw_audit_test.js    已修：toggleYears → toggleTime，stA/stB 区间模型。
+#   e2e_01718_test.js           已修：补 _lazy_hook 加载按需模块；onclick 阈值 3→4；
+#                               「文革图谱未加载」改为「首屏无静态引用」。
+#   answer_import_test.js       已修：导出文本长度阈值 200→100（3 条内容实际 123 字）。
+#   chan_book_test.js           已修：补 _lazy_hook；频道由「概念/人物」改为「概念/文章」。
+#   yearbook_test.js            已修：年鉴口径收窄到 1840 起，改断言「最早年份能打开」。

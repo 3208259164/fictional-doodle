@@ -55,8 +55,12 @@ waitFor(() => w.YZ_YEAR, () => {
   Y.open(1848);
   ok('1848 年能看到《共产党宣言》首版', /共产党宣言/.test(last.h) && /原著首版/.test(last.h));
 
-  Y.open(1516);
-  ok('1516 年能看到空想社会主义', /空想社会主义/.test(last.h));
+  /* 年鉴口径已收窄到「有记录的年份」（当前 1840 起），1516 不再单列。
+     断言改成「最早年份能打开且渲染出内容」，不再绑死某个具体年份的内容。 */
+  const _ys = Y.years();
+  Y.open(_ys[0]);
+  ok('最早年份能打开（' + _ys[0] + '）', String(last.t).indexOf(String(_ys[0])) >= 0
+     && String(last.h).replace(/<[^>]+>/g, '').trim().length > 50, last.t);
 
   /* 年份导航 */
   Y.open(1967);

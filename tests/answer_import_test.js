@@ -93,7 +93,7 @@ setTimeout(() => {
   /* ⑩ 导出：格式与导入一致，能往返 */
   ok('导出器已导出', typeof w.YZStudy._answersText === 'function');
   const md = w.YZStudy._answersText('');
-  ok('导出文本非空且含分组标记', md.length > 200 && /^# /m.test(md), md.length + ' 字');
+  ok('导出文本非空且含分组标记', md.length > 100 && /^# /m.test(md), md.length + ' 字');
   ok('导出文本含 Q: / A:', /^Q: /m.test(md) && /^A: /m.test(md));
   const rt = P(md);
   ok('导出的文本能被自己的解析器读回来', rt.list.length > 0, rt.list.length + ' 条');

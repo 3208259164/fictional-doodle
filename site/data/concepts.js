@@ -2575,642 +2575,898 @@ window.SITE_CONCEPTS = {
     {
       "source": "marx",
       "target": "historical_materialism",
-      "rel": "创立"
+      "rel": "创立",
+      "relType": "proposed",
+      "relRaw": "创立"
     },
     {
       "source": "marx",
       "target": "surplus_value",
-      "rel": "发现"
+      "rel": "发现",
+      "relType": "proposed",
+      "relRaw": "发现"
     },
     {
       "source": "marx",
       "target": "class_struggle",
-      "rel": "系统阐述"
+      "rel": "系统阐述",
+      "relType": "proposed",
+      "relRaw": "系统阐述"
     },
     {
       "source": "marx",
       "target": "proletarian_dictatorship",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "proposed",
+      "relRaw": "提出"
     },
     {
       "source": "engels",
       "target": "historical_materialism",
-      "rel": "共同创立"
+      "rel": "共同创立",
+      "relType": "proposed",
+      "relRaw": "共同创立"
     },
     {
       "source": "lenin",
       "target": "proletarian_dictatorship",
-      "rel": "系统发展"
+      "rel": "系统发展",
+      "relType": "proposed",
+      "relRaw": "系统发展"
     },
     {
       "source": "mao",
       "target": "mass_line",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "proposed",
+      "relRaw": "提出"
     },
     {
       "source": "mao",
       "target": "seeking_truth_from_facts",
-      "rel": "确立为思想路线"
+      "rel": "确立为思想路线",
+      "relType": "proposed",
+      "relRaw": "确立为思想路线"
     },
     {
       "source": "historical_materialism",
       "target": "productive_forces_relations",
-      "rel": "包含"
+      "rel": "包含",
+      "relType": "part_of",
+      "relRaw": "包含"
     },
     {
       "source": "historical_materialism",
       "target": "base_superstructure",
-      "rel": "包含"
+      "rel": "包含",
+      "relType": "part_of",
+      "relRaw": "包含"
     },
     {
       "source": "historical_materialism",
       "target": "class_struggle",
-      "rel": "推出"
+      "rel": "推出",
+      "relType": "develops",
+      "relRaw": "推出"
     },
     {
       "source": "surplus_value",
       "target": "capitalism",
-      "rel": "揭示其剥削实质"
+      "rel": "揭示其剥削实质",
+      "relType": "related",
+      "relRaw": "揭示其剥削实质"
     },
     {
       "source": "class_struggle",
       "target": "proletarian_dictatorship",
-      "rel": "必然导致"
+      "rel": "必然导致",
+      "relType": "related",
+      "relRaw": "必然导致"
     },
     {
       "source": "productive_forces_relations",
       "target": "class_struggle",
-      "rel": "根源"
+      "rel": "根源",
+      "relType": "depends",
+      "relRaw": "根源"
     },
     {
       "source": "capitalism",
       "target": "surplus_value",
-      "rel": "以之为基本规律"
+      "rel": "以之为基本规律",
+      "relType": "depends",
+      "relRaw": "以之为基本规律"
     },
     {
       "source": "capitalism",
       "target": "communism",
-      "rel": "将被取代"
+      "rel": "将被取代",
+      "relType": "develops",
+      "relRaw": "将被取代"
     },
     {
       "source": "communism",
       "target": "proletarian_dictatorship",
-      "rel": "过渡时期需要"
+      "rel": "过渡时期需要",
+      "relType": "develops",
+      "relRaw": "过渡时期需要"
     },
     {
       "source": "marx",
       "target": "contradiction",
-      "rel": "奠定辩证法基础"
+      "rel": "奠定辩证法基础",
+      "relType": "proposed",
+      "relRaw": "奠定辩证法基础"
     },
     {
       "source": "mao",
       "target": "contradiction",
-      "rel": "系统阐发"
+      "rel": "系统阐发",
+      "relType": "proposed",
+      "relRaw": "系统阐发"
     },
     {
       "source": "mao",
       "target": "practice",
-      "rel": "系统阐发"
+      "rel": "系统阐发",
+      "relType": "proposed",
+      "relRaw": "系统阐发"
     },
     {
       "source": "engels",
       "target": "quantity_quality",
-      "rel": "系统阐述"
+      "rel": "系统阐述",
+      "relType": "proposed",
+      "relRaw": "系统阐述"
     },
     {
       "source": "engels",
       "target": "negation_of_negation",
-      "rel": "系统阐述"
+      "rel": "系统阐述",
+      "relType": "proposed",
+      "relRaw": "系统阐述"
     },
     {
       "source": "lenin",
       "target": "state",
-      "rel": "系统阐发"
+      "rel": "系统阐发",
+      "relType": "proposed",
+      "relRaw": "系统阐发"
     },
     {
       "source": "lenin",
       "target": "party",
-      "rel": "系统阐发"
+      "rel": "系统阐发",
+      "relType": "proposed",
+      "relRaw": "系统阐发"
     },
     {
       "source": "mao",
       "target": "democratic_centralism",
-      "rel": "阐明"
+      "rel": "阐明",
+      "relType": "proposed",
+      "relRaw": "阐明"
     },
     {
       "source": "mao",
       "target": "united_front",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "proposed",
+      "relRaw": "提出"
     },
     {
       "source": "contradiction",
       "target": "quantity_quality",
-      "rel": "同属辩证法基本规律"
+      "rel": "同属辩证法基本规律",
+      "relType": "sub_of",
+      "relRaw": "同属辩证法基本规律"
     },
     {
       "source": "contradiction",
       "target": "negation_of_negation",
-      "rel": "同属辩证法基本规律"
+      "rel": "同属辩证法基本规律",
+      "relType": "sub_of",
+      "relRaw": "同属辩证法基本规律"
     },
     {
       "source": "practice",
       "target": "theory_of_knowledge",
-      "rel": "基础"
+      "rel": "基础",
+      "relType": "depends",
+      "relRaw": "基础"
     },
     {
       "source": "state",
       "target": "revolution",
-      "rel": "革命的核心问题"
+      "rel": "革命的核心问题",
+      "relType": "related",
+      "relRaw": "革命的核心问题"
     },
     {
       "source": "party",
       "target": "democratic_centralism",
-      "rel": "组织原则"
+      "rel": "组织原则",
+      "relType": "related",
+      "relRaw": "组织原则"
     },
     {
       "source": "marx",
       "target": "commodity",
-      "rel": "系统分析"
+      "rel": "系统分析",
+      "relType": "proposed",
+      "relRaw": "系统分析"
     },
     {
       "source": "marx",
       "target": "capital",
-      "rel": "系统分析"
+      "rel": "系统分析",
+      "relType": "proposed",
+      "relRaw": "系统分析"
     },
     {
       "source": "marx",
       "target": "capital_accumulation",
-      "rel": "揭示其规律"
+      "rel": "揭示其规律",
+      "relType": "proposed",
+      "relRaw": "揭示其规律"
     },
     {
       "source": "marx",
       "target": "economic_crisis",
-      "rel": "揭示其根源"
+      "rel": "揭示其根源",
+      "relType": "proposed",
+      "relRaw": "揭示其根源"
     },
     {
       "source": "lenin",
       "target": "imperialism",
-      "rel": "系统阐述"
+      "rel": "系统阐述",
+      "relType": "proposed",
+      "relRaw": "系统阐述"
     },
     {
       "source": "lenin",
       "target": "monopoly_capitalism",
-      "rel": "系统阐述"
+      "rel": "系统阐述",
+      "relType": "proposed",
+      "relRaw": "系统阐述"
     },
     {
       "source": "mao",
       "target": "new_democratic_revolution",
-      "rel": "创立"
+      "rel": "创立",
+      "relType": "proposed",
+      "relRaw": "创立"
     },
     {
       "source": "mao",
       "target": "rural_encircling_city",
-      "rel": "开创"
+      "rel": "开创",
+      "relType": "proposed",
+      "relRaw": "开创"
     },
     {
       "source": "commodity",
       "target": "capital",
-      "rel": "是资本分析的起点"
+      "rel": "是资本分析的起点",
+      "relType": "related",
+      "relRaw": "是资本分析的起点"
     },
     {
       "source": "capital",
       "target": "capital_accumulation",
-      "rel": "积累"
+      "rel": "积累",
+      "relType": "develops",
+      "relRaw": "积累"
     },
     {
       "source": "capital_accumulation",
       "target": "economic_crisis",
-      "rel": "加剧矛盾"
+      "rel": "加剧矛盾",
+      "relType": "develops",
+      "relRaw": "加剧矛盾"
     },
     {
       "source": "monopoly_capitalism",
       "target": "imperialism",
-      "rel": "构成其经济基础"
+      "rel": "构成其经济基础",
+      "relType": "part_of",
+      "relRaw": "构成其经济基础"
     },
     {
       "source": "capitalism",
       "target": "monopoly_capitalism",
-      "rel": "发展到"
+      "rel": "发展到",
+      "relType": "develops",
+      "relRaw": "发展到"
     },
     {
       "source": "new_democratic_revolution",
       "target": "rural_encircling_city",
-      "rel": "具体道路"
+      "rel": "具体道路",
+      "relType": "related",
+      "relRaw": "具体道路"
     },
     {
       "source": "new_democratic_revolution",
       "target": "united_front",
-      "rel": "法宝之一"
+      "rel": "法宝之一",
+      "relType": "sub_of",
+      "relRaw": "法宝之一"
     },
     {
       "source": "law_of_value",
       "target": "commodity",
-      "rel": "支配"
+      "rel": "支配",
+      "relType": "depends",
+      "relRaw": "支配"
     },
     {
       "source": "labor_power_commodity",
       "target": "surplus_value",
-      "rel": "是剩余价值的源泉"
+      "rel": "是剩余价值的源泉",
+      "relType": "depends",
+      "relRaw": "是剩余价值的源泉"
     },
     {
       "source": "capital",
       "target": "capital_circuit",
-      "rel": "运动形式"
+      "rel": "运动形式",
+      "relType": "related",
+      "relRaw": "运动形式"
     },
     {
       "source": "capital_circuit",
       "target": "capital",
-      "rel": "属于"
+      "rel": "属于",
+      "relType": "sub_of",
+      "relRaw": "属于"
     },
     {
       "source": "average_profit",
       "target": "surplus_value",
-      "rel": "是剩余价值的转化"
+      "rel": "是剩余价值的转化",
+      "relType": "related",
+      "relRaw": "是剩余价值的转化"
     },
     {
       "source": "capital",
       "target": "average_profit",
-      "rel": "参与形成"
+      "rel": "参与形成",
+      "relType": "part_of",
+      "relRaw": "参与形成"
     },
     {
       "source": "capitalist_rent",
       "target": "surplus_value",
-      "rel": "来源于超额利润"
+      "rel": "来源于超额利润",
+      "relType": "depends",
+      "relRaw": "来源于超额利润"
     },
     {
       "source": "capital",
       "target": "capitalist_rent",
-      "rel": "参与分配"
+      "rel": "参与分配",
+      "relType": "related",
+      "relRaw": "参与分配"
     },
     {
       "source": "capital",
       "target": "social_reproduction",
-      "rel": "再生产"
+      "rel": "再生产",
+      "relType": "related",
+      "relRaw": "再生产"
     },
     {
       "source": "social_reproduction",
       "target": "productive_forces_relations",
-      "rel": "体现"
+      "rel": "体现",
+      "relType": "related",
+      "relRaw": "体现"
     },
     {
       "source": "perceptual_rational",
       "target": "theory_of_knowledge",
-      "rel": "属于"
+      "rel": "属于",
+      "relType": "sub_of",
+      "relRaw": "属于"
     },
     {
       "source": "truth",
       "target": "practice",
-      "rel": "由实践检验"
+      "rel": "由实践检验",
+      "relType": "depends",
+      "relRaw": "由实践检验"
     },
     {
       "source": "truth",
       "target": "theory_of_knowledge",
-      "rel": "属于"
+      "rel": "属于",
+      "relType": "sub_of",
+      "relRaw": "属于"
     },
     {
       "source": "freedom_necessity",
       "target": "contradiction",
-      "rel": "体现辩证法"
+      "rel": "体现辩证法",
+      "relType": "related",
+      "relRaw": "体现辩证法"
     },
     {
       "source": "transition_period",
       "target": "proletarian_dictatorship",
-      "rel": "需要"
+      "rel": "需要",
+      "relType": "related",
+      "relRaw": "需要"
     },
     {
       "source": "transition_period",
       "target": "communist_stages",
-      "rel": "通往"
+      "rel": "通往",
+      "relType": "develops",
+      "relRaw": "通往"
     },
     {
       "source": "two_types_contradictions",
       "target": "contradiction",
-      "rel": "属于矛盾学说"
+      "rel": "属于矛盾学说",
+      "relType": "sub_of",
+      "relRaw": "属于矛盾学说"
     },
     {
       "source": "ten_relationships",
       "target": "productive_forces_relations",
-      "rel": "具体化"
+      "rel": "具体化",
+      "relType": "develops",
+      "relRaw": "具体化"
     },
     {
       "source": "three_worlds",
       "target": "imperialism",
-      "rel": "针对"
+      "rel": "针对",
+      "relType": "opposed",
+      "relRaw": "针对"
     },
     {
       "source": "investigation",
       "target": "seeking_truth_from_facts",
-      "rel": "是其实践基础"
+      "rel": "是其实践基础",
+      "relType": "depends",
+      "relRaw": "是其实践基础"
     },
     {
       "source": "independence",
       "target": "party",
-      "rel": "党际原则"
+      "rel": "党际原则",
+      "relType": "related",
+      "relRaw": "党际原则"
     },
     {
       "source": "self_reliance",
       "target": "independence",
-      "rel": "相辅相成"
+      "rel": "相辅相成",
+      "relType": "related",
+      "relRaw": "相辅相成"
     },
     {
       "source": "distribution_by_work",
       "target": "communist_stages",
-      "rel": "第一阶段的分配方式"
+      "rel": "第一阶段的分配方式",
+      "relType": "develops",
+      "relRaw": "第一阶段的分配方式"
     },
     {
       "source": "distribution_by_work",
       "target": "communism",
-      "rel": "属于"
+      "rel": "属于",
+      "relType": "sub_of",
+      "relRaw": "属于"
     },
     {
       "source": "communist_stages",
       "target": "communism",
-      "rel": "发展阶段"
+      "rel": "发展阶段",
+      "relType": "develops",
+      "relRaw": "发展阶段"
     },
     {
       "source": "communist_stages",
       "target": "transition_period",
-      "rel": "其后阶段"
+      "rel": "其后阶段",
+      "relType": "develops",
+      "relRaw": "其后阶段"
     },
     {
       "source": "marx",
       "target": "law_of_value",
-      "rel": "揭示"
+      "rel": "揭示",
+      "relType": "proposed",
+      "relRaw": "揭示"
     },
     {
       "source": "marx",
       "target": "labor_power_commodity",
-      "rel": "揭示"
+      "rel": "揭示",
+      "relType": "proposed",
+      "relRaw": "揭示"
     },
     {
       "source": "mao",
       "target": "perceptual_rational",
-      "rel": "阐述"
+      "rel": "阐述",
+      "relType": "proposed",
+      "relRaw": "阐述"
     },
     {
       "source": "mao",
       "target": "two_types_contradictions",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "proposed",
+      "relRaw": "提出"
     },
     {
       "source": "mao",
       "target": "ten_relationships",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "proposed",
+      "relRaw": "提出"
     },
     {
       "source": "mao",
       "target": "three_worlds",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "proposed",
+      "relRaw": "提出"
     },
     {
       "source": "mao",
       "target": "investigation",
-      "rel": "倡导"
+      "rel": "倡导",
+      "relType": "proposed",
+      "relRaw": "倡导"
     },
     {
       "source": "mao",
       "target": "independence",
-      "rel": "确立"
+      "rel": "确立",
+      "relType": "proposed",
+      "relRaw": "确立"
     },
     {
       "source": "mao",
       "target": "self_reliance",
-      "rel": "确立"
+      "rel": "确立",
+      "relType": "proposed",
+      "relRaw": "确立"
     },
     {
       "source": "lenin",
       "target": "revisionism",
-      "rel": "系统批判"
+      "rel": "系统批判",
+      "relType": "opposed",
+      "relRaw": "系统批判"
     },
     {
       "source": "revisionism",
       "target": "proletarian_dictatorship",
-      "rel": "否定"
+      "rel": "否定",
+      "relType": "opposed",
+      "relRaw": "否定"
     },
     {
       "source": "revisionism",
       "target": "class_struggle",
-      "rel": "抹煞"
+      "rel": "抹煞",
+      "relType": "opposed",
+      "relRaw": "抹煞"
     },
     {
       "source": "revisionism",
       "target": "capitalism",
-      "rel": "维护"
+      "rel": "维护",
+      "relType": "opposed",
+      "relRaw": "维护"
     },
     {
       "source": "mao",
       "target": "continue_revolution",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "proposed",
+      "relRaw": "提出"
     },
     {
       "source": "continue_revolution",
       "target": "proletarian_dictatorship",
-      "rel": "以无产阶级专政为前提"
+      "rel": "以无产阶级专政为前提",
+      "relType": "depends",
+      "relRaw": "以无产阶级专政为前提"
     },
     {
       "source": "continue_revolution",
       "target": "bourgeois_right",
-      "rel": "限制资产阶级法权"
+      "rel": "限制资产阶级法权",
+      "relType": "opposed",
+      "relRaw": "限制资产阶级法权"
     },
     {
       "source": "continue_revolution",
       "target": "class_struggle",
-      "rel": "以阶级斗争为纲"
+      "rel": "以阶级斗争为纲",
+      "relType": "related",
+      "relRaw": "以阶级斗争为纲"
     },
     {
       "source": "marx",
       "target": "bourgeois_right",
-      "rel": "揭示"
+      "rel": "揭示",
+      "relType": "proposed",
+      "relRaw": "揭示"
     },
     {
       "source": "bourgeois_right",
       "target": "distribution_by_work",
-      "rel": "体现在按劳分配中"
+      "rel": "体现在按劳分配中",
+      "relType": "related",
+      "relRaw": "体现在按劳分配中"
     },
     {
       "source": "bourgeois_right",
       "target": "transition_period",
-      "rel": "存在于过渡时期"
+      "rel": "存在于过渡时期",
+      "relType": "develops",
+      "relRaw": "存在于过渡时期"
     },
     {
       "source": "marx",
       "target": "ownership",
-      "rel": "论证公有制"
+      "rel": "论证公有制",
+      "relType": "proposed",
+      "relRaw": "论证公有制"
     },
     {
       "source": "ownership",
       "target": "productive_forces_relations",
-      "rel": "是生产关系的核心"
+      "rel": "是生产关系的核心",
+      "relType": "related",
+      "relRaw": "是生产关系的核心"
     },
     {
       "source": "ownership",
       "target": "base_superstructure",
-      "rel": "决定经济基础"
+      "rel": "决定经济基础",
+      "relType": "depends",
+      "relRaw": "决定经济基础"
     },
     {
       "source": "ownership",
       "target": "communism",
-      "rel": "高级阶段实现全社会所有制"
+      "rel": "高级阶段实现全社会所有制",
+      "relType": "develops",
+      "relRaw": "高级阶段实现全社会所有制"
     },
     {
       "source": "surplus_value",
       "target": "capital",
-      "rel": "核心范畴"
+      "rel": "核心范畴",
+      "relType": "part_of",
+      "relRaw": "核心范畴"
     },
     {
       "source": "surplus_value",
       "target": "capitalism",
-      "rel": "揭示"
+      "rel": "揭示",
+      "relType": "related",
+      "relRaw": "揭示"
     },
     {
       "source": "surplus_value",
       "target": "labor_power_commodity",
-      "rel": "依据"
+      "rel": "依据",
+      "relType": "depends",
+      "relRaw": "依据"
     },
     {
       "source": "commodity_fetishism",
       "target": "commodity",
-      "rel": "源于"
+      "rel": "源于",
+      "relType": "depends",
+      "relRaw": "源于"
     },
     {
       "source": "commodity_fetishism",
       "target": "capitalism",
-      "rel": "揭示"
+      "rel": "揭示",
+      "relType": "related",
+      "relRaw": "揭示"
     },
     {
       "source": "alienation",
       "target": "communism",
-      "rel": "扬弃"
+      "rel": "扬弃",
+      "relType": "develops",
+      "relRaw": "扬弃"
     },
     {
       "source": "alienation",
       "target": "historical_materialism",
-      "rel": "关联"
+      "rel": "关联",
+      "relType": "related",
+      "relRaw": "关联"
     },
     {
       "source": "democratic_centralism",
       "target": "party",
-      "rel": "组织原则"
+      "rel": "组织原则",
+      "relType": "related",
+      "relRaw": "组织原则"
     },
     {
       "source": "mass_line",
       "target": "investigation",
-      "rel": "方法"
+      "rel": "方法",
+      "relType": "related",
+      "relRaw": "方法"
     },
     {
       "source": "mass_line",
       "target": "practice",
-      "rel": "认识论"
+      "rel": "认识论",
+      "relType": "related",
+      "relRaw": "认识论"
     },
     {
       "source": "three_worlds",
       "target": "imperialism",
-      "rel": "分析"
+      "rel": "分析",
+      "relType": "related",
+      "relRaw": "分析"
     },
     {
       "source": "people_democratic_dictatorship",
       "target": "worker_peasant_alliance",
-      "rel": "基础"
+      "rel": "基础",
+      "relType": "depends",
+      "relRaw": "基础"
     },
     {
       "source": "people_democratic_dictatorship",
       "target": "proletarian_dictatorship",
-      "rel": "发展"
+      "rel": "发展",
+      "relType": "develops",
+      "relRaw": "发展"
     },
     {
       "source": "transition_period",
       "target": "proletarian_dictatorship",
-      "rel": "国家形式"
+      "rel": "国家形式",
+      "relType": "related",
+      "relRaw": "国家形式"
     },
     {
       "source": "worker_peasant_alliance",
       "target": "people_democratic_dictatorship",
-      "rel": "基础"
+      "rel": "基础",
+      "relType": "depends",
+      "relRaw": "基础"
     },
     {
       "source": "surplus_value",
       "target": "marx",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "related",
+      "relRaw": "提出"
     },
     {
       "source": "commodity_fetishism",
       "target": "marx",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "related",
+      "relRaw": "提出"
     },
     {
       "source": "alienation",
       "target": "marx",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "related",
+      "relRaw": "提出"
     },
     {
       "source": "two_inevitabilities",
       "target": "marx",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "related",
+      "relRaw": "提出"
     },
     {
       "source": "two_inevitabilities",
       "target": "engels",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "related",
+      "relRaw": "提出"
     },
     {
       "source": "two_inevitabilities",
       "target": "socialism",
-      "rel": "论证"
+      "rel": "论证",
+      "relType": "related",
+      "relRaw": "论证"
     },
     {
       "source": "democratic_centralism",
       "target": "lenin",
-      "rel": "奠基"
+      "rel": "奠基",
+      "relType": "related",
+      "relRaw": "奠基"
     },
     {
       "source": "democratic_centralism",
       "target": "ccp",
-      "rel": "实行"
+      "rel": "实行",
+      "relType": "related",
+      "relRaw": "实行"
     },
     {
       "source": "united_front",
       "target": "mao",
-      "rel": "发展"
+      "rel": "发展",
+      "relType": "develops",
+      "relRaw": "发展"
     },
     {
       "source": "united_front",
       "target": "newdemocracy",
-      "rel": "构成"
+      "rel": "构成",
+      "relType": "part_of",
+      "relRaw": "构成"
     },
     {
       "source": "mass_line",
       "target": "mao",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "related",
+      "relRaw": "提出"
     },
     {
       "source": "continue_revolution",
       "target": "mao",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "related",
+      "relRaw": "提出"
     },
     {
       "source": "three_worlds",
       "target": "mao",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "related",
+      "relRaw": "提出"
     },
     {
       "source": "three_worlds",
       "target": "deng_xiaoping",
-      "rel": "阐述"
+      "rel": "阐述",
+      "relType": "related",
+      "relRaw": "阐述"
     },
     {
       "source": "people_democratic_dictatorship",
       "target": "mao",
-      "rel": "提出"
+      "rel": "提出",
+      "relType": "related",
+      "relRaw": "提出"
     },
     {
       "source": "transition_period",
       "target": "marx",
-      "rel": "论述"
+      "rel": "论述",
+      "relType": "related",
+      "relRaw": "论述"
     },
     {
       "source": "worker_peasant_alliance",
       "target": "mao",
-      "rel": "强调"
+      "rel": "强调",
+      "relType": "related",
+      "relRaw": "强调"
     }
   ]
 };
