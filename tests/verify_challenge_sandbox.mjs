@@ -112,8 +112,20 @@ if (probe) {
 
 console.log('\n[4] 父页确实落盘了（存档没丢）');
 await sleep(600);
-const saved = await page.evaluate(() => localStorage.getItem('yzq_best_n1_basic'));
-ok(!!saved && saved.indexOf('stars') >= 0, '父页 localStorage 里有包写入的进度：' + String(saved).slice(0, 40));
+/* 存档自「按 packId 分区」改造后，物理键是 yzq@<packId>@yzq_best_n1_basic，
+   包内代码看到的仍是旧的 yzq_* 名称（见 site/assets/challenge.js 的 pkKey）。
+   原先这里读不到已改名的键，长期没进 CI 所以一直没暴露。
+   现在按键名「包含包内键」来找：既验证落盘成功，也验证分区前缀存在。 */
+const saved = await page.evaluate(() => {
+  const hit = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.indexOf('yzq_best_n1_basic') >= 0) hit.push(k + '=' + localStorage.getItem(k));
+  }
+  return hit.join(' | ');
+});
+ok(!!saved && saved.indexOf('stars') >= 0, '父页 localStorage 里有包写入的进度：' + String(saved).slice(0, 80));
+ok(saved.indexOf('yzq@') >= 0, '存档键带 packId 分区前缀：' + String(saved).slice(0, 60));
 
 console.log('\n[5] 沙箱属性核对');
 const attr = await page.$eval('#game', (el) => el.getAttribute('sandbox'));
