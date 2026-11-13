@@ -115,13 +115,14 @@
   /* ---------------- 进度（包存在 localStorage，App 只读来显示摘要） ----------------
      包内用 yzq_best_<nodeId>_<tier> = {best, stars, passed}，同源可直接读。 */
   function readProg(meta) {
+    var pid = (meta && meta.packId) || '';
     var nodes = (meta && meta.nodes) || [], got = 0, total = nodes.length * 3, done = 0;
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i];
       ['basic', 'hard', 'hell'].forEach(function (k) {
         if (!n.tiers || !n.tiers[k]) return;
         try {
-          var raw = localStorage.getItem('yzq_best_' + n.id + '_' + k);
+          var raw = progGet(pid, 'yzq_best_' + n.id + '_' + k);
           if (!raw) return;
           var b = JSON.parse(raw);
           got += (+b.stars || 0);
@@ -132,11 +133,12 @@
     return { stars: got, done: done, total: total };
   }
   function lastPlayed(meta) {
+    var pid = (meta && meta.packId) || '';
     var t = 0, nodes = (meta && meta.nodes) || [];
     for (var i = 0; i < nodes.length; i++) {
       ['basic', 'hard', 'hell'].forEach(function (k) {
         try {
-          var raw = localStorage.getItem('yzq_best_' + nodes[i].id + '_' + k);
+          var raw = progGet(pid, 'yzq_best_' + nodes[i].id + '_' + k);
           if (raw) {
             var b = JSON.parse(raw);
             if (b.at && b.at > t) t = b.at;
@@ -290,6 +292,7 @@
           packs.forEach(function (p) { if (p.packId === id) target = p; });
           var nodeIds = ((target && target.meta && target.meta.nodes) || []).map(function (n) { return n.id; });
           dbDel(id, function () {
+            pkClear(id);                                  /* 新版：只清这个包的分区键 */
             try {
               var keys = [];
               for (var i = 0; i < localStorage.length; i++) {
@@ -335,16 +338,66 @@
     'try{Object.defineProperty(window,"sessionStorage",{value:LS,configurable:true});}catch(e){}' +
   '})();';
 
-  /* 把 App 里已有关卡的存档喂回给包（键名不变，包读到的是自己的进度） */
-  function packSeed() {
-    var o = {};
+  /* ---------------- 存档分区（2026-11-13） ----------------
+     旧版把所有内容包的进度平铺在 yzq_* 上：包 A 打开时喂进去的是**全部** yzq_*，
+     包内 localStorage.clear() 会把所有包的进度一起删掉，节点 id 相同的两个包还会
+     互相覆盖。现在物理键统一加 yzq@<packId>@ 前缀，包里的代码不用改（它仍写
+     yzq_*，前缀只在落盘/读出时加剥）。
+     旧平铺键不删：首次打开某个包时复制一份进它的命名空间（只复制一次），
+     认领给了错的包也不会丢数据。 */
+  var PK_SEP = '@';
+  function pkPre(pid) { return 'yzq' + PK_SEP + pid + PK_SEP; }
+  function pkKey(pid, k) { return pkPre(pid) + String(k); }
+  function pkGet(pid, k) { try { return localStorage.getItem(pkKey(pid, k)); } catch (e) { return null; } }
+  function pkSet(pid, k, v) { try { localStorage.setItem(pkKey(pid, k), String(v)); } catch (e) {} }
+  function pkDel(pid, k) { try { localStorage.removeItem(pkKey(pid, k)); } catch (e) {} }
+  function pkKeys(pid) {
+    var pre = pkPre(pid), out = [];
     try {
       for (var i = 0; i < localStorage.length; i++) {
         var k = localStorage.key(i);
-        if (k && k.indexOf('yzq_') === 0) o[k] = localStorage.getItem(k) || '';
+        if (k && k.indexOf(pre) === 0) out.push(k.slice(pre.length));
       }
     } catch (e) {}
+    return out;
+  }
+  function pkClear(pid) {
+    var ks = pkKeys(pid), pre = pkPre(pid);
+    for (var i = 0; i < ks.length; i++) { try { localStorage.removeItem(pre + ks[i]); } catch (e) {} }
+  }
+  /* 把 App 里已有关卡的存档喂回给包（只给这个包自己的） */
+  function packSeed(pid) {
+    var o = {}, ks = pid ? pkKeys(pid) : [];
+    for (var i = 0; i < ks.length; i++) {
+      var v = pkGet(pid, ks[i]);
+      if (v != null) o[ks[i]] = v;
+    }
     return o;
+  }
+  /* 旧版平铺键的一次性认领 */
+  function pkClaim(pid) {
+    if (!pid) return;
+    try {
+      if (localStorage.getItem('yzq_claim_' + pid)) return;
+      var legacy = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k || k.indexOf('yzq_') !== 0) continue;
+        if (k.indexOf('yzq' + PK_SEP) === 0) continue;          /* 已经是分区键 */
+        if (k.indexOf('yzq_claim_') === 0) continue;
+        if (k.indexOf('yzq_last_') === 0) continue;             /* App 自己的打开记录 */
+        legacy.push(k);
+      }
+      for (var j = 0; j < legacy.length; j++) {
+        var vv = localStorage.getItem(legacy[j]);
+        if (vv != null) pkSet(pid, legacy[j], vv);
+      }
+      localStorage.setItem('yzq_claim_' + pid, '1');
+    } catch (e) {}
+  }
+  function progGet(pid, k) {
+    if (pid) { var v = pkGet(pid, k); if (v != null) return v; }
+    try { return localStorage.getItem(k); } catch (e) { return null; }   /* 兼容未认领的旧键 */
   }
 
   function buildBoot(p) {
@@ -357,8 +410,9 @@
     var shield = 'try{delete window.AndroidApp}catch(e){}'
                + 'try{Object.defineProperty(window,"AndroidApp",{value:undefined,writable:false,configurable:false})}catch(e){}'
                + 'try{window.AndroidApp=undefined}catch(e){}';
+    pkClaim(p.packId);
     return '<script>' + shield + 'window.YZQ_BOOT=' + JSON.stringify({ packId: p.packId, version: p.version }) +
-           ';window.__YZQ_SEED=' + JSON.stringify(packSeed()) + ';' + SHIM + '<\/script>';
+           ';window.__YZQ_SEED=' + JSON.stringify(packSeed(p.packId)) + ';' + SHIM + '<\/script>';
   }
 
   /* ---------------- 独立 WebView 模式的启动脚本（0.18.48 / A7） ----------------
@@ -366,31 +420,44 @@
      所以不需要内存版 shim：能存就直接存，存不了才退内存。
      seed 只在**首次**写入，否则每次打开都会把进度冲回打开前的快照。 */
   function buildStandaloneBoot(p) {
-    var seed = packSeed();
+    pkClaim(p.packId);
+    var seed = packSeed(p.packId);
+    /* 独立 WebView 用同一个 origin（https://yzpack.local），localStorage 是所有包共享的。
+       所以这里把 localStorage 包装一层：包看到的仍是 yzq_*，物理键多了 yzq@<packId>@ 前缀，
+       clear()/length/key() 都只作用于本包。__yzq_seeded 也按包区分（旧版是全局标记，
+       第二个包裹进来就不再 seed）。 */
     return '<script>window.YZQ_BOOT=' + JSON.stringify({ packId: p.packId, version: p.version }) +
       ';window.__YZQ_SEED=' + JSON.stringify(seed) + ';' +
       '(function(){' +
-        'var SEED=window.__YZQ_SEED||{},mem={},has=Object.prototype.hasOwnProperty,ok=false;' +
-        'try{localStorage.setItem("__yzq_probe","1");localStorage.removeItem("__yzq_probe");ok=true;}catch(e){ok=false;}' +
-        'if(ok){try{if(!localStorage.getItem("__yzq_seeded")){' +
-          'Object.keys(SEED).forEach(function(k){localStorage.setItem(k,String(SEED[k]));});' +
-          'localStorage.setItem("__yzq_seeded","1");}}catch(e){}}' +
-        'else{Object.keys(SEED).forEach(function(k){mem[k]=String(SEED[k]);});' +
-          'var LS={getItem:function(k){k=String(k);return has.call(mem,k)?mem[k]:null;},' +
+        'var SEED=window.__YZQ_SEED||{},PID=window.YZQ_BOOT.packId,PRE=\"yzq@\"+PID+\"@\";' +
+        'var mem={},has=Object.prototype.hasOwnProperty,ok=false,real=null;' +
+        'try{real=window.localStorage;real.setItem(PRE+\"__probe\",\"1\");real.removeItem(PRE+\"__probe\");ok=true;}catch(e){ok=false;}' +
+        'function ownKeys(){var ks=[];if(ok){for(var i=0;i<real.length;i++){var k=real.key(i);if(k&&k.indexOf(PRE)===0)ks.push(k.slice(PRE.length));}}else{ks=Object.keys(mem);}return ks;}' +
+        'var LS=ok?{' +
+          'getItem:function(k){k=String(k);try{return real.getItem(PRE+k);}catch(e){return null;}},' +
+          'setItem:function(k,v){k=String(k);try{real.setItem(PRE+k,String(v));}catch(e){}},' +
+          'removeItem:function(k){k=String(k);try{return real.removeItem(PRE+k);}catch(e){}},' +
+          'clear:function(){var ks=ownKeys();for(var i=0;i<ks.length;i++){try{real.removeItem(PRE+ks[i]);}catch(e){}}},' +
+          'key:function(i){var ks=ownKeys();return (i>=0&&i<ks.length)?ks[i]:null;}' +
+        '}:{' +
+          'getItem:function(k){k=String(k);return has.call(mem,k)?mem[k]:null;},' +
           'setItem:function(k,v){mem[String(k)]=String(v);},removeItem:function(k){delete mem[String(k)];},' +
-          'clear:function(){mem={};},key:function(i){var ks=Object.keys(mem);return (i>=0&&i<ks.length)?ks[i]:null;}};' +
-          'try{Object.defineProperty(LS,"length",{get:function(){return Object.keys(mem).length;}});}catch(e){}' +
-          'try{Object.defineProperty(window,"localStorage",{value:LS,configurable:true});}catch(e){}}' +
+          'clear:function(){mem={};},key:function(i){var ks=Object.keys(mem);return (i>=0&&i<ks.length)?ks[i]:null;}' +
+        '};' +
+        'try{Object.defineProperty(LS,\"length\",{get:function(){return ownKeys().length;}});}catch(e){}' +
+        'Object.keys(SEED).forEach(function(k){if(LS.getItem(k)===null)LS.setItem(k,String(SEED[k]));});' +
+        'try{Object.defineProperty(window,\"localStorage\",{value:LS,configurable:true});}catch(e){}' +
+        'try{Object.defineProperty(window,\"sessionStorage\",{value:LS,configurable:true});}catch(e){}' +
       '})();' +
       '<\/script>';
   }
 
   /* 内容包退出后，原生把存档交回来 → 写回主站 localStorage（进度显示不受影响） */
-  window.__yzqAbsorb = function (json) {
+  window.__yzqAbsorb = function (json, pid) {
     try {
-      var o = JSON.parse(json || '{}');
+      var o = JSON.parse(json || '{}'), pre = pid ? pkPre(pid) : '';
       Object.keys(o).forEach(function (k) {
-        if (k.indexOf('yzq_') === 0) { try { localStorage.setItem(k, String(o[k])); } catch (e) {} }
+        if (k.indexOf('yzq_') === 0) { try { localStorage.setItem(pre + k, String(o[k])); } catch (e) {} }
       });
       try { renderList(); } catch (e) {}
     } catch (e) {}
@@ -438,17 +505,16 @@
       /* 存档桥：包在无 same-origin 的沙箱里只能发消息，落盘由父页做。
          只接受 yzq_ 前缀 —— 不允许包往 App 的其它键里写任何东西。 */
       if (m.t === 'yzq:set' || m.t === 'yzq:del' || m.t === 'yzq:clear') {
+        var bp = curPack && curPack.packId;
+        if (!bp) return;                       /* 没有当前包就不落盘，免得串到别人 */
         try {
           if (m.t === 'yzq:clear') {
-            for (var ci = localStorage.length - 1; ci >= 0; ci--) {
-              var ck = localStorage.key(ci);
-              if (ck && ck.indexOf('yzq_') === 0) localStorage.removeItem(ck);
-            }
+            pkClear(bp);                        /* 只清这个包的分区键 */
           } else {
             var pk = String(m.k || '');
             if (pk.indexOf('yzq_') !== 0) return;
-            if (m.t === 'yzq:set') localStorage.setItem(pk, String(m.v == null ? '' : m.v).slice(0, 20000));
-            else localStorage.removeItem(pk);
+            if (m.t === 'yzq:set') pkSet(bp, pk, String(m.v == null ? '' : m.v).slice(0, 20000));
+            else pkDel(bp, pk);
           }
         } catch (err) {}
         return;
@@ -498,5 +564,13 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
-  window.YZC = { close: closePlayer, reload: renderList, boot: renderList };
+  window.YZC = {
+    close: closePlayer, reload: renderList, boot: renderList,
+    /* 存档分区的测试钩子（tests/pack_scope_test.js 用）。生产路径不读它。
+       挂在 YZC 下而不是新增 window.__yzqScope —— 门禁要求新增能力进统一命名空间。 */
+    scope: {
+      pre: pkPre, get: pkGet, set: pkSet, del: pkDel,
+      keys: pkKeys, clear: pkClear, seed: packSeed, claim: pkClaim,
+    },
+  };
 })();

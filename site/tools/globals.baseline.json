@@ -1,6 +1,6 @@
 {
  "_说明": "全局命名空间基线：只许变少，不许新增。新增请挂到统一命名空间下；确认无误后用 --update 重建。",
- "count": 149,
+ "count": 150,
  "names": [
   "AndroidApp",
   "CENTER",
@@ -19,6 +19,7 @@
   "YZChanges",
   "YZCrash",
   "YZCustom",
+  "YZDATAMAP",
   "YZData",
   "YZDiagClear",
   "YZDiagPush",

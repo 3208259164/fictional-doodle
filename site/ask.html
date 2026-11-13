@@ -356,11 +356,14 @@ details.ev-fact summary{color:var(--sub)}
       if (evE.length){
         var lis = evE.slice(0, 40).map(function(e){
           var s = e.from + ' —[' + e.rel + ']→ ' + e.to;
+          /* 时效与置信度：这条关系在什么年份区间成立、标注有多硬 */
+          if (e.span) s += '　<i class="ev-t">' + esc(e.span) + '</i>';
+          if (e.conf) s += ' <i class="ev-c ev-c' + (e.c || 0) + '">' + esc(e.conf) + '</i>';
           var tail;
           if (e.srcLevel === 'edge') tail = '<i class="ev-src">出处：' + esc(e.src) + '</i>';
           else if (e.srcLevel === 'node') tail = '<i class="ev-src ev-node">条目出处：' + esc(e.src) + '（此关系未单列依据）</i>';
           else tail = '<i class="ev-none">未标出处</i>';
-          return '<li>' + esc(s) + tail + (e.g ? '<i class="ev-g">' + esc(e.g) + '</i>' : '') + '</li>';
+          return '<li>' + s + tail + (e.g ? '<i class="ev-g">' + esc(e.g) + '</i>' : '') + '</li>';
         }).join('');
         var head;
         if (nCited) head = '关系依据 ' + evE.length + ' 条（' + nCited + ' 条标了这一关系本身的出处）';
@@ -710,6 +713,11 @@ details.ev-fact summary{color:var(--sub)}
   .askrd-body h2{font-size:1.05rem;margin:22px 0 10px;color:var(--accent)}
   .askrd-body h3{font-size:.96rem;margin:18px 0 8px;color:var(--accent)}
   .askrd-body .hit{background:rgba(245,197,24,.22);border-radius:4px}
+.ev-t{font-style:normal;color:#7ec8ff;font-size:.9em}
+.ev-c{font-style:normal;font-size:.85em;padding:0 4px;border-radius:3px;border:1px solid currentColor}
+.ev-c3{color:#8de6a1}
+.ev-c2{color:#f5c518}
+.ev-c1{color:#9aa0a6}
 </style>
 <script>
 (function(){

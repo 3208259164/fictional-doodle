@@ -336,7 +336,10 @@ public class MainActivity extends Activity {
                     runOnUiThread(new Runnable() { public void run() {
                         try {
                             if (web != null) web.evaluateJavascript(
-                                "window.__yzqAbsorb&&window.__yzqAbsorb(" + org.json.JSONObject.quote(json) + ")",
+                                /* 2026-11-13：连同 packId 一起交回去 —— 存档已按包分区，
+                                   不带包名就不知道该写回哪个命名空间。 */
+                                "window.__yzqAbsorb&&window.__yzqAbsorb(" + org.json.JSONObject.quote(json)
+                                        + "," + org.json.JSONObject.quote(pid == null ? "" : pid) + ")",
                                 null);
                         } catch (Throwable ignored) {}
                     }});

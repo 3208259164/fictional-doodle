@@ -1,7 +1,17 @@
 name: Deploy site to GitHub Pages
 
+# 只在「完整 CI」跑绿之后才部署。
+#
+# 以前是 push 触发 + 自己再跑一遍 check_all.py --quick —— 而 --quick 会跳过
+# 516 项 jsdom 回归，于是回归挂了也照样发布。门禁看起来有两道，其实各跑各的：
+# CI 红着，Pages 绿着（2026-11-12 就是这样，网页版停在 11-09 的旧构建）。
+#
+# 现在改成 workflow_run：上游 CI 完成的瞬间才被唤醒，conclusion 不是 success
+# 就整条链停在 gate 里，不发版。
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -15,26 +25,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 部署前先过一遍门禁：数据/代码/版本/预缓存清单。
-  # 以前是「推上去就直接发布」，一个坏掉的数据文件能直接上线。
-  checks:
-    name: 部署前校验
+  gate:
+    name: 等完整 CI 通过
+    # CI 失败 / 取消 → 不部署。手动触发时没有上游事件，直接放行。
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: 安装校验依赖
-        run: cd site/tools && npm i --no-audit --no-fund
-      - name: 门禁
-        run: python3 site/tools/check_all.py --quick
+      - name: 记录将要部署的提交
+        run: |
+          echo "deploy sha = ${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo "upstream conclusion = ${{ github.event.workflow_run.conclusion || 'workflow_dispatch' }}"
 
   deploy:
-    needs: checks
+    needs: gate
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -42,16 +45,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # workflow_run 里 github.sha 是默认分支的最新提交，不一定是 CI 跑过的那次，
+          # 必须显式取上游 head_sha，否则可能部署一个没被 CI 验证过的提交。
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       # 网页版唯一的缓存刷新机制：Service Worker 的 VERSION 必须每次部署都变。
-      # 否则老访客的 SW 会一直返回旧缓存，改了也看不到（Pages 不支持自定义 Cache-Control）。
+      # 否则老访客的 SW 会一直返回旧缓存（Pages 不支持自定义 Cache-Control）。
       # 用 commit sha 而不用时间戳：同一次提交重复部署不会让所有人重新下载 4.5 MB。
       - name: Stamp Service Worker version
         run: |
-          VER="v${GITHUB_SHA::8}"
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          VER="v$(echo "$SHA" | cut -c1-8)"
           sed -i "s/^const VERSION = '.*';/const VERSION = '$VER';/" site/sw.js
           echo "sw.js VERSION -> $VER"
           grep -m1 "const VERSION" site/sw.js

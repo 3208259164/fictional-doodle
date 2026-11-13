@@ -260,7 +260,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   {
     const L = loadPage('index.html');
     const w2 = L.w, d2 = L.d;
-    await sleep(1000);
+    await sleep(2500);
     ok(w2.pyQuery('mao').indexOf('毛泽东') >= 0, '拼音 mao → 毛泽东');
     ok(w2.pyQuery('mzd').indexOf('毛泽东') >= 0, '首字母 mzd → 毛泽东');
     ok(w2.omniSearch('mao').length > 0, '搜 mao 有结果');

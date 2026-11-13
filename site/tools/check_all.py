@@ -182,6 +182,37 @@ def main():
           if ("地名校验通过" in t or "地名校验未通过" in t) else None,
           "check_places", base)
 
+    # ---- 6b. 图谱完整性与关系元数据（2026-11-13 新增）----
+    # 这两个校验器以前只是躺在 tools/ 里，没人调用 —— 数据坏了也不会有红灯。
+    # Copilot 的评审指出的正是这一点：新资产（edge-meta）没有进入任何门禁。
+    check("图谱完整性 check_graph_nodes", ["node", str(TOOLS / "check_graph_nodes.js")],
+          lambda t: (0, 0, "节点/边完整，无悬空引用") if "全部通过" in t else None)
+
+    check("关系元数据 check_edgemeta", ["node", str(TOOLS / "check_edgemeta.js")],
+          lambda t: (num(r"问题 (\d+)", t), 0,
+                     "标注边 %s 条 / 图谱边 %s 条" % (num(r"标注边 (\d+)", t), num(r"图谱边总数 (\d+)", t)))
+          if "edge-meta 校验" in t else None)
+
+    # ---- 6c. 出处分层（只守「核心不退化」，不要求一次补齐）----
+    # Copilot 的评审：src_report 只报告不阻断，缺口会悄悄长回去。
+    # 这里守一个下限：关系级出处条数不得低于基线（新增内容可以先无出处，
+    # 但不能把已经核到的关系弄丢）。
+    code, out = run(["node", str(TOOLS / "src_report.js"), "--limit", "1"])
+    m = re.search(r"关系级 (\d+) 条", out)
+    if not m:
+        results.append((False, "出处分层 src_report", "没有解析到分层次（脚本可能改了输出格式）"))
+    else:
+        n_edge = int(m.group(1))
+        floor = (base.get("src_report") or {}).get("min_edge_src")
+        layer = re.search(r"出处分层：.*", out)
+        if floor is None:
+            results.append((False, "出处分层 src_report",
+                            "基线里缺 src_report.min_edge_src —— 先跑一次 --update-baseline"))
+        else:
+            results.append((n_edge >= floor, "出处分层 src_report",
+                            "关系级出处 %d 条（下限 %d）%s" % (n_edge, floor,
+                                                            "" if n_edge >= floor else " ← 退化了")))
+
     # ---- 7. 代码体检（严格）----
     code, out = run(["node", str(TOOLS / "audit_code.js"), str(ROOT), "--strict"])
     if "体检结果" not in out:
@@ -213,9 +244,15 @@ def main():
         results.append((False, "全局命名空间 check-globals", "脚本缺失：tools/check-globals.js（仓库不完整）"))
 
     # ---- 8. 回归测试（需要 jsdom）----
+    # 依赖预检：jsdom 装在本地盘并在 tests/node_modules 建软链，沙箱重置后软链会断。
+    # 不预检的话，48 个套件会一起报 MODULE_NOT_FOUND，看起来像代码坏了。
+    code0, _o0 = run(["node", "-e", "require(process.argv[1] + '/node_modules/jsdom')",
+                      str(ROOT.parent / "tests")])
     runner = ROOT.parent / "tests" / "run_all.js"
     if a.quick:
         results.append((True, "回归测试", "⏭ 跳过：--quick 只跑静态门禁，回归由 ci.yml 的 run_all 负责"))
+    elif code0 != 0:
+        results.append((False, "回归测试", "装不到 jsdom（tests/node_modules 可能是失效软链）—— 先跑 bash tests/_setup.sh"))
     elif runner.exists():
         code, out = run(["node", str(runner), "--site", str(ROOT)], timeout=1800)
         # 从整段输出里找汇总行，而不是只取最后一行 ——
@@ -243,6 +280,32 @@ def main():
     for ok, name, detail in results:
         mark = "⏭" if (ok and _is_skip(detail)) else ("✅" if ok else "❌")
         print("%s %-24s %s" % (mark, name, detail))
+
+    if a.update_baseline:
+        # 2026-11-13：这个开关以前只在 help 里写着，实际什么都不做。
+        out_base = dict(base)
+        for ok, name, detail in results:
+            key = {"数据结构 validate_data": "validate_data",
+                   "数据体检 audit_data": "audit_data",
+                   "书库 check_resources": "check_resources",
+                   "地名 check_places": "check_places"}.get(name)
+            if key:
+                m1 = re.search(r"问题 \d+/(\d+)", detail)
+                m2 = re.search(r"提醒 \d+/(\d+)", detail)
+                if m1:
+                    out_base.setdefault(key, {})["max_problems"] = int(m1.group(1))
+                if m2:
+                    out_base.setdefault(key, {})["max_warns"] = int(m2.group(1))
+            if name == "出处分层 src_report":
+                m3 = re.search(r"关系级出处 (\d+) 条", detail)
+                if not m3:
+                    # 首次建基线时这一项是红的（基线里还没有这个键），明细里没数字，单独跑一次取
+                    _c, _o = run(["node", str(TOOLS / "src_report.js"), "--limit", "1"])
+                    m3 = re.search(r"关系级 (\d+) 条", _o)
+                if m3:
+                    out_base.setdefault("src_report", {})["min_edge_src"] = int(m3.group(1))
+        BASELINE.write_text(json.dumps(out_base, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print("\n已更新基线：%s" % BASELINE.name)
 
     nbad = sum(1 for ok, _, _ in results if not ok)
     nskip = sum(1 for _, _, d in results if "⛔ 跳过" in d)

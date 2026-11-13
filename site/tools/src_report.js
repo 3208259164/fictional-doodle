@@ -26,7 +26,9 @@ const MD = argv.indexOf('--md') >= 0 ? argv[argv.indexOf('--md') + 1] : '';
 const ctx = { window: {}, console };
 ctx.window.window = ctx.window;
 vm.createContext(ctx);
-['graph.js', 'graph-old.js', 'graph-new.js', 'graph-wenge.js', 'graph-world.js'].forEach((f) => {
+/* graph-old / graph-new 会顺手改写 window.SITE_GRAPH，必须排在 graph.js 之前，
+   否则主图谱那一行统计的是新民图谱的数据。 */
+['graph-old.js', 'graph-new.js', 'graph.js', 'graph-wenge.js', 'graph-world.js', 'edge-meta.js'].forEach((f) => {
   const p = path.join(ROOT, 'data', f);
   if (fs.existsSync(p)) {
     try { vm.runInContext(fs.readFileSync(p, 'utf8'), ctx); } catch (e) { console.log('跳过 ' + f + '：' + e.message); }
@@ -42,6 +44,7 @@ const SETS = [
 ];
 
 function hasSrc(n) {
+  if (!n) return false;                    /* 边的端点可能在别的图谱里，取不到是常态 */
   return !!(n.source || (n.sources && n.sources.length) || (typeof n.sources === 'string' && n.sources));
 }
 function nodeSrc(n) {
@@ -104,6 +107,37 @@ rows.forEach((r) => {
 console.log(`| **合计** | ${tn} | ${tc} | ${(tc / tn * 100).toFixed(1)}% | ${totalGeneric} | ${tl} | ${tls} |`);
 console.log(`\n节点出处缺口：${tn - tc} 个 ｜ 关系边出处缺口：${tl - tls} 条`);
 console.log(`general 的含义：依据出自该书目的通行叙述，未逐条核到页码/章节。`);
+
+
+/* ---------------- 出处分层（2026-11-13） ----------------
+   一个「覆盖率 92%」藏了四种强度完全不同的东西：
+     · 关系级：这条边本身有出处（含 edge-meta 标注的原文直述 / 有明确出处）
+     · 节点级：只能核到两端人物/组织的条目文献，不能证明这条关系
+     · 待核  ：edge-meta 标成 c=1 的推断，或者干脆什么都没有
+   混在一起看会误判「可核对」。这里分开计数，门禁只守「关系级不下降」。 */
+const META = ctx.window.SITE_EDGE_META || {};
+let lvSelf = 0, lvMeta = 0, lvC3 = 0, lvC2 = 0, lvC1 = 0, lvNode = 0, lvNone = 0, edgeAll = 0;
+SETS.forEach(([key]) => {
+  const G = ctx.window[key];
+  if (!G) return;
+  const N = G.nodes || [], L = G.links || [];
+  const byId = {};
+  N.forEach((n) => { byId[n.id] = n; });
+  L.forEach((l) => {
+    edgeAll++;
+    if (l.src || l.source_ref || l.ref) { lvSelf++; return; }
+    const rel = l.rel || '';
+    const m = META[l.source + '|' + l.target + '|' + rel] || META[l.target + '|' + l.source + '|' + rel];
+    if (m && (m.c || 0) >= 2) { lvMeta++; if (m.c === 3) lvC3++; else lvC2++; return; }
+    if (m && m.c === 1) { lvC1++; return; }
+    if (hasSrc(byId[l.source]) || hasSrc(byId[l.target])) { lvNode++; return; }
+    lvNone++;
+  });
+});
+const lvEdge = lvSelf + lvMeta;
+console.log(`\n出处分层：关系级 ${lvEdge} 条（自带出处 ${lvSelf} / 标注 ${lvMeta}，其中原文直述 ${lvC3}、有明确出处 ${lvC2}）`
+  + `｜ 节点级 ${lvNode} 条 ｜ 待核 ${lvC1 + lvNone} 条（标注为推断 ${lvC1} / 无任何出处 ${lvNone}）｜ 边 ${edgeAll} 条`);
+console.log(`关系级覆盖率：${(lvEdge / edgeAll * 100).toFixed(1)}%（这才是「可核对」的分母口径）`);
 
 edgeGap.sort((a, b) => b.weight - a.weight);
 console.log(`\n待补关系边（按两端度数排序，共 ${edgeGap.length} 条，显示前 ${LIMIT} 条）：\n`);

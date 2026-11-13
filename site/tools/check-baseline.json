@@ -12,5 +12,8 @@
   "check_resources": {
     "max_problems": 34,
     "max_warns": 150
+  },
+  "src_report": {
+    "min_edge_src": 84
   }
 }

@@ -16,11 +16,13 @@ const path = require('path');
 global.window = {};
 const site = path.dirname(__dirname);
 const need = f => { try { require(path.join(site, 'data', f)); return true; } catch (e) { return false; } };
-['graph.js', 'graph-wenge.js', 'graph-world.js', 'graph-extra.js', 'edge-meta.js', 'bstruct.js'].forEach(need);
+/* graph-old / graph-new 会顺手改写 window.SITE_GRAPH，所以必须排在 graph.js 之前加载，
+   否则主图谱会被它们顶掉（变 95 节点），校验就对着错的数据做了。 */
+['graph-old.js', 'graph-new.js', 'graph.js', 'graph-wenge.js', 'graph-world.js', 'graph-extra.js', 'edge-meta.js', 'bstruct.js'].forEach(need);
 
 const META = window.SITE_EDGE_META || {};
 const keys = new Set();
-['SITE_GRAPH', 'SITE_GRAPH_WENGE', 'SITE_GRAPH_WORLD', 'SITE_GRAPH_EXTRA'].forEach(g => {
+['SITE_GRAPH', 'SITE_GRAPH_WENGE', 'SITE_GRAPH_WORLD', 'SITE_GRAPH_EXTRA', 'SITE_GRAPH_OLD', 'SITE_GRAPH_NEW'].forEach(g => {
   const G = window[g]; if (!G) return;
   (G.links || []).forEach(l => keys.add(l.source + '|' + l.target + '|' + (l.rel || '')));
 });

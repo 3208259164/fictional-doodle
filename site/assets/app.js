@@ -593,7 +593,9 @@ async function exportDiag(){
            screen: (screen.width + 'x' + screen.height), theme: (document.body.className || '(默认)'), storage: (storageSelfTest() ? 'ok' : 'fail'),
            motion: ((document.body.className || '').indexOf('no-motion') >= 0 ? 'off' : 'on'),
            appBridge: bridge, appVersion: (app || '(无)') },
-    storage: { localStorageKeys: lsKeys, localStorageBytes: lsBytes, indexedDB: !!window.indexedDB, localSites: siteCount, serviceWorker: sw, jsHeap: mem, overlay: ovStore },
+    storage: { localStorageKeys: lsKeys, localStorageBytes: lsBytes, indexedDB: !!window.indexedDB, localSites: siteCount, serviceWorker: sw, jsHeap: mem, overlay: ovStore,
+               /* 数据清单摘要：有哪些数据、各占多少、有没有未登记的键（见 assets/datamap.js） */
+               datamap: (function(){ try { return window.YZDATAMAP ? YZDATAMAP.summary() : '未加载'; } catch(e){ return 'n/a'; } })() },
     config: cfg,
     counts: { resources: RES.length, byCat: byCat,
               leaders: (leaders || []).length, comrades: (comrades || []).length, recommend: (CT.recommend || []).length,

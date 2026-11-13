@@ -274,6 +274,37 @@
     return [na, nb];
   }
 
+  /* ---------- 关系级时序与置信度（data/edge-meta.js） ----------
+     2026-11-13：这份标注以前只被校验器和搜索副标题用，问答完全读不到 ——
+     用户问「彭德怀和毛泽东什么关系」时看不见「这条关系 1935—1959 成立」这类信息。
+     key 用 id 拼（a|b|rel），标注只写一次，所以两个方向都要试。 */
+  function edgeMetaOf(aId, bId, rel) {
+    var M = window.SITE_EDGE_META || {};
+    if (!aId || !bId) return null;
+    return M[aId + '|' + bId + '|' + rel] || M[bId + '|' + aId + '|' + rel] || null;
+  }
+  function confLabel(c) {
+    return c === 3 ? '原文直述' : c === 2 ? '有明确出处' : c === 1 ? '推断待核' : '';
+  }
+  /* 生成一条关系 evidence，并挂上 edge-meta 的时效/说明/置信度 */
+  function edgeEv(aName, aId, bName, bId, rel, cat, src) {
+    var o = { kind: 'edge', from: aName, to: bName, rel: rel, cat: cat, src: src || '' };
+    if (aId && bId) o.metaKey = aId + '|' + bId + '|' + rel;
+    var m = edgeMetaOf(aId, bId, rel);
+    if (m) {
+      if (m.t && m.t.length === 2) { o.t = m.t; o.span = m.t[0] + '—' + (m.t[1] || '今'); }
+      if (m.n) o.note = m.n;
+      if (m.c) { o.c = m.c; o.conf = confLabel(m.c); }
+      if (m.src && !o.src) {
+        /* src 是 {b:书名文件, an:锚点} / {b, p:段号} 结构，转成人能读的一行 */
+        var b0 = m.src.b || '', an = m.src.an || (m.src.p ? ('第 ' + m.src.p + ' 段') : '');
+        o.metaSrc = b0 + (an ? ' · ' + an : '');
+      }
+      if (m.sup) o.sup = m.sup;
+    }
+    return o;
+  }
+
   /* ---------- 答案片段 ---------- */
   /* 统一取来源：主图谱/概念用 source，文革图谱用 sources（复数） */
   function srcOf(n) {
@@ -578,7 +609,7 @@
         var lines = edges.map(function (e) { return describeEdge(a, e); });
         res.answer = lines.join('；') + '。';
         res.evidence = edges.map(function (e) {
-          return { kind: 'edge', from: a.name, to: CUR.byId[e.to].name, rel: e.rel, cat: e.cat, src: e.src || '' };
+          return edgeEv(a.name, a.id, CUR.byId[e.to].name, e.to, e.rel, e.cat, e.src);
         });
         res.ok = true;
         return res;
@@ -591,7 +622,9 @@
         }).join('\n');
         res.answer = a.name + ' 与 ' + b.name + ' 之间没有直接关系。图谱中的关联路径：\n' + chain;
         res.notes.push('这是图谱里已有的关联链，不是直接关系，也不能推出因果。');
-        res.evidence = path.map(function (s) { return { kind: 'edge', from: s.from.name, to: s.to.name, rel: s.edge.rel, cat: s.edge.cat, src: s.edge.src || '' }; });
+        res.evidence = path.map(function (s) {
+          return edgeEv(s.from.name, s.from.id, s.to.name, s.to.id, s.edge.rel, s.edge.cat, s.edge.src);
+        });
         res.ok = true;
         return res;
       }
@@ -703,7 +736,7 @@
         res.ok = nb.length > 0;
         res.evidence = (CUR.adj[n.id] || []).map(function (e) {
           var o = CUR.byId[e.to];
-          return o ? { kind: 'edge', from: n.name, to: o.name, rel: e.rel, cat: e.cat, src: e.src || '' } : null;
+          return o ? edgeEv(n.name, n.id, o.name, e.to, e.rel, e.cat, e.src) : null;
         }).filter(Boolean);
         return res;
       }
@@ -858,7 +891,7 @@
        这时候不能显示「未标出处」就完了，也不能假装那是这条关系的出处 ——
        标成 srcLevel='node'（条目级出处），界面据此用不同措辞。 */
     try {
-      var ev = r.evidence || [], nEdgeSrc = 0, nNodeSrc = 0, nNone = 0, factN = 0, edgeN = 0;
+      var ev = r.evidence || [], nEdgeSrc = 0, nNodeSrc = 0, nNone = 0, factN = 0, edgeN = 0, mEdgeSrc = 0;
       function nodeByName(nm) {
         if (!CUR || !CUR.nodes) return null;
         for (var j = 0; j < CUR.nodes.length; j++) if (CUR.nodes[j].name === nm) return CUR.nodes[j];
@@ -868,6 +901,11 @@
         var e = ev[i];
         if (e.kind === 'fact') { factN++; if (e.src || e.to) e.srcLevel = e.src ? 'edge' : 'none'; continue; }
         edgeN++;
+        /* edge-meta 里「原文直述 / 有明确出处」的标注算关系级出处；
+           c=1（推断待核）不算 —— 它是我们推的，不能当成材料里写的。 */
+        if (!e.src && e.metaSrc && e.c >= 2) {
+          e.src = e.metaSrc; e.srcLevel = 'edge'; mEdgeSrc++; continue;
+        }
         if (e.src) { e.srcLevel = 'edge'; nEdgeSrc++; continue; }
         var a = nodeByName(e.from), b = nodeByName(e.to);
         var s1 = a ? srcOf(a) : '', s2 = b ? srcOf(b) : '';
@@ -875,6 +913,8 @@
         else { e.srcLevel = 'none'; nNone++; }
       }
       r.cited = nEdgeSrc;          /* 关系级出处（真正可核对的） */
+      r.citedMeta = mEdgeSrc;      /* 其中来自 edge-meta 标注的关系级出处 */
+      r.spanCount = ev.filter(function (x) { return x.span; }).length;   /* 标了时效的条数 */
       r.citedNode = nNodeSrc;      /* 条目级出处（只能核到文献，不能核到这条关系） */
       r.edgeCount = edgeN; r.factCount = factN; r.noSrcCount = nNone;
     } catch (e) {}
