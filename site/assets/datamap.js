@@ -108,5 +108,52 @@
       + (a.unlisted ? '；未登记键 ' + a.unlisted + ' 个' : '；无未登记键');
   }
 
-  window.YZDATAMAP = { ver: 2, items: ITEMS, audit: audit, summary: summary, find: findByKey };
+  /* ---------------- 真实占用（不只是声明） ----------------
+     localStorage 能逐键量；IndexedDB 与原生目录只能整体量。
+     量不到就说量不到 —— 不拿「清单里有这一项」冒充「已经量过」。 */
+  function storageEstimate(cb) {
+    try {
+      if (window.navigator && navigator.storage && navigator.storage.estimate) {
+        navigator.storage.estimate().then(function (e) {
+          cb({ usage: (e && e.usage) || 0, quota: (e && e.quota) || 0 });
+        }, function () { cb(null); });
+        return;
+      }
+    } catch (e) {}
+    cb(null);
+  }
+
+  /* 原生侧：有桥就数条目，没有桥（网页版）就明确报「不适用」 */
+  function nativeStats() {
+    var out = { available: false, books: null, media: null, note: '网页版没有原生文件目录' };
+    try {
+      var A = window.AndroidApp;
+      if (A && typeof A.bookList === 'function') {
+        out.available = true; out.note = '';
+        try { out.books = (JSON.parse(A.bookList() || '[]') || []).length; } catch (e) { out.books = -1; }
+        try {
+          out.media = (typeof A.mediaList === 'function') ? (JSON.parse(A.mediaList() || '[]') || []).length : null;
+        } catch (e) { out.media = -1; }
+      }
+    } catch (e) {}
+    return out;
+  }
+
+  /* 给诊断报告用的完整版：同步部分 + 真实占用 + 原生条目 */
+  function detail(cb) {
+    var base = audit();
+    storageEstimate(function (est) {
+      base.estimate = est;                 /* null 表示这个环境给不出 */
+      base.native = nativeStats();
+      base.text = summary() + '；' +
+        (est ? ('总占用 ' + (est.usage / 1048576).toFixed(1) + ' MB / 配额 ' + (est.quota / 1048576).toFixed(0) + ' MB')
+             : '总占用：本环境无法测量') +
+        (base.native.available
+          ? ('；原生文件：书 ' + base.native.books + ' 本' + (base.native.media === null ? '' : '、媒体 ' + base.native.media + ' 个'))
+          : '；原生文件：' + base.native.note);
+      cb(base);
+    });
+  }
+
+  window.YZDATAMAP = { ver: 2, items: ITEMS, audit: audit, summary: summary, find: findByKey, detail: detail, storageEstimate: storageEstimate, nativeStats: nativeStats };
 })();

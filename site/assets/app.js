@@ -544,6 +544,17 @@ async function exportDiag(){
   try { if (window.YZY && YZY.stats) edits = YZY.stats(); } catch(e){}
   try { pageErrs = JSON.parse(localStorage.getItem('yzErrLog') || '[]') || []; } catch(e){}
   const verdict = [];
+  /* 数据清单完整版（2026-11-13）：同步的清单摘要 + 真实占用 + 原生条目数。
+     navigator.storage.estimate() 给的是整体用量（含 IndexedDB），
+     拿不到就说拿不到，不拿「清单里有」冒充「量过了」。 */
+  let dmText = '未加载';
+  try {
+    if (window.YZDATAMAP && YZDATAMAP.detail) {
+      dmText = await new Promise(function (r) {
+        try { YZDATAMAP.detail(function (d) { r(d.text); }); } catch (e) { r('n/a'); }
+      });
+    }
+  } catch (e) {}
   const vAdd = (lv, msg) => verdict.push({ level: lv, msg: msg });
   let stOk = true; try { stOk = storageSelfTest(); } catch(e){ stOk = false; }
   if (!stOk) vAdd('error', '本机存储不可用：收藏、笔记、自助编辑都不会保存');
@@ -595,7 +606,7 @@ async function exportDiag(){
            appBridge: bridge, appVersion: (app || '(无)') },
     storage: { localStorageKeys: lsKeys, localStorageBytes: lsBytes, indexedDB: !!window.indexedDB, localSites: siteCount, serviceWorker: sw, jsHeap: mem, overlay: ovStore,
                /* 数据清单摘要：有哪些数据、各占多少、有没有未登记的键（见 assets/datamap.js） */
-               datamap: (function(){ try { return window.YZDATAMAP ? YZDATAMAP.summary() : '未加载'; } catch(e){ return 'n/a'; } })() },
+               datamap: dmText },
     config: cfg,
     counts: { resources: RES.length, byCat: byCat,
               leaders: (leaders || []).length, comrades: (comrades || []).length, recommend: (CT.recommend || []).length,
@@ -5971,6 +5982,36 @@ function openPc(){                       /* 个人中心：左侧抽屉（仿 QQ
 function openSettings(){                 /* 设置页：入栈，返回回到上一层（个人中心 / 资料） */
   _pageStack.push({ view: 'settingsView', title: '⚙️ 设置' });
   _renderPage(_pageStack[_pageStack.length - 1]);
+  /* 本机数据概览（2026-11-13）：把 datamap.js 的清单从「诊断报告里的一行」
+     变成用户能点开看的东西 —— 有哪些数据、占多少、哪些会随导出带走。
+     以前这些只有开发者看得见，而「本地优先」是产品承诺，用户该能自己核对。 */
+  function openDataMap(){
+    var D = window.YZDATAMAP;
+    if (!D || !D.detail) { toast('数据清单未加载'); return; }
+    D.detail(function (d) {
+      var rows = d.items.map(function (it) {
+        var state;
+        if (it.where === 'local') state = it.count ? (it.count + ' 项 · ' + (it.bytes / 1024).toFixed(1) + ' KB') : '无数据';
+        else if (it.where === 'idb') state = '见下方总占用';
+        else state = 'App 私有目录';
+        return '<div style="padding:9px 0;border-bottom:1px solid rgba(127,127,127,.18)">'
+          + '<div style="font-size:14px">' + escHtml(it.k)
+          + (it.export ? ' <span style="font-size:11px;color:#8de6a1;border:1px solid currentColor;border-radius:3px;padding:0 3px">随导出</span>' : '')
+          + ' <span style="font-size:11px;opacity:.55">' + escHtml(it.where) + '</span></div>'
+          + '<div style="font-size:12px;opacity:.72;margin-top:2px">' + escHtml(it.desc) + '</div>'
+          + '<div style="font-size:12px;opacity:.9;margin-top:2px">' + escHtml(state) + '</div>'
+          + '</div>';
+      }).join('');
+      var head = '<div style="font-size:12.5px;line-height:1.7;opacity:.85;margin-bottom:10px">'
+        + escHtml(d.text) + '</div>';
+      var tip = '<div style="font-size:12px;opacity:.65;margin-top:12px;line-height:1.7">'
+        + '「随导出」的数据会写进「导出我的数据」生成的 Markdown；'
+        + '书籍正文与内容包体积大，需在各自入口单独导出。</div>';
+      openContent('📋 本机数据概览', '<div style="padding:4px 2px">' + head + rows + tip + '</div>');
+    });
+  }
+  /* 不挂 window：按钮用的是直接 onclick 绑定，少一个全局就少一处将来要收拢的东西 */
+
   /* 存储用量面板（exportdata.js，懒加载）：没到就先拉，到货后就地补画 */
   function yzPaintUsage() {
     try {
@@ -5984,6 +6025,15 @@ function openSettings(){                 /* 设置页：入栈，返回回到上
     } catch (e) { }
   }
   yzPaintUsage();
+  /* 本机数据概览入口：挂在存储用量下面 */
+  try {
+    var _ub = document.getElementById('yzUsageBox');
+    if (_ub && !document.getElementById('yzDmBtn')) {
+      _ub.insertAdjacentHTML('afterend',
+        '<div style="margin:10px 0 4px"><button class="btn" id="yzDmBtn" style="width:100%">📋 本机数据概览（有哪些数据 / 占多少）</button></div>');
+      document.getElementById('yzDmBtn').onclick = openDataMap;
+    }
+  } catch (e) {}
   if (!window.YZEXPORT && window.YZData && YZData.need) {
     YZData.need('assets/exportdata.js', function (ok) { if (ok) yzPaintUsage(); });
   }

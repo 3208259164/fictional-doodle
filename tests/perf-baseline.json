@@ -1,7 +1,7 @@
 {
- "scripts_kb": 2091,
- "boot_ms": 4466,
- "ask_ms": 10.4,
- "search_ms": 2.13,
+ "scripts_kb": 2102,
+ "boot_ms": 1572,
+ "ask_ms": 10.47,
+ "search_ms": 2.01,
  "at": "2026-11-13"
 }

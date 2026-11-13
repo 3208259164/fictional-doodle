@@ -328,6 +328,17 @@ ok "包内 assets/site 文件数：$(grep -c 'assets/site/' "$WORK/plist.txt")"
 
 # 全部自检通过后才推进「历史最大构建号」：
 # 失败时 .last_code 不动，可以用同一个 CODE 重试，不会把自己锁死。
+# 构建 manifest（2026-11-13）：记录这次构建的输入指纹，不进 APK。
+# 用途：用户说「网页版和 App 不一样」时，先比这份清单和 CI 上传的那份，别只比版本名。
+if [ -f "$SITE/tools/gen_manifest.py" ]; then
+  MH="$P/build-manifest-$NAME.json"
+  if python3 "$SITE/tools/gen_manifest.py" --out "$MH" >/dev/null 2>&1; then
+    ok "构建清单：$MH"
+  else
+    echo "  ⚠️  构建清单生成失败（不影响产物）"
+  fi
+fi
+
 echo "$CODE" > "$P/.last_code"
 
 SZ=$(stat -c%s "$OUT")

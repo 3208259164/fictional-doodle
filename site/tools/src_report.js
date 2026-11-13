@@ -117,6 +117,7 @@ console.log(`general 的含义：依据出自该书目的通行叙述，未逐�
    混在一起看会误判「可核对」。这里分开计数，门禁只守「关系级不下降」。 */
 const META = ctx.window.SITE_EDGE_META || {};
 let lvSelf = 0, lvMeta = 0, lvC3 = 0, lvC2 = 0, lvC1 = 0, lvNode = 0, lvNone = 0, edgeAll = 0;
+const DETAIL = [];                 /* --json 导出用：每条边的归类，供交叉一致性测试比对 */
 SETS.forEach(([key]) => {
   const G = ctx.window[key];
   if (!G) return;
@@ -125,19 +126,31 @@ SETS.forEach(([key]) => {
   N.forEach((n) => { byId[n.id] = n; });
   L.forEach((l) => {
     edgeAll++;
-    if (l.src || l.source_ref || l.ref) { lvSelf++; return; }
     const rel = l.rel || '';
     const m = META[l.source + '|' + l.target + '|' + rel] || META[l.target + '|' + l.source + '|' + rel];
-    if (m && (m.c || 0) >= 2) { lvMeta++; if (m.c === 3) lvC3++; else lvC2++; return; }
-    if (m && m.c === 1) { lvC1++; return; }
-    if (hasSrc(byId[l.source]) || hasSrc(byId[l.target])) { lvNode++; return; }
-    lvNone++;
+    let lv;
+    if (l.src || l.source_ref || l.ref) { lvSelf++; lv = 'edge-self'; }
+    /* c>=2 但没写 src 的，只能算「标注了置信度却给不出出处」—— 不算关系级。
+       这条与 qa-engine 的判定对齐（它要求 metaSrc 才升级为 edge）。 */
+    else if (m && (m.c || 0) >= 2 && m.src) { lvMeta++; if (m.c === 3) lvC3++; else lvC2++; lv = 'edge-meta'; }
+    else if (m && ((m.c || 0) >= 2 || m.c === 1)) { lvC1++; lv = 'inferred'; }
+    else if (hasSrc(byId[l.source]) || hasSrc(byId[l.target])) { lvNode++; lv = 'node'; }
+    else { lvNone++; lv = 'none'; }
+    DETAIL.push({ g: key, from: l.source, to: l.target, rel, lv, c: (m && m.c) || 0 });
   });
 });
 const lvEdge = lvSelf + lvMeta;
 console.log(`\n出处分层：关系级 ${lvEdge} 条（自带出处 ${lvSelf} / 标注 ${lvMeta}，其中原文直述 ${lvC3}、有明确出处 ${lvC2}）`
   + `｜ 节点级 ${lvNode} 条 ｜ 待核 ${lvC1 + lvNone} 条（标注为推断 ${lvC1} / 无任何出处 ${lvNone}）｜ 边 ${edgeAll} 条`);
 console.log(`关系级覆盖率：${(lvEdge / edgeAll * 100).toFixed(1)}%（这才是「可核对」的分母口径）`);
+
+/* --json <path>：把每条边的归类导出去。交叉一致性测试用它，
+   这样「报告怎么算」和「问答怎么显示」比对的是同一份判定，而不是各写一套规则。 */
+const JSON_OUT = argv.indexOf('--json') >= 0 ? argv[argv.indexOf('--json') + 1] : '';
+if (JSON_OUT) {
+  fs.writeFileSync(JSON_OUT, JSON.stringify({ edgeAll, layers: { 'edge-self': lvSelf, 'edge-meta': lvMeta, inferred: lvC1, node: lvNode, none: lvNone }, edges: DETAIL }, null, 1), 'utf8');
+  console.log(`\n已导出逐边归类：${JSON_OUT}（${DETAIL.length} 条）`);
+}
 
 edgeGap.sort((a, b) => b.weight - a.weight);
 console.log(`\n待补关系边（按两端度数排序，共 ${edgeGap.length} 条，显示前 ${LIMIT} 条）：\n`);

@@ -907,6 +907,10 @@
           e.src = e.metaSrc; e.srcLevel = 'edge'; mEdgeSrc++; continue;
         }
         if (e.src) { e.srcLevel = 'edge'; nEdgeSrc++; continue; }
+        /* 有 edge-meta 标注但核不到出处的（c=1 推断，或 c>=2 却漏写 src），
+           不冒充「节点级出处」—— 报告那边（src_report）也是这么归类的，
+           两套口径必须一致，tests/src_consistency_test.js 锁住这一点。 */
+        if (e.c && (!e.metaSrc || e.c === 1)) { e.srcLevel = 'none'; nNone++; continue; }
         var a = nodeByName(e.from), b = nodeByName(e.to);
         var s1 = a ? srcOf(a) : '', s2 = b ? srcOf(b) : '';
         if (s1 || s2) { e.src = s1 || s2; e.srcLevel = 'node'; nNodeSrc++; }

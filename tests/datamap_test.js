@@ -17,6 +17,11 @@ const dom = new JSDOM('<!doctype html><meta charset="utf-8"><body></body>', {
     w.localStorage.setItem('yzq@packB@yzq_best_n1_hard', '{"best":1}');
     w.localStorage.setItem('yzq_last_packA', '1717000000000');
     w.localStorage.setItem('someUnknownKey', 'x');
+    /* 真实占用与原生目录：给出可测量的假实现，验证「量得到就说量到，量不到就说量不到」 */
+    try {
+      Object.defineProperty(w.navigator, 'storage', { value: { estimate: () => Promise.resolve({ usage: 12 * 1048576, quota: 200 * 1048576 }) }, configurable: true });
+    } catch (e) {}
+    w.AndroidApp = { bookList: () => JSON.stringify([{ id: 1 }, { id: 2 }]), mediaList: () => JSON.stringify([{ id: 'm1' }]) };
   }
 });
 const w = dom.window;
@@ -60,5 +65,12 @@ ok('按真实键能反查归属', !!f && f.k === 'yzq@*', f ? f.k : '-');
 ok('内容包进度标记为不可导出', pk && pk.export === false);
 ok('摘录标记为可导出', ex && ex.export === true);
 
-console.log('\n########## 合计：断言 ' + (pass + fail) + ' 项，失败 ' + fail);
-process.exit(fail ? 1 : 0);
+/* ⑤ 真实占用 / 原生条目（异步） */
+D.detail(function (d) {
+  ok('detail 返回 estimate', !!d.estimate && d.estimate.usage > 0, d.estimate ? Math.round(d.estimate.usage / 1048576) + ' MB' : '无');
+  ok('detail 统计到原生书籍条目', d.native && d.native.available && d.native.books === 2, JSON.stringify(d.native));
+  ok('detail 文本含总占用与原生文件', /总占用 \d/.test(d.text) && /原生文件/.test(d.text), d.text.slice(0, 80));
+
+  console.log('\n########## 合计：断言 ' + (pass + fail) + ' 项，失败 ' + fail);
+  process.exit(fail ? 1 : 0);
+});

@@ -24,19 +24,77 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: 安装校验依赖（acorn）
-        run: cd site/tools && npm i --no-audit --no-fund
+      - name: 安装校验依赖（acorn，按 lockfile 精确还原）
+        run: cd site/tools && npm ci --no-audit --no-fund
 
       - name: 门禁（版本 / 预缓存 / 语法 / 数据 / 代码）
         run: python3 site/tools/check_all.py --quick
 
-      - name: 安装测试依赖（jsdom）
-        run: cd tests && npm i --no-audit --no-fund
+      - name: 安装测试依赖（jsdom，按 lockfile 精确还原）
+        run: cd tests && npm ci --no-audit --no-fund
 
       - name: 回归测试
         run: node tests/run_all.js --site site
+
+      - name: 构建 manifest（记录这次构建用了哪些文件）
+        run: python3 site/tools/gen_manifest.py --out build-manifest.json --sha "${GITHUB_SHA::8}"
+
+      - name: 上传 manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-manifest
+          path: build-manifest.json
+          if-no-files-found: error
 
       - name: 体积报告（不阻断）
         run: |
           echo "### 站点体积" >> $GITHUB_STEP_SUMMARY
           du -sh site site/data site/assets site/lib 2>/dev/null | sed 's/^/  /' >> $GITHUB_STEP_SUMMARY || true
+
+  # 2026-11-13 新增：jsdom 测不到的那部分 —— 离线优先（SW 预缓存 + 断网可用）与
+  # 内容包沙箱（父子隔离、旧包存档不丢）。这两个脚本一直躺在 tests/ 里没人跑，
+  # 和之前 6 个腐烂套件是同一类风险。runner 自带 Chrome，不用下载浏览器。
+  browser:
+    name: 浏览器冒烟（离线 / 内容包沙箱）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装测试依赖（jsdom + puppeteer-core，按 lockfile 精确还原）
+        run: cd tests && npm ci --no-audit --no-fund
+
+      - name: 定位 Chrome
+        run: |
+          for p in /usr/bin/google-chrome-stable /usr/bin/google-chrome /usr/bin/chromium /usr/bin/chromium-browser; do
+            if [ -x "$p" ]; then echo "CHROME_PATH=$p" >> "$GITHUB_ENV"; echo "用 $p"; break; fi
+          done
+
+      - name: 起静态服务器
+        run: |
+          python3 -m http.server 8977 --directory site >/dev/null 2>&1 &
+          python3 -m http.server 8979 --directory site >/dev/null 2>&1 &
+          for i in 1 2 3 4 5; do
+            sleep 1
+            curl -sf -o /dev/null http://127.0.0.1:8977/index.html && curl -sf -o /dev/null http://127.0.0.1:8979/index.html && break
+          done
+          echo "8977 / 8979 已就绪"
+
+      - name: 首屏 · SW 预缓存 · 断网可用
+        env:
+          REQUIRE_BROWSER: '1'
+          SMOKE_BASE: http://127.0.0.1:8977
+        run: node tests/smoke_browser.mjs
+
+      - name: 内容包沙箱（父子隔离 / 旧包存档）
+        env:
+          REQUIRE_BROWSER: '1'
+          SMOKE_BASE: http://127.0.0.1:8979
+        run: node tests/verify_challenge_sandbox.mjs

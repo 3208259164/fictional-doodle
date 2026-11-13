@@ -25,7 +25,7 @@
 
    导出面（全局）：
      window.YZEXPORT = {
-       marksMd, cardsMd, allMd, csv, save, usage, refreshUsage,
+       marksMd, cardsMd, allMd, csv, save, usage, refreshUsage, coverage, coverageBlock,
        renderUsagePanel, openUsage, fileName, fmtBytes
      }
      window.yzExportNotes()        // 一行挂载用：导出 Markdown
@@ -268,7 +268,62 @@
     out.push('---');
     out.push('');
     out.push(cardsBody(2));
+    var _cb = coverageBlock();
+    if (_cb) { out.push('---'); out.push(''); out.push(_cb); }
     out.push(footer());
+    return out.join('\n');
+  }
+
+  /* ---------------- 数据清单覆盖（2026-11-13） ----------------
+     datamap.js 声明了哪些数据「应该随导出带走」（export:true）。以前那只是声明：
+     导出函数爱导什么导什么，声明与实现可能悄悄分家。
+     这里把两者对起来 —— 已导出 / 未接统计 / 本机无数据 三档都写进文件，
+     未覆盖的不静默丢掉。 */
+  function lsCount(k) {
+    var v = ls(k, null);
+    if (v == null) return 0;
+    if (Object.prototype.toString.call(v) === '[object Array]') return v.length;
+    if (typeof v === 'object') return Object.keys(v).length;
+    return 1;
+  }
+  var COVER = {
+    'yzExcerpts': function () { return excerpts().length; },
+    'readerPos': function () { return lsCount('readerPos'); },
+    'readerCh': function () { return lsCount('readerCh'); },
+    'chanEdits': function () { return lsCount('chanEdits'); },
+    'chanDels': function () { return lsCount('chanDels'); },
+    'channelExtra': function () { return lsCount('channelExtra'); },
+    'yzTextPatch': function () { return lsCount('yzTextPatch'); },
+    'yzBookShellMap': function () { return lsCount('yzBookShellMap'); },
+    'yzy_ov_v1': function () { return lsCount('yzy_ov_v1'); }
+  };
+  function coverage() {
+    var D = window.YZDATAMAP;
+    if (!D || !D.items) return { ver: 0, covered: [], unknown: [], empty: [], localOnly: [] };
+    var covered = [], unknown = [], empty = [], localOnly = [];
+    for (var i = 0; i < D.items.length; i++) {
+      var it = D.items[i], n = -1;
+      if (!it.export) { localOnly.push(it.k); continue; }
+      try { n = COVER[it.k] ? COVER[it.k]() : -1; } catch (e) { n = -1; }
+      if (n === -1) unknown.push(it.k);
+      else if (n === 0) empty.push(it.k);
+      else covered.push({ k: it.k, n: n });
+    }
+    return { ver: D.ver, covered: covered, unknown: unknown, empty: empty, localOnly: localOnly };
+  }
+  function coverageBlock() {
+    var c = coverage();
+    if (!c.ver) return '';
+    var out = ['## 数据清单覆盖（datamap v' + c.ver + '）', ''];
+    out.push('- 已导出：' + (c.covered.length
+      ? c.covered.map(function (x) { return x.k + '（' + x.n + ' 项）'; }).join('、')
+      : '无'));
+    if (c.unknown.length) out.push('- ⚠️ 未接统计（有数据但这份导出没覆盖，请用对应入口单独备份）：' + c.unknown.join('、'));
+    if (c.empty.length) out.push('- 本机无数据：' + c.empty.join('、'));
+    if (c.localOnly.length) out.push('- 不随导出带走（只在本机有效）：' + c.localOnly.join('、'));
+    out.push('');
+    out.push('> 书籍正文存于 IndexedDB，体积大，不随这份 Markdown 带走；需要时用「导出书籍」单独取。');
+    out.push('');
     return out.join('\n');
   }
 
@@ -570,7 +625,9 @@
     save: save, fileName: fileName,
     usage: usage, refreshUsage: refreshUsage,
     renderUsagePanel: renderUsagePanel, openUsage: openUsage,
-    fmtBytes: fmtBytes, fmtDateTime: fmtDateTime
+    fmtBytes: fmtBytes, fmtDateTime: fmtDateTime,
+    /* 数据清单一致性：导出内容与 datamap 的 export 声明对账（2026-11-13） */
+    coverage: coverage, coverageBlock: coverageBlock
   };
   /* 一行挂载用（index.html / 设置页的 onclick 直接调用） */
   window.yzExportNotes = function () { return save('md'); };

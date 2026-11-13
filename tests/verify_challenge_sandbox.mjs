@@ -10,7 +10,7 @@
  *
  * 跑法：python3 -m http.server 8979 --directory site & node tests/verify_challenge_sandbox.mjs
  */
-import puppeteer from 'puppeteer-core';
+
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -18,6 +18,22 @@ import os from 'os';
 const BASE = (process.env.SMOKE_BASE || 'http://127.0.0.1:8979').replace(/\/+$/, '');
 const CHROME = process.env.CHROME_PATH || '/usr/bin/chromium';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/* 浏览器不存在时：本地 → 跳过（exit 0）；CI → 必须跑（REQUIRE_BROWSER=1，缺浏览器即失败）。
+   为什么要这个开关：这两个脚本长期没进 CI，本地又常常没有 Chrome，
+   直接跑会「静默跳过」或者「莫名变红」，两种都让它们形同虚设。 */
+if (!fs.existsSync(CHROME)) {
+  if (process.env.REQUIRE_BROWSER === '1') {
+    console.error('✗ 找不到浏览器：' + CHROME + '（REQUIRE_BROWSER=1，不允许跳过）');
+    process.exit(1);
+  }
+  console.log('⏭ 跳过：找不到浏览器 ' + CHROME);
+  console.log('   本地跑：CHROME_PATH=/path/to/chrome node tests/' + path.basename(new URL(import.meta.url).pathname));
+  process.exit(0);
+}
+
+/* puppeteer-core 动态加载：nginx 检查之后，见上 */
+const { default: puppeteer } = await import('puppeteer-core');
+
 
 let pass = 0, fail = 0;
 const ok = (c, m, extra) => {
