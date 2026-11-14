@@ -250,7 +250,11 @@ function longText(n) {
     const btn = bar && bar.querySelector('button[data-yztts]');
     ok('⑧ 阅读器工具条里挂上了朗读按钮', !!btn);
     ok('⑧ 按钮文案是「🔊 朗读」', !!btn && /朗读/.test(btn.textContent), btn && btn.textContent);
-    ok('⑧ 按钮没有破坏原有工具条', bar.querySelectorAll('button').length === 3, bar.querySelectorAll('button').length);
+    /* 工具条原有 3 个按钮；2026-11-14 加了朗读设置 ⚙（语速/时长），所以是 4 个 —— 
+       断言改成「4 个且 ⚙ 在位」，而不是只数个数（数个数会在下次加按钮时又假红）。 */
+    ok('⑧ 按钮没有破坏原有工具条（3 个原有 + 1 个朗读设置）',
+      bar.querySelectorAll('button').length === 4 && !!bar.querySelector('button[data-yzttscfg]'),
+      bar.querySelectorAll('button').length + ' 个');
 
     btn.dispatchEvent(new w.Event('click', { bubbles: true }));
     await sleep(40);

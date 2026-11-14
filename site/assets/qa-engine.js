@@ -85,6 +85,26 @@
       });
     });
 
+    /* 1.5 遍：概念层补全
+       concepts.js 的释义通常比图谱节点更系统（有 role / 要点 / 出处）。
+       同名（不同 id）时如果只按「先出现者优先」，问「空想社会主义」就只能得到
+       图谱里那句一句话概述，看不到代表人物与出处。这里用更详细的那份覆盖。 */
+    try {
+      var cnodes = (GRAPHS.concepts && GRAPHS.concepts.nodes) || [];
+      cnodes.forEach(function (cn) {
+        var mainId = nameToId[cn.name];
+        var t = mainId ? byId[mainId] : null;
+        if (!t) return;
+        if (String(cn.desc || '').length > String(t.desc || '').length) t.desc = cn.desc;
+        if ((cn.points || []).length > (t.points || []).length) t.points = cn.points.slice();
+        if (!t.source && cn.source) t.source = cn.source;
+        if (!t.role && cn.role) t.role = cn.role;
+        if (cn.tags && cn.tags.length) {
+          t.tags = (t.tags || []).concat(cn.tags).filter(function (x, i, a) { return a.indexOf(x) === i; });
+        }
+      });
+    } catch (e) {}
+
     /* 第二遍：同名不同 id → 记为别名，指向先出现的那个 */
     var aliasOf = {};
     Object.keys(nameToId).forEach(function (nm) {
@@ -448,6 +468,14 @@
     for (var i = 0; i < CUR.nodes.length; i++) {
       var nm = norm(CUR.nodes[i].name);
       if (nm === qn) return CUR.nodes[i];
+      /* 复合名拆分：「无政府主义 · 巴枯宁主义」应当能被「无政府主义」直接问到。
+         注意不能拿 norm 后的名字来切 —— norm 会把「·」也删掉，
+         「无政府主义巴枯宁主义」切不出头段。所以用原始 name 切，再各自 norm 比对。
+         只认完全相等，避免「革命」这类泛词误命中。 */
+      var rn = String(CUR.nodes[i].name || '');
+      var head = rn.split(/[·・（(\/｜|]/)[0];
+      if (head && head !== rn && norm(head) === qn) return CUR.nodes[i];
+
       /* 常用简称：问「马克思」时节点名是「卡尔·马克思」。
          只认后缀且必须唯一——「革命」是「文化大革命」等的后缀，命中多个就不认。 */
       if (qn.length >= 2 && nm.length > qn.length && nm.slice(-qn.length) === qn) suf.push(CUR.nodes[i]);
@@ -498,8 +526,64 @@
     return res;
   }
 
+  /* 旧译 / 别称 → 标准词（2026-11-14）
+     中文马列文献里同一概念常有两三个译名（无政府主义＝安那其主义、无产阶级＝普罗列塔利亚…），
+     只按字面查会直接「查不到」。这张表只收公认的历史对应关系，不做近义联想，
+     匹配顺序是长词在前，避免「安那其」先把「安那其主义」切碎。 */
+  var ALIAS = [
+    ['安那其主义', '无政府主义'], ['安那其', '无政府主义'],
+    ['普罗列塔利亚', '无产阶级'],
+    ['布尔乔亚', '资产阶级'],
+    ['意德沃罗基', '意识形态'],
+    ['康敏尼斯特', '共产主义'],
+    ['狄克推多', '专政'],
+    ['布尔什维克主义', '布尔什维主义'],
+    /* 同义归一（不限旧译）：事件/概念的常用别称也一并收进来，
+       否则「苏东剧变」会因为图谱里写的是「东欧剧变」而查不到。 */
+    ['苏东剧变', '东欧剧变'],
+    ['苏东解体', '东欧剧变']
+  ];
+  function applyAlias(q) {
+    var str = String(q || '');
+    for (var i = 0; i < ALIAS.length; i++) {
+      if (str.indexOf(ALIAS[i][0]) >= 0) {
+        return { text: str.split(ALIAS[i][0]).join(ALIAS[i][1]), from: ALIAS[i][0], to: ALIAS[i][1] };
+      }
+    }
+    return { text: str, from: '', to: '' };
+  }
+
+  /* 名字相近度：完全相等 > 互相包含 > 共享汉字。只用来「猜你想找谁」，不做最终判定。 */
+  function nearNodes(kw, n) {
+    var q = norm(kw);
+    if (!q || q.length < 2) return [];
+    var out = [];
+    for (var i = 0; i < CUR.nodes.length; i++) {
+      var nd = CUR.nodes[i], nm = norm(nd.name || '');
+      if (!nm) continue;
+      var sc = 0;
+      if (nm === q) sc = 100;
+      else if (nm.indexOf(q) >= 0 || q.indexOf(nm) >= 0) sc = 70 + Math.min(nm.length, q.length);
+      else {
+        var common = 0, seen = {};
+        for (var a = 0; a < q.length; a++) {
+          var ch = q.charAt(a);
+          if (!seen[ch] && nm.indexOf(ch) >= 0) { seen[ch] = 1; common++; }
+        }
+        if (common >= 2) sc = common * 12 - Math.abs(nm.length - q.length);
+      }
+      if (sc > 18) out.push({ n: nd, s: sc });
+    }
+    out.sort(function (x, y) { return y.s - x.s; });
+    return out.slice(0, n || 3).map(function (x) { return x.n; });
+  }
+
   function askCore(q) {
     var raw = String(q || '').trim();
+    /* 旧译先归一化：问「安那其是什么」时，实际去查「无政府主义」 */
+    var _al = applyAlias(raw);
+    var _aliasNote = _al.from ? ('「' + _al.from + '」按「' + _al.to + '」查（同一概念的旧译）') : '';
+    if (_al.from) raw = _al.text;
     var res = { ok: false, intent: 'unknown', answer: '', notes: [], evidence: [] };
     if (!raw) { res.answer = '请输入问题。'; return res; }
 
@@ -521,9 +605,30 @@
              但必须唯一一本以该前缀开头，否则「马克思」会被判成《马克思恩格斯选集》。 */
           if (_t0.indexOf(_q0) === 0 && _q0.length >= 3) _pref0++;
         }
-        if (_exact0 || (_pref0 >= 1 && _pref0 <= 2)) {
-          var _bk0 = window.YZBOOK.tryAnswer(raw);
-          if (_bk0) return _bk0;
+        if (_exact0) {
+          /* 书名与概念同名时（《无产阶级专政》既是考茨基那本书，也是一个理论范畴）：
+             带书名号问的是书，不带书名号问的是概念。
+             例：问「无产阶级专政」应给范畴定义；问「《无产阶级专政》」应给那本书。 */
+          var _entSame = null;
+          try { _entSame = exactEntity(raw); } catch (e) {}
+          var _bookMark = /[《》〈〉]/.test(raw);
+          if (_bookMark || !_entSame) {
+            var _bk0 = window.YZBOOK.tryAnswer(raw);
+            if (_bk0) return _bk0;
+          }
+        }
+        /* 前缀命中只在「不是已有条目」时才当书名。
+           反例（2026-11-14 实测）：问「帝国主义」时，《帝国主义是资本主义的最高阶段》
+           以它开头，于是被当成了问书，答回一本《资本积累论》——而概念库里
+           「帝国主义」是 100 分精确命中。同一现象还有「资本积累」「无产阶级专政」。
+           书名完全相等仍然优先（问「资本论」就是问书），只是前缀不再压过精确词条。 */
+        if (_pref0 >= 1 && _pref0 <= 2) {
+          var _ent0 = null;
+          try { _ent0 = exactEntity(raw); } catch (e) {}
+          if (!_ent0) {
+            var _bk1 = window.YZBOOK.tryAnswer(raw);
+            if (_bk1) return _bk1;
+          }
         }
       } catch (e) {}
     }
@@ -762,13 +867,36 @@
       res.ok = true;
       return res;
     }
+    /* 4.5 兜底兜得像人话：先找「最接近的条目」，再给相关书目，最后才说覆盖范围。
+       起因：搜「安人」这类没有独立词条的词，原来只回一句「没有找到 + 收录了多少节点」，
+       用户看到等于被推开了。现在尽量给出一个能接着看的落点。 */
+    var near = nearNodes(kw, 3);
+    var bookHits = [];
+    try { if (window.YZBOOK && typeof window.YZBOOK.search === 'function') bookHits = (window.YZBOOK.search(kw) || []).slice(0, 3); } catch (e) {}
+
     var TN = { person: '人物', org: '组织', idea: '思想', event: '事件', concept: '概念', work: '著作', place: '地点' };
     var tcnt = {};
     CUR.nodes.forEach(function (n) { tcnt[n.type] = (tcnt[n.type] || 0) + 1; });
     var tdesc = Object.keys(tcnt).map(function (k) { return (TN[k] || k) + ' ' + tcnt[k]; }).join('、');
-    res.answer = '没有找到与「' + kw + '」相关的内容。\n'
-      + '当前图谱（' + CUR.label + '）收录：' + tdesc + '，共 ' + CUR.nodes.length + ' 个节点。'
-      + '查不到属于覆盖范围限制，不是没有这段史实。';
+    if (near.length) {
+      var _tp = near[0];
+      var _isIdea = (_tp.type === 'concept' || _tp.type === 'idea');
+      /* 最接近的是概念/思想时，直接把它的定义读出来——这就是「直接回答概念」，
+         而不是丢一句「没找到」让人自己去翻书。 */
+      res.answer = '没有找到「' + kw + '」这个词条。'
+        + (_isIdea
+            ? '最接近的概念是「' + _tp.name + '」：' + (_tp.role ? _tp.role + '。' : '') + String(_tp.desc || '').slice(0, 260)
+            : '最接近的条目是「' + _tp.name + '」（' + typeName(_tp.type) + '）' + (_tp.desc ? '：' + String(_tp.desc).slice(0, 160) : '。'));
+      res.ok = true;
+      res.notes.push('候选：' + near.map(function (x) { return x.name + '（' + typeName(x.type) + '）'; }).join(' ｜ '));
+    } else {
+      res.answer = '没有找到与「' + kw + '」相关的条目（' + CUR.label + '，' + CUR.nodes.length + ' 个），也没有相近的。'
+        + (kw.length <= 2 ? '\n这个词只有两个字符，能匹配到的东西太少 —— 试试写成完整的名字或术语。' : '')
+        + '\n查不到属于覆盖范围限制，不是没有这段史实。';
+    }
+    if (bookHits.length) {
+      res.notes.push('相关书目：' + bookHits.map(function (b) { return '《' + (b.title || b.r && b.r.title || '') + '》'; }).join('、'));
+    }
     return res;
   }
 
@@ -883,7 +1011,9 @@
   }
   function ask(q) {
     var r = null;
+    var _alQ = applyAlias(q);   /* 只用来加一句说明 */
     try { r = askCore(q); } catch (e) { r = { ok: false, intent: 'error', answer: '查询出错：' + (e && e.message), notes: [], evidence: [] }; }
+    try { if (_alQ.from && r) { r.notes = r.notes || []; r.notes.push('「' + _alQ.from + '」按「' + _alQ.to + '」查（同一概念的旧译）'); } } catch (e) {}
     try { attachLinks(r, String(q || '').trim()); } catch (e) {}
     try { attachTexts(r, String(q || '').trim()); } catch (e) {}
     /* 证据可分度统计 + 出处回落：

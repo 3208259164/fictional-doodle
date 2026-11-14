@@ -86,7 +86,7 @@
          之前写了 pan-y + contain，在部分 WebView 上会让滚动变得很黏甚至滑不动。 */
       '.yzbox .bk-body{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px 16px 40px;line-height:1.95;font-size:1rem}',
       '.yzbox .bk-body p{margin:0 0 .95em}',
-      '.yzbox .bk-body h1,.yzbox .bk-body h2,.yzbox .bk-body h3{font-size:1.06rem;margin:1.3em 0 .6em;line-height:1.5}',
+      '.yzbox .bk-body h1,.yzbox .bk-body h2,.yzbox .bk-body h3{font-size:1.06em;margin:1.3em 0 .6em;line-height:1.5}',
       '.yzbox .bk-body img{max-width:100%;height:auto}',
       '.yzbox .bk-body blockquote{margin:.8em 0;padding-left:.9em;border-left:3px solid var(--panel-accent,#f5c518);opacity:.9}',
       /* 顶栏/底栏做成悬浮层（absolute），隐藏时正文高度不变、不会跳动 */
@@ -1956,14 +1956,21 @@
   /* ---- EPUB / 纯文本 排版 ----
      这三项（字号、行距、边距）是「读不读得下去」的门槛：
      字小了看不清，行距挤了串行，边距宽了每屏没几个字。都只是 CSS，不动解析。 */
-  var RC_DEF = { fs: 1, lh: 1.95, pd: 16, jc: false };
+  var RC_DEF = { fs: 1, lh: 1, pd: 16, jc: false };
   var RC_FS = [0.9, 1, 1.14, 1.3];
-  var RC_LH = [1.6, 1.95, 2.3];
+  var RC_LH = [0.85, 1, 1.15];
+  /* 旧版存的是绝对行距（1.6/1.95/2.3），readCfg 里做一次迁移，不要静默改用户习惯 */
+  var RC_LH_OLD = [1.6, 1.95, 2.3];
   var RC_PD = [10, 16, 24];
   function readCfg() {
     var o = {};
     try { o = JSON.parse(localStorage.getItem('yzReadCfg') || '{}') || {}; } catch (e) { o = {}; }
-    return { fs: RC_FS.indexOf(o.fs) >= 0 ? o.fs : RC_DEF.fs, lh: RC_LH.indexOf(o.lh) >= 0 ? o.lh : RC_DEF.lh,
+    var lh = RC_LH.indexOf(o.lh) >= 0 ? o.lh : null;
+    if (lh === null) {
+      var oi = RC_LH_OLD.indexOf(o.lh);
+      lh = oi >= 0 ? RC_LH[oi] : 1;          /* 旧绝对值 → 系数；没存过就是「中」 */
+    }
+    return { fs: RC_FS.indexOf(o.fs) >= 0 ? o.fs : RC_DEF.fs, lh: lh,
              pd: RC_PD.indexOf(o.pd) >= 0 ? o.pd : RC_DEF.pd, jc: !!o.jc };
   }
   function saveReadCfg(o) { try { localStorage.setItem('yzReadCfg', JSON.stringify(o)); } catch (e) { } }
@@ -1971,8 +1978,16 @@
     var body = document.getElementById('yzbkBody');
     if (!body) return;
     var c = readCfg();
-    body.style.fontSize = c.fs + 'rem';
-    body.style.lineHeight = String(c.lh);
+    /* 基准取「设置页」的两项：字号 = html 的 font-size（小/标准/大 → 15/16/18px），
+       行距 = --lh（紧/中/松 → 1.6/1.9/2.2）。
+       以前这里直接写 inline line-height:1.95，把设置页行距整个盖掉 —— 用户在设置里
+       调行距，进阅读器毫无变化，这就是「行距开关没用」的根因。
+       现在阅读器三档是相对基准的系数，两处设置相乘，改哪一头都能看到变化。 */
+    var root = document.documentElement;
+    var basePx = parseFloat((window.getComputedStyle ? getComputedStyle(root).fontSize : '') || '') || 16;
+    var baseLh = parseFloat((window.getComputedStyle ? getComputedStyle(root).getPropertyValue('--lh') : '') || '') || 1.9;
+    body.style.fontSize = (basePx * c.fs).toFixed(1) + 'px';
+    body.style.lineHeight = (baseLh * c.lh).toFixed(2);
     body.style.paddingLeft = c.pd + 'px';
     body.style.paddingRight = c.pd + 'px';
     body.style.textAlign = c.jc ? 'justify' : '';
@@ -2755,6 +2770,8 @@
   window.YZAppBooks = {
     /* 供测试/调试创建阅读器容器（正常流程由 open() 懒创建） */
     readerShell: readerShell,
+    /* 设置页改了字号/行距后，让正开着的阅读器立刻跟着变（否则要退出再进） */
+    reapplyText: applyReadCfg,
     /* 段落级定位：摘录/标注/引文回跳统一走这里（不依赖文字匹配） */
     jumpPara: gotoPara, paraOfSelection: paraOfSelection, gotoText: gotoText,
     jumpAnchor: jumpAnchor, bookStruct: bookStruct,

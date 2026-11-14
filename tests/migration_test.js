@@ -50,7 +50,10 @@ lazy.waitData(() => {
   ok('覆盖层模块已加载', !!w.YZY);
   let gd = null;
   try { gd = w.YZY.graphData(); } catch (e) { gd = null; }
-  ok('旧版覆盖层不会让图谱读不出来', !!gd && Array.isArray(gd.nodes) && gd.nodes.length > 200,
+  /* 阈值 200 → 150：2026-11-14 主图谱瘦身，把「思想源流 / 西方马克思主义 / 国际共运组织」
+     82 个节点拆成独立图谱（270 → 188）。这里只验「能读出来、没被旧数据搞坏」，
+     不该绑死具体规模。 */
+  ok('旧版覆盖层不会让图谱读不出来', !!gd && Array.isArray(gd.nodes) && gd.nodes.length > 150,
      gd ? gd.nodes.length + ' 节点' : '读取失败');
   /* 结构不明的旧数据：不要求「字段一定认得」，要求「不崩、不清空」 */
   ok('旧版覆盖层没有被清掉', (w.localStorage.getItem('yzy_ov_v1') || '').indexOf('旧版改名') >= 0);

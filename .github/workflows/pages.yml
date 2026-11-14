@@ -65,6 +65,35 @@ jobs:
           echo "sw.js VERSION -> $VER"
           grep -m1 "const VERSION" site/sw.js
 
+      # 网页版首屏瘦身（2026-11-14）
+      # Pages 直发源码，而 APK 侧 build.sh 早就在打包时压过了（app.js 431→289 KB）。
+      # 这里只压 assets/ 与 data/ 下的 .js，实测体积 -40%，文件名不变，
+      # 所以 <script src> 与 sw.js 的预缓存清单都不用改。
+      # 压完逐个 node --check：压缩器出错时宁可发未压缩，也不能发坏文件。
+      - name: Minify JS for the web build
+        run: |
+          npm i -g terser@5 --silent
+          n=0; before_all=0; after_all=0
+          for f in site/assets/*.js site/data/*.js; do
+            [ -f "$f" ] || continue
+            b=$(stat -c%s "$f"); before_all=$((before_all+b))
+            if terser "$f" -c passes=2 -m -f comments=false -o "$f.tmp" 2>/dev/null; then
+              a=$(stat -c%s "$f.tmp")
+              if [ "$a" -lt "$b" ]; then mv "$f.tmp" "$f"; n=$((n+1)); after_all=$((after_all+a)); else rm -f "$f.tmp"; after_all=$((after_all+b)); fi
+            else
+              rm -f "$f.tmp"; after_all=$((after_all+b)); echo "⚠ 跳过（terser 解析失败）: $f"
+            fi
+          done
+          for f in site/assets/*.js site/data/*.js; do node --check "$f" || { echo "✗ 压缩产物语法错误: $f"; exit 1; }; done
+          echo "压缩 $n 个文件：$((before_all/1024)) KB → $((after_all/1024)) KB（-$(( 100 - after_all*100/before_all ))%）"
+
+      # 压缩产物必须自己验一遍：仓库里的测试跑在未压缩源码上，
+      # 压缩这一步过去没有任何守门员（terser 出错 = 线上坏文件 + CI 全绿）。
+      - name: 压缩产物装载检查
+        run: |
+          npm i jsdom --silent
+          node site/tools/verify_minified.js site
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:

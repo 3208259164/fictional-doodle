@@ -96,7 +96,7 @@ const catIcon = {原著:'📕', 导读:'📗', 词典:'📘', 有声书:'🎧', 
    所有筛选条件收在一个对象里，对外仍暴露 activeCat/activeTag/curQ/favOnly/fileOnly
    五个访问器（读写原样可用），这样 148 处既有调用一行都不用改。
    任何一次写入都会防抖同步到 URL（#browse?q=&cat=&tag=…），做到：可分享、可回退、刷新不丢。 */
-var S = { q:'', cat:'推荐', tag:'', fav:false, file:false, author:'全部作者', sort:'default', groupBy:'cat' };
+var S = { q:'', cat:'推荐', tag:'', fav:false, file:false, author:'全部作者', sort:'default', groupBy:'cat', read:true };
 var _urlTimer = null, _lastRestoreHash = '';
 
 function syncURL(){
@@ -112,6 +112,8 @@ function syncURL(){
     if (S.groupBy && S.groupBy !== 'cat') p.push('g=' + encodeURIComponent(S.groupBy));
     if (S.fav) p.push('fav=1');
     if (S.file) p.push('file=1');
+    /* 默认只看可读，只有关掉时才把状态写进地址栏（保证默认 URL 干净、可分享） */
+    if (!S.read) p.push('readable=0');
     var h = p.length ? '#browse?' + p.join('&') : '';
     _lastRestoreHash = h;
     try { history.replaceState(null, '', location.pathname + location.search + h); } catch(e){}
@@ -136,6 +138,7 @@ function restoreURL(){
   if (q.g) { S.groupBy = q.g; var gs = document.getElementById('groupSel'); if (gs) gs.value = q.g; }
   S.fav = q.fav === '1';
   S.file = q.file === '1';
+  S.read = q.readable !== '0';
 }
 
 /* ---------- 事件委托 ----------
@@ -179,7 +182,7 @@ document.addEventListener('keydown', function(e){
 }, false);
 
 /* 五个旧变量名 → 指向 state 的访问器（非严格模式下裸标识符会落到 window 属性） */
-[['activeCat','cat'], ['activeTag','tag'], ['curQ','q'], ['favOnly','fav'], ['fileOnly','file']]
+[['activeCat','cat'], ['activeTag','tag'], ['curQ','q'], ['favOnly','fav'], ['fileOnly','file'], ['readableOnly','read']]
   .forEach(function(pair){
     Object.defineProperty(window, pair[0], {
       configurable: true,
@@ -1178,13 +1181,42 @@ function toggleFileOnly(){
   c.classList.toggle('active', fileOnly);
   render();
 }
+/* ---------- 「只看可读」----------
+   书库 495 条里只有 43 条带站内正文，其余是书目索引（可查作者/年份，无正文）。
+   默认把没有正文的收起来，避免「点开一本是一本空的」；显式搜索时不受此限
+   ——搜索是明确的找东西意图，应该在全库里找，结果里用徽标区分。 */
+function readChipSync(){
+  const c = document.getElementById('readChip'); if (!c) return;
+  const on = !!readableOnly;
+  let n = 0, total = 0;
+  try { total = RES.length; n = RES.filter(function (it) { return hasBody(it); }).length; } catch (e) { }
+  c.textContent = on ? ('📖 仅看可读 · ' + n) : ('📖 全部书目 · ' + total);
+  c.title = on ? '当前只显示有正文的 ' + n + ' 条；搜索时仍搜全库' : '当前显示全部 ' + total + ' 条（含无正文的书目）';
+  c.classList.toggle('active', on);
+}
+function toggleReadableOnly(){
+  readableOnly = !readableOnly;
+  /* 关掉「只看可读」时人想看的是全部书目，而「推荐」区本来只挑几本——
+     停在推荐会显得「关掉之后条目反而更少」。所以关掉就顺带切到「全部」。 */
+  if (!readableOnly && activeCat === '推荐') activeCat = '全部';
+  readChipSync();
+  render();
+}
 
 /* ---------- 首页搜索辅助 ---------- */
 function quickSearch(w){ var q=document.getElementById('qSearch'); if(q) q.value = w; topSearch(); }
 
 /* ---------- 分类 ---------- */
 const IS_APP = !!(window.AndroidApp);
-function isFeatured(r){ return r.cat === '原著' && (r.hot || 0) >= 9; }
+function isFeatured(r){
+  /* 「推荐」= 值得先看什么。读不到的条目不该被推荐——原来只认「原著 + hot≥9」，
+     495 条里只挑出 2 条，首页显得空。
+     现在：开着「只看可读」时，可读的 43 条全部进推荐（按热度排序）；
+     关掉时退回旧口径，保证「全部书目」视图下的推荐区不变。
+     注：可读条目将来若涨到几百条，这里要改成取热度前 N，否则首页会变成书目墙。 */
+  if (typeof readableOnly !== 'undefined' && readableOnly) return hasBody(r);
+  return r.cat === '原著' && (r.hot || 0) >= 9;
+}
 function countOf(key){
   if (key === '推荐') return RES.filter(isFeatured).length;
   if (key === '全部') return RES.length;
@@ -1292,7 +1324,7 @@ function resourceCardHTML(item){
         ${_lid ? `<button onclick="event.preventDefault();event.stopPropagation();openLocalBook('${escAttr(_lid)}')">📖 阅读</button>` : (canPreview && hasBody(item) ? `<button onclick="event.preventDefault();event.stopPropagation();openPreview('${item.url}','${st}')">👁 预览</button>` : '')}
         <button class="${fav ? 'on' : ''}" onclick="event.preventDefault();event.stopPropagation();toggleFav(${idx})">${fav ? '★ 已收藏' : '☆ 收藏'}</button>
       </span></span>
-    <span class="meta">${hasBody(item) ? (statusMap[item.status] + ' ' + (item.date || '')) : '<span style="opacity:.62">📭 暂无原文</span>'}</span></a>`;
+    <span class="meta">${hasBody(item) ? ('📖 可读' + (item.date ? ' · ' + item.date : '')) : '<span style="opacity:.62">📚 书目 · 正文可导入</span>'}</span></a>`;
 }
 
 /* ---------- 检索（多字段 + 模糊回退 + 相关度排序） ---------- */
@@ -2053,7 +2085,7 @@ function render(){
   const groupBy = document.getElementById('groupSel').value;
   /* 选择器的值是视图，state 才是真相源：每次渲染把视图回写进 state，再由 syncURL 落进地址栏 */
   S.author = author; S.sort = sort; S.groupBy = groupBy;
-  const sig = [curQ, activeCat, activeTag, author, sort, groupBy, favOnly, fileOnly].join('~');
+  const sig = [curQ, activeCat, activeTag, author, sort, groupBy, favOnly, fileOnly, readableOnly].join('~');
   if (sig !== listSig){ listSig = sig; listLimit = PAGE; }
 
   const crb = document.getElementById('crumb');
@@ -2077,6 +2109,9 @@ function render(){
     if (activeTag && !(r.tags || []).includes(activeTag)) return false;
     if (favOnly && !isFav(r)) return false;
     if (fileOnly && !hasFile(r)) return false;
+    /* 只看可读：仅在没有搜索词时生效。有词就搜全库——搜「有没有这本书」和
+       「这本书的正文在哪」是两个需求，后者才需要过滤。 */
+    if (readableOnly && !terms.length && !hasBody(r)) return false;
     return true;
   });
   if (terms.length){ all = all.map(r => ({ r, s: scoreIt(r, terms) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s).map(x => x.r); }
@@ -2112,19 +2147,32 @@ function render(){
   else {
     emptyEl.style.display = 'block';
     const sug = suggest(curQ);
-    emptyEl.innerHTML = '没有找到匹配的资源<br>换个关键词试试，或回首页按分类浏览' +
-      (sug.length ? `<div class="sugg">你是不是想找：${sug.map(s => `<span class="tag" onclick="quickSearch('${escAttr(s)}')">${escHtml(s)}</span>`).join('')}</div>` : '');
+    if (readableOnly && !terms.length) {
+      /* 「只看可读」时某个分类可能一条都没有：要说清是「这里没有正文」，
+         不是「搜不到」，并给唯一的出口——切回全部书目。 */
+      let _shells = 0;
+      try { _shells = RES.length - RES.filter(function (x) { return hasBody(x); }).length; } catch (e) { }
+      emptyEl.innerHTML = '这个分类下暂时没有可读的正文<br>' +
+        `<span style="font-size:.78em;opacity:.7">书库里另有 ${_shells} 条只有书目记录，可按书名查作者、出版年</span>` +
+        '<div class="sugg"><span class="tag" data-act="toggleReadableOnly">📖 显示全部书目</span></div>';
+    } else {
+      emptyEl.innerHTML = '没有找到匹配的资源<br>换个关键词试试，或回首页按分类浏览' +
+        (sug.length ? `<div class="sugg">你是不是想找：${sug.map(s => `<span class="tag" onclick="quickSearch('${escAttr(s)}')">${escHtml(s)}</span>`).join('')}</div>` : '');
+    }
   }
 
   const title = terms.length ? '🔎 搜 索 结 果'
     : (activeCat === '推荐' ? '⭐ 推 荐 内 容' : activeCat === '全部' ? '📦 资 源 目 录' : `${catIcon[activeCat] || '📦'} ${activeCat}`);
-  document.getElementById('resTitle').innerHTML = title + `　<span style="opacity:.5;letter-spacing:0">共 ${total} 项 · ✅正常 ⚠️网盘 ❌待补</span>`;
+  document.getElementById('resTitle').innerHTML = title + `　<span style="opacity:.5;letter-spacing:0">共 ${total} 项${(readableOnly && !terms.length) ? ' · 仅看可读' : ''}</span>`;
+  readChipSync();
   bindClicks();
 }
 function moreList(){ listLimit += PAGE; render(); }
 function clearFilters(){
   document.getElementById('search').value = '';
   activeTag = ''; favOnly = false; fileOnly = false;
+  /* 「只看可读」是默认视图，清除筛选时一并回到默认（用户关掉它之后不该被粘住） */
+  readableOnly = true; readChipSync();
   const c = document.getElementById('favChip'); c.textContent = '☆ 我的收藏'; c.classList.remove('active');
   const f = document.getElementById('fileChip'); if (f){ f.textContent = '📄 仅看有文件'; f.classList.remove('active'); }
   authorSel.value = '全部作者';
@@ -4455,6 +4503,68 @@ function eventTextsHTML(i){
   return '<h2 class="sub-title" style="margin-top:16px">📖 相关原文</h2><ul style="list-style:none;padding:0;margin:0">' + rows + '</ul>';
 }
 
+/* ---------- 跨图谱关系网（2026-11-14） ----------
+   以前人物/事件页只有一个「去图谱看」的按钮，看不到这个人跟别处的关联：
+   毛泽东在主图谱里有 133 条关系，在文革图谱、世界图谱、新民图谱里还有另外一批，
+   但它们分散在四份数据里，页面上一条都不显示。
+   现在按 id 聚合所有图谱的边（各图谱里同一人物 id 是一致的），分组列出、点一下跳过去。 */
+function graphSources(){
+  return [
+    ['main',  '主图谱',   window.SITE_GRAPH],
+    ['wenge', '文革图谱', window.SITE_GRAPH_WENGE],
+    ['world', '世界图谱', window.SITE_GRAPH_WORLD],
+    ['old',   '旧民图谱', window.SITE_GRAPH_OLD],
+    ['new',   '新民图谱', window.SITE_GRAPH_NEW]
+  ];
+}
+function crossGraphRelsHTML(id){
+  if (!id) return '';
+  var nameOf = {};
+  try { allGraphNodes().forEach(function (n) { if (n && n.id && !nameOf[n.id]) nameOf[n.id] = n.name || n.id; }); } catch (e) {}
+  var groups = [], total = 0, missing = [];
+  graphSources().forEach(function (s) {
+    var key = s[0], label = s[1], g = s[2];
+    if (!g || !g.nodes || !g.links) { if (key !== 'main') missing.push(label); return; }
+    var rows = [], seen = {};
+    g.links.forEach(function (l) {
+      if (!l) return;
+      var out = (l.source === id);
+      var other = out ? l.target : (l.target === id ? l.source : null);
+      if (!other) return;
+      var k = other + '|' + (l.rel || '');
+      if (seen[k]) return;
+      seen[k] = 1;
+      rows.push({ other: other, rel: l.rel || '相关', out: out });
+    });
+    if (!rows.length) return;
+    total += rows.length;
+    groups.push({ key: key, label: label, rows: rows });
+  });
+  if (!groups.length && !missing.length) return '';
+  var html = '<h2 class="sub-title" style="margin-top:16px">🕸 关系网' +
+    '<span style="opacity:.5;font-size:.84em;letter-spacing:0">　跨 ' + groups.length + ' 张图谱 · 共 ' + total + ' 条</span></h2>' +
+    '<div style="font-size:.76rem;opacity:.66;line-height:1.75;margin:0 0 6px">' +
+    '箭头是方向：<b>→</b> 本条目对它是这个关系，<b>←</b> 是它对本条目。点条目直接跳过去。</div>';
+  groups.forEach(function (gr) {
+    html += '<div style="margin:8px 0 10px"><div style="font-size:.74rem;opacity:.62;margin-bottom:4px">' +
+      escHtml(gr.label) + '（' + gr.rows.length + '）</div><div class="tagrow">';
+    gr.rows.slice(0, 12).forEach(function (r) {
+      var nm = nameOf[r.other] || r.other;
+      html += '<span class="tag" style="cursor:pointer" onclick="openAnyById(\'' + escAttr(r.other) + '\')" title="' +
+        escAttr(gr.label + ' · ' + (r.out ? '本条目' : nm) + ' ' + r.rel) + '">' +
+        escHtml((r.out ? '→ ' : '← ') + r.rel + ' ' + nm) + '</span>';
+    });
+    if (gr.rows.length > 12) html += '<span class="tag" style="opacity:.55">还有 ' + (gr.rows.length - 12) + ' 条</span>';
+    html += '</div></div>';
+  });
+  if (missing.length) {
+    html += '<p style="font-size:.74rem;opacity:.55;margin:2px 0 0">' + missing.join('、') +
+      ' 尚未加载：<span style="text-decoration:underline;cursor:pointer" onclick="ensureAllGraphs(function(){openFigure(\'' +
+      escAttr(String(id)) + '\',true);})">点此加载后重看</span></p>';
+  }
+  return html;
+}
+
 function openFigure(id, fromRoute){
   var G = allGraphNodes();
   var p = G.find(function(n){ return n.id === id; }); if (!p) return;
@@ -4472,7 +4582,7 @@ function openFigure(id, fromRoute){
        ${faceHTML(p, true)}
        <h3>${p.name}</h3><div class="prole">${[p.years, p.role].filter(Boolean).join(' · ')}</div>
        <p>${p.desc || ''}</p>
-     </div>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + pts + works + src + personResourcesHTML(p.name) + relatedEventsHTML(p.name) + relatedConceptsHTML(p.name) + relatedSchoolsHTML(p.name) + personMentionsHTML(p.id) +
+     </div>` + '<p style="margin:14px 0 2px">' + friendBtnHTML(_fe) + '</p>' + pts + works + src + personResourcesHTML(p.name) + relatedEventsHTML(p.name) + relatedConceptsHTML(p.name) + relatedSchoolsHTML(p.name) + personMentionsHTML(p.id) + crossGraphRelsHTML(p.id) +
     `<p style="margin-top:18px"><a href="${graphUrlOf(p.id)}" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在关系图谱中查看 →</a></p>`,
     { right: (window.YZY && typeof YZY.editPerson === 'function')
         ? { text:'✏️', act:"openPersonEdit('" + p.id + "')" } : null });
@@ -5003,10 +5113,13 @@ function isInlineText(it){
    现在先说清楚状况，再给三条真能走的路。 */
 function openNoBodyPage(idx){
   var it = RES[idx]; if (!it) return;
+  /* 数字一律现算，别再写死——上一版写的是「456 条 / 39 篇 / 46 万字」，
+     早已和实际（495 / 43 / 62 万字）脱节，这类硬编码每加一本书就过期一次。 */
+  var _tot = RES.length, _rd = RES.filter(function (x) { return hasBody(x); }).length;
   var html = '<div class="yzThin">' +
     '<div class="yzThin-t">📭 这一条目前只有书目记录</div>' +
     '<p class="yzThin-s" style="line-height:1.95">《' + escHtml(it.title || '') + '》本站暂未收录正文。' +
-    '书库共 456 条，可直接读的原文 39 篇（约 46 万字），其余是书目索引——用来查“有没有这本书、谁写的、哪一年”。</p>' +
+    '书库共 ' + _tot + ' 条，可直接读的原文 ' + _rd + ' 篇，其余是书目索引——用来查“有没有这本书、谁写的、哪一年”。</p>' +
     '<div class="yzThin-ops">' +
       '<button type="button" onclick="try{openSection(secIdx(\'图书馆\'))}catch(e){toast(\'图书馆打不开\')}">🏛 去图书馆找这本书</button>' +
       '<button type="button" onclick="importIntoBook(' + idx + ')">📥 我有文件，导入本书</button>' +
@@ -6570,11 +6683,15 @@ function setFS(v){
   document.documentElement.style.fontSize = map[v] || map.md;
   document.querySelectorAll('#fsSeg button').forEach(b => b.classList.toggle('active', b.dataset.fs === v));
   lset('fs', v);
+  /* 正开着的阅读器要立刻跟着变 —— 阅读器正文的字号是「基准 × 档位」算出来的，
+     只改基准不会自动重算，得让它重跑一次。 */
+  try { if (window.YZAppBooks && typeof window.YZAppBooks.reapplyText === 'function') window.YZAppBooks.reapplyText(); } catch (e) {}
 }
 function setLH(v){
   document.documentElement.style.setProperty('--lh', v);
   document.querySelectorAll('#lhSeg button').forEach(b => b.classList.toggle('active', b.dataset.lh === v));
   lset('lh', v);
+  try { if (window.YZAppBooks && typeof window.YZAppBooks.reapplyText === 'function') window.YZAppBooks.reapplyText(); } catch (e) {}
 }
 function setW(v){
   document.documentElement.style.setProperty('--maxw', v + 'px');

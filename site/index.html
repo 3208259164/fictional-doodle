@@ -53,7 +53,7 @@
 <div class="qpanel" id="qPanel" hidden role="menu" aria-label="快捷功能">
   <button class="qitem" onclick="openSection(secIdx('使用指南'));closePlus()"><span class="qi">📘</span>使用指南</button>
   <button class="qitem" onclick="openSection(secIdx('阅读与手册'));closePlus()"><span class="qi">📖</span>阅读与手册</button>
-  <button class="qitem" data-act="openQA"><span class="qi">🗣️</span>问一问（离线问答）</button>
+  <button class="qitem" data-act="openQA"><span class="qi">🗣️</span>问一问</button>
   <button class="qitem" onclick="openNetBasics()"><span class="qi">🌐</span>网络扫盲</button>
 </div>
 
@@ -92,6 +92,7 @@
 
   <div class="catrow" id="catChips"></div>
   <div class="catrow">
+    <button class="tag active" type="button" id="readChip" data-act="toggleReadableOnly" title="默认只显示有正文的条目">📖 仅看可读</button>
     <button class="tag" type="button" id="favChip" data-act="toggleFavOnly">☆ 我的收藏</button>
     <button class="tag" type="button" id="fileChip" data-act="toggleFileOnly">📄 仅看有文件</button>
   </div>

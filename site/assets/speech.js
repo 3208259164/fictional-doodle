@@ -42,6 +42,37 @@
   var chunks = [];
   var chunkIdx = 0;
   var rateNow = 1.0;
+  /* 朗读偏好（2026-11-14）：语速 + 定时截止。
+     语速走系统 TTS 的 setSpeechRate（0.5~2.0，1.0 为常速）；定时不另起计时器——
+     分段朗读本来就在轮询「这一段读完了没」，每段开始前看一眼 deadline 就够，
+     而且切后台时轮询暂停、回来继续，不会像 setTimeout 那样被冻结后一次性触发。 */
+  var RATE_STEPS = [0.7, 0.85, 1.0, 1.2, 1.5];
+  var DUR_STEPS = [0, 15, 30, 60];
+  var CFG_KEY = 'yzTtsCfg';
+  var deadline = 0;
+  var leftTimer = null;      /* 只为把「还剩几分几秒」刷到按钮上，10 秒一次 */
+  function startLeft() {
+    if (leftTimer) return;
+    leftTimer = setInterval(function () { try { refresh(); } catch (e) {} }, 10000);
+  }
+  function stopLeft() { if (leftTimer) { try { clearInterval(leftTimer); } catch (e) {} leftTimer = null; } }
+  function loadCfg() {
+    try {
+      var o = JSON.parse(localStorage.getItem('yzTtsCfg') || '{}') || {};
+      return { rate: normRate(o.rate || 1), minutes: DUR_STEPS.indexOf(o.minutes) >= 0 ? o.minutes : 0 };
+    } catch (e) { return { rate: 1, minutes: 0 }; }
+  }
+  var cfg = { rate: 1, minutes: 0 };
+  cfg = loadCfg();                 /* 函数声明会提升，这里取得到 */
+  rateNow = cfg.rate;
+  function saveCfg() { try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch (e) {} }
+  function timeUp() {
+    if (!deadline || Date.now() < deadline) return false;
+    deadline = 0;
+    stop();
+    say('已到设定的朗读时长，自动停止');
+    return true;
+  }
   var pollTimer = null;
   var idleTicks = 0;
   var scanTimer = null;
@@ -221,6 +252,7 @@
   function sendChunk() {
     var b = bridge();
     if (!speaking || !b) return false;
+    if (timeUp()) return false;
     if (chunkIdx >= chunks.length) { finish(); return false; }
     var seg = chunks[chunkIdx++];
     try {
@@ -268,6 +300,7 @@
   function webNext() {
     var sy = synth();
     if (!speaking) return;
+    if (timeUp()) return;
     if (!sy) { finish(); return; }
     if (chunkIdx >= chunks.length) { finish(); return; }
     var seg = chunks[chunkIdx++];
@@ -292,6 +325,8 @@
     if (!t) { say('没有可朗读的文字'); return false; }
     rate = normRate(rate === undefined || rate === null ? rateNow : rate);
     stop(true);                 /* 先静默复位，避免旧队列继续出声 */
+    deadline = cfg.minutes > 0 ? Date.now() + cfg.minutes * 60000 : 0;
+    if (deadline) startLeft(); else stopLeft();
     curText = t;
     var b = bridge();
     if (b) return nativeSpeak(b, t, rate);
@@ -303,6 +338,7 @@
 
   function stop(silent) {
     speaking = false;
+    stopLeft();
     chunks = [];
     chunkIdx = 0;
     stopPoll();
@@ -316,6 +352,7 @@
 
   function finish() {
     speaking = false;
+    stopLeft();
     chunks = [];
     chunkIdx = 0;
     stopPoll();
@@ -356,6 +393,94 @@
     return btn;
   }
 
+  /* ---------- 朗读设置面板（语速 / 时长） ----------
+     按钮样式复用 .sbtn，不新增全局 CSS；面板是 fixed 浮层，点空白处关掉。 */
+  function btnStyle(on) {
+    return 'margin:3px 5px 3px 0;padding:4px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.22);'
+      + 'background:' + (on ? 'var(--accent,#f5c518)' : 'transparent') + ';'
+      + 'color:' + (on ? '#241b00' : 'inherit') + ';font-size:.8rem;font-family:inherit;cursor:pointer';
+  }
+  function closeCfg() {
+    var old = document.getElementById('yzTtsPanel');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    try { document.removeEventListener('click', onDocClick, true); } catch (e) {}
+  }
+  function onDocClick(ev) {
+    var p = document.getElementById('yzTtsPanel');
+    if (p && ev && ev.target && p.contains(ev.target)) return;
+    closeCfg();
+  }
+  function cfgHTML() {
+    var r = RATE_STEPS.map(function (v) {
+      return '<button type="button" data-yzr="' + v + '" style="' + btnStyle(Math.abs(cfg.rate - v) < 0.001) + '">' + v + '×</button>';
+    }).join('');
+    var m = DUR_STEPS.map(function (v) {
+      return '<button type="button" data-yzm="' + v + '" style="' + btnStyle(cfg.minutes === v) + '">' + (v ? v + ' 分钟' : '不限') + '</button>';
+    }).join('');
+    var left = '';
+    if (deadline) {
+      var ms = Math.max(0, deadline - Date.now());
+      left = '<div style="margin-top:6px;font-size:.74rem;opacity:.66">本次朗读还剩 '
+        + Math.floor(ms / 60000) + ' 分 ' + Math.floor(ms % 60000 / 1000) + ' 秒</div>';
+    }
+    return '<div style="font-weight:700;margin-bottom:2px">🔊 朗读设置</div>'
+      + '<div style="margin-top:6px;font-size:.74rem;opacity:.66">语速</div><div>' + r + '</div>'
+      + '<div style="margin-top:4px;font-size:.74rem;opacity:.66">时长（到点自动停）</div><div>' + m + '</div>'
+      + left
+      + '<div style="margin-top:6px;font-size:.7rem;opacity:.5;line-height:1.5">语速改动从下一段生效；时长改动立刻生效。</div>';
+  }
+  function paintCfg() {
+    var p = document.getElementById('yzTtsPanel');
+    if (p) p.innerHTML = cfgHTML();
+  }
+  function openCfg(anchor) {
+    closeCfg();
+    var d = document.createElement('div');
+    d.id = 'yzTtsPanel';
+    d.style.cssText = 'position:fixed;z-index:9999;background:#1b1414;color:#f5e9e2;'
+      + 'border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px 12px;'
+      + 'box-shadow:0 10px 28px rgba(0,0,0,.5);width:236px;box-sizing:border-box;font-size:.84rem';
+    d.innerHTML = cfgHTML();
+    document.body.appendChild(d);
+    var r = anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 20, bottom: 120 };
+    var W = window.innerWidth || 360, H = window.innerHeight || 640;
+    var left = Math.max(8, Math.min(r.left, W - 244));
+    var top = r.bottom + 6;
+    if (top + 190 > H) top = Math.max(8, r.top - 196);
+    d.style.left = left + 'px';
+    d.style.top = top + 'px';
+    d.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute) return;
+      var rv = t.getAttribute('data-yzr'), mv = t.getAttribute('data-yzm');
+      if (rv !== null) { cfg.rate = normRate(rv); rateNow = cfg.rate; saveCfg(); paintCfg(); return; }
+      if (mv !== null) {
+        cfg.minutes = parseInt(mv, 10) || 0;
+        saveCfg();
+        if (cfg.minutes > 0) deadline = Date.now() + cfg.minutes * 60000;
+        else deadline = 0;
+        paintCfg();
+        refresh();
+      }
+    }, false);
+    setTimeout(function () { try { document.addEventListener('click', onDocClick, true); } catch (e) {} }, 0);
+  }
+  function makeCfgBtn(key) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sbtn';
+    b.setAttribute('data-yzttscfg', key);
+    b.style.cssText = 'white-space:nowrap';
+    b.textContent = '⚙';
+    b.title = '朗读设置：语速 / 时长';
+    b.onclick = function (ev) {
+      try { if (ev && ev.preventDefault) ev.preventDefault(); } catch (e) {}
+      try { if (ev && ev.stopPropagation) ev.stopPropagation(); } catch (e) {}
+      openCfg(b);
+    };
+    return b;
+  }
+
   function refresh() {
     var list;
     try { list = document.querySelectorAll('button[' + BTN_ATTR + ']'); } catch (e) { return; }
@@ -364,6 +489,11 @@
       var k = btn.getAttribute(BTN_ATTR);
       var on = speaking && ownerKey === k;
       btn.textContent = btnLabel(on);
+      if (on && deadline) {
+        var left = Math.max(0, deadline - Date.now());
+        var mm = Math.floor(left / 60000), ss = Math.floor(left % 60000 / 1000);
+        btn.textContent = '⏹ 停止 · ' + mm + ':' + (ss < 10 ? '0' : '') + ss;
+      }
       btn.title = on ? '点此停止朗读' : '用本机语音朗读这段正文（完全离线）';
       try {
         if (on) { btn.style.borderColor = 'var(--accent)'; btn.style.color = 'var(--accent)'; }
@@ -384,6 +514,7 @@
     if (!btn) {
       btn = makeBtn(key);
       host.appendChild(btn);
+      try { if (!host.querySelector('button[data-yzttscfg]')) host.appendChild(makeCfgBtn(key)); } catch (e) {}
     }
     registry[key] = { btn: btn, getText: getText };
     return btn;
@@ -529,12 +660,26 @@
     attach: attach,
     busy: busy,
     chunkText: chunkText,
+    /* 朗读偏好（语速 / 定时）：面板与测试用 */
+    setRate: function (r) { cfg.rate = normRate(r); rateNow = cfg.rate; saveCfg(); return cfg.rate; },
+    setMinutes: function (m) {
+      var v = Number(m);
+      cfg.minutes = DUR_STEPS.indexOf(v) >= 0 ? v : 0;
+      saveCfg();
+      deadline = cfg.minutes > 0 ? Date.now() + cfg.minutes * 60000 : 0;
+      return cfg.minutes;
+    },
+    cfg: function () { return { rate: cfg.rate, minutes: cfg.minutes, deadline: deadline }; },
+    openCfg: function (el) { openCfg(el || document.body); },
+    RATE_STEPS: RATE_STEPS, DUR_STEPS: DUR_STEPS,
     /* 自测/调试用 */
     _poll: function (ms) { if (ms > 0) POLL_MS = ms; return POLL_MS; },
     _state: function () {
-      return { speaking: speaking, ownerKey: ownerKey, chunks: chunks.length, chunkIdx: chunkIdx, rate: rateNow, text: curText.slice(0, 40) };
+      return { speaking: speaking, ownerKey: ownerKey, chunks: chunks.length, chunkIdx: chunkIdx, rate: rateNow, deadline: deadline, text: curText.slice(0, 40) };
     },
-    _status: function () { return lastStatus; }
+    _status: function () { return lastStatus; },
+    /* 到点检查：正常流程由每段朗读前自动调用；导出来便于自测与排查 */
+    _tick: function () { return timeUp(); }
   };
 
   if (document.readyState === 'loading') {
