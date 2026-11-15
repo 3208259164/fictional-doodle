@@ -1,7 +1,7 @@
 /* 导出 × 数据清单一致性（2026-11-13）
-   背景：datamap.js 用 export:true 声明「这项数据应该随导出带走」，
+   背景：datamap.js 用 export:true 声明这项数据应该随导出带走，
    但导出函数以前不读它 —— 声明与实现可以悄悄分家。
-   本测试锁住：导出文件里必须出现「数据清单覆盖」小节，
+   本测试锁住：导出文件里必须出现数据清单覆盖小节，
    已导出的列出条数，没接统计的必须显式列出（不静默丢）。 */
 const fs = require('fs'), path = require('path');
 const { JSDOM, VirtualConsole } = require(__dirname + '/node_modules/jsdom');
@@ -23,7 +23,7 @@ const dom = new JSDOM(html, {
     w.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, { get: () => () => ({}) });
     w.scrollTo = () => {};
     w.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
-    /* 造一份「有内容」的用户数据 */
+    /* 造一份有内容的用户数据 */
     /* 站点实际字段：{ b:<bookId>, txt, note, t } —— 用真实结构，别自造 */
     w.localStorage.setItem('yzExcerpts', JSON.stringify([
       { b: 'r1', txt: '摘录一：国家是阶级统治的工具。', note: '', t: Date.now() },
@@ -62,7 +62,7 @@ lazy.waitData(() => {
   ok('声明的导出项全部有归属（已导出/未接统计/无数据）', lost.length === 0, lost.join(',') || 'ok');
 
   const md = X.allMd();
-  ok('导出文本含「数据清单覆盖」小节', md.indexOf('数据清单覆盖') >= 0);
+  ok('导出文本含数据清单覆盖小节', md.indexOf('数据清单覆盖') >= 0);
   ok('导出文本写明摘录条数', /yzExcerpts（2 项）/.test(md));
   ok('未接统计的项被显式列出（不静默丢）',
      c.unknown.length === 0 || md.indexOf('未接统计') >= 0, c.unknown.join(',') || '（无）');

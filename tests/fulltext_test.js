@@ -37,7 +37,7 @@ ok('② stats.local 结构正确', st.local && typeof st.local.books === 'number
 
 /* ---- ③ 段落级命中 ---- */
 const r1 = w.YZFULLTEXT.search('唯物主义');
-ok('③ 搜「唯物主义」有命中', r1.length > 0, r1.length + ' 条');
+ok('③ 搜唯物主义有命中', r1.length > 0, r1.length + ' 条');
 ok('③ 命中里包含词典（原先搜不到的源）', r1.some(x => x.cat === '词典'));
 ok('③ 每条都带命中上下文 sub（≥8 字）', r1.every(x => String(x.sub || '').length >= 8));
 ok('③ sub 里确实出现关键词', r1.slice(0, 10).every(x => String(x.sub).indexOf('唯物主义') >= 0 ||
@@ -45,7 +45,7 @@ ok('③ sub 里确实出现关键词', r1.slice(0, 10).every(x => String(x.sub).
 ok('③ fn 指向 yzftShow(索引)', r1.every(x => /^yzftShow\(\d+\)$/.test(x.fn)));
 
 const r2 = w.YZFULLTEXT.search('商品');
-ok('③ 搜「商品」命中概念/词典正文', r2.length > 0 && r2.some(x => x.cat === '概念' || x.cat === '词典'));
+ok('③ 搜商品命中概念/词典正文', r2.length > 0 && r2.some(x => x.cat === '概念' || x.cat === '词典'));
 
 /* ---- ④ 多词 AND ---- */
 const both = w.YZFULLTEXT.search('唯物主义 意识');

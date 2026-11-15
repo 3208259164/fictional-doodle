@@ -72,7 +72,7 @@ const w = dom.window, d = w.document;
   ok('弹出人物卡片', !!card);
   if (card) {
     ok('卡片显示名字', card.innerHTML.indexOf('马克思') > 0);
-    ok('卡片有「看完整条目」', card.innerHTML.indexOf('看完整条目') > 0);
+    ok('卡片有看完整条目', card.innerHTML.indexOf('看完整条目') > 0);
     ok('卡片有角色标签', card.innerHTML.indexOf('人物') > 0);
     ok('卡片能关闭', card.innerHTML.indexOf('关闭') > 0);
   }
@@ -84,18 +84,18 @@ const w = dom.window, d = w.document;
   ok('摘录用了 linkify', mineSrc.indexOf('YZWordCard.linkify') > 0);
   ok('摘录批注也 linkify', (mineSrc.match(/YZWordCard\.linkify/g) || []).length >= 2);
 
-  /* 5. 诊断报告有「复制全部」 */
+  /* 5. 诊断报告有复制全部 */
   const cite = fs.readFileSync(BASE + 'assets/cite.js', 'utf8');
   ok('preview 有复制按钮', cite.indexOf('复制文字') > 0 || cite.indexOf('📋 复制全部') > 0);
-  ok('诊断有「用其他应用打开」', cite.indexOf('用其他应用打开') > 0);
-  ok('诊断有「分享到」', cite.indexOf('分享到…') > 0);
+  ok('诊断有用其他应用打开', cite.indexOf('用其他应用打开') > 0);
+  ok('诊断有分享到', cite.indexOf('分享到…') > 0);
   ok('YZSave.copy 已暴露', cite.indexOf('copy: copyText') > 0);
   ok('复制失败有兜底提示', cite.indexOf('长按选中') > 0 || cite.indexOf('长按文字选中') > 0);
 
   /* 6. 抽屉入口合并 */
   const appSrc = fs.readFileSync(BASE + 'assets/app.js', 'utf8');
-  ok('抽屉是「我的文件」', appSrc.indexOf("'我的文件'") > 0);
-  ok('抽屉不再单列「音视频」', appSrc.indexOf("pcRow('🎵','音视频'") < 0);
+  ok('抽屉是我的文件', appSrc.indexOf("'我的文件'") > 0);
+  ok('抽屉不再单列音视频', appSrc.indexOf("pcRow('🎵','音视频'") < 0);
 
   /* 7. 书架一个入口收全部 */
   const abSrc = fs.readFileSync(BASE + 'assets/appbooks.js', 'utf8');

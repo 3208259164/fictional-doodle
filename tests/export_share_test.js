@@ -1,4 +1,4 @@
-/* 学通：导出走系统分享，不再往「下载」目录丢文件（0.18.24） */
+/* 学通：导出走系统分享，不再往下载目录丢文件（0.18.24） */
 const fs = require('fs'), path = require('path');
 const { JSDOM, VirtualConsole } = require(__dirname + '/node_modules/jsdom');
 const BASE = (process.env.YZY_SITE || (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site'))).replace(/\/?$/, '/');
@@ -99,10 +99,10 @@ const w = dom.window, d = w.document;
   const appSrc = fs.readFileSync(BASE + 'assets/app.js', 'utf8');
   ok('诊断报告不再先保存再预览', !/YZSave\.text && YZSave\.text\(fname/.test(appSrc));
 
-  /* 7. 文案里不再出现「下载 .json」 */
-  ok('没有「下载 .json」字样', appSrc.indexOf('下载 .json') < 0);
+  /* 7. 文案里不再出现下载 .json */
+  ok('没有下载 .json字样', appSrc.indexOf('下载 .json') < 0);
 
-  /* 8. 朗读状态诊断能区分「桥不在」和「方法缺失」 */
+  /* 8. 朗读状态诊断能区分桥不在和方法缺失 */
   const spSrc = fs.readFileSync(BASE + 'assets/speech.js', 'utf8');
   ok('朗读状态区分桥存在但有缺方法', spSrc.indexOf('App 桥在，但里面没有语音接口') > 0);
   ok('朗读状态区分完全没桥', spSrc.indexOf('没拿到 App 桥') > 0);
@@ -112,7 +112,7 @@ const w = dom.window, d = w.document;
 
   ok('全程无 JS 错误', errs.length === 0, errs.slice(0, 2).join(' | '));
 
-  console.log('\n===== 导出改分享 / 不再落「下载」 =====');
+  console.log('\n===== 导出改分享 / 不再落下载 =====');
   console.log('通过 ' + pass + ' · 失败 ' + fail);
   if (bad.length) { bad.forEach(x => console.log('  ✗ ' + x)); process.exit(1); }
   process.exit(0);

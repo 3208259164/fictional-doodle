@@ -1,6 +1,6 @@
 /**
  * 频道双频道 / 加号 / 书库检索 —— 回归套件
- *   1. 右上角「＋」：setTopbar 之后仍然单击即可打开（历史上的双绑定 bug）
+ *   1. 右上角＋：setTopbar 之后仍然单击即可打开（历史上的双绑定 bug）
  *   2. 频道：人物频道 + 概念频道，切换、搜索、概念详情
  *   3. 概念不并入图谱：graphData 仍是 107 节点
  *   4. 书库：单本 / 多本 / 书单 / 引文反查 / 跳转链接
@@ -36,7 +36,7 @@ function loadPage(file, url, opts) {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 (async function () {
-  console.log('\n[1] 右上角「＋」单击可打开');
+  console.log('\n[1] 右上角＋单击可打开');
   {
     const { w, d } = loadPage('index.html');
     await sleep(2500);
@@ -62,13 +62,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     w.openChannel();
     const cv = d.getElementById('contentView');
     const qa = d.getElementById('qAct');
-    ok(!qa.hidden && qa.textContent === '📡', '顶部有「切换频道」按钮（在导入右边）');
+    ok(!qa.hidden && qa.textContent === '📡', '顶部有切换频道按钮（在导入右边）');
     ok(qa.getAttribute('data-act') === 'chanPick', '按钮走事件委托（无内联 onclick）');
     ok(cv.querySelectorAll('.ch-tab').length === 0, '正文里不再铺标签条');
     const cN = w.SITE_CONCEPTS.nodes.length;
     ok(cv.querySelectorAll('.cc-post').length === cN, '默认进入概念频道（' + cN + ' 张概念卡）');
     ok(cv.querySelectorAll('.ch-post:not(.cc-post)').length === 0, '默认不显示人物频道的发言卡');
-    ok((cv.querySelector('.cc-name') || {}).textContent === '商品', '概念频道首条是「商品」');
+    ok((cv.querySelector('.cc-name') || {}).textContent === '商品', '概念频道首条是商品');
 
     w.channelSearch('帝国');
     ok(cv.querySelectorAll('.cc-post').length >= 2, '概念频道可搜索（帝国 → ' + cv.querySelectorAll('.cc-post').length + ' 条）');
@@ -85,7 +85,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok(pick.querySelector('.chp-item.on').getAttribute('data-k') === 'concept', '当前频道（概念）有选中标记');
     pick.querySelector('[data-k="article"]').click();
     ok(!d.getElementById('chanPick'), '选择后弹层关闭');
-    /* 文章列表内容取决于 articles.js 是否已注入，断言只锁「频道状态切过去了」 */
+    /* 文章列表内容取决于 articles.js 是否已注入，断言只锁频道状态切过去了 */
     ok(w._chanTab === 'article', '可切到文章频道');
 
     w.channelSearch('');
@@ -99,11 +99,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     w.chanTabSet('concept');
     ok(cv.querySelectorAll('.cc-post').length === cN, '可切回概念频道');
 
-    /* 著作不进频道：检查它确实进了书库「原著」分类 */
+    /* 著作不进频道：检查它确实进了书库原著分类 */
     const RESX = w.eval('RES');
     ok(!w.SITE_WORKS, '没有独立的著作数据（已并入书库）');
-    ok(RESX.filter(r => r.cat === '原著').length >= 180, '书库「原著」类 ' + RESX.filter(r => r.cat === '原著').length + ' 条');
-    ok(RESX.some(r => r.title === '论联共（布）党内的右倾'), '新增条目归入「原著」（样本：论联共（布）党内的右倾）');
+    ok(RESX.filter(r => r.cat === '原著').length >= 180, '书库原著类 ' + RESX.filter(r => r.cat === '原著').length + ' 条');
+    ok(RESX.some(r => r.title === '论联共（布）党内的右倾'), '新增条目归入原著（样本：论联共（布）党内的右倾）');
     ok(RESX.every(r => !/^yuanzhu-/.test(r.id) || r.cat === '原著'), '新增条目分类一致（全部为原著）');
     w.goHome();
     ok(d.getElementById('qAct').hidden, '离开频道页后按钮自动隐藏');
@@ -149,7 +149,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok(one.answer.indexOf('人民出版社') >= 0, '回答含出版信息');
 
     const many = B.tryAnswer('有哪些原著');
-    ok(many && many.intent === 'booklist', '「有哪些原著」→ 书单');
+    ok(many && many.intent === 'booklist', '有哪些原著→ 书单');
     ok(many.books.length === 10, '列出 10 本，均可跳转');
 
     const rec = B.tryAnswer('推荐的入门书');
@@ -217,8 +217,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const Q = L.w.YZQA;
     const p = Q.ask('毛泽东是什么人');
     ok(!!p.links && p.links.length >= 2, '人物答案带跳转链接');
-    ok(p.links.some(l => /index\.html#\/g\//.test(l.href)), '有「人物介绍」链接（#/g/）');
-    ok(p.links.some(l => /graph\.html#/.test(l.href)), '有「图谱定位」链接');
+    ok(p.links.some(l => /index\.html#\/g\//.test(l.href)), '有人物介绍链接（#/g/）');
+    ok(p.links.some(l => /graph\.html#/.test(l.href)), '有图谱定位链接');
 
     const c = Q.ask('商品是什么');
     ok(c.links && c.links.some(l => /index\.html#\/c\/commodity/.test(l.href)), '概念答案跳到概念详情（#/c/）');
@@ -266,7 +266,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok(w2.omniSearch('mao').length > 0, '搜 mao 有结果');
     ok(w2.omniSearch('zibenlun').length > 0, '搜 zibenlun 有结果');
     const top = w2.omniSearch('宣言')[0];
-    ok(top && top.t.indexOf('宣言') >= 0, '搜「宣言」首条是《共产党宣言》相关（' + (top && top.t) + '）');
+    ok(top && top.t.indexOf('宣言') >= 0, '搜宣言首条是《共产党宣言》相关（' + (top && top.t) + '）');
 
     /* 最近搜索 */
     const inp = d2.getElementById('search');
@@ -319,7 +319,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const w4 = L.w, d4 = L.d;
     await sleep(2500);
     const si = w4.secIdx('图书馆');
-    ok(si >= 0, '能定位「图书馆」页');
+    ok(si >= 0, '能定位图书馆页');
     w4.openSection(si);
     const cv4 = d4.getElementById('contentView');
     ok(cv4.querySelectorAll('.libcard').length === w4.SITE_LIBRARIES.length, '图书馆条目数与数据一致（' + w4.SITE_LIBRARIES.length + '）');

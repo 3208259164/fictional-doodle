@@ -6,7 +6,7 @@
  * 在某个文件上出错（新版语法、正则字面量里的括号、模板字符串里的 ${}），
  * 坏文件会直接发到线上，而 CI 是绿的。
  *
- * 这个脚本用 jsdom 把压缩后的 index.html 真跑一遍，只查「模块有没有起来」，
+ * 这个脚本用 jsdom 把压缩后的 index.html 真跑一遍，只查模块有没有起来，
  * 不查任何源码文本（压缩过的文件谈不上文本形态），所以它对压缩产物和对源码都成立。
  *
  * 用法：node site/tools/verify_minified.js site
@@ -65,7 +65,7 @@ setTimeout(function () {
   ok('关键模块都在（' + MUST.length + ' 个）', miss.length === 0, miss.join(', ') || '全在');
 
   /* 图谱数据不在首页加载（首页只引 graph-extra / knowledge / entity），
-     所以这里不查「首页有没有图谱」，而是单独把 data/graph.js 拿去执行一遍，
+     所以这里不查首页有没有图谱，而是单独把 data/graph.js 拿去执行一遍，
      确认这个最大的数据文件压缩后仍然是一份能解析、节点非空的数据。 */
   try {
     const vm = require('vm');

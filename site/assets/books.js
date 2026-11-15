@@ -1,5 +1,5 @@
 /* =====================================================================
-   学通 · 本机书籍「导入 / 阅读」
+   学通 · 本机书籍导入 / 阅读
    ---------------------------------------------------------------------
    做什么：
      · 从本机选电子书（TXT / MD / EPUB / PDF）导入
@@ -72,15 +72,15 @@
     });
   }
 
-  /* ---------------- 书名归一化 + 匹配已有「书壳」 ---------------- */
+  /* ---------------- 书名归一化 + 匹配已有书壳 ---------------- */
   function normTitle(s) {
     return String(s == null ? '' : s).toLowerCase()
       .replace(/\.[a-z0-9]{1,5}$/, '')
-      .replace(/[《》【】\[\]（）()〈〉「」『』\s·・,，.。_\-—–~!！?？:：;；'"“”‘’]/g, '')
+      .replace(/[《》【】\[\]（）()〈〉『』\s·・,，.。_\-—–~!！?？:：;；'"“”‘’]/g, '')
       .replace(/(人民出版社|中央编译局|中共中央|扫描版|高清版|高清|完整版|文字版|整理|校订|pdf|epub|txt|markdown|md|azw3|mobi)/g, '');
   }
   /* 在资源库里找同名的“书壳”（只认非本机条目），找不到返回 null */
-  /* 编辑距离相似度（0~1），用于判断「导入书名与书壳差多少」 */
+  /* 编辑距离相似度（0~1），用于判断导入书名与书壳差多少 */
   function simScore(a, b) {
     a = String(a || ''); b = String(b || '');
     if (a === b) return 1;
@@ -97,7 +97,7 @@
     }
     return 1 - prev[n] / Math.max(m, n);
   }
-  /* 找到最接近的书壳，并带回「是否完全同名 / 相似度」——是否要弹窗由 decideShell 决定 */
+  /* 找到最接近的书壳，并带回是否完全同名 / 相似度——是否要弹窗由 decideShell 决定 */
   function findShellInfo(title) {
     if (typeof RES === 'undefined' || !RES) return null;
     var nt = normTitle(title);
@@ -110,12 +110,12 @@
       if (!rt) continue;
       if (rt === nt) { exact = r; break; }
       /* 门槛从 5 字放宽到 3 字：像《资本论 第一卷》→《资本论》这种短书名也能被认出来；
-         因为有「书名不完全一致」的弹窗把关，放宽不会造成静默挂错。 */
+         因为有书名不完全一致的弹窗把关，放宽不会造成静默挂错。 */
       if (nt.length >= 3 && rt.length >= 3 &&
         (rt.indexOf(nt) >= 0 || nt.indexOf(rt) >= 0) &&
         Math.abs(rt.length - nt.length) <= 6) {
         var diff = Math.abs(rt.length - nt.length), sc = simScore(rt, nt);
-        /* 先比「长度差」再比相似度：《资本论 第一卷》同时包含「资本论」与「资本论导读」时，
+        /* 先比长度差再比相似度：《资本论 第一卷》同时包含资本论与资本论导读时，
            长度差最小的才是真书壳，否则会错挂到《资本论导读》上。 */
         if (!partial || diff < pdiff || (diff === pdiff && sc > ps)) { partial = r; ps = sc; pdiff = diff; }
       }
@@ -126,10 +126,10 @@
   }
   function findShell(title) { var f = findShellInfo(title); return f ? f.item : null; }
 
-  /* 决定「要不要挂到已有书壳」：
+  /* 决定要不要挂到已有书壳：
      · 完全同名（归一化后一致）→ 静默挂上，不打扰；
-     · 只是相近（如带副标题、卷次、版本号）→ 弹窗说明「本机文件名 / 资源库条目」，
-       选「继续」挂到该书壳，选「取消」则作为一本新书单独导入，避免挂错书。
+     · 只是相近（如带副标题、卷次、版本号）→ 弹窗说明本机文件名 / 资源库条目，
+       选继续挂到该书壳，选取消则作为一本新书单独导入，避免挂错书。
      同一次会话里同一个书壳只问一次，批量导入不会连环弹窗。 */
   var _askedShell = {};
   function decideShell(rec) {
@@ -142,9 +142,9 @@
         + '本机文件：' + String(rec.title || '').slice(0, 60) + '\n'
         + '资源库条目：' + String(info.item.title || '').slice(0, 60) + '\n'
         + (info.item.author ? '作者：' + String(info.item.author).slice(0, 30) + '\n' : '')
-        + '\n要继续把它挂到这本书的「书壳」下吗？（共用封面与介绍）\n'
-        + '· 点「确定」＝ 继续，视为同一本书\n'
-        + '· 点「取消」＝ 作为一本新书单独导入';
+        + '\n要继续把它挂到这本书的书壳下吗？（共用封面与介绍）\n'
+        + '· 点确定＝ 继续，视为同一本书\n'
+        + '· 点取消＝ 作为一本新书单独导入';
       var ok;
       try { ok = window.confirm(msg); } catch (e) { ok = true; }
       _askedShell[key] = !!ok;
@@ -172,11 +172,11 @@
   }
 
   /* ---------------- 并入资源库（于是能被搜索、能进详情页） ---------------- */
-  /* silent=true：启动恢复时用——直接按书名挂，不弹「书名不完全一致」确认框
+  /* silent=true：启动恢复时用——直接按书名挂，不弹书名不完全一致确认框
      （否则每次开机都会冒出一个莫名其妙的对话框）。用户主动导入才弹。 */
   function inject(rec, silent) {
     if (typeof RES === 'undefined' || !RES) return null;
-    /* ① 已有同名「书壳」→ 把本机正文挂上去（绝不重复生成条目） */
+    /* ① 已有同名书壳→ 把本机正文挂上去（绝不重复生成条目） */
     var shell = silent ? findShell(rec.title) : decideShell(rec);
     if (shell) { attach(shell, rec); metaPatch(rec.id, { targetId: shell.id }); return shell; }
     /* ② 否则新建一条“本机导入”条目 */
@@ -192,7 +192,7 @@
       tags: ['本机导入'].concat(rec.fmt ? [rec.fmt] : []),
       alias: '', py: '',
       desc: '本机导入 · ' + (rec.fmt || '未知格式') + (rec.sizeTxt ? ' · ' + rec.sizeTxt : ''),
-      intro: '这是你从本机导入的电子书，内容只保存在本机、不会上传。点「📖 开始阅读」即可在应用内阅读。',
+      intro: '这是你从本机导入的电子书，内容只保存在本机、不会上传。点📖 开始阅读即可在应用内阅读。',
       fmt: rec.fmt || '—',
       size: rec.sizeTxt || '—',
       src: '本机导入',
@@ -219,7 +219,7 @@
       } catch (e) { cb(null); }
     });
   }
-  /* 文件已不在 IndexedDB 时，把挂在它上面的「书壳」解下来，恢复成“暂无原文” */
+  /* 文件已不在 IndexedDB 时，把挂在它上面的书壳解下来，恢复成“暂无原文” */
   function detachByBookId(id) {
     if (typeof RES === 'undefined' || !RES) return;
     for (var i = 0; i < RES.length; i++) {
@@ -254,13 +254,13 @@
       missing.forEach(function (m) { detachByBookId(m.id); });
       try { metaSave(arr.filter(function (m) { return have[m.id]; })); } catch (e) { }
       try { if (typeof render === 'function') render(); } catch (e) { }
-      try { toast('检测到 ' + missing.length + ' 本本机电子书已不在本机（可能被系统清理了），条目已还原为「暂无原文」，可重新导入'); } catch (e) { }
+      try { toast('检测到 ' + missing.length + ' 本本机电子书已不在本机（可能被系统清理了），条目已还原为暂无原文，可重新导入'); } catch (e) { }
     });
     /* 尽量申请“持久化存储”，降低被系统自动清理的概率 */
     try { if (window.navigator && navigator.storage && typeof navigator.storage.persist === 'function') navigator.storage.persist(); } catch (e) { }
   }
 
-  /* 「导入本书」：把本机文件直接挂到指定条目上（书名相同就不新建条目） */
+  /* 导入本书：把本机文件直接挂到指定条目上（书名相同就不新建条目） */
   function importInto(itemId) {
     pick(function (recs) {
       var tgt = null;
@@ -294,28 +294,28 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
   /* 允许的电子书格式。别看 input 上有 accept——安卓的文件选择器经常无视它
-     （从相册、QQ、微信「发送到」进来的文件会绕过 accept），所以真正把关必须在这里。
-     以前一张 235KB 的 JPG 就是这么被当成「书」导入的，点开又按文本去读二进制，直接卡死。 */
+     （从相册、QQ、微信发送到进来的文件会绕过 accept），所以真正把关必须在这里。
+     以前一张 235KB 的 JPG 就是这么被当成书导入的，点开又按文本去读二进制，直接卡死。 */
   var BOOK_OK = /^(TXT|MD|MARKDOWN|EPUB|PDF)$/;
 
   function importOne(file, done) {
     var fmt = fmtOf(file.name, file.type);
     if (!BOOK_OK.test(fmt)) {
-      try { toast('「' + file.name + '」不是电子书（只收 TXT / MD / EPUB / PDF），已跳过'); } catch (e) { }
+      try { toast('' + file.name + '不是电子书（只收 TXT / MD / EPUB / PDF），已跳过'); } catch (e) { }
       return done();
     }
     /* 同一个文件反复导入会出现两条一模一样的条目（截图里就重复了两条）。
-       按「书名 + 字节数」判重，够用且不会被同名不同书误杀。 */
+       按书名 + 字节数判重，够用且不会被同名不同书误杀。 */
     var base = String(file.name).replace(/\.[^.]+$/, '');
     var dup = metaAll().filter(function (m) { return m && m.title === base && Number(m.size) === file.size; });
     if (dup.length) {
-      try { toast('「' + base + '」已经导入过了，跳过'); } catch (e) { }
+      try { toast('' + base + '已经导入过了，跳过'); } catch (e) { }
       return done();
     }
-    if (file.size > MAX_MB * 1048576) { try { toast('「' + file.name + '」超过 ' + MAX_MB + 'MB，已跳过'); } catch (e) { } return done(); }
+    if (file.size > MAX_MB * 1048576) { try { toast('' + file.name + '超过 ' + MAX_MB + 'MB，已跳过'); } catch (e) { } return done(); }
     var id = uid();
     dbPut(id, file, function (ok) {
-      if (!ok) { try { toast('「' + file.name + '」保存失败（本机存储可能已满）'); } catch (e) { } return done(); }
+      if (!ok) { try { toast('' + file.name + '保存失败（本机存储可能已满）'); } catch (e) { } return done(); }
       var rec = {
         id: id,
         title: String(file.name).replace(/\.[^.]+$/, ''),
@@ -347,7 +347,7 @@
         if (i >= fs.length) {
           try { inp.remove(); } catch (e) { }
           try { if (typeof render === 'function') render(); } catch (e) { }
-          try { toast('已导入 ' + okN + ' 本 · 可在顶部搜索或「导入书籍」里打开'); } catch (e) { }
+          try { toast('已导入 ' + okN + ' 本 · 可在顶部搜索或导入书籍里打开'); } catch (e) { }
           if (isFn(cb)) { try { cb(recs); } catch (e) { } }
           else { try { if (typeof openLocalShelf === 'function') openLocalShelf(); } catch (e) { } }
           return;
@@ -361,10 +361,10 @@
     setTimeout(function () { try { inp.remove(); } catch (e) { } }, 120000);
   }
 
-  /* ---------------- 「我的书」书架 ---------------- */
-  /* 原来这里有第二套书架界面（带面包屑 / 提示文字 / 「导入书籍」按钮那套），
-     而「我的藏书」入口走的是 YZAppBooks 的全屏书架，于是同一个功能有两个长得不一样的界面，
-     用户看到的就是「有时候是第一张图，有时候跳到第二张图」。
+  /* ---------------- 我的书书架 ---------------- */
+  /* 原来这里有第二套书架界面（带面包屑 / 提示文字 / 导入书籍按钮那套），
+     而我的藏书入口走的是 YZAppBooks 的全屏书架，于是同一个功能有两个长得不一样的界面，
+     用户看到的就是有时候是第一张图，有时候跳到第二张图。
      现在统一到全屏那套（它能读 EPUB 分章、PDF 逐页、适宽/整页切换），旧界面只作兜底。 */
   function openLocalShelf() {
     if (window.YZAppBooks && typeof YZAppBooks.shelf === 'function') {
@@ -386,11 +386,11 @@
           '<button class="sbtn" style="flex:none" onclick="yzBooks.remove(\'' + esc(m.id) + '\')" title="从本机删除">🗑</button>' +
           '</div>';
       }).join('')
-      : '<p class="sub">还没有导入书籍。点上方「📥 导入书籍」从本机选择 TXT / MD / EPUB / PDF 文件。</p>';
+      : '<p class="sub">还没有导入书籍。点上方📥 导入书籍从本机选择 TXT / MD / EPUB / PDF 文件。</p>';
     if (typeof openContent === 'function') {
       openContent('📥 我的书 · ' + arr.length,
         (typeof crumbFrom === 'function' ? crumbFrom([{ t: '我的书', fn: openLocalShelf }]) : '') +
-        '<p class="sub" style="margin:0 0 10px;line-height:1.7">导入的书只存在本机，会被并入资源库——顶部搜索也能搜到。<br><b>请勿在系统设置里「清除应用数据」</b>，否则本机电子书会一并丢失。</p>' +
+        '<p class="sub" style="margin:0 0 10px;line-height:1.7">导入的书只存在本机，会被并入资源库——顶部搜索也能搜到。<br><b>请勿在系统设置里清除应用数据</b>，否则本机电子书会一并丢失。</p>' +
         '<div class="ops" style="margin:0 0 12px"><button onclick="yzBooks.pick()">📥 导入书籍</button></div>' +
         body);
     }
@@ -407,7 +407,7 @@
         fr.onerror = function () { try { toast('读取失败'); } catch (e) { } };
         fr.readAsText(blob);
       } else if (fmt === 'EPUB') {
-        try { toast('EPUB 在线阅读正在开发中；可先用「导出」到电脑，或用其他应用打开'); } catch (e) { }
+        try { toast('EPUB 在线阅读正在开发中；可先用导出到电脑，或用其他应用打开'); } catch (e) { }
         renderUnsupported(title, id, fmt);
       } else {
         renderUnsupported(title, id, fmt);
@@ -423,8 +423,8 @@
   function readUrl(path, title, id, backT, backF, anchor) {
     if (typeof openContent !== 'function') { location.href = path; return; }
     var bid = 'u:' + path;                 /* 进度键：按路径，换入口也能续读 */
-    /* 不要先推一个「正在载入」页：openContent 会往 _pageStack 压一页，
-       等真正正文再压一页，于是「返回」第一次只会退到那个空壳，卡在「正在载入」——
+    /* 不要先推一个正在载入页：openContent 会往 _pageStack 压一页，
+       等真正正文再压一页，于是返回第一次只会退到那个空壳，卡在正在载入——
        0.17.52/53/54 三版的返回 bug 就是这个。本地文件几十毫秒返回，直接等结果。 */
     try { if (typeof toast === 'function') toast('正在打开…'); } catch (e) { }
     fetch(path, { cache: 'force-cache' }).then(function (r) {
@@ -449,14 +449,14 @@
       (typeof crumbFrom === 'function' ? crumbFrom([{ t: '我的书', fn: openLocalShelf }, { t: title, fn: function () { read(id, title); } }]) : '') +
       '<h3 style="color:var(--accent);font-size:1rem">' + esc(title) + '</h3>' +
       '<p class="sub" style="margin:10px 0;line-height:1.8">当前内置阅读器支持 <b>TXT / MD</b>（纯文本）格式。<br>' +
-      '这本是 <b>' + esc(fmt) + '</b>，暂不支持在线渲染。<br>你可以：① 在电脑上转成 TXT 再导入；② 用「导出」把书导出后，用其它阅读应用打开。</p>' +
+      '这本是 <b>' + esc(fmt) + '</b>，暂不支持在线渲染。<br>你可以：① 在电脑上转成 TXT 再导入；② 用导出把书导出后，用其它阅读应用打开。</p>' +
       '<div class="ops" style="flex-wrap:wrap;gap:8px">' +
         '<button onclick="yzBooks.openExternal(\'' + esc(id) + '\')">📤 用其他应用打开</button>' +
         '<button onclick="yzBooks.remove(\'' + esc(id) + '\')">🗑 从本机删除</button></div>');
   }
 
   /* 章节标题识别：第一章 / 一、 / 1. / 序言 / 前言 / 引言 / 结语 / 后记 / 附录 / 尾声
-     —— 只认「短行」，避免把正文里出现「第一章」的句子误当标题。 */
+     —— 只认短行，避免把正文里出现第一章的句子误当标题。 */
   var CH_RE = /^(?:第\s*[〇零一二三四五六七八九十百千0-9]+\s*[章节篇部卷讲]|[〇零一二三四五六七八九十]{1,3}\s*[、.．]|[0-9]{1,3}\s*[、.．)）]|序\s*[言章]|前\s*言|引\s*言|导\s*言|结\s*语|后\s*记|附\s*录|尾\s*声)/;
   function splitChapters(paras) {
     var chs = [], i;
@@ -564,12 +564,26 @@
   function saveCfg(c) {
     try { localStorage.setItem(RC_KEY, JSON.stringify(c)); localStorage.setItem('readerFS', String(c.fs)); } catch (e) { }
   }
+  /* 我的书阅读器原来只管自己那一套（RC_KEY），设置页的字号/行距对它完全无效。
+     现在把设置页当作基准：字号 = 基准(15/16/18px) + 本阅读器的偏移（默认 17 视为 +1），
+     行距 = 基准 --lh(1.6/1.9/2.2) × 本阅读器系数（默认 1.95 视为 ×1）。
+     这样两头调都会变，用户的旧习惯也不会被推翻。 */
+  function readerBase() {
+    var root = document.documentElement;
+    var px = 16, lh = 1.9;
+    try {
+      px = parseFloat(getComputedStyle(root).fontSize) || 16;
+      lh = parseFloat(getComputedStyle(root).getPropertyValue('--lh')) || 1.9;
+    } catch (e) { }
+    return { px: px, lh: lh };
+  }
   function applyCfg() {
     var c = readCfg();
     var art = document.querySelector('#yzReader .reader-body');
     if (art) {
-      art.style.fontSize = c.fs + 'px';
-      art.style.lineHeight = String(c.lh);
+      var b = readerBase();
+      art.style.fontSize = (b.px + (c.fs - 17)).toFixed(1) + 'px';
+      art.style.lineHeight = (b.lh * (c.lh / 1.95)).toFixed(2);
       art.style.padding = '0 ' + c.pd + 'px 76px';
       art.style.textAlign = c.jc ? 'justify' : 'left';
     }
@@ -800,8 +814,10 @@
     });
   }
 
-  /* 阅读时把「我的书」入口也挂到详情页按钮上（供 openItemDetail 调用） */
-  window.yzBooks = { load: loadAll, pick: pick, read: read, readUrl: readUrl, remove: remove, setFS: setFS, aa: aa, theme: theme, page: page, seek: seek, savePos: savePos, openShelf: openLocalShelf, openExternal: openExternal, importInto: importInto, findShell: findShell, findShellInfo: findShellInfo, decideShell: decideShell, simScore: simScore, meta: metaAll,
+  /* 阅读时把我的书入口也挂到详情页按钮上（供 openItemDetail 调用） */
+  window.yzBooks = {
+    /* 设置页改了字号/行距后，正开着的我的书阅读器要跟着重算 */
+    reapplyText: applyCfg, load: loadAll, pick: pick, read: read, readUrl: readUrl, remove: remove, setFS: setFS, aa: aa, theme: theme, page: page, seek: seek, savePos: savePos, openShelf: openLocalShelf, openExternal: openExternal, importInto: importInto, findShell: findShell, findShellInfo: findShellInfo, decideShell: decideShell, simScore: simScore, meta: metaAll,
     toc: toc, closeToc: closeToc, jumpCh: jumpCh, splitChapters: splitChapters, curCh: curCh };
   /* 滚动时保存进度（节流） */
   var _t = 0;

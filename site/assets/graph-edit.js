@@ -4,15 +4,15 @@
 
    v2 → v3 变更（按用户反馈）
    1. ⛔ 总开关优先：自助编辑关闭时，本脚本**完全不加载**（不建任何 UI，
-      ?edit=1 也忽略）——「关闭后关系图谱里不会显示任何编辑相关的东西」。
+      ?edit=1 也忽略）——关闭后关系图谱里不会显示任何编辑相关的东西。
    2. 🧹 清屏模式：进入 body.clean 时隐藏全部编辑 UI（覆盖层/工具栏/状态标签/
       空图谱提示），并自动退出编辑模式、收起弹窗；退出清屏自动还原。
-      实现＝「纯 CSS 隐藏」+「MutationObserver 处理逻辑副作用」双保险。
+      实现＝纯 CSS 隐藏+MutationObserver 处理逻辑副作用双保险。
    3. 🔉 按钮精简：10 个 → 3 个（编辑 / 图谱 / 撤销）。新建·重命名·删除图谱
-      全部并入「🗂 图谱」弹窗；适应窗口/放大/缩小移除（页面本来就有适应窗口，
+      全部并入🗂 图谱弹窗；适应窗口/放大/缩小移除（页面本来就有适应窗口，
       缩放手势由双指捏合承担）。
    4. 🔎 引用节点：不再用原生 <select>（Android WebView 里 100+ 选项会卡甚至卡死），
-      改为**可搜索列表弹层**，并可引用「内置主图谱」的节点（这正是之前缺的能力）。
+      改为**可搜索列表弹层**，并可引用内置主图谱的节点（这正是之前缺的能力）。
    5. 🎯 沿用 v2 的可靠事件模型：透明覆盖层接管 Pointer 事件，不吞按钮点击。
    ===================================================================== */
 (function () {
@@ -221,7 +221,7 @@
     var GROUPS = buildGroups(isMain); window.GROUPS = GROUPS;
     var GID = {}, CENTER = {};
     if (typeof window.yzPlace === 'function') {
-      /* ★ 与浏览模式共用页面的分组/落点：文革图谱按「省」分组成环，其余按语义分组。
+      /* ★ 与浏览模式共用页面的分组/落点：文革图谱按省分组成环，其余按语义分组。
          此前编辑模式自带另一套分组且不重算落点 → 图谱与地图都对不上（旧 bug）。 */
       GID = window.yzPlace() || window.GID || {};
       CENTER = window.CENTER || {};
@@ -439,7 +439,7 @@
 
   /* 全库按名称找人：当前图谱 → 主图谱 → 其他图谱。
      内置图谱是只读资产，这里只读不改。
-     作用：手动新建一个「已经有」的人物时，不再造第二个同名的，而是复用同一个实体 id。 */
+     作用：手动新建一个已经有的人物时，不再造第二个同名的，而是复用同一个实体 id。 */
   function findNodeByName(nm) {
     nm = String(nm || '').trim(); if (!nm) return null;
     var hit = null;
@@ -468,9 +468,9 @@
         if (!src) { toast('找不到被引用的节点', true); return; }
         /* 同一实体在本图谱已经有了：不再造副本，提示直接连线 */
         var dupRef = inCurrent(src.id);
-        if (dupRef) { toast('「' + (dupRef.name || dupRef.id) + '」已在当前图谱中，直接连它即可'); return; }
+        if (dupRef) { toast('' + (dupRef.name || dupRef.id) + '已在当前图谱中，直接连它即可'); return; }
         node = JSON.parse(JSON.stringify(src));
-        node.id = src.id;          /* 关键：沿用原 id —— 跨图谱是「同一个人引用同一实体」，不是复制一份 */
+        node.id = src.id;          /* 关键：沿用原 id —— 跨图谱是同一个人引用同一实体，不是复制一份 */
         if (o.name) node.name = o.name;
         if (o.type) node.type = o.type;
         if (o.desc) node.desc = o.desc;
@@ -480,8 +480,8 @@
         var exist = findNodeByName(nm);
         if (exist) {
           var dupNew = inCurrent(exist.id);
-          if (dupNew) { toast('同名人物「' + nm + '」已在当前图谱中，直接连它即可'); return; }
-          toast('全库已有「' + (exist.name || nm) + '」，已引用该人物而不是新建');
+          if (dupNew) { toast('同名人物' + nm + '已在当前图谱中，直接连它即可'); return; }
+          toast('全库已有' + (exist.name || nm) + '，已引用该人物而不是新建');
           node = JSON.parse(JSON.stringify(exist));
           node.id = exist.id;
           if (o.type) node.type = o.type;
@@ -553,7 +553,7 @@
       if (!r) return;
       snapshot();
       /* 删线只删线：原来这里 rebuild(false, true) 会整图重排，节点全换了位置，
-       看起来就像「把节点也删了」。改样式用的是 false，这里跟它对齐。 */
+       看起来就像把节点也删了。改样式用的是 false，这里跟它对齐。 */
       if (r.del) { YZY.removeGraphEdge(undefined, key); rebuild(false, false); toast('关系已删除'); return; }
       if (r.swap) {
         YZY.removeGraphEdge(undefined, key);
@@ -614,7 +614,7 @@
 
   /* ---------- 编辑节点内容（含重命名） ---------- */
   function askEditNode(d) {
-    openD('<h4 style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">编辑「' + (d.name || d.id) + '」</h4>', function (box) {
+    openD('<h4 style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">编辑' + (d.name || d.id) + '</h4>', function (box) {
       box.appendChild(lab('① 名称（改名后图谱标签与详情标题一起变）'));
       box.appendChild(inp(d.name || '', '节点名称', 'ge_ed_name'));
       box.appendChild(lab('② 类型'));
@@ -652,7 +652,7 @@
         var r = YZY.setNodeStyle(undefined, d.id, patch);
         if (!r || r.ok === false) { toast((r && r.msg) || '保存失败', true); return; }
         rebuild(false, false);
-        toast('已保存「' + name + '」');
+        toast('已保存' + name + '');
       };
       b.appendChild(ok);
       var no = btn('取消', 'g'); no.onclick = function () { closeD(); };
@@ -684,8 +684,8 @@
   }
   function addRelationFrom(d) {
     pickerSheet({
-      title: '给「' + (d.name || d.id) + '」加一条关系',
-      hint: '输入名称可筛选（如「毛」）。点中的节点会成为关系的另一端，方向为「' + (d.name || d.id) + ' → 它」。',
+      title: '给' + (d.name || d.id) + '加一条关系',
+      hint: '输入名称可筛选（如毛）。点中的节点会成为关系的另一端，方向为' + (d.name || d.id) + ' → 它。',
       groups: connectPickerGroups(d.id), allowNone: true, noneText: '— 取消 —'
     }).then(function (picked) {
       if (picked === undefined || !picked) return;
@@ -696,21 +696,21 @@
   }
 
   function deleteNode(o) {
-    askConfirm('删除节点「' + (o.d.name || o.d.id) + '」？', '与它相连的所有关系线也会一并删除。').then(function (y) {
+    askConfirm('删除节点' + (o.d.name || o.d.id) + '？', '与它相连的所有关系线也会一并删除。').then(function (y) {
       if (!y) return;
       /* 删节点只删节点：rebuild 会优先复用每个节点已有的 x/y（prevPos），
-         传 true 会跑一遍力导向收敛 = 剩下节点全被重新排布，看起来「整张图都乱了」。
-         力导向图增量删除的标准做法就是「只重绘、不重算布局」。 */
+         传 true 会跑一遍力导向收敛 = 剩下节点全被重新排布，看起来整张图都乱了。
+         力导向图增量删除的标准做法就是只重绘、不重算布局。 */
       snapshot(); YZY.removeGraphNode(undefined, o.d.id); rebuild(false, false); toast('已删除节点');
     });
   }
 
-  /* ================= 「🗂 图谱」弹窗：切换 + 新建 + 重命名 + 删除 合一 ================= */
+  /* ================= 🗂 图谱弹窗：切换 + 新建 + 重命名 + 删除 合一 ================= */
   function openGraphSheet() {
     var list = YZY.listGraphs(), act = YZY.activeGraphId();
     var cur = (list.filter(function (g) { return g.id === act; })[0]) || {};
     openD('<h4 id="ge_sheet_title" style="margin:0 0 4px;color:var(--panel-accent);font-size:1rem">🗂 图谱</h4>' +
-      '<p style="font-size:.76rem;opacity:.75;line-height:1.6;margin:0 0 6px">点一行即可切换。「＋ 新建 / ✎ 重命名 / 🗑 删除」只作用于你自建的图谱。</p>', function (box) {
+      '<p style="font-size:.76rem;opacity:.75;line-height:1.6;margin:0 0 6px">点一行即可切换。＋ 新建 / ✎ 重命名 / 🗑 删除只作用于你自建的图谱。</p>', function (box) {
         var listBox = el('div'); listBox.id = 'ge_graph_list'; listBox.style.cssText = 'max-height:46vh;overflow:auto';
         list.forEach(function (g) {
           var sub = g.builtin ? ('内置 · ' + (g.nodes != null ? g.nodes : '—') + ' 节点' + (g.links != null ? ' / ' + g.links + ' 关系' : ''))
@@ -722,7 +722,7 @@
             var x = YZY.setActiveGraph(g.id);
             if (x && x.ok === false) { toast(x.msg || '切换失败', true); return; }
             undoStack = []; linkFrom = null; closeD(); rebuild(true, true); updateUI();
-            toast('已切换到「' + g.name + '」');
+            toast('已切换到' + g.name + '');
           };
           listBox.appendChild(r);
         });
@@ -737,7 +737,7 @@
             var r = YZY.newGraph(name);
             if (!r || r.ok === false) { toast((r && r.msg) || '新建失败', true); return; }
             undoStack = []; linkFrom = null; rebuild(true, true);
-            toast('已新建「' + r.name + '」——点空白处开始建节点');
+            toast('已新建' + r.name + '——点空白处开始建节点');
           });
         };
         b1.appendChild(nb);
@@ -753,12 +753,12 @@
             askText('重命名图谱', cur.name).then(function (v) {
               if (!v) return;
               YZY.renameGraph(act, v); rebuild(false, false); updateUI();
-              toast('已改名为「' + v + '」');
+              toast('已改名为' + v + '');
             });
           };
           var db = btn('🗑 删除当前', 'd'); db.id = 'ge_del_graph';
           db.onclick = function () {
-            askConfirm('删除图谱「' + cur.name + '」？', '图谱内节点与关系会一并删除，不可恢复。').then(function (y) {
+            askConfirm('删除图谱' + cur.name + '？', '图谱内节点与关系会一并删除，不可恢复。').then(function (y) {
               if (!y) return;
               YZY.deleteGraph(act); undoStack = []; rebuild(true, true);
               toast('已删除图谱');
@@ -853,7 +853,7 @@
       if (h) {
         if (!linkFrom) {
           linkFrom = h; if (window.draw) window.draw();
-          toast('已选起点「' + (h.d.name || h.d.id) + '」→ 再点一个节点即可连线；长按节点可删除');
+          toast('已选起点' + (h.d.name || h.d.id) + '→ 再点一个节点即可连线；长按节点可删除');
           return;
         }
         if (linkFrom === h) { linkFrom = null; if (window.draw) window.draw(); toast('已取消选择'); return; }
@@ -911,7 +911,7 @@
     emptyEl.style.display = (CLEAN || emptyDismissed) ? 'none' : 'block';
     emptyEl.innerHTML = '<button type="button" class="ge-x" title="关闭提示" aria-label="关闭提示">✕</button>' +
       '📭 这张图谱还是空的<br><span style="color:#f5c518">进入编辑模式 → 点空白处新建节点</span><br>' +
-      '<span style="opacity:.75">想回到内置图谱：点「🗂 图谱」选「主图谱」</span>';
+      '<span style="opacity:.75">想回到内置图谱：点🗂 图谱选主图谱</span>';
     var xb = emptyEl.querySelector('.ge-x');
     if (xb) xb.onclick = function (ev) {
       try { ev.stopPropagation(); } catch (e) {}

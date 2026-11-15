@@ -38,7 +38,7 @@ console.log('\n[1] 直接关系');
 console.log('\n[2] 关系方向不能反');
 {
   const r = QA.ask('马克思和恩格斯什么关系');
-  ok(!/恩格斯.*(创立|提出).*马克思/.test(r.answer), '没把「谁创立」说反');
+  ok(!/恩格斯.*(创立|提出).*马克思/.test(r.answer), '没把谁创立说反');
 }
 
 console.log('\n[3] 人物介绍');
@@ -108,9 +108,9 @@ console.log('\n[10] 不可达要诚实');
 console.log('\n[11] 别名与简称');
 {
   const a = QA.find('马克思');
-  ok(a.length > 0 && a[0].node.id === 'marx', '「马克思」能定位到 marx');
+  ok(a.length > 0 && a[0].node.id === 'marx', '马克思能定位到 marx');
   const b = QA.find('毛泽东');
-  ok(b.length > 0, '「毛泽东」能定位');
+  ok(b.length > 0, '毛泽东能定位');
 }
 
 console.log('\n[12] 空输入不崩');
@@ -137,7 +137,7 @@ console.log('\n[13] 关系归一化');
 console.log('\n[14] 方向不能说反（原始数据方向不统一，禁止断言谁继承谁）');
 {
   const r = QA.ask('马克思和列宁什么关系');
-  ok(!/马克思[^，。]{0,6}继承[^，。]{0,6}列宁/.test(r.answer), '不出现「马克思继承列宁」这类反向断言');
+  ok(!/马克思[^，。]{0,6}继承[^，。]{0,6}列宁/.test(r.answer), '不出现马克思继承列宁这类反向断言');
   ok(r.answer.indexOf('关系') >= 0, '改用中性表述报关系名');
   console.log('    ' + r.answer.replace(/\n/g, ' ').slice(0, 90));
 }
@@ -152,11 +152,11 @@ console.log('\n[15] 多跳不超过 2 步');
 console.log('\n[16] 实体消歧：人物优先于概念');
 {
   const a = QA.find('列宁');
-  ok(a[0].node.id === 'lenin', '「列宁」命中人物 lenin，而不是 leninism（实为 ' + a[0].node.id + '）');
+  ok(a[0].node.id === 'lenin', '列宁命中人物 lenin，而不是 leninism（实为 ' + a[0].node.id + '）');
   const b = QA.find('毛泽东');
-  ok(b[0].node.id === 'mao', '「毛泽东」命中 mao，而不是 maoism（实为 ' + b[0].node.id + '）');
+  ok(b[0].node.id === 'mao', '毛泽东命中 mao，而不是 maoism（实为 ' + b[0].node.id + '）');
   const c = QA.find('列宁主义');
-  ok(c[0].node.id === 'leninism', '「列宁主义」精确命中概念节点');
+  ok(c[0].node.id === 'leninism', '列宁主义精确命中概念节点');
 }
 
 console.log('\n[14] 性能：1000 次问答');
@@ -165,7 +165,7 @@ console.log('\n[14] 性能：1000 次问答');
   for (let i = 0; i < 1000; i++) QA.ask('马克思和恩格斯什么关系');
   const ms = Date.now() - t0;
   /* 阈值 5000ms（单次 5ms）：0.17.19 起 ask 会额外经过正文级检索，单次从 ~2.9ms 升到 ~3.7ms，
-     仍是 270 次/秒的量级，用户完全无感；原阈值 3000ms 是「没有正文检索」时代定的。 */
+     仍是 270 次/秒的量级，用户完全无感；原阈值 3000ms 是没有正文检索时代定的。 */
   ok(ms < 5000, '1000 次 ' + ms + 'ms（单次 ' + (ms / 1000).toFixed(2) + 'ms）');
 }
 
@@ -175,9 +175,9 @@ console.log('\n[17] 多图谱：注册与切换');
   ok(gs.length >= 4, '注册了 ' + gs.length + ' 个图谱（含合并视图）');
   const ids = gs.map(x => x.id).join(',');
   ok(ids.indexOf('main') >= 0 && ids.indexOf('wenge') >= 0 && ids.indexOf('world') >= 0, '含 main/wenge/world');
-  ok(ids.indexOf('all') >= 0, '含「全部」合并视图');
+  ok(ids.indexOf('all') >= 0, '含全部合并视图');
   const allStats = QA.stats();
-  ok(allStats.graph === 'all', '默认使用「全部」，无需选图谱');
+  ok(allStats.graph === 'all', '默认使用全部，无需选图谱');
   ok(allStats.nodes >= 300, '合并后 ' + allStats.nodes + ' 节点（比任一单图谱都多）');
 }
 

@@ -1,5 +1,5 @@
 /* 内容包存档分区回归（2026-11-13）
-   背景：Copilot 指出「包 A 能读包 B 的进度、清存档会连别人一起清」，核实成立：
+   背景：Copilot 指出包 A 能读包 B 的进度、清存档会连别人一起清，核实成立：
      · packSeed() 把所有 yzq_* 无差别喂给当前包；
      · yzq:clear 无差别删所有 yzq_*；
      · 存档键 yzq_best_<nodeId>_<tier> 不含包名，节点 id 相同就互相覆盖；
@@ -77,7 +77,7 @@ setTimeout(() => {
   ok('回传按 packId 写进对应分区', S.seed('packD')['yzq_best_n1_basic'] === '{"best":2}');
   ok('回传不会写进别人的分区', S.seed('packA')['yzq_best_n1_basic'] === undefined);
 
-  /* ⑧ 源码守卫：只断言「旧的无差别写法确实没了」——
+  /* ⑧ 源码守卫：只断言旧的无差别写法确实没了——
      不断言变量名和换行，因为 APK 内的站点是压缩过的（terser 会 mangle 局部变量、
      把换行压成空格），写死格式的断言在产物上必红，那是测试的问题不是产品的问题。 */
   const src = fs.readFileSync(path.join(SITE, 'assets/challenge.js'), 'utf8');
@@ -85,7 +85,7 @@ setTimeout(() => {
   ok('已装分区层 pkClear', minified || src.indexOf('pkClear') > 0,
      minified ? '（压缩产物：函数名已 mangle，分区行为由上面 6 项验证）' : '');
   ok('不再无差别删除所有 yzq_ 键', !/for\s*\(\s*var\s+\w+\s*=\s*localStorage\.length\s*-\s*1/.test(src));
-  /* 压缩产物上变量名会被 mangle（curPack → t），源码守卫退化为「结构还在」的检查；
+  /* 压缩产物上变量名会被 mangle（curPack → t），源码守卫退化为结构还在的检查；
      完整的格式断言只在未压缩站点（CI）上做。 */
   ok('消息桥仍要求有当前包才落盘',
      /\.packId/.test(src) && /if\s*\(\s*!\w+\s*\)\s*return/.test(src),

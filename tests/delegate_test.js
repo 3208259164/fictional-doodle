@@ -35,14 +35,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   {
     const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
     const oc = (html.match(/onclick="/g) || []).length;
-    const ocMulti = (html.match(/onclick="[^"]*;[^"]*"/g) || []).length;   /* 真正该迁移的是「一句里干几件事」的 */
+    const ocMulti = (html.match(/onclick="[^"]*;[^"]*"/g) || []).length;   /* 真正该迁移的是一句里干几件事的 */
     const da = (html.match(/data-act="/g) || []).length;
     ok(ocMulti <= 2, '残留复合语句 onclick ≤ 2 处（实为 ' + ocMulti + '）');
     ok(oc <= 5, '内联 onclick 总数 ≤ 5（实为 ' + oc + '：两个复合入口 + 扫盲/搜索聚焦）');
     ok(da >= 43, 'data-act 至少 43 处（实为 ' + da + '）');
   }
 
-  console.log('\n[2] 点击底栏「首页」');
+  console.log('\n[2] 点击底栏首页');
   {
     const { w, d, errs } = boot('#browse');
     await sleep(80);

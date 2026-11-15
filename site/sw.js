@@ -8,7 +8,7 @@
      页面导航 = network-first（带超时，失败回退缓存，再失败回退 offline.html）。
    · sw.js 由 _headers 设定 no-cache；注册时 updateViaCache:'none'（见 app.js）。
    ------------------------------------------------------------------ */
-const VERSION = 'v348';
+const VERSION = 'v355';
 const SHELL = 'yuanziyuan-' + VERSION;      // 应用外壳缓存
 const RUNTIME = 'yuanziyuan-rt-' + VERSION; // 运行时缓存
 const OFFLINE = './offline.html';
@@ -52,6 +52,7 @@ const CORE = [
   './assets/exportdata.js',
   './assets/extra.css',
   './assets/fulltext.js',
+  './assets/graph-cross.js',
   './assets/graph-edit.js',
   './assets/graph-hub.css',
   './assets/keys.js',
@@ -105,6 +106,7 @@ const CORE = [
   './data/netbasics.js',
   './data/nett.js',
   './data/overrides.js',
+  './data/people-extra.js',
   './data/person-index.js',
   './data/resources.js',
   './data/topics.js',
@@ -213,7 +215,7 @@ self.addEventListener('fetch', e => {
 });
 
 function put(cacheName, req, res) {
-  /* 只缓存「同源且成功（basic/ok）」的响应：避免把错误页或跨域 opaque 响应写进缓存（缓存投毒防护） */
+  /* 只缓存同源且成功（basic/ok）的响应：避免把错误页或跨域 opaque 响应写进缓存（缓存投毒防护） */
   if (!res || !res.ok || res.type !== 'basic') return;
   caches.open(cacheName).then(c => c.put(req, res)).catch(() => {});
 }

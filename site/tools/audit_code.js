@@ -30,7 +30,7 @@ const exists = p => { try { return fs.statSync(path.join(root, p)).isFile(); } c
 
 let acorn = null, acornVer = '';
 // 依赖解析顺序：ACORN_PATH 环境变量 > 常规 require > 本站 node_modules > tools/node_modules
-// （不在代码里写死开发机绝对路径，否则 CI 与其他机器上直接降级成「正则粗测」）
+// （不在代码里写死开发机绝对路径，否则 CI 与其他机器上直接降级成正则粗测）
 for (const c of [
   ...(process.env.ACORN_PATH ? [process.env.ACORN_PATH] : []),
   'acorn',
@@ -54,7 +54,7 @@ for (const c of [
   } catch (e) {}
 }
 
-/* ★ 清单必须覆盖全部自研脚本与页面：漏一个就会把「被它引用的东西」误报成死代码，
+/* ★ 清单必须覆盖全部自研脚本与页面：漏一个就会把被它引用的东西误报成死代码，
    也会漏掉它里面的悬空调用（2026-10-24 修：此前漏了 books/booksearch/challenge/layers/qa-engine 与 ask/challenge 页）。 */
 const JS_FILES = ['assets/app.js', 'assets/overlay.js', 'assets/editor.js', 'assets/graph-edit.js',
   'assets/books.js', 'assets/booksearch.js', 'assets/challenge.js', 'assets/layers.js', 'assets/qa-engine.js',
@@ -91,7 +91,7 @@ const allHtml = Object.values(HTML).join('\n');
 
 let issues = 0;
 /* 环境未就绪（没装 acorn）时，A/C/D 只能正则粗测，产出的全是误报。
-   这些误报以前被当成「1531 项待留意」并让门禁判红 —— 把「没跑」报成「跑失败」。
+   这些误报以前被当成1531 项待留意并让门禁判红 —— 把没跑报成跑失败。
    现在只静默记账，不计数、不打印，最后由汇总行统一说明。 */
 const SILENT = [];
 const note = m => {
@@ -199,7 +199,7 @@ const bad = [];
 called.forEach((c, n) => { if (!declared.has(n) && !BUILTIN.has(n) && !VENDOR.has(n)) bad.push(n); });
 if (!acorn) {
   console.log('  ⛔ 环境未就绪：未找到 acorn → A / C / D 三项没有真正执行。');
-  console.log('     这不是「检查出问题」，是「检查没跑」——不计入问题数，退出码 2。');
+  console.log('     这不是检查出问题，是检查没跑——不计入问题数，退出码 2。');
   console.log('     修复：cd ' + path.join(root, 'tools') + ' && npm i   （或设 ACORN_PATH=<acorn 目录>）');
   console.log('     · 以下为正则粗测结果，仅供排查环境时参考：');
   const re = /(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g;
@@ -343,7 +343,7 @@ const walkDir = (dir, out) => {
   return out;
 };
 /* 懒加载清单：不写在 HTML 里、由 JS 动态 <script> 注入的资源，静态扫描看不到，
-   这里显式登记，避免每次都被报成「未被引用」。 */
+   这里显式登记，避免每次都被报成未被引用。 */
 const LAZY_ASSETS = ['data/jtfull.js'];   /* 讲堂全文索引，fulltext.js 搜索时才注入 */
 let orphan = 0;
 [...walkDir('assets', []), ...walkDir('data', [])].forEach(a => {
@@ -363,5 +363,5 @@ if (!acorn) {
   console.log('\n—— 体检结果：' + (issues ? '⚠️ ' + issues + ' 项待留意' : '✅ 通过，无明显问题') + ' ——');
 }
 /* 退出码：0 通过 / 1 有问题（仅 --strict）/ 2 环境未就绪（没跑）
-   三者必须能区分，否则「没跑」会被误读成「跑失败」。 */
+   三者必须能区分，否则没跑会被误读成跑失败。 */
 process.exit(!acorn ? 2 : (STRICT && issues ? 1 : 0));

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 生成实体词典 data/entity.js（P1：图增强检索的「实体链接」底座）
+/* 生成实体词典 data/entity.js（P1：图增强检索的实体链接底座）
  *
  * 来源：概念库、三套图谱节点、资源书名与别名、术语表
  * 输出：window.SITE_ENTITY = [[名称, 类型, id, 别名串], ...]

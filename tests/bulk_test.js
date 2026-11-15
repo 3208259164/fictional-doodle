@@ -92,7 +92,7 @@ function fakeCtx() { return new Proxy({}, { get(t, p) { if (p === 'measureText')
   await sleep(60);
   const prevHTML = d.getElementById('bkPrev').innerHTML;
   ok('解析出预览', prevHTML.indexOf('共') > 0 && prevHTML.indexOf('新增') > 0);
-  ok('预览标出「新增 2」', /新增\s*<b[^>]*>2<\/b>/.test(prevHTML) || prevHTML.indexOf('>2<') > 0, prevHTML.slice(0, 200));
+  ok('预览标出新增 2', /新增\s*<b[^>]*>2<\/b>/.test(prevHTML) || prevHTML.indexOf('>2<') > 0, prevHTML.slice(0, 200));
   ok('有确认写入按钮', !!d.getElementById('bkCommit'));
 
   d.getElementById('bkCommit').click();
@@ -114,7 +114,7 @@ function fakeCtx() { return new Proxy({}, { get(t, p) { if (p === 'measureText')
   d.getElementById('bkParse').click();
   await sleep(50);
   const pv2 = d.getElementById('bkPrev').innerHTML;
-  ok('识别为「更新 1」', /更新\s*<b[^>]*>1<\/b>/.test(pv2) || pv2.indexOf('更新') > 0);
+  ok('识别为更新 1', /更新\s*<b[^>]*>1<\/b>/.test(pv2) || pv2.indexOf('更新') > 0);
   d.getElementById('bkCommit').click();
   await sleep(200);
   const p1 = (w.SITE_CONTENT.recommend || []).filter(x => x.name === '批量测试甲')[0];

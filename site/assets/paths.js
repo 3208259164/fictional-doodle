@@ -1,10 +1,10 @@
 /* =====================================================================
    学通 · 学习路径（paths.js）
    ---------------------------------------------------------------------
-   放在「阅读与手册」里：把散落各处的书按「先读什么、为什么读」串成一条线。
+   放在阅读与手册里：把散落各处的书按先读什么、为什么读串成一条线。
      · 内置 3 条（入门 / 哲学基础 / 党史与新中国），按书名片段匹配资源库，缺书自动跳过
-     · 可以「复制为我的路径」后增删步骤、写自己的说明、勾选完成
-     · 数据存 localStorage 'yzPaths'，随「导出我的数据」一起走
+     · 可以复制为我的路径后增删步骤、写自己的说明、勾选完成
+     · 数据存 localStorage 'yzPaths'，随导出我的数据一起走
    ===================================================================== */
 (function () {
   'use strict';
@@ -25,9 +25,9 @@
     return i;
   }
 
-  /* 内置路径：step 用「书名片段」而不是 id —— 资源库增删条目也不会断链 */
+  /* 内置路径：step 用书名片段而不是 id —— 资源库增删条目也不会断链 */
   var BUILTIN = [
-    { id: 'b-intro', name: '入门 · 从宣言到国家', desc: '半年内读完的主干：先把「马克思主义是什么」立起来，再进国家与革命问题。',
+    { id: 'b-intro', name: '入门 · 从宣言到国家', desc: '半年内读完的主干：先把马克思主义是什么立起来，再进国家与革命问题。',
       steps: [
         { t: '共产党宣言', note: '最短的纲领，先读它建立基本词汇' },
         { t: '社会主义从空想到科学的发展', note: '恩格斯写的通俗导论，讲清三大来源' },
@@ -163,7 +163,7 @@
 
   function html() {
     var out = '<h2 class="sub-title" style="margin-top:26px">📚 学习路径（书单）</h2>' +
-      '<p class="sub" style="margin:2px 0 8px;line-height:1.8">按「先读什么、为什么读」把书串起来。内置三条可直接照着走；也可以复制为自己的路径，增删步骤、写自己的说明、勾选完成（只存本机）。</p>';
+      '<p class="sub" style="margin:2px 0 8px;line-height:1.8">按先读什么、为什么读把书串起来。内置三条可直接照着走；也可以复制为自己的路径，增删步骤、写自己的说明、勾选完成（只存本机）。</p>';
 
     /* 我的路径 */
     var m = mine();
@@ -181,7 +181,7 @@
           '<div style="height:4px;background:var(--card-border);border-radius:3px;overflow:hidden;margin:6px 0"><i style="display:block;height:100%;width:' + pct + '%;background:var(--accent)"></i></div>' +
           '<ul style="list-style:none;padding:0;margin:4px 0 0">' +
           p.steps.map(function (s, i) { return stepHTML(s, i, p.id, true); }).join('') +
-          (p.steps.length ? '' : '<li style="font-size:.76rem;opacity:.6;padding:6px 0">还没有步骤。打开任意一本书，点「＋ 加入学习路径」。</li>') +
+          (p.steps.length ? '' : '<li style="font-size:.76rem;opacity:.6;padding:6px 0">还没有步骤。打开任意一本书，点＋ 加入学习路径。</li>') +
           '</ul></div>';
       }).join('');
     }
@@ -209,7 +209,7 @@
     } catch (e) {}
   }
   function create() {
-    var n = prompt('路径名称（如「半年的读书计划」）', '');
+    var n = prompt('路径名称（如半年的读书计划）', '');
     if (!n) return false;
     var d = prompt('一句话说明（可留空）', '') || '';
     addPath(n, d);
@@ -219,7 +219,7 @@
   function copy(id) { copyBuiltin(id); refresh(); return true; }
   function del(id) { if (!confirm('删除这条路径？步骤与勾选记录一起删掉。')) return false; delPath(id); refresh(); return true; }
 
-  /* 书详情页的「加入学习路径」入口 */
+  /* 书详情页的加入学习路径入口 */
   function pickFor(bookTitle) {
     var m = mine();
     var old = document.getElementById('yzPathPick');

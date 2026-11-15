@@ -1,8 +1,8 @@
 /* =====================================================================
-   学通 · 人物速查卡「分享图」生成器（assets/sharecard.js）
+   学通 · 人物速查卡分享图生成器（assets/sharecard.js）
    ---------------------------------------------------------------------
    用途：在 card.html（人物速查卡）里把某个人物渲染成一张深色卡片 PNG，
-         直接保存到本地 / 系统「下载」。全部用原生 Canvas 2D 手绘，
+         直接保存到本地 / 系统下载。全部用原生 Canvas 2D 手绘，
          不依赖 html2canvas 等第三方库，也不联网（二维码用站内自托管的
          assets/vendor/qrcode.min.js，即 qrcode-generator）。
 
@@ -197,7 +197,7 @@
   function deepLink(id) {
     var b = siteBase();
     if (!b) return '';
-    /* 带上节点所属图谱，否则对方打开时按自己上次看的图谱定位，会「找不到」 */
+    /* 带上节点所属图谱，否则对方打开时按自己上次看的图谱定位，会找不到 */
     var ds = '';
     try { ds = (window.graphOfNode ? window.graphOfNode(id) : '') || ''; } catch (e) {}
     return b + '/graph.html' + (ds && ds !== 'main' ? '?g=' + encodeURIComponent(ds) : '') + '#' + encodeURIComponent(id);
@@ -210,7 +210,7 @@
   /* ======================= 卡片数据模型 ======================= */
   function buildModel(id) {
     var n = nodeById(id);
-    if (!n) throw new Error('没找到人物「' + str(id) + '」（数据里没有这个 id）');
+    if (!n) throw new Error('没找到人物' + str(id) + '（数据里没有这个 id）');
     var ci = contentOf(n.name) || {};
     var points = [];
     if (n.points && n.points.length) points = n.points.slice(0);
@@ -526,8 +526,8 @@
     /* 背景 */
     paintBackground(ctx);
 
-    /* 版式：先按「简介 + 要点 + 代表文献」排；若正文不足 3 条，
-       依次尝试「去掉简介」「再去掉代表文献」，保证要点/关系不少于 3 条 */
+    /* 版式：先按简介 + 要点 + 代表文献排；若正文不足 3 条，
+       依次尝试去掉简介再去掉代表文献，保证要点/关系不少于 3 条 */
     var lay = plan(ctx, m, true, true);
     if (lay.blocks.length < MIN_ITEMS) {
       var alt1 = plan(ctx, m, false, true);
@@ -646,7 +646,7 @@
     var r = await render(id);
     var fname = 'yuanziyuan-card-' + safeName(r.id) + '-' + (today() || 'card') + '.png';
     var ok = false;
-    /* App 内 WebView：YZSave → AndroidApp.saveBase64 存到系统「下载」 */
+    /* App 内 WebView：YZSave → AndroidApp.saveBase64 存到系统下载 */
     if (window.YZSave && typeof window.YZSave.url === 'function') {
       try { ok = !!((window.AndroidApp && window.YZSave.openURL) ? window.YZSave.openURL(fname, r.dataURL) : window.YZSave.url(fname, r.dataURL)); } catch (e) { ok = false; }
       if (!ok && typeof window.YZSave.base64 === 'function') {
@@ -698,7 +698,7 @@
     tip('正在绘制分享图…', false);
     save(id).then(function (r) {
       if (btn) { btn.disabled = false; btn.textContent = '✓ 已保存'; }
-      tip((window.AndroidApp ? '已保存到系统「下载」并打开：' : '已下载：') + r.filename + '（' + Math.round(r.bytes / 1024) + ' KB）' + (r.qr ? '' : '，二维码未生成'), false);
+      tip((window.AndroidApp ? '已保存到系统下载并打开：' : '已下载：') + r.filename + '（' + Math.round(r.bytes / 1024) + ' KB）' + (r.qr ? '' : '，二维码未生成'), false);
       try { if (window.YZSave && window.YZSave.preview) window.YZSave.preview(r.filename, r.dataURL); } catch (e) {}
       setTimeout(function () { if (btn) btn.textContent = old || '📤 生成分享图'; }, 2200);
     }).catch(function (err) {

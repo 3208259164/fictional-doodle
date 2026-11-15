@@ -1,5 +1,5 @@
 /* 引文比对回归（14 项）
-   功能：把用户记得的「半句」跟站内所有正文段落做模糊比对，记错几个字也能找到出处。
+   功能：把用户记得的半句跟站内所有正文段落做模糊比对，记错几个字也能找到出处。
    加载方式：只 eval data/*.js + fulltext.js + quote-match.js（不加载整页），
             避免把 1.7MB 数据脚本塞进 index.html 解析流程导致超时。 */
 const fs = require('fs');
@@ -59,7 +59,7 @@ if (r1.length) {
 } else { ok('（无结果，结构断言失败）', false); fail++; }
 
 /* ⑧ 定位映射：归一化下标必须能正确回到原文（标点不造成错位） */
-const S0 = '甲：「阶级斗争」是历史的直接动力，这一点很重要。';
+const S0 = '甲：阶级斗争是历史的直接动力，这一点很重要。';
 const loc = Q._locate(S0, '阶级斗争是历史的直接动力');
 ok('定位能跨过标点找到原文位置', !!loc && loc.start >= 0 && loc.end > loc.start,
   loc ? ('原文 ' + loc.start + '—' + loc.end) : '未定位');
@@ -75,7 +75,7 @@ ok('单次结果按加权分降序', all.every((x, i) => i === 0 || all[i - 1].s
 /* ⑩ 集成：源码里确实挂了兜底，且被 index.html / sw.js 引用 */
 const appjs = fs.readFileSync(SITE + 'assets/app.js', 'utf8');
 ok('app.js 在精确检索零结果时调用 YZQUOTE', /YZQUOTE\.match\(/.test(appjs));
-// 0.18 起这个模块改成「按需注入」：首页不引它，搜索时才 need 一份。
+// 0.18 起这个模块改成按需注入：首页不引它，搜索时才 need 一份。
 // 断言要跟着口径走：只要能被加载到（首屏引用 / 懒加载清单 / 搜索路径里 need）就算过。
 const _qref = ['index.html', 'assets/lazydata.js', 'assets/app.js']
   .filter(f => { try { return /quote-match\.js/.test(fs.readFileSync(SITE + f, 'utf8')); } catch (e) { return false; } });

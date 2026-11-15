@@ -1,5 +1,5 @@
-/* 世界图谱事件「背景 / 影响」回归（10 项）
-   背景：79 个事件节点原来只有 desc + points，没有「为什么发生」与「后来怎样」。
+/* 世界图谱事件背景 / 影响回归（10 项）
+   背景：79 个事件节点原来只有 desc + points，没有为什么发生与后来怎样。
         本次补 bg/impact 并在节点面板渲染，本测试锁住数据完整性与渲染链路。 */
 const path = require('path'), fs = require('fs');
 const { JSDOM, VirtualConsole } = require(path.join(__dirname, 'node_modules', 'jsdom'));
@@ -24,22 +24,22 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
 
   const N = w.GR.nodes;
   const ev = N.filter(n => n.type === 'event');
-  /* 不写死数量：事件会持续增加。守的是「世界性事件成规模」这个下限。 */
+  /* 不写死数量：事件会持续增加。守的是世界性事件成规模这个下限。 */
   ok('世界图谱事件节点 ≥79 个', ev.length >= 79, ev.length + ' 个');
-  ok('每个事件都有「背景」', ev.every(n => n.bg && n.bg.length >= 20),
+  ok('每个事件都有背景', ev.every(n => n.bg && n.bg.length >= 20),
     ev.filter(n => !n.bg).map(n => n.name).join(',') || '全部有');
-  ok('每个事件都有「影响 · 意义」', ev.every(n => n.impact && n.impact.length >= 20),
+  ok('每个事件都有影响 · 意义', ev.every(n => n.impact && n.impact.length >= 20),
     ev.filter(n => !n.impact).map(n => n.name).join(',') || '全部有');
   const tot = ev.reduce((a, n) => a + n.bg.length + n.impact.length, 0);
   ok('背景+影响总字数过九千', tot > 9000, tot + ' 字');
 
-  /* 渲染链路：选中事件节点后面板应出现「背景」与「影响 · 意义」 */
+  /* 渲染链路：选中事件节点后面板应出现背景与影响 · 意义 */
   try { w.panel('ev_stalingrad'); } catch(e) { console.log('  panel 调用异常: '+e.message); }
   const ppts = d.getElementById('ppts');
   ok('节点面板已渲染', !!ppts);
   const html = ppts ? ppts.innerHTML : '';
-  ok('面板出现「背景」段', html.indexOf('背景') >= 0);
-  ok('面板出现「影响」段', html.indexOf('影响') >= 0);
+  ok('面板出现背景段', html.indexOf('背景') >= 0);
+  ok('面板出现影响段', html.indexOf('影响') >= 0);
   ok('内容是斯大林格勒的背景（不是别的节点）', html.indexOf('1942 年夏') >= 0 || html.indexOf('蓝色') >= 0);
 
   /* 无 bg 的节点不应出现背景段（退化路径） */
@@ -47,7 +47,7 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
   if (pn) {
     try { w.panel(pn.id); } catch(e) {}
     const h2 = d.getElementById('ppts').innerHTML;
-    ok('人物节点不显示「背景」段', h2.indexOf('>背景<') < 0 || h2.indexOf('sub2">背景') < 0);
+    ok('人物节点不显示背景段', h2.indexOf('>背景<') < 0 || h2.indexOf('sub2">背景') < 0);
   } else { ok('（无人物节点可测退化路径，跳过）', true); }
 
   if (errs.length) { console.log('\n JS 错误: ' + errs.slice(0, 3).join(' | ')); fail++; }

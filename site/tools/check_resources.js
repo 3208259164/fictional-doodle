@@ -11,7 +11,7 @@
    再对每条链接分类：确已失效 / 限流防盗链 / 对端故障 / 本机无法联网 /
    疑似地区限制，并给出对应处理建议，避免误判。
    ---------------------------------------------------------------------
-   退出码：发现「错误」时为 1，仅「提醒」时为 0。
+   退出码：发现错误时为 1，仅提醒时为 0。
    ===================================================================== */
 const fs = require('fs');
 const path = require('path');
@@ -56,9 +56,9 @@ for (const k of ['siteUrl', 'tgChannel', 'email', 'requestForm']) {
   if (v.includes('example') || v === '' || v === '#') { console.log('⚠️ config.' + k + ' 未填写/占位'); warns++; add('warn', 'config.' + k, '未填写'); }
 }
 
-/* 稀疏数组（数组字面量里的「空位」）检测：
+/* 稀疏数组（数组字面量里的空位）检测：
    这类空洞会让 forEach / map 静默跳过、而普通 for 循环与 findIndex 会拿到 undefined，
-   表现为「首页 JS 报 Cannot read properties of undefined」且内建校验全部查不出来。 */
+   表现为首页 JS 报 Cannot read properties of undefined且内建校验全部查不出来。 */
 let holes = 0;
 for (let i = 0; i < RES.length; i++) if (!(i in RES)) { holes++; }
 if (holes) { console.log('❌ 资源数组存在 ' + holes + ' 个空位（很可能是删条目时多留了逗号）'); errors++; add('error', '(资源数组)', '存在 ' + holes + ' 个空位（多余逗号）'); }
@@ -66,7 +66,7 @@ else console.log('✓ 资源数组无空位（' + RES.length + ' 条）');
 
 const urlChecks = [];
 RES.forEach((r, i) => {
-  const at = '#' + (i + 1) + ' 「' + (r.title || '(无标题)') + '」';
+  const at = '#' + (i + 1) + ' ' + (r.title || '(无标题)') + '';
   for (const f of REQUIRED) if (!r[f]) { console.log('❌ ' + at + ' 缺少必填字段 ' + f); errors++; add('error', r.title, '缺少必填字段 ' + f); }
   if (r.id) { if (seenId.has(r.id)) { console.log('❌ ' + at + ' id 重复：' + r.id); errors++; add('error', r.title, 'id 重复 ' + r.id); } else seenId.set(r.id, i); }
   if (r.title) { if (seenTitle.has(r.title)) { console.log('❌ ' + at + ' 标题重复'); errors++; add('error', r.title, '标题重复'); } else seenTitle.set(r.title, i); }

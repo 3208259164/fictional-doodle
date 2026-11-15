@@ -1,7 +1,7 @@
 /* =====================================================================
    学通 · 共享小工具（文件保存）
    - YZSave.text(name,mime,text) / YZSave.base64(name,mime,b64) / YZSave.url(name,dataURL)
-       App 内优先走 AndroidApp.saveBase64（保存到系统「下载」）；
+       App 内优先走 AndroidApp.saveBase64（保存到系统下载）；
        网页端回退为 Blob + <a download>。两处都不依赖网络。
    ===================================================================== */
 (function () {
@@ -48,7 +48,7 @@
     if (isApp()) {
       var d = '';
       try { d = (window.AndroidApp && AndroidApp.exportDirLabel) ? String(AndroidApp.exportDirLabel() || '') : ''; } catch (e) {}
-      return (d ? ('已保存到「' + d + '」：') : '已保存到系统「下载」：') + name;
+      return (d ? ('已保存到' + d + '：') : '已保存到系统下载：') + name;
     }
     return '已下载：' + name;
   }
@@ -111,7 +111,7 @@
         if (name) node.setAttribute('aria-label', name);
       }
       var p = document.createElement('p');
-      p.textContent = note || ((isApp() ? '已保存到系统「下载」：' : '已下载：') + name);
+      p.textContent = note || ((isApp() ? '已保存到系统下载：' : '已下载：') + name);
       p.style.cssText = 'color:#fff;font-size:.85rem;margin:0;text-align:center;line-height:1.6;max-width:92vw;word-break:break-all';
       /* 完整文本（pre 里只显示前 4000 字） */
       var full = /^data:/i.test(bodyStr) ? dataURLToText(bodyStr) : bodyStr;
@@ -161,7 +161,7 @@
     try { if (typeof window.yzOnSaveResult === 'function') window.yzOnSaveResult(r || {}); } catch (e) {}
   };
   /* 导出即分享（0.18.24）：App 内直接把文件交给系统分享面板（微信/QQ/网盘/邮件），
-     不再往系统「下载」目录丢——手机上那个目录用户根本找不到。
+     不再往系统下载目录丢——手机上那个目录用户根本找不到。
      浏览器没有分享面板，就还回下载。返回 'share' / 'save' / false，调用方据此出提示。 */
   function shareBase64(name, mime, b64) {
     mime = mime || 'application/octet-stream';

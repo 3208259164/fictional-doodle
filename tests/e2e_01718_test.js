@@ -49,14 +49,14 @@ setTimeout(() => {
   /* 正文检索真的进了全站搜索 */
   const hits = w.omniSearch('唯物主义');
   ok('② 全站搜索命中 > 0', hits.length > 0, hits.length + ' 条');
-  ok('② 结果里有「词典」类（正文级新增来源）', hits.some(h => h.cat === '词典'));
+  ok('② 结果里有词典类（正文级新增来源）', hits.some(h => h.cat === '词典'));
   ok('② 结果里有带上下文片段的条目', hits.some(h => h.snip && h.snip.length > 8));
   const cats = [...new Set(hits.map(h => h.cat))];
   ok('② 分类覆盖 ≥3 种', cats.length >= 3, cats.join('/'));
 
   /* 作者名 → 人物页 */
   const two = w.authorPeople('马克思恩格斯');
-  ok('③ 「马克思恩格斯」拆成 2 位作者', two.length === 2, two.map(x => x.name).join(' + '));
+  ok('③ 马克思恩格斯拆成 2 位作者', two.length === 2, two.map(x => x.name).join(' + '));
   const critic = w.authorPeople('蒲鲁东');
   ok('③ 被批判人物也能从书名点进去', critic.length === 1 && critic[0].kind === 'critic');
 
@@ -75,8 +75,8 @@ setTimeout(() => {
   ok('⑤ 章节能被识别（第一章/第二章）', chs.length === 2, JSON.stringify(chs.map(c => c.title)));
 
   /* 懒加载文革数据：首屏不该有，loadWengeGraph 在 */
-  /* 本测试装了 _lazy_hook，按需文件会被主动加载，所以不能拿「数据没加载」当判据。
-     判据改成「index.html 首屏没有静态引用它」——这才是懒加载真正要守的。 */
+  /* 本测试装了 _lazy_hook，按需文件会被主动加载，所以不能拿数据没加载当判据。
+     判据改成index.html 首屏没有静态引用它——这才是懒加载真正要守的。 */
   ok('⑥ 文革图谱不在首屏静态引用里（懒加载生效）',
      !/<script[^>]*src="[^"]*graph-wenge/.test(fs.readFileSync(require('path').join(SITE_DIR, 'index.html'), 'utf8')));
   ok('⑥ 懒加载入口存在', typeof w.loadWengeGraph === 'function');

@@ -11,7 +11,7 @@
      3. 所有点击处理都有 try/catch，失败会弹出可见提示，绝不“点了没反应”
      4. 写入后读回校验，存储失败会明确告警
      5. 保存后即时生效（重跑覆盖层 + 刷新页面渲染），无需整页刷新
-   用法：点左下角 ✏️；或 index.html?edit=1；也可在「设置 → 自助编辑」里开关
+   用法：点左下角 ✏️；或 index.html?edit=1；也可在设置 → 自助编辑里开关
    ===================================================================== */
 (function () {
   'use strict';
@@ -43,7 +43,7 @@
   function esc(s) { return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, html) { var d = document.createElement(tag); if (cls) d.className = cls; if (html !== undefined) d.innerHTML = html; return d; }
-  /* 不再生成简笔画头像：一律返回空串，列表里会自动改画「姓氏字头像」 */
+  /* 不再生成简笔画头像：一律返回空串，列表里会自动改画姓氏字头像 */
 
   /* ================= 样式（兼容旧 WebView：不用 inset，env 带 fallback） ================= */
   var CSS = '' +
@@ -133,9 +133,9 @@
     u3.addEventListener('click', function () {
       var info = (window.YZY && YZY.histInfo) ? YZY.histInfo() : { pos: 0 };
       if (!info.pos) { ztip('已经在最初状态'); return; }
-      if (!confirm('撤回到最初的样子？\n（一共有 ' + info.pos + ' 步改动可以退回，退回后还能用「↷ 重做」一步步回来）')) return;
+      if (!confirm('撤回到最初的样子？\n（一共有 ' + info.pos + ' 步改动可以退回，退回后还能用↷ 重做一步步回来）')) return;
       var r = (window.YZY && YZY.undoAll) ? YZY.undoAll() : { ok: false, msg: '编辑器未就绪' };
-      ztip(r.ok ? '已回到最初，可点「↷ 重做」回来' : (r.msg || '操作未生效'));
+      ztip(r.ok ? '已回到最初，可点↷ 重做回来' : (r.msg || '操作未生效'));
       try { render(); } catch (e) { }
     });
     function syncUndo() {
@@ -338,8 +338,8 @@
     var st = YZY.storage();
     box.appendChild(el('div', 'znote' + (st.ok ? '' : ' zwarn'),
       st.ok
-        ? '改动只存在本机（' + esc(st.backend) + '），不上传、不改动网站、不影响他人。要让改动全站生效：到「数据」导出 JSON，交给站点维护者。'
-        : '⚠ 本机存储不可用：' + esc(st.warn) + '。可继续编辑，但建议尽快到「数据」导出 JSON 备份。'));
+        ? '改动只存在本机（' + esc(st.backend) + '），不上传、不改动网站、不影响他人。要让改动全站生效：到数据导出 JSON，交给站点维护者。'
+        : '⚠ 本机存储不可用：' + esc(st.warn) + '。可继续编辑，但建议尽快到数据导出 JSON 备份。'));
 
     try {
       if (tab === 'res') box.appendChild(resTab());
@@ -356,7 +356,7 @@
     wrap.appendChild(topBtn);
     wrap.onscroll = function () { topBtn.classList.toggle('show', (wrap.scrollTop || 0) > 320); };
     /* ★ 每次重绘都回到最上面：以前 innerHTML 重建但 scrollTop 保留，
-       于是「退出重进还在底部」。 */
+       于是退出重进还在底部。 */
     try { wrap.scrollTop = 0; } catch (e) {}
     if (window.__zzySyncUndo) { try { window.__zzySyncUndo(); } catch (e) {} }
     topBtn.classList.toggle('show', false);
@@ -481,7 +481,7 @@
     if (!n) out = '<div class="znote">没有匹配条目。</div>';
     return out;
   }
-  /* 章节目录：编辑器里用「标题｜说明」每行一条的纯文本，和详情页编辑框同一套格式 */
+  /* 章节目录：编辑器里用标题｜说明每行一条的纯文本，和详情页编辑框同一套格式 */
   function chText2(it) {
     return ((it && it.chapters) || []).map(function (c) {
       c = c || {}; return (c.t || '') + (c.d ? '｜' + c.d : '');
@@ -578,7 +578,7 @@
         var b = e.target && e.target.closest ? e.target.closest('button') : null; if (!b) return;
         var nm = b.getAttribute('data-nm'), act = b.getAttribute('data-act');
         if (act === 'edit') evtForm(nm);
-        else if (act === 'del') askConfirm('删除事件「' + nm + '」？（仅本机，可用撤销找回）', '').then(function (y) {
+        else if (act === 'del') askConfirm('删除事件' + nm + '？（仅本机，可用撤销找回）', '').then(function (y) {
           if (!y) return;
           var r = YZY.removeEvent(nm);
           if (!r || r.ok === false) { toast((r && r.msg) || '删除失败', true); return; }
@@ -666,7 +666,7 @@
     if (!isNew) {
       var del = el('button', 'zbtn danger', '删除该事件'); del.type = 'button';
       del.onclick = function () {
-        askConfirm('删除事件「' + name + '」？', '').then(function (y) {
+        askConfirm('删除事件' + name + '？', '').then(function (y) {
           if (!y) return;
           YZY.removeEvent(name); applyNow('已删除'); render();
         });
@@ -693,7 +693,7 @@
     bar.appendChild(sel);
     if (pSel === 'leaders') {
       /* 革命导师为内置固定五位：不提供新增，避免与内置名单冲突 */
-      f.appendChild(el('div', 'znote', '「革命导师」为内置固定的五位，不接受新增。要补充人物，请切换到「革命同志」或「被批判人物」。'));
+      f.appendChild(el('div', 'znote', '革命导师为内置固定的五位，不接受新增。要补充人物，请切换到革命同志或被批判人物。'));
     } else {
       var addp = el('button', 'zbtn', '＋ 新增人物'); addp.type = 'button';
       addp.onclick = function () { personNewForm(); };
@@ -785,7 +785,7 @@
   function personAvatarForm(group, name, cur) {
     var f = el('div');
     f.appendChild(el('h3', '', '上传头像：' + esc(name)));
-    f.appendChild(el('div', 'znote', '头像会缩到 256px 并压缩后存在本机（不上传）。若不满意可「移除」恢复默认线稿头像。'));
+    f.appendChild(el('div', 'znote', '头像会缩到 256px 并压缩后存在本机（不上传）。若不满意可移除恢复默认线稿头像。'));
     var val = { v: cur };
     f.appendChild(avatarPicker('zzyAva', cur, function (v) { val.v = v; }));
     var bar = el('div');
@@ -814,7 +814,7 @@
       ['related', '相关推荐书目（每行一个书名）', 'textarea']], d, 'zzyNewP'));
     f.appendChild(el('label', '', '目录'));
     var sel = el('select'); sel.id = 'zzyNewP_group';
-    /* 目录选项排除「革命导师」：内置固定五位，不可新增 */
+    /* 目录选项排除革命导师：内置固定五位，不可新增 */
     PG.filter(function (g) { return g[0] !== 'leaders'; })
       .forEach(function (g) { var o = el('option'); o.value = g[0]; o.textContent = g[1]; sel.appendChild(o); });
     f.appendChild(sel);
@@ -846,7 +846,7 @@
   function catTab() {
     var f = el('div');
     f.appendChild(el('h3', '', '目录管理'));
-    f.appendChild(el('div', 'znote', '改名只改显示名，条目的链接与内容不变；「新增目录」可新建空目录（再把资源移进去）。'));
+    f.appendChild(el('div', 'znote', '改名只改显示名，条目的链接与内容不变；新增目录可新建空目录（再把资源移进去）。'));
 
     f.appendChild(el('h4', '', '新增目录'));
     var addRow = el('div', 'zrow');
@@ -862,7 +862,7 @@
     };
     addRow.appendChild(ni); addRow.appendChild(nb); f.appendChild(addRow);
 
-    f.appendChild(el('h4', '', '「史料」栏目名'));
+    f.appendChild(el('h4', '', '史料栏目名'));
     HUB_DEFAULT.forEach(function (h) {
       var cur = YZY.getHubLabel(h[0], h[1]);
       var row = el('div', 'zrow');
@@ -891,7 +891,7 @@
       };
       var d = el('button', 'zbtn danger', '删除'); d.type = 'button';
       d.onclick = function () {
-        askConfirm('删除目录「' + c + '」？', '目录内已有条目不会被删除，它们会显示原有分类名。').then(function (y) {
+        askConfirm('删除目录' + c + '？', '目录内已有条目不会被删除，它们会显示原有分类名。').then(function (y) {
           if (!y) return; YZY.removeCat(c); applyNow('已删除目录'); render();
         });
       };
@@ -904,7 +904,7 @@
   function graphTab() {
     var f = el('div');
     f.appendChild(el('h3', '', '关系图谱'));
-    f.appendChild(el('div', 'znote', '在画布上可「新建图谱 / 加节点 / 连线 / 设关系线颜色与名称 / 删节点」。点下方按钮进入画布编辑模式。'));
+    f.appendChild(el('div', 'znote', '在画布上可新建图谱 / 加节点 / 连线 / 设关系线颜色与名称 / 删节点。点下方按钮进入画布编辑模式。'));
     var open = el('a', 'zbtn', '🕸 打开图谱编辑');
     open.href = 'graph.html?edit=1'; open.style.display = 'inline-block'; open.style.textDecoration = 'none';
     f.appendChild(open);
@@ -920,7 +920,7 @@
         var v = $('zzyNewGraph').value;
         var r = YZY.newGraph(v);
         if (r && r.ok === false) { toast(r.msg || '失败', true); return; }
-        applyNow('已新建图谱「' + r.name + '」，正在打开…');
+        applyNow('已新建图谱' + r.name + '，正在打开…');
         setTimeout(function () { try { location.href = 'graph.html?edit=1'; } catch (e) {} }, 260);
       } catch (e) { showErr(e && e.message); }
     };
@@ -940,7 +940,7 @@
         var rn = el('button', 'zbtn ghost', '改名'); rn.type = 'button';
         rn.onclick = function () { askText('重命名图谱', g.name).then(function (v) { if (v) { YZY.renameGraph(g.id, v); applyNow('已改名'); render(); } }); };
         var de = el('button', 'zbtn danger', '删除'); de.type = 'button';
-        de.onclick = function () { askConfirm('删除图谱「' + g.name + '」？', '图谱内的节点与关系会一并删除，不可恢复。').then(function (y) { if (y) { YZY.deleteGraph(g.id); applyNow('已删除'); render(); } }); };
+        de.onclick = function () { askConfirm('删除图谱' + g.name + '？', '图谱内的节点与关系会一并删除，不可恢复。').then(function (y) { if (y) { YZY.deleteGraph(g.id); applyNow('已删除'); render(); } }); };
         ops.appendChild(sw); ops.appendChild(rn); ops.appendChild(de);
       } else if (g.id !== act) {
         var sw2 = el('button', 'zbtn ghost', '切换回主图谱'); sw2.type = 'button';
@@ -977,7 +977,7 @@
     }
     return lines.map(function (l) { return l.split(sep).map(function (x) { return x.trim(); }); });
   }
-  /* JSON → 「一行一条」文本：接受 [{...}] 或 {items|list|data|rows:[...]} */
+  /* JSON → 一行一条文本：接受 [{...}] 或 {items|list|data|rows:[...]} */
   function bulkFromJSON(txt, kind) {
     var o = JSON.parse(txt);
     var arr = Array.isArray(o) ? o : (o && (o.items || o.list || o.data || o.rows));
@@ -1001,13 +1001,13 @@
       var done = function () { try { inp.remove(); } catch (e) {} };
       if (!file) { done(); return; }
       var fr = new FileReader();
-      /* 注意：input 元素必须留到读取结束再移除，提前 remove 会让部分内核 FileReader 报「读取文件失败」 */
+      /* 注意：input 元素必须留到读取结束再移除，提前 remove 会让部分内核 FileReader 报读取文件失败 */
       fr.onerror = function () { toast('读取文件失败', true); done(); };
       fr.onload = function () {
         var txt = String(fr.result || ''), name = file.name || '';
         try {
           if (/^\s*[\[{]/.test(txt) || /\.json$/i.test(name)) txt = bulkFromJSON(txt, kind);
-        } catch (e) { showErr('「' + name + '」不是可用的 JSON：' + (e && e.message)); return; }
+        } catch (e) { showErr('' + name + '不是可用的 JSON：' + (e && e.message)); return; }
         var ta = document.getElementById(kind === 'res' ? 'zzyBulkRes' : 'zzyBulkPpl');
         if (ta) ta.value = txt;
         var rows = bulkLines(txt).length;
@@ -1066,7 +1066,7 @@
       if (r && r.ok) { okN++; have[title] = 1; } else { bad.push('第 ' + (i + 1) + ' 行：' + ((r && r.msg) || '写入失败')); }
     });
     var msg = '书壳：成功 ' + okN + ' 条' + (dup ? '，跳过重复 ' + dup + ' 条' : '') +
-      (missCat ? '，' + missCat + ' 条分类不认识已归入「原著」' : '') + (bad.length ? '，失败 ' + bad.length + ' 条' : '');
+      (missCat ? '，' + missCat + ' 条分类不认识已归入原著' : '') + (bad.length ? '，失败 ' + bad.length + ' 条' : '');
     toast(msg, bad.length > 0);
     if (bad.length) showErr('批量导入书壳：\n' + bad.slice(0, 12).join('\n'));
     if (okN) { applyNow('已导入 ' + okN + ' 本书'); tab = 'res'; render(); }
@@ -1086,13 +1086,13 @@
         if (intro) patch.intro = intro;
         if (role) patch.role = role;
         if (years) patch.years = years;
-        if (!Object.keys(patch).length) { bad.push('第 ' + (i + 1) + ' 行：「' + name + '」已存在，但这一行没给新内容'); return; }
+        if (!Object.keys(patch).length) { bad.push('第 ' + (i + 1) + ' 行：' + name + '已存在，但这一行没给新内容'); return; }
         var r = YZY.editPerson(hit.group, name, patch);
         if (r && r.ok) { okN++; upd++; } else { bad.push('第 ' + (i + 1) + ' 行：' + ((r && r.msg) || '更新失败')); }
         return;
       }
       if (!g) g = 'comrades';
-      if (g === 'leaders') { bad.push('第 ' + (i + 1) + ' 行：「革命导师」只有固定五位，不能新增「' + name + '」；要改介绍请用已有姓名'); return; }
+      if (g === 'leaders') { bad.push('第 ' + (i + 1) + ' 行：革命导师只有固定五位，不能新增' + name + '；要改介绍请用已有姓名'); return; }
       var r2 = YZY.addPerson({ name: name, group: g, years: years, role: role, intro: intro });
       if (r2 && r2.ok) { okN++; add++; } else { bad.push('第 ' + (i + 1) + ' 行：' + ((r2 && r2.msg) || '新增失败')); }
     });
@@ -1104,8 +1104,8 @@
 
   /* ---------------- 数据 ---------------- */
   /* ---------------- 关系清单（0.17.40）----------------
-     为什么要这块：改「关系」原本只有一条路——跳到 graph.html 的画布上长按节点。
-     但改关系名、删一条错关系、补一条漏关系，本质是「改数据」，不该强迫用户去打画布。
+     为什么要这块：改关系原本只有一条路——跳到 graph.html 的画布上长按节点。
+     但改关系名、删一条错关系、补一条漏关系，本质是改数据，不该强迫用户去打画布。
      现在两套编辑分工明确：这里改数据，画布改布局与位置。二者写的是同一份覆盖层。 */
   function relNodeMap(gid){
     var d = YZY.graphData(gid) || { nodes: [], links: [] };
@@ -1138,7 +1138,7 @@
 
   function relTab(f){
     f.appendChild(el('h4', '', '关系清单'));
-    f.appendChild(el('div', 'znote', '这里改的是「数据」：关系名、增删。要看连线走向、拖动位置，再点上面的「打开图谱编辑」。两处写的是同一份本机改动。'));
+    f.appendChild(el('div', 'znote', '这里改的是数据：关系名、增删。要看连线走向、拖动位置，再点上面的打开图谱编辑。两处写的是同一份本机改动。'));
 
     var qi = el('input'); qi.id = 'zzyRelQ'; qi.placeholder = '筛选：节点名或关系名';
     f.appendChild(qi);
@@ -1149,7 +1149,7 @@
 
     /* 事件委托必须绑在 #zzyWrap 上，不能绑在这个列表上：
        render() 会 wrap.innerHTML='' 重建整棵子树，绑在列表上的监听器当场丢失 ——
-       表现就是「第一次点有效、保存后又点不动」。wrap 元素本身不会被替换，所以绑它能活。 */
+       表现就是第一次点有效、保存后又点不动。wrap 元素本身不会被替换，所以绑它能活。 */
     var wrapEl = document.getElementById('zzyWrap');
     if (wrapEl && !wrapEl.__zRelBound) {
       wrapEl.__zRelBound = true;
@@ -1171,12 +1171,12 @@
             v = String(v || '').trim();
             if (!v || v === old) return;
             /* 改名 = 删旧 + 加新，不走 setEdgeStyle 的 label。
-               原因：label 只改「显示名」不改数据，改完之后用新名字去删就删不掉（key 里还是旧名），
+               原因：label 只改显示名不改数据，改完之后用新名字去删就删不掉（key 里还是旧名），
                导出、画布、删除三方会各说各话。删旧加新能让 key 始终自洽。 */
             YZY.removeGraphEdge(gid, key);
             var r = YZY.addGraphEdge(gid, { source: parts[0], target: parts[1], rel: v });
             if (r && r.ok === false) { toast(r.msg || '改名失败', true); return; }
-            applyNow('关系名已改为「' + v + '」'); render();
+            applyNow('关系名已改为' + v + ''); render();
           });
         }
       });
@@ -1230,12 +1230,12 @@
       try {
         var txt = YZY.exportJSON(), name = '学通-我的改动-' + new Date().toISOString().slice(0, 10) + '.json';
         if (window.YZSave && YZSave.share) {
-          /* 先走「文件 + 系统分享/其他应用打开」，剪贴板放不下大 JSON */
+          /* 先走文件 + 系统分享/其他应用打开，剪贴板放不下大 JSON */
           if (YZSave.share(name, 'application/json;charset=utf-8', txt)) { toast('已导出 ' + name); return; }
         }
         if (window.AndroidApp && window.AndroidApp.saveBase64) {
           window.AndroidApp.saveBase64(name, btoa(unescape(encodeURIComponent(txt))), 'application/json');
-          toast('已保存到「下载」：' + name); return;
+          toast('已保存到下载：' + name); return;
         }
         var b = new Blob([txt], { type: 'application/json' });
         var u = URL.createObjectURL(b), a = document.createElement('a');
@@ -1273,7 +1273,7 @@
     /* ---------- 批量导入：书壳 / 人物介绍 ---------- */
     f.appendChild(el('h3', '', '批量导入（书壳 / 人物介绍）'));
     f.appendChild(el('div', 'znote',
-      '一行一条，字段用 <b>|</b> 分隔；空行与 <b>#</b> 开头的行会被忽略。导入后立刻出现在「资源」/「人物」页，可直接点开核对。' +
+      '一行一条，字段用 <b>|</b> 分隔；空行与 <b>#</b> 开头的行会被忽略。导入后立刻出现在资源/人物页，可直接点开核对。' +
       '<br>书壳：<code>书名 | 作者 | 分类 | 简介</code>' +
       '<br>人物：<code>姓名 | 分组 | 年份 | 定位 | 介绍</code>　　（姓名已存在＝改介绍，不存在＝新增；分组可留空）'));
 
@@ -1289,7 +1289,7 @@
     var fileR = el('button', 'zbtn ghost', '📄 从文件导入（书壳）'); fileR.type = 'button';
     fileR.onclick = function () { pickBulkFile('res'); };
     rowR.appendChild(demoR); rowR.appendChild(fileR); rowR.appendChild(goR); f.appendChild(rowR);
-    f.appendChild(el('div', 'znote', '可用分类：' + cats().join(' / ') + '（写错会自动归入「原著」并提示）'));
+    f.appendChild(el('div', 'znote', '可用分类：' + cats().join(' / ') + '（写错会自动归入原著并提示）'));
 
     f.appendChild(el('label', '', '② 人物介绍'));
     var taP = el('textarea'); taP.id = 'zzyBulkPpl';
@@ -1303,7 +1303,7 @@
     var fileP = el('button', 'zbtn ghost', '📄 从文件导入（人物）'); fileP.type = 'button';
     fileP.onclick = function () { pickBulkFile('ppl'); };
     rowP.appendChild(demoP); rowP.appendChild(fileP); rowP.appendChild(goP); f.appendChild(rowP);
-    f.appendChild(el('div', 'znote', '分组：革命导师 / 革命同志 / 被批判人物（「革命导师」为固定五位，只能改介绍不能新增）'));
+    f.appendChild(el('div', 'znote', '分组：革命导师 / 革命同志 / 被批判人物（革命导师为固定五位，只能改介绍不能新增）'));
 
     var rst = el('button', 'zbtn danger', '清空本机全部改动'); rst.type = 'button';
     rst.onclick = function () { askConfirm('确定清空本机所有改动？', '不影响线上站点。此操作不可撤销。').then(function (y) { if (y) { YZY.reset(); applyNow('已清空'); render(); } }); };
@@ -1328,7 +1328,7 @@
 
   /* ================= 启动 ================= */
   function boot() {
-    if (!YZY.editorEnabled()) return;   // 在「设置 → 自助编辑」里关掉了
+    if (!YZY.editorEnabled()) return;   // 在设置 → 自助编辑里关掉了
     mount();
     if (/[?&]edit=1/.test(location.search)) {
       setTimeout(function () {

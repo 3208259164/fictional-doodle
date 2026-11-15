@@ -7,7 +7,7 @@
      · merged 问答时用 —— 两边合起来，冲突并列，不替用户裁决
 
    铁律：
-     · 导入内容必须带来源；没来源的存但标「未注明出处」
+     · 导入内容必须带来源；没来源的存但标未注明出处
      · verified=false 的条目，问答时必须标注，且不能进训练集
      · 任何写入都要先预览，看不见就确认等于默许污染
 
@@ -78,7 +78,7 @@
       if (!line) return;
       try {
         var o = JSON.parse(line);
-        /* 问答对不是图节点，转成一条「问答条目」，挂在虚拟 id 上供检索 */
+        /* 问答对不是图节点，转成一条问答条目，挂在虚拟 id 上供检索 */
         if (o.instruction) {
           nodes.push({
             id: 'qa_' + (o.id || (i + 1)),
@@ -172,7 +172,7 @@
   /* ---------- 与 base 对比 ---------- */
   /* 官方层 = 随包分发的全部图谱，不含 user、不含合并视图（否则会把自己算成官方）。
      2026-11-07 补上旧民 / 新民：问答引擎早就注册了这两套，这里没跟上，
-     导致导入「林则徐」「长征」这类节点时被当成"新增"而不是"与官方节点冲突"。 */
+     导致导入林则徐长征这类节点时被当成"新增"而不是"与官方节点冲突"。 */
   function baseIndex() {
     var idx = {};
     ['SITE_GRAPH', 'SITE_GRAPH_OLD', 'SITE_GRAPH_NEW', 'SITE_GRAPH_WENGE', 'SITE_GRAPH_WORLD', 'SITE_CONCEPTS'].forEach(function (k) {
@@ -273,7 +273,7 @@
     if (opts.includeUser !== false) {
       user.nodes.forEach(function (n) { nodes.push(JSON.parse(JSON.stringify(n))); });
     }
-    /* 备份是完整快照，默认不按 verified 过滤；只有「要不要未核对内容」显式关掉才过滤 */
+    /* 备份是完整快照，默认不按 verified 过滤；只有要不要未核对内容显式关掉才过滤 */
     if (opts.includeUnverified === false) nodes = nodes.filter(function (n) { return n.verified === true; });
 
     return JSON.stringify({

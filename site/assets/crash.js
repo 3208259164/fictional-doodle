@@ -4,14 +4,14 @@
    为什么需要它（业界通用做法，见 Firefox about:crashes / Crashlytics / ACRA）：
      崩溃发生的瞬间，页面已经死了，点不到任何按钮。所以诊断必须
      ① 由宿主（Java 层）在进程死前把现场写进文件；
-     ② 下次启动时读取，主动告诉用户「上次异常退出」。
+     ② 下次启动时读取，主动告诉用户上次异常退出。
 
    本文件做四件事：
-     1) 面包屑：把「用户最近做了什么」持续报给 Java 层（崩溃报告里要用）；
+     1) 面包屑：把用户最近做了什么持续报给 Java 层（崩溃报告里要用）；
      2) 启动心跳：页面活够 10 秒 → 调 AndroidApp.bootOk()，标记本轮启动成功；
      3) 异常横幅：读取 AndroidApp.crashPending()，有上次崩溃就显示可操作横条；
      4) 安全模式：连续三次启动未成功时，__yzSafeMode=true，overlay.js 跳过本机改动，
-        先保证界面能打开，并提供「导出本机改动 / 退出安全模式」。
+        先保证界面能打开，并提供导出本机改动 / 退出安全模式。
 
    全部本地，不联网、不上传。
    ===================================================================== */
@@ -65,7 +65,7 @@
   }
   window.YZBread = bread;
 
-  /* 启动耗时：写进面包屑，真机上的「慢」才有数字可查（诊断报告里能直接看到）。
+  /* 启动耗时：写进面包屑，真机上的慢才有数字可查（诊断报告里能直接看到）。
      DCL 是脚本全部执行完、页面可交互的时刻，load 是连图片字体都就绪的时刻。 */
   window.addEventListener('load', function () {
     try {
@@ -95,7 +95,7 @@
         if (!txt) txt = (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 24);
         el = el.parentNode; depth++;
       }
-      bread('点击「' + txt + '」@' + pageName());
+      bread('点击' + txt + '@' + pageName());
     } catch (e) {}
   }, true);
   window.addEventListener('hashchange', function () { bread('跳转 #' + String(location.hash).slice(0, 40)); });
@@ -117,8 +117,8 @@
   }
   function scheduleBeat() {
     if (beatTimer) clearTimeout(beatTimer);
-    /* 3 秒后才算「真的起来了」：太早（首屏就报）无法区分「白屏但进程活着」，
-       太长（原来 10 秒）会让「只想查一句话、用不到 10 秒就退出」的正常使用被误判成启动失败，
+    /* 3 秒后才算真的起来了：太早（首屏就报）无法区分白屏但进程活着，
+       太长（原来 10 秒）会让只想查一句话、用不到 10 秒就退出的正常使用被误判成启动失败，
        连续几次就误进安全模式、本机改动全不加载。 */
     beatTimer = setTimeout(beat, 3000);
   }
@@ -290,7 +290,7 @@
       'rgba(43,5,5,.95)', '#f4e7e0', 'rgba(255,255,255,.22)');
     b.querySelector('#yzCbView').onclick = function () { openPanel(); };
     b.querySelector('#yzCbEx').onclick = function () {
-      if (exportLog()) toastLocal('日志已导出，可在「下载」里找到');
+      if (exportLog()) toastLocal('日志已导出，可在下载里找到');
     };
     b.querySelector('#yzCbX').onclick = function () {
       hideBanner(true);
@@ -346,7 +346,7 @@
       '</div>';
     document.body.appendChild(wrap);
     function close() { try { wrap.remove(); } catch (e) {} }
-    /* 长按 3 秒触发真实崩溃测试：验证「崩溃 → 落盘 → 下次启动提示」整条链路 */
+    /* 长按 3 秒触发真实崩溃测试：验证崩溃 → 落盘 → 下次启动提示整条链路 */
     (function () {
       var hint = wrap.querySelector('#yzCpTest'), timer = null;
       function cancel() { if (timer) { clearTimeout(timer); timer = null; } }

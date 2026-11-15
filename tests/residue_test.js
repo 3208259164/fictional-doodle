@@ -2,7 +2,7 @@
  * 残留检查：证明 theory.html 在运行时也不可达
  * 1. 页面能加载且无 JS 错误
  * 2. 全局没有 openTheory
- * 3. 「＋」菜单里没有「构建纲要」
+ * 3. ＋菜单里没有构建纲要
  * 4. 点击菜单所有项，不会产生 theory.html 请求
  * 5. 记录的 script/src 请求里不含 theory
  */
@@ -57,12 +57,12 @@ setTimeout(() => {
   ok(typeof w.openTheory === 'undefined', 'window.openTheory 不存在（实为 ' + typeof w.openTheory + '）');
   ok(typeof w.openQA === 'function', 'window.openQA 仍存在（对照，说明没误删）');
 
-  console.log('\n[3] 「＋」菜单内容');
+  console.log('\n[3] ＋菜单内容');
   const items = Array.from(d.querySelectorAll('#qPanel .qitem'));
   const texts = items.map(x => x.textContent.trim());
   ok(items.length > 0, '菜单有 ' + items.length + ' 项');
-  ok(!texts.some(t => t.indexOf('构建纲要') >= 0), '菜单里没有「构建纲要」（现有：' + texts.join(' / ') + '）');
-  ok(texts.some(t => t.indexOf('问一问') >= 0), '「问一问」仍在（对照）');
+  ok(!texts.some(t => t.indexOf('构建纲要') >= 0), '菜单里没有构建纲要（现有：' + texts.join(' / ') + '）');
+  ok(texts.some(t => t.indexOf('问一问') >= 0), '问一问仍在（对照）');
 
   console.log('\n[4] 所有 script 请求');
   const bad = requested.filter(u => /theory/i.test(u));
@@ -86,7 +86,7 @@ setTimeout(() => {
 
   console.log('\n[6] 页面文本里没有残留链接');
   /* 口径：不能只扫 'theory' 子串——概念数据里有 theory_of_knowledge 这样的 id；
-     真正要 guarantee 的是「没有指向 theory 页的链接、也没有 openTheory 调用」。 */
+     真正要 guarantee 的是没有指向 theory 页的链接、也没有 openTheory 调用。 */
   const html = d.body.innerHTML;
   const badLink = /<a[^>]+href=["'][^"']*theory[^"']*["']/i.test(html);
   const badCall = /openTheory\s*\(/.test(html);

@@ -47,8 +47,8 @@ function mkEnv(opts) {
   /* 桥：有/无 AndroidApp 两种 */
   if (opts.bridge) {
     w.__bridge = [];
-    // 0.18.28 起导出统一走「文件通道」：AndroidApp.shareFile(文件名, base64, mime)
-    // 再由系统「用其他应用打开 / 保存」面板落地（saveBase64 只作为旧接口保留）
+    // 0.18.28 起导出统一走文件通道：AndroidApp.shareFile(文件名, base64, mime)
+    // 再由系统用其他应用打开 / 保存面板落地（saveBase64 只作为旧接口保留）
     w.AndroidApp = {
       shareFile: function (name, b64, mime) {
         w.__bridge.push({ name: name, b64: b64, mime: mime });
@@ -120,7 +120,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   /* ---------- A3 allMd ---------- */
   const am = X.allMd();
-  ok('④ allMd 以「# 学通 · 我的阅读笔记」开头', am.indexOf('# 学通 · 我的阅读笔记') === 0);
+  ok('④ allMd 以# 学通 · 我的阅读笔记开头', am.indexOf('# 学通 · 我的阅读笔记') === 0);
   ok('④ allMd 带目录且目录是锚点链接',
     am.indexOf('## 目录') > 0 && am.indexOf('[摘录与笔记](#摘录与笔记)') > 0 &&
     am.indexOf('[收藏 · 书签 · 阅读状态](#收藏--书签--阅读状态)') > 0);
@@ -161,7 +161,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     manual += JSON.stringify(String(w.localStorage.getItem(k))).length * 2;
   }
   ok('⑦ usage.local.total 按 5MB 计', u.local.total === 5 * 1024 * 1024, u.local.total);
-  ok('⑦ usage.local.used 与「JSON.stringify(v).length*2」独立重算一致', u.local.used === manual,
+  ok('⑦ usage.local.used 与JSON.stringify(v).length*2独立重算一致', u.local.used === manual,
     u.local.used + ' vs ' + manual);
   ok('⑦ usage.local.percent 与 used/total 相符（小数据四舍五入到 0.1%）',
     Math.abs(u.local.percent - Math.round(u.local.used / u.local.total * 1000) / 10) < 1e-9,
@@ -204,7 +204,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   ok('⑧ 用量面板列出键名（最多 10 个）',
     (panel.match(/overflow:hidden;text-overflow:ellipsis/g) || []).length <= 10 &&
     panel.indexOf('摘录与笔记') > 0);
-  /* 造 14 个键验证「前 10」 */
+  /* 造 14 个键验证前 10 */
   for (let i = 0; i < 14; i++) w.localStorage.setItem('yzPad' + i + '_' + 'x'.repeat(i), 'v'.repeat(i * 10 + 1));
   const panel2 = X.renderUsagePanel();
   ok('⑧ 键超过 10 个时只显示前 10 个',
@@ -262,7 +262,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   ok('⑪ 暴露 YZMine.exportData', typeof M.w.YZMine === 'object' && typeof M.w.YZMine.exportData === 'function');
   const opened = M.w.openMine('ex');
   const html = M.w.__mineHTML || '';
-  ok('⑪ 「我的资料」页渲染成功（openContent 被调用）', opened === true && M.w.__mineTitle === '📚 我的资料', M.w.__mineTitle);
+  ok('⑪ 我的资料页渲染成功（openContent 被调用）', opened === true && M.w.__mineTitle === '📚 我的资料', M.w.__mineTitle);
   ok('⑪ 页面含两个必需按钮', html.indexOf('📝 导出笔记（Markdown）') > 0 && html.indexOf('📊 存储用量') > 0);
   ok('⑪ 按钮带 data-yzx 且沿用既有 sbtn 样式',
     html.indexOf('class="sbtn" data-yzx="md"') > 0 && html.indexOf('class="sbtn" data-yzx="usage"') > 0);
@@ -272,15 +272,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   M.w.document.body.appendChild(box);
   M.w.__dl = [];
   box.querySelector('[data-yzx="md"]').dispatchEvent(new M.w.MouseEvent('click', { bubbles: true }));
-  ok('⑪ 点「导出笔记（Markdown）」触发保存', M.w.__dl.join('|').indexOf('学通-笔记-' + today + '.md') >= 0, M.w.__dl.join('|'));
+  ok('⑪ 点导出笔记（Markdown）触发保存', M.w.__dl.join('|').indexOf('学通-笔记-' + today + '.md') >= 0, M.w.__dl.join('|'));
   /* 点按钮 ② 弹出用量面板 */
   box.querySelector('[data-yzx="usage"]').dispatchEvent(new M.w.MouseEvent('click', { bubbles: true }));
   const ov = M.w.document.getElementById('yzUsageOv');
-  ok('⑪ 点「存储用量」弹出面板（含进度条与关闭按钮）',
+  ok('⑪ 点存储用量弹出面板（含进度条与关闭按钮）',
     !!ov && ov.innerHTML.indexOf('本机存储') > 0 && ov.innerHTML.indexOf('data-yzusage="close"') > 0);
   await sleep(30);
   ok('⑪ 面板异步补上 IndexedDB 行', (ov.innerHTML.indexOf('本机书籍') > 0) || (ov.innerHTML.indexOf('容量估算') > 0));
-  /* 面板内「导出笔记」按钮 */
+  /* 面板内导出笔记按钮 */
   M.w.__dl = [];
   ov.querySelector('[data-yzusage="md"]').dispatchEvent(new M.w.MouseEvent('click', { bubbles: true }));
   ok('⑪ 面板内也能直接导出', M.w.__dl.join('|').indexOf('.md') > 0, M.w.__dl.join('|'));

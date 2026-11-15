@@ -1,5 +1,5 @@
 /* 来源口径交叉一致性（2026-11-13）
-   问题：`src_report` 算「关系级出处」用一套规则，问答 evidence 显示出处用另一套。
+   问题：`src_report` 算关系级出处用一套规则，问答 evidence 显示出处用另一套。
    两套规则各自看着都对，但没人证明它们在同一批边上得出同一个结论 ——
    Copilot 的评审提的正是这点。本测试把两边对起来跑：
      · src_report 用 --json 导出逐边归类（它自己的判定）；
@@ -87,7 +87,7 @@ ok('至少比对了 6 条边', compared >= 6, compared + ' 条');
 ok('两边口径一致（0 处冲突）', mismatch === 0, mismatch ? detail.filter(x => x.startsWith('✗')).join('；') : '全部一致');
 if (detail.length) detail.slice(0, 6).forEach(d => console.log('    · ' + d));
 
-/* ④ 反面校验：报告里「关系级 84 条」必须等于 layers 里 edge-self + edge-meta */
+/* ④ 反面校验：报告里关系级 84 条必须等于 layers 里 edge-self + edge-meta */
 const nEdge = LAYERS.edges.filter(e => e.lv === 'edge-self' || e.lv === 'edge-meta').length;
 ok('分层合计与逐边明细自洽', nEdge === (LAYERS.layers['edge-self'] + LAYERS.layers['edge-meta']),
   nEdge + ' vs ' + (LAYERS.layers['edge-self'] + LAYERS.layers['edge-meta']));

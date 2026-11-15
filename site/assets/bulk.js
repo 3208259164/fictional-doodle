@@ -3,13 +3,13 @@
    ---------------------------------------------------------------------
    为什么要有它：
      史料里的推荐人物、思潮 / 组织，以及概念、书库条目，原来只能一条一条点开改；
-     想从 Excel 里整理好一批贴进来，没有任何入口。所谓「导入」只认 {author,text}
-     这种特定数组，格式不对就一句「每项需含 author 与 text」，用户感觉「没作用」。
+     想从 Excel 里整理好一批贴进来，没有任何入口。所谓导入只认 {author,text}
+     这种特定数组，格式不对就一句每项需含 author 与 text，用户感觉没作用。
 
    这一版的做法（与通行做法一致）：
-     ① 全部数据先「导出为表格（TSV）」——你能看见到底有哪些字段、现在是什么值；
+     ① 全部数据先导出为表格（TSV）——你能看见到底有哪些字段、现在是什么值；
      ② 在 Excel / WPS / 表格里整片改，复制，粘回来；
-     ③ 粘贴后先「解析预览」：哪一行第几列有问题、要不要新增、要不要更新，一目了然；
+     ③ 粘贴后先解析预览：哪一行第几列有问题、要不要新增、要不要更新，一目了然；
      ④ 确认才写；单个单元格为空 = 这一项不改（不是清空）；
      ⑤ 写完给报告：新增 N · 更新 M · 无变化 K · 失败 F（带行号与原因）。
 
@@ -137,7 +137,6 @@
       label: '概念',
       icon: '💡',
       key: 'id',
-      noNew: true,   /* 概念表只支持改，不支持新增（新增请在内置数据里加） */
       fields: [
         { k: 'id', label: '编号', req: true },
         { k: 'name', label: '名称' },
@@ -160,12 +159,17 @@
           };
         });
       },
-      save: function (r) {
+      save: function (r, isNew) {
         var p = {};
         ['name', 'role', 'desc', 'source'].forEach(function (k) { if (r[k] !== '' && r[k] != null) p[k] = r[k]; });
         if (r.points) p.points = String(r.points).split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
         if (r.works) p.works = String(r.works).split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
         if (r.tags) p.tags = String(r.tags).split(/[\s,，、]+/).filter(Boolean);
+        if (isNew) {
+          if (!Y().addConcept) return { ok: false, msg: '当前版本不支持新增概念' };
+          p.id = r.id;
+          return Y().addConcept(p);
+        }
         return Y().editConcept(r.id, p);
       }
     },
@@ -371,7 +375,7 @@
     var rows = t.rows() || [];
     var txt = toTSV(rows, t.fields);
     var name = '学通-' + t.label.replace(/[\/\\:*?"<>|（）()]/g, '') + '.tsv';
-    /* 复制到剪贴板优先（手机上没有「另存为」的概念） */
+    /* 复制到剪贴板优先（手机上没有另存为的概念） */
     var done = false;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -477,7 +481,7 @@
       });
       var key = String(obj[t.key] || '').trim();
       obj[t.key] = key;
-      if (!key) err = '缺少「' + (t.fields[0].label) + '」';
+      if (!key) err = '缺少' + (t.fields[0].label) + '';
       var old = existing[key];
       var action = '';
       if (!err) {

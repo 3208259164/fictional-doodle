@@ -84,7 +84,7 @@ function page(opt) {
 <body><div class="wrap">
 ${opt.body}
 <footer>
-  <p>本页为「${esc(SITE)}」的静态快照${VERSION ? '（站点 v' + esc(VERSION) + '）' : ''}，供搜索引擎与 AI 索引；交互式版本请访问
+  <p>本页为${esc(SITE)}的静态快照${VERSION ? '（站点 v' + esc(VERSION) + '）' : ''}，供搜索引擎与 AI 索引；交互式版本请访问
   <a href="${opt.home}">${esc(SITE)}</a>。</p>
   <p>本站为个人发起的公益整理站点，内容版权归原作者与出版方所有，本站仅作整理与检索。</p>
 </footer>
@@ -123,7 +123,7 @@ ${r.author ? `<h2>作者／人物</h2><p><a href="../../index.html#/a/${slugOf(r
 <h2>打开完整版本</h2>
 <p><a class="cta solid" href="${esc(spa)}">打开交互版（含分类、检索、关系图谱）</a>
 <a class="cta" href="../index.html">浏览全部 ${RES.length} 条资料</a></p>
-<p style="font-size:.74rem;opacity:.65">提示：本站在「资料目录」里可按书名 / 作者 / 别名 / 正文关键词检索；本站不提供外部跳转，获取请自行在浏览器中检索。</p>`;
+<p style="font-size:.74rem;opacity:.65">提示：本站在资料目录里可按书名 / 作者 / 别名 / 正文关键词检索；本站不提供外部跳转，获取请自行在浏览器中检索。</p>`;
   const jsonld = { '@context': 'https://schema.org', '@graph': [
     { '@type': isBook ? 'Book' : 'CreativeWork', name: r.title, headline: r.title,
       author: { '@type': 'Person', name: r.author || '—' },

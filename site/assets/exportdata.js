@@ -2,8 +2,8 @@
    学通 · 我的笔记导出与存储用量（exportdata.js）
    ---------------------------------------------------------------------
    做什么：
-     ① 把「摘录 / 笔记」导出成 Markdown（按书分组、原文用引用块）
-     ② 把「收藏 / 书签 / 阅读状态」导出成 Markdown 表格
+     ① 把摘录 / 笔记导出成 Markdown（按书分组、原文用引用块）
+     ② 把收藏 / 书签 / 阅读状态导出成 Markdown 表格
      ③ ①②合一（带一级标题 + 目录）
      ④ 导出一份 CSV（Excel 能直接开：开头带 UTF-8 BOM，否则中文乱码）
      ⑤ 本机存储用量报告（localStorage 逐键字节 + IndexedDB 估算）
@@ -19,7 +19,7 @@
      marks      [ <bookId> ]
 
    关键坑（离线 WebView）：
-     · App 内 <a download> 无效 → 先走 AndroidApp.saveBase64 桥（存到系统「下载」）；
+     · App 内 <a download> 无效 → 先走 AndroidApp.saveBase64 桥（存到系统下载）；
      · 浏览器里没有桥 → Blob + <a download> 兜底；
      · 绝对不用 window.open（WebView 里会白屏），失败一律 toast 提示。
 
@@ -117,7 +117,7 @@
     return out;
   }
 
-  /* 按书分组：同一本书的摘录归一节，节按「最近一条摘录」倒序 */
+  /* 按书分组：同一本书的摘录归一节，节按最近一条摘录倒序 */
   function group() {
     var list = excerpts(), map = {}, order = [];
     for (var i = 0; i < list.length; i++) {
@@ -156,7 +156,7 @@
     out.push(new Array(level + 1).join('#') + ' 摘录与笔记（' + gs.length + ' 本书 / ' + excerpts().length + ' 条）');
     out.push('');
     if (!gs.length) {
-      out.push('还没有摘录。打开一本书，在「我的摘录」里可以存原文和自己的想法。');
+      out.push('还没有摘录。打开一本书，在我的摘录里可以存原文和自己的想法。');
       out.push('');
       return out.join('\n');
     }
@@ -238,7 +238,7 @@
     out.push('*共 ' + gs.length + ' 本书 · ' + excerpts().length + ' 条摘录 · 收藏 ' + favIds().length +
       ' · 书签 ' + markIds().length + ' · 书架 ' + readList().length + ' · 生成于 ' + nowText() + '*');
     out.push('');
-    out.push('> 由「学通」App 在本机生成，内容未上传任何服务器。');
+    out.push('> 由学通App 在本机生成，内容未上传任何服务器。');
     out.push('');
     return out.join('\n');
   }
@@ -275,7 +275,7 @@
   }
 
   /* ---------------- 数据清单覆盖（2026-11-13） ----------------
-     datamap.js 声明了哪些数据「应该随导出带走」（export:true）。以前那只是声明：
+     datamap.js 声明了哪些数据应该随导出带走（export:true）。以前那只是声明：
      导出函数爱导什么导什么，声明与实现可能悄悄分家。
      这里把两者对起来 —— 已导出 / 未接统计 / 本机无数据 三档都写进文件，
      未覆盖的不静默丢掉。 */
@@ -322,7 +322,7 @@
     if (c.empty.length) out.push('- 本机无数据：' + c.empty.join('、'));
     if (c.localOnly.length) out.push('- 不随导出带走（只在本机有效）：' + c.localOnly.join('、'));
     out.push('');
-    out.push('> 书籍正文存于 IndexedDB，体积大，不随这份 Markdown 带走；需要时用「导出书籍」单独取。');
+    out.push('> 书籍正文存于 IndexedDB，体积大，不随这份 Markdown 带走；需要时用导出书籍单独取。');
     out.push('');
     return out.join('\n');
   }
@@ -332,7 +332,7 @@
     var t = s(v);
     /* 公式注入（0.18.47）：以 = + - @ 开头（含全角变体与制表/换行）的单元格，
        在 Excel / WPS 里会被当公式执行。OWASP 给的对 Excel 有效的做法是
-       「引号内加一个前导 TAB」，这里照做并强制加引号。 */
+       引号内加一个前导 TAB，这里照做并强制加引号。 */
     if (/^[=+\-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20]/.test(t)) {
       return '"' + ('\t' + t).replace(/"/g, '""') + '"';
     }
@@ -395,7 +395,7 @@
     return false;
   }
   /* ⓿ App 内：导出即分享（0.18.24）
-     以前是存到系统「下载」目录——手机上那个目录用户根本找不到，看着像没导出。
+     以前是存到系统下载目录——手机上那个目录用户根本找不到，看着像没导出。
      现在直接把文件交给系统分享面板：发给微信 / QQ、存网盘、发邮件都行。 */
   function shareViaApp(name, mime, text) {
     if (!(window.AndroidApp && typeof window.AndroidApp.shareFile === 'function')) return false;
@@ -422,7 +422,7 @@
     var ch = deliver(name, mime, text);
     if (ch === 'share') toastMsg('已导出：' + name + '｜在分享面板里选发给谁');
     else if (ch) toastMsg('已导出：' + name);
-    else toastMsg('导出失败：此环境不支持保存文件（可改用「导出我的数据」复制文本）');
+    else toastMsg('导出失败：此环境不支持保存文件（可改用导出我的数据复制文本）');
     return ch;
   }
 
@@ -500,7 +500,7 @@
     if (p >= 40) return '存储用量正常（' + p + '%），继续用即可；攒多了记得导出一次 Markdown 备份。';
     return '存储还很宽松（' + p + '%），正常使用即可。';
   }
-  /* 0<p<0.1 时显示「<0.1%」，避免四舍五入成 0% 让人以为没算 */
+  /* 0<p<0.1 时显示<0.1%，避免四舍五入成 0% 让人以为没算 */
   function pctText(p) {
     var n = Number(p) || 0;
     if (n > 0 && n < 0.1) return '&lt;0.1%';

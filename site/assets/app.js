@@ -6,7 +6,7 @@
 /* ===== 一次性数据迁移：林彪的节点 id 统一（linbiao → lin_biao） =====
    0.17.22 起文革图谱把林彪的节点 id 改成与主图谱一致（全站其余人物都是下划线风格）。
    本机旧数据里若存过 linbiao，这里定向搬一次，否则用户的编辑/收藏/摘录会指向一个不存在的节点。
-   安全性：只处理「整串恰好等于 linbiao」的值和「键恰好是 linbiao / person:linbiao」的键，
+   安全性：只处理整串恰好等于 linbiao的值和键恰好是 linbiao / person:linbiao的键，
    不触碰任何长文本；写完即打标记，重复执行无副作用。 */
 (function migrateLinbiaoId(){
   var OLD = 'linbiao', NEW = 'lin_biao';
@@ -45,7 +45,7 @@
 })();
 
 /* ===== 轻量耗时刻度（performance.now 的 0 点就是导航开始） =====
-   用途：用户说「慢」的时候，用数字代替感觉。全部结果随诊断报告导出。
+   用途：用户说慢的时候，用数字代替感觉。全部结果随诊断报告导出。
    开销：一次 performance.now + 一次对象写入，可忽略。 */
 window.__YZTiming = window.__YZTiming || {
   m: {},
@@ -81,7 +81,7 @@ const CT  = window.SITE_CONTENT   || {};
 const EX  = window.SITE_EXTRA     || {};
 /* 图书馆数据 0.18.58 起改为懒加载（21.9 KB，只有图书馆页用）。
    这里必须是访问器而不是 const 快照 —— 旧的 const LIBS 在脚本先执行时拿到的是空数组，
-   之后懒加载填进 window.SITE_LIBRARIES 也看不见（与 E-14「const GR 快照被冻结」同一类坑）。 */
+   之后懒加载填进 window.SITE_LIBRARIES 也看不见（与 E-14const GR 快照被冻结同一类坑）。 */
 function LIBS(){ return window.SITE_LIBRARIES || []; }
 const GR   = window.SITE_GRAPH || { nodes:[], links:[] };
 /* graph.js 现在走延迟加载：const 快照拿的是占位对象，
@@ -213,7 +213,7 @@ window.addEventListener('online', () => diagEvent('online'));
 /* ---------- 通用工具 ---------- */
 function esc(s){ return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 /* 转义升级版：既做 JS 字符串转义、又做 HTML 属性转义。
-   用于塞进 onclick="fn('…')" 这类「属性里的 JS 字符串」，避免值里的 " 闭合属性造成注入。 */
+   用于塞进 onclick="fn('…')" 这类属性里的 JS 字符串，避免值里的 " 闭合属性造成注入。 */
 function escAttr(s){ return esc(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 /* ---------- 文本净化：数据与本机覆盖层（自助编辑 / 导入他人备份）合并后统一清洗一次 ----------
    把 < > 去掉、把 ASCII 引号换成全角引号。这样即使数据里被塞进 HTML，也拼不出标签与属性。 */
@@ -241,7 +241,7 @@ function isNew(it){
   return (Date.now() - d.getTime()) / 86400000 <= (CFG.newDays || 30);
 }
 /* 站内真正存在的正文文件清单（构建时生成；没放实体文件时为空表）。
-   只有「本机导入的书」或「清单里确实有的文件」才算“有正文”；外链与占位都不算。 */
+   只有本机导入的书或清单里确实有的文件才算“有正文”；外链与占位都不算。 */
 const SITE_FILES = new Set((((window.SITE_HAVE_FILES) || (typeof CFG !== 'undefined' && CFG && CFG.siteHaveFiles) || [])).map(s => String(s).replace(/^\.?\//, '')));
 /* ---- 书壳与本机文件的对应关系 ----
    两条通道都会往书壳上挂本机文件：
@@ -286,7 +286,7 @@ function isAppBook(id){
   } catch (e) { }
   return false;
 }
-/* 书库里点「阅读」：先判断这本在哪种存储里，别让用户点了没反应 */
+/* 书库里点阅读：先判断这本在哪种存储里，别让用户点了没反应 */
 function openLocalBook(id){
   if (!id) return;
   if (isAppBook(id)) { if (window.YZAppBooks && YZAppBooks.open) return YZAppBooks.open(id); }
@@ -296,7 +296,7 @@ function openLocalBook(id){
   if (window.YZAppBooks && YZAppBooks.open) return YZAppBooks.open(id);
 }
 window.openLocalBook = openLocalBook;
-/* 「导入本书」：优先走新通道（Java 存文件 + 自动挂到这条书壳），失败再回退旧通道 */
+/* 导入本书：优先走新通道（Java 存文件 + 自动挂到这条书壳），失败再回退旧通道 */
 function importIntoBook(resId){
   if (window.YZAppBooks && YZAppBooks.pickFor) return YZAppBooks.pickFor(resId);
   if (window.yzBooks && yzBooks.importInto) return yzBooks.importInto(resId);
@@ -307,14 +307,14 @@ function hasBody(it){
   if (!it) return false;
   if (it.local && it.bookId) return true;
   if (shellLocalOf(it.id)) return true;
-  /* 讲堂这类站内正文（books/*.txt）文件就在包里，直接算「有原文」。
-     注意不能只靠 CFG.siteHaveFiles：它是空的，靠它会把 27 篇都标成「暂无原文」。 */
+  /* 讲堂这类站内正文（books/*.txt）文件就在包里，直接算有原文。
+     注意不能只靠 CFG.siteHaveFiles：它是空的，靠它会把 27 篇都标成暂无原文。 */
   if (isInlineText(it)) return true;
   const u = String(it.url || '');
   if (!u || u === '#' || /^(https?:|mailto:|tel:)/i.test(u)) return false;
   return SITE_FILES.has(u.replace(/^\.?\//, ''));
 }
-/* 这是一本“可以有正文”的书，但当前没有正文 → 值得给「导入本书」入口 */
+/* 这是一本“可以有正文”的书，但当前没有正文 → 值得给导入本书入口 */
 function canImport(it){
   if (!it || hasBody(it)) return false;
   if (/^(https?:|mailto:|tel:)/i.test(String(it.url || ''))) return false;
@@ -376,7 +376,7 @@ function rowHTML(idx){
   const it = RES[idx]; if (!it) return '';
   const badge = isNew(it) ? '<i class="badge-new">NEW</i>' : '';
   /* 站内正文（讲堂）：卡片下方直接露开头两句，点整卡片就进阅读器；
-     想看书目信息（简介/标签/笔记/摘录）点右侧「详情」。 */
+     想看书目信息（简介/标签/笔记/摘录）点右侧详情。 */
   const prev = (window.JT_PREV && window.JT_PREV[it.id]) || '';
   const inline = isInlineText(it);
   return `<button class="lcard aslink" onclick="openItemDetail(${idx})"><span class="li">${escHtml(it.icon||'📕')}</span>` +
@@ -387,8 +387,8 @@ function rowHTML(idx){
 }
 /* ---------- 本机存储写入：统一入口，配额写满时给出提示（原先是静默失败） ---------- */
 var _lsetWarnT = 0;
-/* 本机存储自检：部分 Android WebView（磁盘紧张、隐私模式、定制 ROM）会「写入不报错、读回为空」，
-   只靠 try/catch 发现不了 → 表现为「设了主题/进度，重启又没了」。启动时做一次写→读→删闭环。 */
+/* 本机存储自检：部分 Android WebView（磁盘紧张、隐私模式、定制 ROM）会写入不报错、读回为空，
+   只靠 try/catch 发现不了 → 表现为设了主题/进度，重启又没了。启动时做一次写→读→删闭环。 */
 function storageSelfTest(){
   try {
     var k = '__yzStoreProbe', v = 'p' + Date.now();
@@ -406,7 +406,7 @@ function lset(k, v){
     if (now - _lsetWarnT > 3000){
       _lsetWarnT = now;
       try { toast((e && (e.name === 'QuotaExceededError' || e.code === 22))
-        ? '本机存储已满，这次保存没成功：可在「我的资料 → 清除本机数据」里清理后重试'
+        ? '本机存储已满，这次保存没成功：可在我的资料 → 清除本机数据里清理后重试'
         : '本机无法保存数据（可能是浏览器隐私模式）'); } catch (x) {}
     }
     return false;
@@ -425,7 +425,7 @@ function toast(msg){
 
 /* ---------- 每日一句（首页） ----------
    只用 content.js 里标了 home:1 的条目（原有那 6 条）。
-   后来补进 quotes 的几十条只用于「问一问」的引文反查，不进首页——
+   后来补进 quotes 的几十条只用于问一问的引文反查，不进首页——
    长句会让首页那一块忽高忽低，把下面的人物行挤小。 */
 const DAILY_QUOTES = (CT.quotes || []).filter(q => q.home);
 let qIdx = DAILY_QUOTES.length ? Math.floor(Math.random() * DAILY_QUOTES.length) : 0;
@@ -479,10 +479,10 @@ function openMarks(){
   openContent('🔖 我的书签',
     crumbFrom([{ t:'我的书签', fn:()=>openMarks() }]) +
     (list.length ? list.map(rowHTML).join('') + `<p class="sub" style="margin-top:12px;font-size:.72rem">共 ${list.length} 个，仅存本机。</p>`
-      : `<p class="sub">还没有书签。在资源详情页点「🔖 书签」即可添加。</p>`));
+      : `<p class="sub">还没有书签。在资源详情页点🔖 书签即可添加。</p>`));
 }
 
-/* 从「全站命中」直接跳到关系图谱的某个节点（graph.html 支持 ?g= 图谱 + #id 定位）。
+/* 从全站命中直接跳到关系图谱的某个节点（graph.html 支持 ?g= 图谱 + #id 定位）。
    注意：函数名不能叫 openGraphNode —— 下面 1709 行另有同名函数（接受节点对象渲染详情），
    同名会被后者覆盖，导致这里传字符串 id 进去被当成对象用（历史 bug：点文革图谱条目显示 undefined）。 */
 function openGraphJump(id, ds){
@@ -500,7 +500,7 @@ function vAddCrashHead(cl){
     return m ? m[2].slice(0, 80) : (t.split('\n')[0] || '未知');
   } catch(e){ return '未知'; }
 }
-/* 设置页「崩溃日志」入口：打开本机崩溃报告面板（crash.js 提供 UI） */
+/* 设置页崩溃日志入口：打开本机崩溃报告面板（crash.js 提供 UI） */
 function openCrashLog(){
   try { if (window.YZCrash && YZCrash.open) { YZCrash.open(); return; } } catch(e){}
   toast('诊断模块未加载，刷新页面后重试');
@@ -522,7 +522,7 @@ async function exportDiag(){
   let app = ''; try { app = (window.AndroidApp && window.AndroidApp.getVersionName) ? window.AndroidApp.getVersionName() : ''; } catch(e){}
   let wv = ''; try { wv = (window.AndroidApp && window.AndroidApp.webviewVersion) ? window.AndroidApp.webviewVersion() : ''; } catch(e){}
   let dev = ''; try { dev = (window.AndroidApp && window.AndroidApp.deviceInfo) ? window.AndroidApp.deviceInfo() : ''; } catch(e){}
-  /* App 桥探测（0.18.24）：把「哪一层断了」写进诊断，
+  /* App 桥探测（0.18.24）：把哪一层断了写进诊断，
      朗读不可用、导出失败、返回键失灵这类问题，一眼就能定位是 App 没给桥还是方法缺失。 */
   let bridge = 'none';
   try {
@@ -540,7 +540,7 @@ async function exportDiag(){
     if (!('PointerEvent' in window)) miss.push('no-pointer-events');
     if (miss.length) cssFeat = miss.join(',');
   } catch(e){}
-  /* ---------- 体检结论：直接写成「有没有问题、有什么问题」，不用读者自己猜 ---------- */
+  /* ---------- 体检结论：直接写成有没有问题、有什么问题，不用读者自己猜 ---------- */
   let ovStore = null, edits = null, pageErrs = [], crashLog = null;
   try { if (window.YZCrash && YZCrash.read) crashLog = YZCrash.read(); } catch(e){}
   try { if (window.YZY && YZY.storage) ovStore = YZY.storage(); } catch(e){}
@@ -549,7 +549,7 @@ async function exportDiag(){
   const verdict = [];
   /* 数据清单完整版（2026-11-13）：同步的清单摘要 + 真实占用 + 原生条目数。
      navigator.storage.estimate() 给的是整体用量（含 IndexedDB），
-     拿不到就说拿不到，不拿「清单里有」冒充「量过了」。 */
+     拿不到就说拿不到，不拿清单里有冒充量过了。 */
   let dmText = '未加载';
   try {
     if (window.YZDATAMAP && YZDATAMAP.detail) {
@@ -561,7 +561,7 @@ async function exportDiag(){
   const vAdd = (lv, msg) => verdict.push({ level: lv, msg: msg });
   let stOk = true; try { stOk = storageSelfTest(); } catch(e){ stOk = false; }
   if (!stOk) vAdd('error', '本机存储不可用：收藏、笔记、自助编辑都不会保存');
-  /* 模块自检：用户报「某个功能没生效」时，先看这里有没有掉模块 */
+  /* 模块自检：用户报某个功能没生效时，先看这里有没有掉模块 */
   let selfChk = null;
   try {
     selfChk = yzSelfCheck();
@@ -570,21 +570,21 @@ async function exportDiag(){
     else vAdd('info', '模块自检全部就绪（返回键处理、分类页、人物年表、相册保存、正文检索、朗读、导出）');
   } catch (e) { vAdd('warn', '模块自检执行失败：' + (e && e.message)); }
   if (ovStore && ovStore.backend && ovStore.backend !== 'localStorage') {
-    vAdd('warn', '自助编辑的存储已降级到「' + ovStore.backend + '」' + (ovStore.warn ? '（' + ovStore.warn + '）' : '') + '：关掉页面可能丢失改动');
+    vAdd('warn', '自助编辑的存储已降级到' + ovStore.backend + '' + (ovStore.warn ? '（' + ovStore.warn + '）' : '') + '：关掉页面可能丢失改动');
   }
   if (edits) {
     const nPeople = (edits.peopleEdited || 0) + (edits.peopleAdded || 0) + (edits.peopleMoved || 0);
     const nRes = (edits.added || 0) + (edits.edited || 0) + (edits.removed || 0);
     const nNode = edits.graphNodes || 0, nEdge = edits.graphEdges || 0, nGraph = edits.graphs || 0;
     if (nPeople + nRes + nNode + nEdge + nGraph > 0) {
-      vAdd('info', '本机有自助编辑：人物 ' + nPeople + ' 处、图谱 ' + nGraph + ' 张 / 新增节点 ' + nNode + ' / 新增关系 ' + nEdge + '、书库 ' + nRes + ' 条。跟随 APK 更新不会丢，但换设备请先「导出我的数据」');
+      vAdd('info', '本机有自助编辑：人物 ' + nPeople + ' 处、图谱 ' + nGraph + ' 张 / 新增节点 ' + nNode + ' / 新增关系 ' + nEdge + '、书库 ' + nRes + ' 条。跟随 APK 更新不会丢，但换设备请先导出我的数据');
     }
   }
   /* 崩溃（进程级 / 渲染进程级）：这是页面自己 catch 不到的一类，必须单独报 */
   const crashN = crashLog && crashLog.crashes ? crashLog.crashes.length : 0;
   const crashSt = (crashLog && crashLog.state) || {};
   if (crashN > 0) {
-    vAdd('error', '本机记录到 ' + crashN + ' 次崩溃：' + (vAddCrashHead(crashLog)) + '（详见 crash 段，可在「崩溃日志」里看最近操作）');
+    vAdd('error', '本机记录到 ' + crashN + ' 次崩溃：' + (vAddCrashHead(crashLog)) + '（详见 crash 段，可在崩溃日志里看最近操作）');
   } else if (crashSt.web === undefined && IS_APP) {
     vAdd('info', 'App 内暂无崩溃记录；崩溃会在下次启动时提示，并自动写进本报告');
   }
@@ -595,6 +595,23 @@ async function exportDiag(){
   if (errTotal === 0) vAdd('ok', '本次运行未捕获到脚本错误');
   else vAdd(errTotal > 5 ? 'warn' : 'info', '捕获 ' + errTotal + ' 条错误（首页 ' + DIAG.errors.length + ' 条 / 其他页 ' + pageErrs.length + ' 条），详见 errors 与 pageErrors');
   if (cssFeat !== 'ok') vAdd('warn', '样式特性缺失：' + cssFeat + '，页面可能显示异常');
+  try {
+    var _pd = document.createElement('div');
+    _pd.style.cssText = 'position:fixed;left:-9999px;top:0;width:240px;font-size:16px;line-height:20px';
+    _pd.textContent = '字号探针 Ag';
+    document.body.appendChild(_pd);
+    var _h16 = _pd.getBoundingClientRect().height;
+    _pd.style.fontSize = '24px'; _pd.style.lineHeight = '30px';
+    var _h24 = _pd.getBoundingClientRect().height;
+    document.body.removeChild(_pd);
+    var _ratio = _h16 ? _h24 / _h16 : 0;
+    if (_ratio && _ratio < 1.35) {
+      vAdd('warn', '内核在自动放大字号（实测 16px→24px 的高度比只有 ' + Math.round(_ratio * 100) / 100 +
+        '，正常应约 1.5）：App 内小/标准/大会被抹平，请把这份报告发出来');
+    } else if (_ratio) {
+      vAdd('ok', '字号按设定渲染（16px→24px 高度比 ' + Math.round(_ratio * 100) / 100 + '，正常）');
+    }
+  } catch (e) {}
   if (!sw || sw === 'none') vAdd('warn', 'Service Worker 未注册：离线打开可能空白');
 
   const data = {
@@ -620,6 +637,35 @@ async function exportDiag(){
     verdict: verdict,
     modules: selfChk,
     timing: (function(){ try { return window.__YZTiming ? __YZTiming.dump() : null; } catch(e){ return null; } })(),
+    /* 字号/行距调不动的现场取证（2026-11-15 加）：
+       ① fontScale / textZoom 决定 WebView 会不会在页面之外再乘一次；
+       ② probe 用 16px、24px 两段文字的实测高度比（正常≈1.5）。
+          被压平到 1.0 附近 = Blink 的 Text Autosizer 仍在把偏小的字号往上拉，
+          这时无论页面写 15/16/18 都会被拉到同一个数 —— 一眼就能判定是不是内核层的问题。 */
+    reader: (function () {
+      var r = { fontScale: null, textZoom: null, rootPx: null, rootLh: null, probe: null };
+      try {
+        if (window.AndroidApp && typeof AndroidApp.fontScale === 'function') r.fontScale = AndroidApp.fontScale();
+        if (window.AndroidApp && typeof AndroidApp.textZoom === 'function') r.textZoom = AndroidApp.textZoom();
+        var rs = getComputedStyle(document.documentElement);
+        r.rootPx = rs.fontSize;
+        try { r.rootLh = (rs.getPropertyValue('--lh') || '').trim(); } catch (e) {}
+        var d = document.createElement('div');
+        d.style.cssText = 'position:fixed;left:-9999px;top:0;width:240px;font-size:16px;line-height:20px';
+        d.textContent = '字号探针 Ag';
+        document.body.appendChild(d);
+        var h16 = d.getBoundingClientRect().height;
+        d.style.fontSize = '24px'; d.style.lineHeight = '30px';
+        var h24 = d.getBoundingClientRect().height;
+        document.body.removeChild(d);
+        r.probe = { h16: Math.round(h16 * 10) / 10, h24: Math.round(h24 * 10) / 10,
+                    ratio: h16 ? Math.round(h24 / h16 * 1000) / 1000 : 0 };
+        /* 阅读器最后一次算出来的真实字号/行距：调了没反应时，看这个数字就知道
+           JS 到底有没有跑（数字跟着变而字没变＝被系统放大机制抹平；数字不变＝没跑到）。 */
+        try { r.actual = (window.YZAppBooks && YZAppBooks.readActual) ? YZAppBooks.readActual() : null; } catch (e) {}
+      } catch (e) {}
+      return r;
+    })(),
     edits: edits,
     errors: DIAG.errors.slice(-50),
     events: DIAG.events.slice(-20),
@@ -633,7 +679,7 @@ async function exportDiag(){
   };
   const txt = JSON.stringify(data, null, 2);
   const fname = '学通-诊断-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '') + '.json';
-  /* ★ App 内 <a download> 无效（blob: 会被 DownloadListener 拦成「请点击页面内的保存按钮」），
+  /* ★ App 内 <a download> 无效（blob: 会被 DownloadListener 拦成请点击页面内的保存按钮），
      必须走原生桥保存；只有浏览器环境才回退到 Blob 下载。 */
   try {
     /* App 内：诊断报告是给自己看的，直接弹窗显示，不写文件（0.18.24） */
@@ -653,23 +699,23 @@ async function exportDiag(){
   } catch (e) { toast('此环境不支持保存文件，请检查存储权限'); }
 }
 /* 导出/导入覆盖的本机数据：白名单键 + 前缀键。
-   ★ 原则：凡是「用户自己产生或改过」的东西，都要能被带走 ——
+   ★ 原则：凡是用户自己产生或改过的东西，都要能被带走 ——
    早期版本漏了 yzy_ov_v1（人物介绍修改 / 节点增删改 / 新建图谱 / 书库改动）、
    频道点赞评论、主页好友、阅读进度，导致换机后编辑全丢。 */
 var DATA_KEYS = ['theme','fs','lh','w','motion','defaultLib','lastItem','favs','marks','links','libLinks',
-  /* 书架与本机书的对应关系（0.17.44）：少了它，换机恢复后「哪些书壳已挂本机文件」会全丢 */
+  /* 书架与本机书的对应关系（0.17.44）：少了它，换机恢复后哪些书壳已挂本机文件会全丢 */
   'yzBookShellMap','yzShelfPref','yzBkTheme',
   'chanLikes','chanComments','channelExtra','homeFriends','homeFriendsInit','recentSearch',
   'readlistDone','readerFS','graphView','classifyHidden','notifs','askHistory','yzCustom','yzRead','yzExcerpts','yzPaths','libsLocal','yzGuides',
   'yzCampLayers',
-  /* 下面两项是 0.17.x 之后新增的「用户自己的东西」，早期导出会漏：
+  /* 下面两项是 0.17.x 之后新增的用户自己的东西，早期导出会漏：
      · yzImportedBooks —— 本机导入书的元数据（正文在 IndexedDB，见导出页的说明）
      · albumExtra —— 相册里自己导入的照片索引 */
   'yzImportedBooks','albumExtra',
   /* 正文段落改动（textedit.js）：内置书与导入书的错字、断行、删段都记在这里，
-     漏了它就等于「改了一整本书，换机全丢」。 */
+     漏了它就等于改了一整本书，换机全丢。 */
   'yzTextPatch'];
-/* 前缀键：阅读进度（像素）+ 章节进度 + 做题成绩（缺了换机后「读到第几章」「做对过没有」都会丢） */
+/* 前缀键：阅读进度（像素）+ 章节进度 + 做题成绩（缺了换机后读到第几章做对过没有都会丢） */
 var DATA_PREFIX = ['note_','readerPos-','readerCh-','yzq_best_','yzq_last_'];
 function collectLocalKV(){
   const kv = {};
@@ -696,7 +742,7 @@ function buildDataObj(){
   return data;
 }
 /* 备份导入通道的白名单（0.18.47）
-   以前只相信「自助编辑」那条入口（overlay 的 clean / cleanUrl / cleanAvatar），
+   以前只相信自助编辑那条入口（overlay 的 clean / cleanUrl / cleanAvatar），
    备份 JSON 是原样落库的：avatar 能塞进  " onerror=…（img src 属性打断），
    links 能塞进 javascript:…（绕过 normLink 直接进 location.href）。 */
 function safeAvatarVal(v){
@@ -756,8 +802,8 @@ function openDataIO(mode){
   const m = document.getElementById('dataModal'); if (!m) return;
   document.getElementById('dataTitle').textContent = exp ? '💾 导出我的数据' : '🔐 导入我的数据';
   document.getElementById('dataHint').innerHTML = exp
-    ? '下面是你的<b>全部</b>本机数据：收藏 · 书签 · 笔记 · 做题题库 · 各项设置 · 主页好友 · 频道点赞评论 · 阅读进度（含章节） · 相册导入记录，以及<b>自助编辑的全部改动</b>（人物介绍与年表、图谱节点与关系、新建图谱、书库条目与分类）。点「📤 导出 / 分享」或「📋 复制」带走，换设备后导入即可完整恢复。<br><b>注意</b>：你自己导入的<b>电子书正文</b>和<b>相册照片</b>存在本机数据库里、不在这个 JSON 内，换设备需要重新导入文件；书目索引（书名与导入记录）会随 JSON 一起备份。'
-    : '把你的数据 JSON 粘贴到下面，点「导入并恢复」；<b>部分浏览器</b>也支持直接用「选择文件」。导入为<b>合并</b>：本机已有的不会丢，同名的以备份为准。';
+    ? '下面是你的<b>全部</b>本机数据：收藏 · 书签 · 笔记 · 做题题库 · 各项设置 · 主页好友 · 频道点赞评论 · 阅读进度（含章节） · 相册导入记录，以及<b>自助编辑的全部改动</b>（人物介绍与年表、图谱节点与关系、新建图谱、书库条目与分类）。点📤 导出 / 分享或📋 复制带走，换设备后导入即可完整恢复。<br><b>注意</b>：你自己导入的<b>电子书正文</b>和<b>相册照片</b>存在本机数据库里、不在这个 JSON 内，换设备需要重新导入文件；书目索引（书名与导入记录）会随 JSON 一起备份。'
+    : '把你的数据 JSON 粘贴到下面，点导入并恢复；<b>部分浏览器</b>也支持直接用选择文件。导入为<b>合并</b>：本机已有的不会丢，同名的以备份为准。';
   const ta = document.getElementById('dataText');
   ta.value = exp ? JSON.stringify(buildDataObj(), null, 2) : '';
   ta.readOnly = exp;
@@ -781,7 +827,7 @@ function copyDataText(){
 function downloadDataText(){
   const t0 = (document.getElementById('dataText') || {}).value || '';
   if (!t0) { toast('没有可导出的数据'); return; }
-  /* App 内：导出即分享（0.18.24）。以前写进系统「下载」目录，手机上根本找不到。 */
+  /* App 内：导出即分享（0.18.24）。以前写进系统下载目录，手机上根本找不到。 */
   try {
     if (window.YZSave && YZSave.share && YZSave.isApp && YZSave.isApp()) {
       if (YZSave.share('学通-我的数据.json', 'application/json;charset=utf-8', t0)) {
@@ -795,7 +841,7 @@ function downloadDataText(){
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '学通-我的数据.json';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
     toast('已导出：学通-我的数据.json');
-  } catch(e){ toast('此环境不支持导出，请用「📋 复制」'); }
+  } catch(e){ toast('此环境不支持导出，请用📋 复制'); }
 }
 function submitDataImport(){
   const t = (document.getElementById('dataText').value || '').trim();
@@ -869,7 +915,7 @@ function topSearch(){ var q = document.getElementById('qSearch'); var v = q ? q.
 
 /* ---------- 结果页搜索框下方的分类快捷（讲堂 / 图书馆 / ＋管理） ----------
    位置：主页下滑唤起搜索 → 结果页 → 紧贴大搜索框下方（原先错放在主页搜索条里）。
-   显示模型与「分类页管理」（底栏分类 → 右上角 ⚙️）一致：存的是「隐藏了哪些」
+   显示模型与分类页管理（底栏分类 → 右上角 ⚙️）一致：存的是隐藏了哪些
    （localStorage.qCatHidden），没存过就默认只显示讲堂 / 图书馆。
    默认显示 ≠ 不能隐藏：每一项都能取消勾选，全部取消也可以，快捷栏只剩一个 ＋。 */
 var QCAT_KEY = 'qCatHidden';
@@ -884,7 +930,7 @@ function qCatHidden() {
       if (Array.isArray(a)) return a.filter(function (k) { return QCAT_ALL.indexOf(k) >= 0; });
     } catch (e) { }
   }
-  /* 没存过：把老版本「显示列表」qCats 里加过的项迁过来，否则给默认 */
+  /* 没存过：把老版本显示列表qCats 里加过的项迁过来，否则给默认 */
   try {
     var old = JSON.parse(localStorage.getItem('qCats') || 'null');
     if (Array.isArray(old)) return QCAT_ALL.filter(function (k) { return old.indexOf(k) < 0; });
@@ -915,7 +961,7 @@ function renderQCats() {
       (catIcon[k] || '📁') + ' ' + k + '</button>';
   }).join('') + '<button class="qcat qadd" type="button" onclick="qcatAdd()" aria-label="管理快捷分类" title="管理快捷分类">＋</button>';
 }
-/* ＋ = 管理面板：勾选=显示，取消=隐藏。与「分类页管理」同一套交互与样式。 */
+/* ＋ = 管理面板：勾选=显示，取消=隐藏。与分类页管理同一套交互与样式。 */
 function qcatAdd() {
   var wasOpen = !!document.getElementById('qcatPick');
   closeQcatManage();
@@ -967,7 +1013,7 @@ window.renderQCats = renderQCats; window.closeQcatManage = closeQcatManage;
     if (stY > 160) return;                 /* 从页面中部往下划不触发 */
     if (dx > Math.abs(dy) * 0.8) return;   /* 横向滑动不触发 */
     if (Math.abs(dy) < 120) return;        /* 距离门槛 70 → 120px */
-    if (Date.now() - stT > 900) return;    /* 慢慢拖也不算「下拉唤起」 */
+    if (Date.now() - stT > 900) return;    /* 慢慢拖也不算下拉唤起 */
     triggered = true;
     try { if (typeof topSearch === 'function') topSearch(); else goResults(); } catch(_){ try { goResults(); } catch(__){} }
   }, { passive: true });
@@ -993,17 +1039,17 @@ function setTopbar(mode, opts){
     if (inp) inp.value = '';
     try { window.scrollTo(0, 0); } catch(e){}   /* 切页时回到顶部，搜索框自然在 */
   }
-  /* 抽屉/整页推进里的标题（#drawerTitle）也要跟着变，否则打开「账号」「设置」时
+  /* 抽屉/整页推进里的标题（#drawerTitle）也要跟着变，否则打开账号设置时
      抽屉顶部仍写着上一次的标题（真实 UI bug：标题与内容不一致）。 */
   var dt = document.getElementById('drawerTitle');
   if (dt) dt.textContent = (mode === 'page') ? (opts.title || '') : '';
   var plus = document.getElementById('qPlus');
-  /* page 模式原来强制显示「＋」，会把详情页自定义的按钮吞掉；现在统一：有 opts.right 就用它 */
+  /* page 模式原来强制显示＋，会把详情页自定义的按钮吞掉；现在统一：有 opts.right 就用它 */
   var rc = opts.right || { text:'＋', act:'togglePlus()' };
   if (plus){
     plus.textContent = rc.text || '＋';
     /* 只改 data-act（走全局事件委托），绝不再写内联 onclick ——
-       两者同时存在会让一次点击触发两次 togglePlus，表现就是「点加号没反应」。 */
+       两者同时存在会让一次点击触发两次 togglePlus，表现就是点加号没反应。 */
     var actStr = String(rc.act || 'togglePlus()').trim();
     var m = /^([A-Za-z_$][\w$]*)\((.*)\)$/.exec(actStr);
     if (m){
@@ -1016,7 +1062,7 @@ function setTopbar(mode, opts){
     }
     plus.removeAttribute('onclick');
   }
-  /* 顶部第二个动作按钮（如频道页的「切换频道」，位于「导入」右边） */
+  /* 顶部第二个动作按钮（如频道页的切换频道，位于导入右边） */
   var act2 = document.getElementById('qAct');
   if (act2){
     if (mode !== 'page' && opts.right2){
@@ -1035,7 +1081,7 @@ function setTopbar(mode, opts){
     }
   }
 }
-/* 底栏四个标签：先清空页面栈，保证「点哪个进哪个」（否则会停留在上次打开的子页面） */
+/* 底栏四个标签：先清空页面栈，保证点哪个进哪个（否则会停留在上次打开的子页面） */
 function tabTo(kind){
   try { resetPageStack(); } catch(e){}
   try { closeDrawer(); } catch(e){}
@@ -1044,10 +1090,10 @@ function tabTo(kind){
   if (kind === 'history')  { try { openSection(0); } catch(e){} return; }
   if (kind === 'classify') { try { openClassify(); } catch(e){} return; }
 }
-/* 打开「问一问」：图谱问答页（离线专家系统，不联网、不调模型） */
+/* 打开问一问：图谱问答页（离线专家系统，不联网、不调模型） */
 function openQA(){
   try { closePlus(); } catch(e){}
-  /* 把主站「当前实际主题」带过去：ask.html 是独立页，光靠 localStorage 在
+  /* 把主站当前实际主题带过去：ask.html 是独立页，光靠 localStorage 在
      WebView 里可能与主站不一致（系统媒体查询不跟随时就会出错）。 */
   var t = 'dark';
   try { t = resolvedTheme(localStorage.getItem('theme') || 'auto'); } catch(e){}
@@ -1131,7 +1177,7 @@ function route(){
   resEl.hidden = !isResults;
   if (isResults) {
     restoreURL(); render();
-    /* 返回只保留一个箭头：页内搜索框左边已经有「← 返回」，
+    /* 返回只保留一个箭头：页内搜索框左边已经有← 返回，
        顶栏的 qBack 再亮起来就是两个箭头（用户反馈）。这里明确隐藏它。 */
     try { const bk = document.getElementById('qBack'); if (bk) bk.hidden = true; } catch (e) { }
   } else CUR_TRAIL = [];
@@ -1181,9 +1227,9 @@ function toggleFileOnly(){
   c.classList.toggle('active', fileOnly);
   render();
 }
-/* ---------- 「只看可读」----------
+/* ---------- 只看可读----------
    书库 495 条里只有 43 条带站内正文，其余是书目索引（可查作者/年份，无正文）。
-   默认把没有正文的收起来，避免「点开一本是一本空的」；显式搜索时不受此限
+   默认把没有正文的收起来，避免点开一本是一本空的；显式搜索时不受此限
    ——搜索是明确的找东西意图，应该在全库里找，结果里用徽标区分。 */
 function readChipSync(){
   const c = document.getElementById('readChip'); if (!c) return;
@@ -1196,8 +1242,8 @@ function readChipSync(){
 }
 function toggleReadableOnly(){
   readableOnly = !readableOnly;
-  /* 关掉「只看可读」时人想看的是全部书目，而「推荐」区本来只挑几本——
-     停在推荐会显得「关掉之后条目反而更少」。所以关掉就顺带切到「全部」。 */
+  /* 关掉只看可读时人想看的是全部书目，而推荐区本来只挑几本——
+     停在推荐会显得关掉之后条目反而更少。所以关掉就顺带切到全部。 */
   if (!readableOnly && activeCat === '推荐') activeCat = '全部';
   readChipSync();
   render();
@@ -1209,10 +1255,10 @@ function quickSearch(w){ var q=document.getElementById('qSearch'); if(q) q.value
 /* ---------- 分类 ---------- */
 const IS_APP = !!(window.AndroidApp);
 function isFeatured(r){
-  /* 「推荐」= 值得先看什么。读不到的条目不该被推荐——原来只认「原著 + hot≥9」，
+  /* 推荐= 值得先看什么。读不到的条目不该被推荐——原来只认原著 + hot≥9，
      495 条里只挑出 2 条，首页显得空。
-     现在：开着「只看可读」时，可读的 43 条全部进推荐（按热度排序）；
-     关掉时退回旧口径，保证「全部书目」视图下的推荐区不变。
+     现在：开着只看可读时，可读的 43 条全部进推荐（按热度排序）；
+     关掉时退回旧口径，保证全部书目视图下的推荐区不变。
      注：可读条目将来若涨到几百条，这里要改成取热度前 N，否则首页会变成书目墙。 */
   if (typeof readableOnly !== 'undefined' && readableOnly) return hasBody(r);
   return r.cat === '原著' && (r.hot || 0) >= 9;
@@ -1276,7 +1322,7 @@ function introHit(item, q){
   return '<span style="display:block;margin-top:4px;opacity:.82;font-size:.72rem;line-height:1.5">🔎 ' + parts.slice(0, 2).join(' ／ ') + '</span>';
 }
 
-/* 章节命中：告诉用户「命中的是哪一章」 */
+/* 章节命中：告诉用户命中的是哪一章 */
 function chapterHit(item, q){
   if (!q || !item.chapters || !item.chapters.length) return '';
   var ql = String(q).toLowerCase();
@@ -1329,7 +1375,7 @@ function resourceCardHTML(item){
 
 /* ---------- 检索（多字段 + 模糊回退 + 相关度排序） ---------- */
 /* 章节文本：标题 + 每章 50~120 字简介。322 本书累计约 15 万字，
-   是「搜得到概念」和「只搜得到书名」的分水岭。 */
+   是搜得到概念和只搜得到书名的分水岭。 */
 function chapterText(r){
   if (!r.chapters || !r.chapters.length) return '';
   return r.chapters.map(function (c) { return (c.t || '') + ' ' + (c.d || ''); }).join(' ');
@@ -1404,7 +1450,7 @@ function pyIndex(){
   window.__yzPyIdx = arr;
   return arr;
 }
-/* 人物名集合（缓存）：拼音检索时人物优先，否则「毛」会被一堆书名挤下去 */
+/* 人物名集合（缓存）：拼音检索时人物优先，否则毛会被一堆书名挤下去 */
 function pyPersonSet(){
   if (window.__yzPset) return window.__yzPset;
   var M = {}, GR = window.SITE_GRAPH;
@@ -1506,14 +1552,14 @@ function yzOpenRef(kind, id) {
 }
 /* 外层：拼音查询先映射成中文名，再合并结果按相关度排序 */
 /* ---------- 问句净化 ----------
-   站内搜索是「整串包含」匹配，用户按口语提问（「什么是群众路线」「怎样防止手机被监控」）
+   站内搜索是整串包含匹配，用户按口语提问（什么是群众路线怎样防止手机被监控）
    整串必然落空。这里把疑问词与标点剥掉再检索一次，两次结果合并去重。
    只做前缀/后缀剥除，不改动中间的词序，避免把专名改坏。 */
 var YZ_Q_PREFIX = /^(?:请问一下|请问|帮我查一下|帮我找|帮我|我想知道|想知道|问一下|问下|查一下|查查|搜一下|什么是|啥是|什么叫|是什么|如何|怎么样|怎样|怎么|为什么|为何|有哪些|哪些|哪个|介绍一下|解释一下|说说|讲一下|讲一讲|谈谈)+/;
 var YZ_Q_SUFFIX = /(?:是什么|是什么意思|是怎么回事|是什么样|怎么样|怎么办|怎么做|怎么开|怎么弄|怎么用|有什么用|有啥用|有必要吗|行不行|好不好|能不能|可以吗|有哪些|为什么|如何|吗|呢|吧|呀)+$/;
 function yzCleanQuery(q){
   var s = String(q || '');
-  s = s.replace(/[?？!！。，,、；;：:"'“”‘’《》〈〉（）()\[\]【】\s]+/g, '');
+  s = s.replace(/[?？!！。，,、；;：:"'“”‘’《》〈〉（）()\[\]\s]+/g, '');
   s = s.replace(YZ_Q_PREFIX, '');
   s = s.replace(YZ_Q_SUFFIX, '');
   return s;
@@ -1549,8 +1595,8 @@ function yzFuzzyHits(q){
   return cand.slice(0, 5);
 }
 /* ---------- P1：图增强检索 ----------
-   实体链接（data/entity.js）→ 图上 1 跳扩展 → 产出「关联」结果；
-   再配合 JT_FULL 的段落级命中，产出「原文」原句结果。
+   实体链接（data/entity.js）→ 图上 1 跳扩展 → 产出关联结果；
+   再配合 JT_FULL 的段落级命中，产出原文原句结果。
    全部纯前端计算，不引入模型、不联网。 */
 function yzEntityHits(q){
   var cq = yzCleanQuery(q); if (!cq || cq.length < 2) return [];
@@ -1612,7 +1658,7 @@ function yzGraphHits(q){
       /* P2：这条边若标了时序，就把有效区间写进副标题（例：1967—1979） */
       var em = yzEdgeMeta(id, x.id, x.rel);
       var span = (em && em.t) ? ' · ' + em.t[0] + '—' + (em.t[1] || '今') : '';
-      out.push({ cat: '关联', t: info.n, sub: '经「' + e[0] + '」· ' + x.rel + span, fn: yzOpenNodeFn(x.id, info), w: 0.5 });
+      out.push({ cat: '关联', t: info.n, sub: '经' + e[0] + '· ' + x.rel + span, fn: yzOpenNodeFn(x.id, info), w: 0.5 });
     });
   });
   out.sort(function(a, b){ return b.w - a.w; });
@@ -1659,11 +1705,11 @@ function omniSearch(q){
   names.slice(0, 5).forEach(function (n) { extra = extra.concat(omniSearchRaw(n)); });
   return sortHits(uniq.concat(extra), q, names);
 }
-/* ---------- 全站命中：把「史料」也纳入检索 ---------- */
+/* ---------- 全站命中：把史料也纳入检索 ---------- */
 /* ---------- 运行时自检 ----------
-   用途：用户反馈「某个功能没生效」时，先确认对应模块是否真的加载、对应函数是否存在。
+   用途：用户反馈某个功能没生效时，先确认对应模块是否真的加载、对应函数是否存在。
    设置 → 诊断 → 导出诊断报告 会把这份结果一并写进去。 */
-/* App 版本标签：0.17.21(200)。写进诊断报告与自检，避免「装了哪一版」说不清 */
+/* App 版本标签：0.17.21(200)。写进诊断报告与自检，避免装了哪一版说不清 */
 function appTag(){
   try {
     if (!window.AndroidApp) return ' / web';
@@ -1718,9 +1764,25 @@ function omniSearchRaw(q){
   (EX.critics || []).forEach((c, i) => { if (hit(c.name) || hit(c.desc) || hit(c.role)) out.push({ cat:'被批判人物', t:c.name, sub:(c.role || c.desc || ''), fn:`openCritic(${i})` }); });
   (EX.events || []).forEach((e, i) => { if (hit(e.name) || hit(e.desc) || hit(e.year)) out.push({ cat:'重大事件', t:e.year + ' ' + e.name, sub:(e.desc || ''), fn:`openEvent(${i})` }); });
   (EX.features || []).forEach(f => { if (hit(f.name) || hit(f.desc)) out.push({ cat:(f.id === 'wenhua' ? '文革' : '专题'), t:f.name, sub:(f.desc || ''), fn:(f.id === 'wenhua' ? `openHub('wenge')` : `openHub('features')`) }); });
+  /* 概念频道：以前全站搜索根本不查概念，频道里新增/改名的概念自然搜不到 ——
+     用户报的「概念怎么没有频道，但依旧可以搜索回答」正是这个缺口。 */
+  (function(){
+    var _cn = (window.SITE_CONCEPTS && window.SITE_CONCEPTS.nodes) || [];
+    for (var i = 0; i < _cn.length; i++) {
+      var c = _cn[i];
+      var hay = [c.name, c.role, c.desc, c.source,
+        (c.tags || []).join(' '), (c.works || []).join(' '), (c.points || []).join(' ')]
+        .filter(Boolean).join(' ');
+      if (hit(hay)) {
+        out.push({ cat: '概念', t: c.name,
+                   sub: String(c.role || c.desc || '').slice(0, 80),
+                   fn: "openConcept('" + escAttr(c.id) + "')" });
+      }
+    }
+  })();
   /* 0.18.50 起：会议 / 报刊 / 机构 三类补进搜索。
      会议与报刊是懒加载数据，未加载时循环体为空，不抛错；
-     机构单独遍历图谱的 org 节点——schoolGroups() 只覆盖「思想/组织」分组，
+     机构单独遍历图谱的 org 节点——schoolGroups() 只覆盖思想/组织分组，
      新加的 21 个机构（契卡、OMS、苏共政治局等）不在里面。 */
   (function(){
     var _mt = (window.SITE_MEETINGS || []);
@@ -1773,7 +1835,7 @@ function omniSearchRaw(q){
   /* —— round16 扩展：纳入此前未被检索的文本源 —— */
   (wengeGraph().nodes || []).forEach(n => {                 /* 文革图谱（人物已由 figuresList 覆盖，此处只补组织/派系/事件） */
     if (!n || n.type === 'person') return;
-    /* 简称（如「湖南高司」）单独记在 alias 里：只靠 name 搜不到，靠 points 搜到又排在
+    /* 简称（如湖南高司）单独记在 alias 里：只靠 name 搜不到，靠 points 搜到又排在
        不相干的条目后面。按书库的既有做法给别名命中 84 分（见 omniRank）。 */
     const _aliHit = !hit(n.name) && hit(n.alias);
     if (hit(n.name) || hit(n.alias) || hit(n.desc) || hit(n.role) || hit((n.points || []).join(' ')))
@@ -1791,7 +1853,7 @@ function omniSearchRaw(q){
   });
   (EX.topics || []).forEach(t => { if (hit(t.title) || hit(t.desc)) out.push({ cat:'阅读路径', t:t.title, sub:t.desc || '', fn:`openSection(secIdx('阅读与手册'))` }); });
   /* 问题专题（data/topics.js 的 3 篇：国家是什么 / 苏联为什么变修 / 继续革命）
-     以前只进「专题」面板，搜索里找不到——这里补进来。 */
+     以前只进专题面板，搜索里找不到——这里补进来。 */
   (window.SITE_TOPICS || []).forEach(t => {
     if (hit(t.name) || hit(t.sub) || hit(t.lead)) {
       out.push({ cat: '专题', t: t.name, sub: t.sub || '', fn: `openTopic('${t.id}')` });
@@ -1808,7 +1870,7 @@ function omniSearchRaw(q){
   (RES || []).forEach((it, i) => {
     if (!it) return;
     if (hit(it.title) || hit(it.author) || hit(it.desc) || hit(it.intro) || hit(it.alias)) {
-      /* 别名命中（如书名「毛泽东选集」、别名「毛选」）也算标题级命中，分数在下面统一算 */
+      /* 别名命中（如书名毛泽东选集、别名毛选）也算标题级命中，分数在下面统一算 */
       var _ali = !hit(it.title) && hit(it.alias);
   /* 人名索引：某人在哪些文献里被提到（data/person-index.js） */
   (function () {
@@ -1837,7 +1899,7 @@ function omniSearchRaw(q){
           var b = (window.SITE_RESOURCES || []).find(function (r) { return r.id === x.b; });
           var bi = b ? (window.SITE_RESOURCES || []).indexOf(b) : -1;
           out.push({ cat: '我的摘录', t: (b ? b.title : '未关联书目'),
-            sub: '「' + String(x.txt || '').slice(0, 40) + (x.note ? '」· ' + String(x.note).slice(0, 20) : '」'),
+            sub: '' + String(x.txt || '').slice(0, 40) + (x.note ? '· ' + String(x.note).slice(0, 20) : ''),
             fn: bi >= 0 ? 'openItemDetail(' + bi + ')' : '' });
         }
       });
@@ -1864,14 +1926,14 @@ function omniSearchRaw(q){
     } catch (e) {}
   } catch (e) {}
   /* —— 正文级检索：词典 / 概念 / 导读 / 答疑 / 长段正文（fulltext.js）——
-     条目级匹配只看标题与摘要，这里补的是「正文里那句话」，命中时带上下文片段。 */
+     条目级匹配只看标题与摘要，这里补的是正文里那句话，命中时带上下文片段。 */
   try {
     if (window.YZFULLTEXT) {
       window.__yzftQ = q;
-      /* 直接 push，交给下面统一的「同类同名去重」处理，避免依赖尚未创建的 _seen */
+      /* 直接 push，交给下面统一的同类同名去重处理，避免依赖尚未创建的 _seen */
       const _ft = YZFULLTEXT.search(q);
       _ft.forEach(h => out.push(h));
-      /* 精确检索一条都没有 → 很可能是记错了几个字，用「引文比对」兜底（3-gram 模糊） */
+      /* 精确检索一条都没有 → 很可能是记错了几个字，用引文比对兜底（3-gram 模糊） */
       if (!_ft.length && window.YZQUOTE && String(q).replace(/\s/g, '').length >= 6) {
         try { window.YZQUOTE.match(q, { limit: 3, thresh: 0.55 }).forEach(h => out.push(h)); } catch (e) {}
       }
@@ -1882,10 +1944,10 @@ function omniSearchRaw(q){
   const _seen = {}, _per = {}, _kept = [];
   out.forEach(h => { const k = h.cat + '|' + h.t; if (_seen[k]) return; _seen[k] = 1;
     _per[h.cat] = (_per[h.cat] || 0) + 1; if (_per[h.cat] > 25) return; _kept.push(h); });
-  /* 按匹配质量重排：以前是按「数据源顺序」push，搜书名时书永远排在人物/事件之后
-     （实测搜「资本论」前三名是 卡尔·马克思 / 1867《资本论》第一卷出版 / 1895 恩格斯逝世）。
+  /* 按匹配质量重排：以前是按数据源顺序push，搜书名时书永远排在人物/事件之后
+     （实测搜资本论前三名是 卡尔·马克思 / 1867《资本论》第一卷出版 / 1895 恩格斯逝世）。
      排序规则：标题全等 > 标题开头 > 标题包含 > 别名包含 > 副标题/正文包含；
-     标题越长、比查询词多出的字越多，分数略降，避免「1867 《资本论》第一卷出版」压过书名本身。 */
+     标题越长、比查询词多出的字越多，分数略降，避免1867 《资本论》第一卷出版压过书名本身。 */
   function _yzHitScore(h, ql) {
     const T = String(h.t || '').toLowerCase(), S = String(h.sub || '').toLowerCase();
     let base;
@@ -1895,13 +1957,13 @@ function omniSearchRaw(q){
     else if (S.indexOf(ql) >= 0) base = 40;
     else base = 25;
     /* 标题按分隔符切开后有一段正好等于查询词，视为准全等：
-       「卡尔·马克思」切出「马克思」应该排第一，「马克思主义与民族问题」只算开头命中 */
+       卡尔·马克思切出马克思应该排第一，马克思主义与民族问题只算开头命中 */
     if (T !== ql) {
       const segs = T.split(/[·•・\s（）()《》「」【】,，、\/|\-—]+/).filter(Boolean);
       if (segs.indexOf(ql) >= 0) base = Math.max(base, 96);
     }
     if (base >= 72) base -= Math.min(12, Math.max(0, T.length - ql.length) * 0.4);
-    if (h.ali && base < 84) base = 84;            /* 别名命中（「毛选」→ 毛泽东选集）≈ 标题命中 */
+    if (h.ali && base < 84) base = 84;            /* 别名命中（毛选→ 毛泽东选集）≈ 标题命中 */
     if (h.cat === '书库' && base >= 60) base += 4; /* 用户搜书名，通常是去找书 */
     if (h.og) base += 3;                           /* 同是书名命中时，原著优先于导读/参考 */
     return base;
@@ -1934,9 +1996,9 @@ function openOmniResults(q){
        ① 条目级（omniSearch）② 正文级全文（YZFULLTEXT）③ 引文近似（YZQUOTE）
        ④ 图谱问答（YZQA / YZBOOK）⑤ 本机书正文（YZFULLTEXT.searchLocal）
      现在都在这一页里按分区出现：能直接答的放最前，按字面搜不到的给近似，条目清单居中，
-     本机书正文异步补进来。不再需要用户自己判断「该用哪个搜索」。 */
+     本机书正文异步补进来。不再需要用户自己判断该用哪个搜索。 */
 
-  /* ① 问一问：只收「答得出且有依据」的，答不出的不占位置 */
+  /* ① 问一问：只收答得出且有依据的，答不出的不占位置 */
   let askHTML = '';
   try {
     let ans = null, src = '';
@@ -1960,7 +2022,7 @@ function openOmniResults(q){
     }
   } catch (e) { }
 
-  /* ② 引文近似：整句搜索时，按字面搜不到也能定位「这句话在哪」 */
+  /* ② 引文近似：整句搜索时，按字面搜不到也能定位这句话在哪 */
   let quoteHTML = '';
   try {
     if (!window.YZQUOTE && window.YZData && YZData.need) {
@@ -1992,7 +2054,7 @@ function openOmniResults(q){
 
   openContent('🔎 搜索 · ' + q,
     askHTML + quoteHTML +
-    `<p class="sub" style="margin:10px 0 8px;line-height:1.7">关键词「${escHtml(q)}」全站命中 <b>${hits.length}</b> 条${hits.length ? '，分布在：' + omniCounts(hits) : ''}。<br>带灰色小字的是<b>正文里那句话</b>（词典 / 概念 / 导读 / 答疑 / 书库提要），点开能看整段。</p>` +
+    `<p class="sub" style="margin:10px 0 8px;line-height:1.7">关键词${escHtml(q)}全站命中 <b>${hits.length}</b> 条${hits.length ? '，分布在：' + omniCounts(hits) : ''}。<br>带灰色小字的是<b>正文里那句话</b>（词典 / 概念 / 导读 / 答疑 / 书库提要），点开能看整段。</p>` +
     body + jtBox + localBox);
 
   /* 异步补讲堂正文（站内 books/*.txt） */
@@ -2039,7 +2101,7 @@ function openOmniResults(q){
     }
   } catch (e) { }
 }
-/* 从「书里那句话」的结果直接跳进书：open 之后等一帧让正文渲染，再定位到那一章。
+/* 从书里那句话的结果直接跳进书：open 之后等一帧让正文渲染，再定位到那一章。
    PDF 没有文字层不会出现在这类结果里，所以只处理 EPUB / TXT / MD。 */
 window.yzftOpen = function (id, chap) {
   try {
@@ -2055,13 +2117,13 @@ window.yzftOpen = function (id, chap) {
     }
   } catch (e) { toast('打不开这本书：' + (e && e.message ? e.message : '未知原因')); }
 };
-/* 搜索命中「讲堂正文」→ 用内置阅读器打开，并直接滚到命中的那一句 */
+/* 搜索命中讲堂正文→ 用内置阅读器打开，并直接滚到命中的那一句 */
 window.yzJtOpen = function (id, url, para) {
   try {
     var q = window.__yzftQ || '';
     var it = (window.SITE_RESOURCES || []).filter(function (x) { return x.id === id; })[0];
     var title = (it && it.title) || '讲堂';
-    /* 统一走全屏阅读器；它自带「定位到那一句」（openAt） */
+    /* 统一走全屏阅读器；它自带定位到那一句（openAt） */
     var backF = function () { try { openOmniResults(q); } catch (e) { } };
     if (window.YZAppBooks && YZAppBooks.openAt) { YZAppBooks.openAt(String(id), q, backF); return; }
     if (window.YZAppBooks && YZAppBooks.open) { YZAppBooks.open(String(id), backF); return; }
@@ -2077,7 +2139,7 @@ function render(){
   curQ = document.getElementById('search').value.trim().toLowerCase();
   if (curQ) addRecentSearch(curQ);      /* 有词就记，重复的会提到最前 */
   let terms = curQ.split(/\s+/).filter(Boolean);
-  /* 输入的是字母 → 先映射出中文名，让「mao」也能命中《毛泽东选集》等 */
+  /* 输入的是字母 → 先映射出中文名，让mao也能命中《毛泽东选集》等 */
   const _py = pyQuery(curQ);
   if (_py.length) terms = terms.concat(_py);
   const author = authorSel.value;
@@ -2099,9 +2161,9 @@ function render(){
   document.getElementById('filterbox').hidden = !(curQ || activeTag || author !== '全部作者' || favOnly || fileOnly);
 
   let all = RES.filter(r => {
-    /* 有关键词时搜「全库」：不受当前分类标签限制。
-       （原先在默认的「推荐」分类下搜索，只会在 isFeatured 的少数条目里找，
-        导致导入的书、以及一切非「原著」书籍都搜不出来——用户反馈「搜不到/结果只有一条」。） */
+    /* 有关键词时搜全库：不受当前分类标签限制。
+       （原先在默认的推荐分类下搜索，只会在 isFeatured 的少数条目里找，
+        导致导入的书、以及一切非原著书籍都搜不出来——用户反馈搜不到/结果只有一条。） */
     if (terms.length) return true;
     if (activeCat === '推荐') { if (!isFeatured(r)) return false; }
     else if (activeCat !== '全部') { if (r.cat !== activeCat) return false; }
@@ -2109,8 +2171,8 @@ function render(){
     if (activeTag && !(r.tags || []).includes(activeTag)) return false;
     if (favOnly && !isFav(r)) return false;
     if (fileOnly && !hasFile(r)) return false;
-    /* 只看可读：仅在没有搜索词时生效。有词就搜全库——搜「有没有这本书」和
-       「这本书的正文在哪」是两个需求，后者才需要过滤。 */
+    /* 只看可读：仅在没有搜索词时生效。有词就搜全库——搜有没有这本书和
+       这本书的正文在哪是两个需求，后者才需要过滤。 */
     if (readableOnly && !terms.length && !hasBody(r)) return false;
     return true;
   });
@@ -2148,8 +2210,8 @@ function render(){
     emptyEl.style.display = 'block';
     const sug = suggest(curQ);
     if (readableOnly && !terms.length) {
-      /* 「只看可读」时某个分类可能一条都没有：要说清是「这里没有正文」，
-         不是「搜不到」，并给唯一的出口——切回全部书目。 */
+      /* 只看可读时某个分类可能一条都没有：要说清是这里没有正文，
+         不是搜不到，并给唯一的出口——切回全部书目。 */
       let _shells = 0;
       try { _shells = RES.length - RES.filter(function (x) { return hasBody(x); }).length; } catch (e) { }
       emptyEl.innerHTML = '这个分类下暂时没有可读的正文<br>' +
@@ -2171,7 +2233,7 @@ function moreList(){ listLimit += PAGE; render(); }
 function clearFilters(){
   document.getElementById('search').value = '';
   activeTag = ''; favOnly = false; fileOnly = false;
-  /* 「只看可读」是默认视图，清除筛选时一并回到默认（用户关掉它之后不该被粘住） */
+  /* 只看可读是默认视图，清除筛选时一并回到默认（用户关掉它之后不该被粘住） */
   readableOnly = true; readChipSync();
   const c = document.getElementById('favChip'); c.textContent = '☆ 我的收藏'; c.classList.remove('active');
   const f = document.getElementById('fileChip'); if (f){ f.textContent = '📄 仅看有文件'; f.classList.remove('active'); }
@@ -2188,7 +2250,7 @@ function renderContinue(){
   const idx = RES.findIndex(r => (r.id || r.title) === id);
   if (idx < 0){ el.innerHTML = ''; return; }
   const it = RES[idx];
-  /* 只有「本机已导入正文」的书才有「继续读」；书壳只能回详情页去导入 */
+  /* 只有本机已导入正文的书才有继续读；书壳只能回详情页去导入 */
   const _lid2 = localIdOf(it);
   const local = !!_lid2;
   let pos = 0;
@@ -2203,7 +2265,7 @@ function renderContinue(){
     <span style="opacity:.4">›</span></button>`;
 }
 
-/* ---------- 主页「我的好友」（QQ 式好友列表） ---------- */
+/* ---------- 主页我的好友（QQ 式好友列表） ---------- */
 function homeFriendList(){ try { var a = JSON.parse(localStorage.getItem('homeFriends') || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; } }
 function saveHomeFriends(a){ try { lset('homeFriends', JSON.stringify(a || [])); } catch(e){} }
 function inHomeFriends(k){ return homeFriendList().some(function(x){ return x && x.k === k; }); }
@@ -2238,7 +2300,7 @@ function friendRow(o){
 }
 function graphFriendRows(){
   var defs = [];
-  /* 哪些图谱出现在首页：默认全部，可在「图谱页 → ⚙ 管理 → 主页入口」里逐个关掉。
+  /* 哪些图谱出现在首页：默认全部，可在图谱页 → ⚙ 管理 → 主页入口里逐个关掉。
      关掉的存 localStorage 的 homeGraphsOff（只记关掉的，以后新增内置图谱会自动出现）。 */
   function on(id){ try { return !window.YZY || !YZY.homeGraphOn || YZY.homeGraphOn(id); } catch(e){ return true; } }
   var listed = 0;
@@ -2255,9 +2317,9 @@ function graphFriendRows(){
     var GI = { main:'🕸️', wenge:'📜', world:'🌍', old:'🏛️', neo:'🚩', geo:'🗺️' };
     defs.push({ name:g.name, icon:(GI[g.id] || '🧭'), sub:sub, act:"location.href='graph.html?g=" + encodeURIComponent(g.id) + "'" });
   }); } catch(e){}
-  /* 兜底只在「拿不到图谱列表」时用（编辑器没加载等）。
+  /* 兜底只在拿不到图谱列表时用（编辑器没加载等）。
      以前是 `if (!defs.length) 加主图谱` —— 于是把主图谱关掉以后，列表空了又被兜底加回来，
-     表现就是「主图谱选了关闭，主页还显示」（用户反馈）。 */
+     表现就是主图谱选了关闭，主页还显示（用户反馈）。 */
   if (!listed) defs.push({ name:'主图谱', icon:'🕸️', sub:'关系图谱', act:"location.href='graph.html?g=main'" });
   /* 全部关掉就一个都不显示：史料里本来就能进图谱，不必在首页留一行提示（用户要求） */
   if (on('3d')) defs.push({ name:'3D 关系图谱', icon:'🧊', sub:'立体图谱', act:"location.href='graph3d.html'" });
@@ -2274,7 +2336,7 @@ function leaderFriendRows(){
   return out;
 }
 function ensureHomeFriendsInit(){
-  /* 首次使用：革命导师默认就是「已添加到主页」的状态（与其他人一样，可自行移出） */
+  /* 首次使用：革命导师默认就是已添加到主页的状态（与其他人一样，可自行移出） */
   try{
     if (localStorage.getItem('homeFriendsInit') === '1') return;
     var a = homeFriendList();
@@ -2288,9 +2350,9 @@ function ensureHomeFriendsInit(){
 function renderHomeFriends(){
   var box = document.getElementById('homeFriends'); if (!box) return;
   ensureHomeFriendsInit();
-  /* 导师与图谱入口之外的人一律由 homeFriends 决定：默认已添加，可在人物页点「✔ 已添加到主页（点此移出）」取消 */
+  /* 导师与图谱入口之外的人一律由 homeFriends 决定：默认已添加，可在人物页点✔ 已添加到主页（点此移出）取消 */
   var rows = graphFriendRows().map(friendRow).concat(homeFriendList().map(friendRow));
-  if (!rows.length) rows = ['<p class="sub" style="margin:0;opacity:.75;line-height:1.8">还没有添加到主页的人。在人物页面点「➕ 添加到主页」，就能把常看的人放到这里。</p>'];
+  if (!rows.length) rows = ['<p class="sub" style="margin:0;opacity:.75;line-height:1.8">还没有添加到主页的人。在人物页面点➕ 添加到主页，就能把常看的人放到这里。</p>'];
   box.innerHTML = rows.join('');
 }
 
@@ -2317,15 +2379,15 @@ function renderPc(){
       pcRow('🌐','网站版','xuetone.netlify.app · 浏览器打开','openSiteVersion()') +
       pcRow('🔓','开源地址','GitHub · 源码 / 许可 / 更新日志','openRepo()') +
       pcRow('📁','文件','全部文件 · ' + RES.length + ' 项',"openSection(secIdx('文件'))") +
-      /* 「我的藏书」与「音视频」合并成一个入口：一个「＋ 导入」什么都能选，导入后自动分流
+      /* 我的藏书与音视频合并成一个入口：一个＋ 导入什么都能选，导入后自动分流
          （书进书架、图片进相册、音视频进音视频库）。 */
       pcRow('📚','我的文件','书 · 音频 · 视频 · 一个入口全导入','YZAppBooks.shelf()') +
       pcRow('📦','内容包','自己做的 HTML 小应用 · 导入即可运行','location.href=\'challenge.html\'') +
       pcRow('📚','我的资料','书架 · 收藏 · 书签 · 摘录 · 标注','yzOpenMine()') +
       pcRow('🎛','自定义','外观 · 片段 · 版式 · 首页','openCustom()') +
       /* 意见反馈放在抽屉根（个人中心）而不是设置页：这里少点一层，且不必进设置才能找到。
-         地址本身就是复制按钮（点一下即复制，不再单占一个「复制」按钮）：
-         反馈场景下「拿到地址」远比「看着地址」常用，少一个按钮也少一次误触。 */
+         地址本身就是复制按钮（点一下即复制，不再单占一个复制按钮）：
+         反馈场景下拿到地址远比看着地址常用，少一个按钮也少一次误触。 */
       '<div class="pc-row" style="gap:8px">' +
         '<span class="pc-ic">✉️</span>' +
         '<span class="pc-tx"><span class="pc-t">意见反馈</span>' +
@@ -2341,7 +2403,7 @@ function renderPc(){
       '<button class="pc-b" onclick="pcNight()">🌙 夜间</button>' +
     '</div>';
 }
-/* 独立的「收藏」整页列表已合并进「我的资料 → 收藏」页签（mine.js），此处不再保留第二套 UI。 */
+/* 独立的收藏整页列表已合并进我的资料 → 收藏页签（mine.js），此处不再保留第二套 UI。 */
 /* ---------- 相册：IndexedDB 大容量存储（旧 localStorage 数据自动迁移） ---------- */
 const ALBUM_DB = 'yzy_album', ALBUM_STORE = 'photos';
 let __albumExtra = [], __albumBooting = false, __albumBooted = false;
@@ -2412,9 +2474,9 @@ function albumBoot(){
     return __albumExtra;
   }).catch(function(){ __albumBooting = false; return __albumExtra; });
 }
-/* 书架「＋ 导入文件」选进来的照片存在 App 私有目录（原生侧），
+/* 书架＋ 导入文件选进来的照片存在 App 私有目录（原生侧），
    由 _photo/ 同源地址提供。这里把它们并成相册里的一组，
-   于是「书架导入」和「相册导入」看到的永远是同一批照片。 */
+   于是书架导入和相册导入看到的永远是同一批照片。 */
 function albumAppPhotos(){
   try{
     var A = window.AndroidApp;
@@ -2519,7 +2581,7 @@ function savePhoto(srcEnc, nameEnc){
       document.body.appendChild(a); a.click();
       setTimeout(function(){ try { a.parentNode.removeChild(a); } catch(e){} }, 200);
       toast('已保存：' + fn);
-    } catch (e) { toast('这台设备不支持直接保存，可长按图片选择「保存图片」'); }
+    } catch (e) { toast('这台设备不支持直接保存，可长按图片选择保存图片'); }
   }
 
   try {
@@ -2608,7 +2670,7 @@ function chanBodyHTML(p, withCrit){
 }
 function chanKey(p){ if (p && p.__ok) return p.__ok; return ((p && p.author) || '') + '|' + ((p && p.text) || ''); }
 function chanComments(){ try { return JSON.parse(localStorage.getItem('chanComments') || '{}'); } catch(e){ return {}; } }
-/* 默认评论：仅为「有意义」的条目添加（被批判者的导师批判 + 少量精选），其余不默认生成 */
+/* 默认评论：仅为有意义的条目添加（被批判者的导师批判 + 少量精选），其余不默认生成 */
 var CHAN_CURATED = {
   '卡尔·马克思|全世界无产者，联合起来！': [{ by:'读者', text:'这句号召把分散的斗争连成了一片。' }],
   '弗里德里希·恩格斯|劳动创造了人本身。': [{ by:'读者', text:'劳动的观点，是理解历史的钥匙。' }],
@@ -2663,12 +2725,12 @@ function chanCopy(keyEnc){
   copyText((p.author || '') + '：' + (p.text || '') + (p.src ? ('（' + p.src + '）') : ''), '已复制发言');
 }
 /* ---------- 意见反馈：发送（系统分享面板）/ 点地址即复制 / GitHub ----------
-   为什么不再只有「写信」一个口子：
-     mailto: 交给系统后，只有装了邮件客户端的设备才会弹「用哪个应用打开」；
-     多数国产 ROM 没装邮件 App，点了要么没反应、要么只提示「无法打开链接」。
+   为什么不再只有写信一个口子：
+     mailto: 交给系统后，只有装了邮件客户端的设备才会弹用哪个应用打开；
+     多数国产 ROM 没装邮件 App，点了要么没反应、要么只提示无法打开链接。
    现在优先走 App 桥 AndroidApp.shareText → Intent.ACTION_SEND + createChooser，
    系统会列出微信 / QQ / 邮件 / 备忘录 / 复制到剪贴板等任意能接收文本的应用
-   （这就是「可以选择用其他应用打开」的入口）；网页版没有桥，退回 mailto。 */
+   （这就是可以选择用其他应用打开的入口）；网页版没有桥，退回 mailto。 */
 var YZ_FEEDBACK_MAIL = 'fictional-doodle.percolate882@passinbox.com';
 function feedbackBody(){
   var ver = '';
@@ -2679,7 +2741,7 @@ function feedbackBody(){
 function shareFeedback(){
   var body = feedbackBody();
   /* ① App 内首选：sendMail —— 直接唤起邮件应用，收件人/主题/正文全部预填。
-        只在这台设备装了邮件客户端时才会出现（多个客户端时系统弹「用哪个应用打开」）；
+        只在这台设备装了邮件客户端时才会出现（多个客户端时系统弹用哪个应用打开）；
         没有邮件客户端时 Java 侧自动退到分享面板，不会点了没反应。 */
   try {
     if (window.AndroidApp && typeof window.AndroidApp.sendMail === 'function'){
@@ -2705,7 +2767,7 @@ function shareFeedback(){
 }
 /* 兼容旧调用（设置页残留的 mailFeedback） */
 function mailFeedback(){ shareFeedback(); }
-/* 点地址即复制（0.18.46：不再单设「复制」按钮） */
+/* 点地址即复制（0.18.46：不再单设复制按钮） */
 function copyFeedback(){ copyText(YZ_FEEDBACK_MAIL, '邮箱已复制，可直接粘贴'); }
 /* 第三个反馈渠道：GitHub 提 issue。站点没有网络权限，这里把链接交给系统浏览器打开。 */
 var YZ_FEEDBACK_ISSUE = 'https://github.com/3208259164/fictional-doodle/issues/new';
@@ -2731,7 +2793,7 @@ function chanTabSet(k){
   if (inp){ inp.value = ''; inp.placeholder = (_chanTab === 'article') ? '搜索文章…' : '搜索概念…'; }
   try { window.scrollTo(0, 0); } catch(e){}
 }
-/* ---------- 文章频道：放「既不能成书、也不是几十字」的中篇 ---------- */
+/* ---------- 文章频道：放既不能成书、也不是几十字的中篇 ---------- */
 function articleList(){ return window.SITE_ARTICLES || []; }
 function articleById(id){
   var L = articleList();
@@ -2748,7 +2810,7 @@ function articleCardHTML(a){
     '</article>';
 }
 function articleListHTML(list){
-  if (!list || !list.length) return '<div style="padding:20px 16px;opacity:.7;line-height:1.9">这个频道还没有文章。<br>文章放「既不能独立成书、也不是几十字短讯」的内容：导读、方法说明、专题长文。</div>';
+  if (!list || !list.length) return '<div style="padding:20px 16px;opacity:.7;line-height:1.9">这个频道还没有文章。<br>文章放既不能独立成书、也不是几十字短讯的内容：导读、方法说明、专题长文。</div>';
   return '<div class="ch-list">' + list.map(articleCardHTML).join('') + '</div>';
 }
 function openArticle(id){
@@ -2782,9 +2844,20 @@ function conceptListHTML(list){
   if (!list.length) return '<p class="sub" style="line-height:1.9">没有找到相关概念。</p>';
   return list.map(conceptCardHTML).join('');
 }
+/* 概念频道顶部：新增 / 批量导入。以前这一页只能看，缺的概念只能回头改内置数据，
+   用户在频道里发现少一条时没有出口。 */
+function conceptOpsHTML(){
+  var n = conceptNodes().length;
+  var bs = 'flex:0 0 auto;padding:8px 14px;border-radius:9px;font-size:.82rem;min-height:38px;' +
+    'border:1px solid var(--line,rgba(128,128,128,.38));background:transparent;color:inherit;font-family:inherit';
+  return '<div class="cc-ops" style="display:flex;align-items:center;gap:8px;padding:2px 0 10px">'
+    + '<button type="button" data-act="conceptNew" style="' + bs + '">＋ 新增概念</button>'
+    + '<button type="button" data-act="conceptBulk" style="' + bs + '">⇪ 批量导入</button>'
+    + '<span style="margin-left:auto;font-size:.74rem;opacity:.6">共 ' + n + ' 条</span></div>';
+}
 function channelHTML(){
   if (_chanTab === 'article') return articleListHTML(articleList());
-  return conceptListHTML(conceptNodes());
+  return conceptOpsHTML() + conceptListHTML(conceptNodes());
 }
 function channelSearch(q){
   var cv = document.getElementById('contentView'); if (!cv) return;
@@ -2804,12 +2877,192 @@ function channelSearch(q){
   });
   cv.innerHTML = articleListHTML(arts);
 }
+/* ---------- 新增一条概念 ---------- */
+function openConceptForm(){
+  var old = document.getElementById('yzConceptForm'); if (old) { try { old.remove(); } catch (e) {} }
+  var w = document.createElement('div');
+  w.id = 'yzConceptForm';
+  w.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;z-index:100070;background:rgba(0,0,0,.55);' +
+    'display:flex;align-items:flex-end';
+  /* 表单控件必须显式给文字色与 text-fill-color：浅色主题下继承会变成白字白底 */
+  var inp = 'width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;font-family:inherit;' +
+    'font-size:.9rem;line-height:1.75;border:1px solid var(--line,rgba(128,128,128,.4));' +
+    'background:var(--panel-bg2,rgba(0,0,0,.18));color:var(--panel-text,inherit);' +
+    '-webkit-text-fill-color:var(--panel-text,inherit);caret-color:var(--panel-text,inherit)';
+  var row = 'font-size:.76rem;opacity:.7;margin:10px 0 4px';
+  w.innerHTML = '<div style="width:100%;max-height:88vh;overflow:auto;background:var(--panel-bg,#241a16);' +
+      'color:var(--panel-text,#f2e8d8);border-radius:16px 16px 0 0;' +
+      'padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px))">' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+      '<b style="flex:1;font-size:.95rem">新增概念</b>' +
+      '<button type="button" data-a="cancel" style="background:none;border:none;color:inherit;font-size:1.1rem;' +
+      'min-width:44px;min-height:44px">✕</button></div>' +
+    '<p style="font-size:.74rem;opacity:.62;line-height:1.65;margin:6px 0 2px">' +
+      '编号用英文小写加下划线（如 surplus_value_2），保存后立刻进频道列表，搜索与问一问也能命中。</p>' +
+    '<div style="' + row + '">编号</div><input id="cfId" style="' + inp + '" placeholder="surplus_value_2">' +
+    '<div style="' + row + '">名称</div><input id="cfName" style="' + inp + '" placeholder="剩余价值的分配">' +
+    '<div style="' + row + '">定位（一行，卡片上显示）</div><input id="cfRole" style="' + inp + '">' +
+    '<div style="' + row + '">正文介绍</div>' +
+    '<textarea id="cfDesc" style="' + inp + ';min-height:22vh" placeholder="定义、机制、易混点"></textarea>' +
+    '<div style="' + row + '">出处（可空）</div><input id="cfSource" style="' + inp + '">' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">' +
+      '<button type="button" data-a="cancel" style="padding:11px 18px;border-radius:10px;font-size:.88rem;' +
+      'border:1px solid var(--line,rgba(128,128,128,.4));background:transparent;color:inherit;font-family:inherit;min-height:44px">取消</button>' +
+      '<button type="button" data-a="save" style="padding:11px 20px;border-radius:10px;font-size:.88rem;border:none;' +
+      'background:var(--accent,#c9a227);color:#1b1412;font-weight:600;font-family:inherit;min-height:44px">保存</button>' +
+    '</div></div>';
+  document.body.appendChild(w);
+  var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+  w.addEventListener('click', function (e) {
+    var a = e.target && e.target.getAttribute ? e.target.getAttribute('data-a') : '';
+    if (a === 'cancel') { try { w.remove(); } catch (er) {} return; }
+    if (a !== 'save') { if (e.target === w) { try { w.remove(); } catch (er) {} } return; }
+    var Y = window.YZY;
+    if (!Y || typeof Y.addConcept !== 'function') { toast('当前版本不支持新增概念'); return; }
+    var r = Y.addConcept({ id: g('cfId'), name: g('cfName'), role: g('cfRole'), desc: g('cfDesc'), source: g('cfSource') });
+    if (!r || !r.ok) { toast((r && r.msg) || '保存失败'); return; }
+    /* 问答索引与频道列表都读同一份 SITE_CONCEPTS，reapply 里已重建索引，这里只要重画页面 */
+    try { w.remove(); } catch (er) {}
+    try { chanTabSet('concept'); } catch (er) {}
+    try { if (window.toast) toast('已添加：' + r.name); } catch (er) {}
+  });
+  var first = document.getElementById('cfId'); if (first) { try { first.focus(); } catch (e) {} }
+}
+
+yzAct('conceptNew', function () { openConceptForm(); });
+yzAct('conceptBulk', function () { openConceptImport(); });
+
+/* ---------- 批量导入概念（选文件，不是粘贴文本） ---------- */
+function yzConceptNorm(o){
+  if (!o || typeof o !== 'object') return null;
+  var g = function(){ for (var i = 0; i < arguments.length; i++) { var v = o[arguments[i]]; if (v != null && String(v).trim() !== '') return String(v).trim(); } return ''; };
+  var arr = function(){ for (var i = 0; i < arguments.length; i++) { var v = o[arguments[i]]; if (Array.isArray(v)) return v.map(function(x){return String(x).trim();}).filter(Boolean); if (typeof v === 'string' && v.trim()) return v.split(/[\n,，、]+/).map(function(x){return x.trim();}).filter(Boolean); } return []; };
+  var c = {
+    id: g('id', '编号'),
+    name: g('name', '名称', 'title', '标题'),
+    role: g('role', '定位'),
+    desc: g('desc', '正文', '正文介绍', '介绍', 'intro'),
+    source: g('source', '出处')
+  };
+  c.points = arr('points', '要点');
+  c.works = arr('works', '文献', '相关文献');
+  c.tags = arr('tags', '标签', '关键词');
+  return c;
+}
+function yzConceptParse(text){
+  var out = [], err = [];
+  var t = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trim();
+  if (!t) return { list: [], err: ['文件是空的'] };
+  if (t[0] === '[' || t[0] === '{') {
+    try {
+      var j = JSON.parse(t);
+      var arr = Array.isArray(j) ? j : (Array.isArray(j.nodes) ? j.nodes : [j]);
+      arr.forEach(function(x){ var c = yzConceptNorm(x); if (c) out.push(c); });
+      if (!out.length) err.push('JSON 里没有可识别的条目');
+      return { list: out, err: err };
+    } catch (e) {
+      return { list: [], err: ['JSON 格式有错：' + (e && e.message ? e.message : e)] };
+    }
+  }
+  /* 块文本：一行一个字段，遇到 # 名称 / ## 名称 / 空行+名称 开始新条目 */
+  var cur = null, lastKey = '';
+  var KEYMAP = { '编号': 'id', 'id': 'id', '名称': 'name', 'name': 'name', '标题': 'name', 'title': 'name',
+    '定位': 'role', 'role': 'role', '正文': 'desc', '介绍': 'desc', 'desc': 'desc', 'intro': 'desc',
+    '出处': 'source', 'source': 'source', '要点': 'points', 'points': 'points',
+    '文献': 'works', '相关文献': 'works', 'works': 'works', '标签': 'tags', '关键词': 'tags', 'tags': 'tags' };
+  t.split('\n').forEach(function (raw) {
+    var ln = raw.trim();
+    if (!ln) { lastKey = ''; return; }
+    var mh = ln.match(/^#{1,4}\s+(.+)$/);
+    if (mh) { cur = { name: mh[1].trim(), points: [], works: [], tags: [] }; out.push(cur); lastKey = ''; return; }
+    var mk = ln.match(/^([^:：]{1,8})[:：]\s*(.*)$/);
+    if (mk && KEYMAP[mk[1].trim()]) {
+      if (!cur) { cur = { points: [], works: [], tags: [] }; out.push(cur); }
+      var k = KEYMAP[mk[1].trim()], v = mk[2].trim();
+      if (k === 'points' || k === 'works' || k === 'tags') { if (v) cur[k] = v.split(/[\n,，、]+/).map(function(x){return x.trim();}).filter(Boolean); }
+      else cur[k] = v;
+      lastKey = k; return;
+    }
+    var mb = ln.match(/^[-·*]\s*(.+)$/);
+    if (mb && cur) {
+      var kk = (lastKey === 'works' || lastKey === 'tags') ? lastKey : 'points';
+      cur[kk] = (cur[kk] || []).concat([mb[1].trim()]);
+      return;
+    }
+    if (!cur) { cur = { name: ln, points: [], works: [], tags: [] }; out.push(cur); }
+  });
+  out.forEach(function (c) {
+    ['points', 'works', 'tags'].forEach(function (k) { if (!Array.isArray(c[k])) c[k] = []; });
+  });
+  return { list: out, err: err };
+}
+function yzConceptImportPreview(list, errs, fileName){
+  var bad = list.filter(function (c) { return !c.id || !c.name; });
+  var good = list.filter(function (c) { return c.id && c.name; });
+  var d = document.createElement('div');
+  d.id = 'yzConceptImport';
+  d.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;z-index:100070;background:rgba(0,0,0,.55);display:flex;align-items:flex-end';
+  var names = good.slice(0, 8).map(function (c) { return '<li style="margin:2px 0">' + escHtml(c.name) + (c.id ? ' · ' + escHtml(c.id) : '') + '</li>'; }).join('');
+  d.innerHTML = '<div style="width:100%;max-height:88vh;overflow:auto;background:var(--panel-bg,#241a16);' +
+      'color:var(--panel-text,#f2e8d8);border-radius:16px 16px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px))">' +
+    '<div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:.95rem">导入预览</b>' +
+      '<button type="button" data-a="cancel" style="background:none;border:none;color:inherit;font-size:1.1rem;min-width:44px;min-height:44px">✕</button></div>' +
+    '<p style="font-size:.76rem;opacity:.7;line-height:1.7;margin:6px 0 2px">文件：' + escHtml(fileName || '') + '</p>' +
+    '<p style="font-size:.9rem;line-height:1.8;margin:6px 0">识别到 <b>' + list.length + '</b> 条，可导入 <b>' + good.length + '</b> 条' +
+      (bad.length ? '，缺编号或名称 ' + bad.length + ' 条（会跳过）' : '') + '</p>' +
+    (errs && errs.length ? '<p style="font-size:.78rem;color:#e08b7a;line-height:1.7">' + errs.map(escHtml).join('<br>') + '</p>' : '') +
+    (names ? '<ul style="font-size:.82rem;line-height:1.8;padding-left:18px;margin:8px 0">' + names + (good.length > 8 ? '<li style="opacity:.6">… 还有 ' + (good.length - 8) + ' 条</li>' : '') + '</ul>' : '') +
+    '<p style="font-size:.74rem;opacity:.6;line-height:1.7;margin:8px 0 0">编号重复的条目会被跳过，不会覆盖已有内容。</p>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">' +
+      '<button type="button" data-a="cancel" style="padding:11px 18px;border-radius:10px;font-size:.88rem;border:1px solid var(--line,rgba(128,128,128,.4));background:transparent;color:inherit;font-family:inherit;min-height:44px">取消</button>' +
+      '<button type="button" data-a="go" style="padding:11px 20px;border-radius:10px;font-size:.88rem;border:none;background:var(--accent,#c9a227);color:#1b1412;font-weight:600;font-family:inherit;min-height:44px"' + (good.length ? '' : ' disabled') + '>导入 ' + good.length + ' 条</button>' +
+    '</div></div>';
+  document.body.appendChild(d);
+  d.addEventListener('click', function (e) {
+    var a = e.target && e.target.getAttribute ? e.target.getAttribute('data-a') : '';
+    if (a === 'cancel' || e.target === d) { try { d.remove(); } catch (er) {} return; }
+    if (a !== 'go') return;
+    var Y = window.YZY;
+    if (!Y || typeof Y.addConcept !== 'function') { toast('当前版本不支持新增概念'); return; }
+    var okN = 0, dupN = 0, badN = 0, firstErr = '';
+    good.forEach(function (c) {
+      var r = Y.addConcept(c);
+      if (r && r.ok) okN++;
+      else if (r && /已存在/.test(r.msg || '')) dupN++;
+      else { badN++; if (!firstErr) firstErr = (r && r.msg) || ''; }
+    });
+    try { d.remove(); } catch (er) {}
+    try { chanTabSet('concept'); } catch (er) {}
+    toast('导入完成：新增 ' + okN + ' 条' + (dupN ? ' · 编号重复 ' + dupN : '') + (badN ? ' · 失败 ' + badN + (firstErr ? '（' + firstErr + '）' : '') : ''));
+  });
+}
+function openConceptImport(){
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json,.txt,.md,application/json,text/plain';
+  inp.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(inp);
+  inp.onchange = function () {
+    var f = inp.files && inp.files[0];
+    if (!f) { try { inp.remove(); } catch (e) {} return; }
+    var fr = new FileReader();
+    fr.onload = function () {
+      try { inp.remove(); } catch (e) {}
+      var r = yzConceptParse(String(fr.result || ''));
+      yzConceptImportPreview(r.list, r.err, f.name);
+    };
+    fr.onerror = function () { try { inp.remove(); } catch (e) {} toast('文件读不出来'); };
+    fr.readAsText(f, 'utf-8');
+  };
+  try { inp.click(); } catch (e) { toast('打不开文件选择器：' + (e && e.message)); }
+}
+
 /* 概念详情 */
 /* 当前详情页。★ 两个变量必须分开：
-     _yzLast —— 持久记住「最后打开的详情页」，供 openCurrent() 重渲染；
+     _yzLast —— 持久记住最后打开的详情页，供 openCurrent() 重渲染；
      _yzDeco —— 一次性标记，只给紧接着的那次 openContent 用，用完即清。
-   早期版本只有一个变量且不清理，导致「书详情 → 分类页」时，阅读状态/摘录/标注
-   被追加到分类页最下方（用户看到的「阅读状态卡在分类最下面」）。 */
+   早期版本只有一个变量且不清理，导致书详情 → 分类页时，阅读状态/摘录/标注
+   被追加到分类页最下方（用户看到的阅读状态卡在分类最下面）。 */
 var _yzLast = null, _yzDeco = null;
 function yzSetCur(o){ _yzLast = o; _yzDeco = o ? { kind: o.kind, id: o.id } : null; }
 function yzCur(){ return _yzLast; }
@@ -2883,8 +3136,8 @@ function conceptRelationHTML(id){
   });
   if (!html) return '';
   return '<h2 class="sub-title" style="margin-top:16px">🔗 概念关系</h2>' +
-    '<div style="font-size:.78rem;opacity:.7;line-height:1.8">箭头表示方向：<b>→</b> 本概念对它是「' +
-    '提出 / 属于 / 构成 / 前提 / 发展 / 对立」中的一种，<b>←</b> 表示反过来。悬停可看原始表述。</div>' + html;
+    '<div style="font-size:.78rem;opacity:.7;line-height:1.8">箭头表示方向：<b>→</b> 本概念对它是' +
+    '提出 / 属于 / 构成 / 前提 / 发展 / 对立中的一种，<b>←</b> 表示反过来。悬停可看原始表述。</div>' + html;
 }
 
 function openConcept(id){
@@ -2944,7 +3197,7 @@ function chanDetailHTML(key, keyEnc){
     '<div class="ch-input"><textarea id="chCmtTa" placeholder="写下你的评论…" rows="2"></textarea><button class="sbtn" onclick="chanSend(\'' + keyEnc + '\')">发送</button></div>';
 }
 function openChannelPost(kEnc){ var key = decodeURIComponent(kEnc); openContent('📡 帖子详情', chanDetailHTML(key, kEnc)); }
-/* ---- 频道：改 / 删（以前只有「导入新增」，已有的一条也改不了，这就是「频道无法更改」） ---- */
+/* ---- 频道：改 / 删（以前只有导入新增，已有的一条也改不了，这就是频道无法更改） ---- */
 function chanEdit(kEnc){
   var key = decodeURIComponent(kEnc);
   var p = channelList().filter(function(x){ return chanKey(x) === key; })[0];
@@ -2998,7 +3251,7 @@ function chanEditSave(kEnc, box){
 }
 function chanDel(kEnc){
   var key = decodeURIComponent(kEnc);
-  if (!window.confirm('删除这条发言？\n只删本机这一份，内置数据不会被破坏（可在「最近的改动」里撤销）。')) return;
+  if (!window.confirm('删除这条发言？\n只删本机这一份，内置数据不会被破坏（可在最近的改动里撤销）。')) return;
   var extra = []; try { extra = JSON.parse(localStorage.getItem('channelExtra') || '[]'); } catch(e){}
   var hit = (Array.isArray(extra) ? extra : []).filter(function(x){ return chanKey(x) === key; });
   if (hit.length) {
@@ -3090,9 +3343,9 @@ function openSiteVersion(){
 function pcNight(){ try { var dark = resolvedTheme(localStorage.getItem('theme') || 'auto') === 'dark'; setTheme(dark ? 'light' : 'dark'); toast(dark ? '已切换浅色' : '已切换深色'); } catch(e){} }
 
 function bindClicks(){
-  /* 只「叠加」点击计数 / 外站不跳转这类额外行为，
+  /* 只叠加点击计数 / 外站不跳转这类额外行为，
      绝不能用 a.onclick = 覆盖卡片自带的内联 onclick —— 那会把 cardAction → openItemDetail
-     整个顶掉，导致搜索结果里的书籍「点了没反应、打不开」。改用 addEventListener + 幂等标记。 */
+     整个顶掉，导致搜索结果里的书籍点了没反应、打不开。改用 addEventListener + 幂等标记。 */
   document.querySelectorAll('#list a.card, #linksList a.card').forEach(a => {
     if (a.dataset.bound === '1') return;
     a.dataset.bound = '1';
@@ -3123,14 +3376,14 @@ function personAuthors(name){ const a = (EX.authors || {})[name]; return (a && a
 function personResources(name){
   const keys = personAuthors(name);
   const base = RES.filter(r => r.author && keys.includes(r.author));
-  /* 他译的 / 他编的也收进来（translator 字段或 author 里带「编」） */
+  /* 他译的 / 他编的也收进来（translator 字段或 author 里带编） */
   RES.forEach(function(r){
     if (base.indexOf(r) >= 0) return;
     const tr = String(r.translator || ''), au = String(r.author || '');
     const hit = keys.some(function(k){ return k && (tr.indexOf(k) >= 0 || (au.indexOf(k) >= 0 && /编|译/.test(au))); });
     if (hit) base.push(r);
   });
-  /* 手工加的推荐（related 里可写书名或 id）：并进「本站收录」，但不重复 */
+  /* 手工加的推荐（related 里可写书名或 id）：并进本站收录，但不重复 */
   const p = personOfAny(name) || {};
   const extra = [];
   (p.related || []).forEach(function(t){
@@ -3156,13 +3409,13 @@ function personResourcesHTML(name){
       <button class="sbtn" style="font-size:.72rem;padding:3px 9px" data-act="openAddRelated" data-arg="${escAttr(name)}">＋ 加书</button>
     </h2>`;
   if (!list.length){
-    return head + `<div id="yzPrsBody"><p class="sub">暂未收录相关书籍。点上面的「＋ 加书」从书库里挑一本加进来，或到书目详情里补充链接。</p></div>`;
+    return head + `<div id="yzPrsBody"><p class="sub">暂未收录相关书籍。点上面的＋ 加书从书库里挑一本加进来，或到书目详情里补充链接。</p></div>`;
   }
-  /* 排序：手工加的书（related）排在最前，其余按书名——这样只需要顶部一个「★ 推荐」标题，
-     不必每本前面都插一行标签（原来连着加三本就是三条「★ 推荐」）。 */
+  /* 排序：手工加的书（related）排在最前，其余按书名——这样只需要顶部一个★ 推荐标题，
+     不必每本前面都插一行标签（原来连着加三本就是三条★ 推荐）。 */
   const marked = list.map(function(it){ return { it: it, rel: !!(relSet[it.title] || relSet[it.id]) }; });
   marked.sort(function(a, b){ if (a.rel !== b.rel) return a.rel ? -1 : 1; return String(a.it.title).localeCompare(String(b.it.title), 'zh'); });
-  /* 著 / 编·译 分开：作者名对得上＝著作；只在译者或「编」里出现＝编著/译作 */
+  /* 著 / 编·译 分开：作者名对得上＝著作；只在译者或编里出现＝编著/译作 */
   function roleOf(it){
     const keys = personAuthors(name);
     const au = String(it.author || '');
@@ -3182,11 +3435,11 @@ function personResourcesHTML(name){
   return head +
     `<div id="yzPrsBody"><p class="sub" style="margin:2px 0 6px;line-height:1.7">以下均为资源库里的同一条目，点一下即可打开详情。</p>` + rows + `</div>`;
 }
-/* 收起 / 展开「本站收录」 */
+/* 收起 / 展开本站收录 */
 function prsToggleNext(arg, btn){
   const box = document.getElementById('yzPrsBody'); if (!box) return;
   if (!btn || !btn.textContent) btn = document.querySelector('[data-act="prsToggleNext"]');
-  /* 用 data-full 记录「展开时的完整内容」——有它就说明现在处于收起态 */
+  /* 用 data-full 记录展开时的完整内容——有它就说明现在处于收起态 */
   const hidden = !!box.getAttribute('data-full');
   /* 收起时只留前 3 条，避免整页被书目占满 */
   if (!hidden){
@@ -3206,7 +3459,7 @@ function prsToggleNext(arg, btn){
     btn.setAttribute('aria-expanded', 'true');
   }
 }
-/* 从书库里挑一本，加进这个人的「本站收录」 */
+/* 从书库里挑一本，加进这个人的本站收录 */
 function openAddRelated(name){
   if (!window.YZY || typeof YZY.editPerson !== 'function'){ toast('编辑器未加载，请刷新页面'); return; }
   const g = personGroupOf(name);
@@ -3217,7 +3470,7 @@ function openAddRelated(name){
   const d = document.createElement('div');
   d.id = 'addRelBox'; d.className = 'le-scrim';
   d.innerHTML = '<div class="le-box" style="max-height:84vh;overflow:hidden;display:flex;flex-direction:column;text-align:left">' +
-    '<div class="le-t">＋ 给「' + escHtml(name) + '」加书</div>' +
+    '<div class="le-t">＋ 给' + escHtml(name) + '加书</div>' +
     '<input id="arQ" class="le-in" placeholder="输入书名 / 作者 / 拼音首字母筛选" autocomplete="off">' +
     '<div id="arList" style="flex:1;overflow:auto;margin:8px 0"></div>' +
     '<div class="le-ops"><button data-ar="cancel">完成</button></div></div>';
@@ -3281,7 +3534,7 @@ function worksTimelineHTML(name){
 /* ---------- 史料 ---------- */
 const leaders = CT.leaders || [];
 const comrades = CT.comrades || [];
-/* 头像统一：有真实照片用照片；没有就画「姓氏字」头像（不再生成简笔画头像） */
+/* 头像统一：有真实照片用照片；没有就画姓氏字头像（不再生成简笔画头像） */
 function initialFace(p, big){
   const cls = big ? 'lface-lg' : 'lface';
   const key = String((p && (p.name || p.id)) || '').trim();
@@ -3320,10 +3573,10 @@ var HUB_DEF = {}; HUB.forEach(function(h){ HUB_DEF[h.key] = h.title; });
 if (window.__YZY_HUB_LABELS) HUB.forEach(function(h){ if (window.__YZY_HUB_LABELS[h.key]) h.title = window.__YZY_HUB_LABELS[h.key]; });
 window.__yzRefreshLabels = function(){ try{ var L=window.__YZY_HUB_LABELS||{}; HUB.forEach(function(h){ h.title = (L[h.key]||HUB_DEF[h.key]||h.title); }); if (typeof render==="function") render(); }catch(e){} };
 function hubTitle(key){ const h = HUB.find(x => x.key === key); return h ? h.title : ''; }
-/* 「思想 / 组织」栏目 = 史料里手写的分组 + 主图谱里的思想节点。
+/* 思想 / 组织栏目 = 史料里手写的分组 + 主图谱里的思想节点。
    为什么要合并（0.18.55）：0.18.54 往图谱里补了德国古典哲学、经院哲学等 20 个学派节点，
-   但 schoolGroups 原来只读 EX.schools，结果这些学派在「关系图谱」里看得到、
-   在「史料 → 思想」栏目里却看不到——同一份数据两套可达性，属于「连接断了」。
+   但 schoolGroups 原来只读 EX.schools，结果这些学派在关系图谱里看得到、
+   在史料 → 思想栏目里却看不到——同一份数据两套可达性，属于连接断了。
    合并时按名称去重（图谱里本来就有马克思主义、空想社会主义等，与手写分组重名）。 */
 var _sgG = null, _sgLen = -1, _sgVal = null;
 function schoolGroups(){
@@ -3356,7 +3609,7 @@ function hubTabs(active){
   return `<nav class="tagrow" aria-label="史料栏目" style="margin:2px 0 10px">` +
     HUB.map(h => `<span class="tag${h.key === active ? ' active' : ''}" onclick="openHub('${h.key}')">${h.icon} ${h.title}</span>`).join('') + `</nav>`;
 }
-/* 「人物」框：取自关系图谱同一份数据（graph.js），介绍与图谱一致 */
+/* 人物框：取自关系图谱同一份数据（graph.js），介绍与图谱一致 */
 /* ---------- 文革图谱数据（142 KB）首屏不加载 ----------
    首页只有三处用到它：全站搜索的文革条目、知识分层统计、人物跳转。
    首屏先渲染，空闲 400ms 后再把数据补进来（补完 reapply 一次，本机改动不丢）。 */
@@ -3384,8 +3637,8 @@ function loadWengeGraph(cb){
 setTimeout(function () {
   var run = function () {
     loadWengeGraph(function () {
-      /* 文革图谱是延迟加载的，而首页「我的主页」的图谱入口在启动那一刻就渲染完了；
-         这里补渲染一次，否则要等下次回首页才看得到（用户反馈过「首页看不到文革图谱」）。 */
+      /* 文革图谱是延迟加载的，而首页我的主页的图谱入口在启动那一刻就渲染完了；
+         这里补渲染一次，否则要等下次回首页才看得到（用户反馈过首页看不到文革图谱）。 */
       try { if (typeof renderHomeFriends === 'function') renderHomeFriends(); } catch (e) {}
     });
   };
@@ -3397,8 +3650,8 @@ setTimeout(function () {
 function wengeGraph(){ return window.SITE_GRAPH_WENGE || { nodes: [], links: [] }; }
 /* ---------- 世界图谱数据（185 KB）同样首屏不加载 ----------
    以前只有 graph.html / ask.html 引它，主站压根没有这份数据：从世界图谱点
-   「📖 在革命史料中查看」跳过来，主站找不到节点，只会弹一句「这个节点不在当前图谱里」。
-   现在改成「用到才拉」：跳转时找不到节点 → 拉一次 → 再重试。 */
+   📖 在革命史料中查看跳过来，主站找不到节点，只会弹一句这个节点不在当前图谱里。
+   现在改成用到才拉：跳转时找不到节点 → 拉一次 → 再重试。 */
 let _wldLoading = null, _wldCbs = [], _wldTried = false, _wengeTried = false;
 function loadWorldGraph(cb){
   if (window.SITE_GRAPH_WORLD && (window.SITE_GRAPH_WORLD.nodes || []).length) {
@@ -3436,7 +3689,7 @@ function allGraphNodes(){
 function oldGraph(){ return window.SITE_GRAPH_OLD || { nodes: [], links: [] }; }
 function newGraph(){ return window.SITE_GRAPH_NEW || { nodes: [], links: [] }; }
 function figuresList(){
-  /* ① 先取人物库的「其他人物」组（有 id、可在详情页编辑，介绍与图谱同一份）
+  /* ① 先取人物库的其他人物组（有 id、可在详情页编辑，介绍与图谱同一份）
      ② 再补图谱里尚未进任何名单的人（新加的图谱节点自动兜底） */
   var libN = {};
   (leaders || []).forEach(function(p){ libN[p.name] = 1; });
@@ -3460,11 +3713,18 @@ function figuresList(){
     if (libN[n.name]) return;
     seen[n.name] = 1; out.push(n);
   });
+  /* ③ 站内人物条目（data/people-extra.js）：不进图谱，但要出现在人物栏、
+     能被搜索命中、点开有页面 —— 专为「书库作者没有页面」这一批人准备。 */
+  ((window.SITE_PEOPLE_EXTRA) || []).forEach(function (p) {
+    if (!p || !p.name || seen[p.name]) return;
+    seen[p.name] = 1;
+    out.push(p);
+  });
   return out;
 }
 /* ---------- 会议（data/meetings.js）----------
    党史与国际共运史的骨架是会议：决议怎么来的、路线怎么变的、谁在哪次会上
-   进了领导机构。以前只有「事件」，事件是一句话的记述；会议是一个结构化的
+   进了领导机构。以前只有事件，事件是一句话的记述；会议是一个结构化的
    实体（时间/地点/代表数/议程/决议/人事/关联文献）。 */
 /* 0.18.50：事件扩容批（data/events-extra.js，懒加载）。
    合并策略：直接 push 进 EX.events 末尾，现有条目的索引不变，
@@ -3505,7 +3765,7 @@ function mergeEventsExtra(){
 function MEETINGS(){ return window.SITE_MEETINGS || []; }
 
 /* ---------- 地名（0.18.54 新增） ----------
-   652 条事件、31 次会议都带地点，但「井冈山 / 瑞金 / 延安」本身没有条目，
+   652 条事件、31 次会议都带地点，但井冈山 / 瑞金 / 延安本身没有条目，
    没法按地点把历史串起来。数据走懒加载，事件列表由 places.js 生成时自动聚合。 */
 function PLACES(){ return window.SITE_PLACES || []; }
 function placesMissing(){ return PLACES().length === 0 && !!(window.YZData && window.YZData.need); }
@@ -3594,7 +3854,7 @@ function openPlace(id, fromRoute){
 }
 
 /* 会议数据 0.18.50 起改为延迟加载（首屏不再同步引入 data/meetings.js）。
-   这里提供「数据没到就拉一次」的兜底，避免点开栏目看到空列表或直接报错。 */
+   这里提供数据没到就拉一次的兜底，避免点开栏目看到空列表或直接报错。 */
 function meetingsMissing(){
   return MEETINGS().length === 0 && !!(window.YZData && window.YZData.need);
 }
@@ -3684,7 +3944,7 @@ function openMeeting(id, fromRoute){
    报刊（0.18.50 新增）
    ---------------------------------------------------------------------
    数据在 data/papers.js，走懒加载。结构：每刊一条，items 是精选篇目。
-   items[].text 为空时表示原文尚未录入——页面会明确写「原文待补」，
+   items[].text 为空时表示原文尚未录入——页面会明确写原文待补，
    不用提要冒充原文。
    ===================================================================== */
 function PAPERS(){ return window.SITE_PAPERS || []; }
@@ -3716,7 +3976,7 @@ function papersHTML(){
       <div style="font-size:.78rem;opacity:.72;margin-top:4px;line-height:1.7">${escHtml(p.kind || '')}${p.org ? ('　·　' + escHtml(String(p.org).slice(0, 42))) : ''}</div>
     </div>`;
   };
-  let html = `<p class="sub" style="margin:0 0 12px;line-height:1.8">收录 1976 年 9 月之前创刊的 ${L.length} 种报刊。不做全目录、不做影印件：每刊记刊名、主办、起止、性质与要目可查性；标「精选 N 篇」的是站内已列篇目的文章（原文录入情况见篇目页）。</p>`;
+  let html = `<p class="sub" style="margin:0 0 12px;line-height:1.8">收录 1976 年 9 月之前创刊的 ${L.length} 种报刊。不做全目录、不做影印件：每刊记刊名、主办、起止、性质与要目可查性；标精选 N 篇的是站内已列篇目的文章（原文录入情况见篇目页）。</p>`;
   ['中国', '国际'].forEach(function (g) {
     if (!grp[g].length) return;
     html += `<h2 class="sub-title" style="margin-top:14px">${g}</h2>` + grp[g].map(card).join('');
@@ -3815,7 +4075,7 @@ function toggleToc(id, btn){
   const hid = e.classList.toggle('hidden');
   if (btn) btn.textContent = hid ? '展开' : '收起';
 }
-/* 长列表渐进渲染：先渲染前 n 条，其余点「显示更多」再展开 */
+/* 长列表渐进渲染：先渲染前 n 条，其余点显示更多再展开 */
 function foldCards(cards, n){
   const arr = (cards || []).filter(Boolean); if (arr.length <= n) return arr.join('');
   const id = 'fold-' + (++_foldSeq), rest = arr.length - n;
@@ -3876,7 +4136,7 @@ function openHub(key){
         <div class="prole" style="line-height:1.7">${p.role || ''}</div></div>
         <span style="opacity:.4">›</span></div>` }));
     openContent('👤 人物', crumbFrom(hubTrail('figures')) + hubTabs('figures') +
-      `<p class="sub" style="margin:0 0 8px;line-height:1.7">以下为暂未归入「革命导师 / 革命同志 / 被批判人物」的其他重要人物（共运活动家、早期领导人等）。其介绍与「关系图谱」中同一人物的介绍为同一份内容。</p>` +
+      `<p class="sub" style="margin:0 0 8px;line-height:1.7">以下为暂未归入革命导师 / 革命同志 / 被批判人物的其他重要人物（共运活动家、早期领导人等）。其介绍与关系图谱中同一人物的介绍为同一份内容。</p>` +
       tocHTML(cards) + foldCards(cards.map(c => c.html), 40));
     return;
   }
@@ -3949,7 +4209,7 @@ function openHub(key){
     return;
   }
   if (key === 'events'){
-    /* 顶部加「按年份看」入口：事件页是按主题列，年鉴是按年份列，两者互补 */
+    /* 顶部加按年份看入口：事件页是按主题列，年鉴是按年份列，两者互补 */
     const _evHead = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px">' +
       '<button class="lk-btn" style="font-size:.82rem" onclick="YZ_YEAR.index()">📅 按年份看这一年</button>' +
       '<span style="font-size:.76rem;opacity:.6;align-self:center">某年出生了谁、出版了哪些原著、成立了什么组织</span></div>';
@@ -3976,10 +4236,10 @@ function openHub(key){
     const events = foldCards(byType('event').map(card), 40);
     openContent('🔥 文革',
       crumbFrom(hubTrail('wenge')) + hubTabs('wenge') +
-      `<p class="sub" style="margin:0 0 8px;line-height:1.8">1966—1976 年「文化大革命」。此处以<b>客观陈述</b>聚合相关人物、组织派系与事件，不作定性评价；可切换至「文革图谱」查看其关系网。</p>` +
-      `<p style="margin:0 0 10px"><a href="graph.html?g=wenge" style="display:inline-block;padding:10px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 打开「文革图谱」 →</a></p>` +
+      `<p class="sub" style="margin:0 0 8px;line-height:1.8">1966—1976 年文化大革命。此处以<b>客观陈述</b>聚合相关人物、组织派系与事件，不作定性评价；可切换至文革图谱查看其关系网。</p>` +
+      `<p style="margin:0 0 10px"><a href="graph.html?g=wenge" style="display:inline-block;padding:10px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 打开文革图谱 →</a></p>` +
       (wf ? featuresHTML(function(f){ return f.id === 'wenhua'; }) : '') +
-      `<div class="lcard" onclick="openHub('figures')" style="margin:6px 0"><span class="li">👤</span><div style="flex:1"><div class="pname">人物 · 已归入「史料 → 人物」</div><div class="prole">文革相关人物统一在「人物」栏目查看</div></div><span style="opacity:.4">›</span></div>` +
+      `<div class="lcard" onclick="openHub('figures')" style="margin:6px 0"><span class="li">👤</span><div style="flex:1"><div class="pname">人物 · 已归入史料 → 人物</div><div class="prole">文革相关人物统一在人物栏目查看</div></div><span style="opacity:.4">›</span></div>` +
       (orgs ? H3('🏛️ 组织 · 派系（' + byType('org').length + '）') + orgs : '') +
       (events ? H3('📅 事件 · 文件（' + byType('event').length + '）') + events : '')
     );
@@ -4041,7 +4301,7 @@ function openEduEdit(opts){
   d.id = 'eduEditor'; d.className = 'le-scrim';
   d.innerHTML = '<div class="le-box" style="max-height:86vh;overflow:auto;text-align:left">' +
     '<div class="le-t">✏️ ' + opts.title + '</div>' + body +
-    '<div class="le-hint">只改本机这一份，不上传；随「导出我的数据」一起带走。</div>' +
+    '<div class="le-hint">只改本机这一份，不上传；随导出我的数据一起带走。</div>' +
     '<div class="le-ops"><button class="go" data-ee="save">保存</button><button data-ee="cancel">取消</button></div></div>';
   document.body.appendChild(d);
   d.addEventListener('click', function(e){
@@ -4064,7 +4324,7 @@ function openEduEdit(opts){
     try { YZY.reapply(); } catch (err){}
     try { if (typeof render === 'function') render(); } catch (err){}
     try { if (opts.after) opts.after(); } catch (err){}
-    /* 保存后要说清「改了哪几项、从什么改成什么」 */
+    /* 保存后要说清改了哪几项、从什么改成什么 */
     var changed = [];
     (opts.rows || []).forEach(function(r){
       var ov = String(r.value == null ? '' : r.value);
@@ -4263,7 +4523,7 @@ function openPersonEdit(idOrName){
 
   var gName = { leaders:'革命导师', comrades:'革命同志', critics:'被批判人物', figures:'其他人物' }[g] || '';
   var v = function(x){ return escAttr(x==null?'':String(x)); };
-  /* 年表 → 文本（每行「年｜事件」） */
+  /* 年表 → 文本（每行年｜事件） */
   var chronoText = function(a){ return (a||[]).map(function(x){ return (x.y||'') + '｜' + (x.t||''); }).join('\n'); };
   var d = document.createElement('div');
   d.id = 'personEditor'; d.className = 'le-scrim';
@@ -4286,17 +4546,17 @@ function openPersonEdit(idOrName){
     '<textarea id="peIntro" class="le-in" rows="9" style="resize:vertical;line-height:1.75">' + v(intro) + '</textarea>' +
     '<div class="le-hint">代表作 / 文献（每行一条）</div>' +
     '<textarea id="peWorks" class="le-in" rows="4" style="resize:vertical;line-height:1.7" placeholder="共产党宣言&#10;资本论">' + v(works) + '</textarea>' +
-    '<div class="le-hint">要点（每行一条，显示在详情页「要点」栏）</div>' +
+    '<div class="le-hint">要点（每行一条，显示在详情页要点栏）</div>' +
     '<textarea id="pePoints" class="le-in" rows="4" style="resize:vertical;line-height:1.7">' + v((pts||[]).join('\n')) + '</textarea>' +
     '<div class="le-hint">生平年表（每行：年份｜事件；留空则隐藏该栏）</div>' +
     '<textarea id="peChrono" class="le-in" rows="5" style="resize:vertical;line-height:1.7" placeholder="1818｜出生于普鲁士特里尔&#10;1848｜与恩格斯合著《共产党宣言》">' + v(chronoText(chrono)) + '</textarea>' +
     '<div class="le-hint">著作年表（每行：年份｜著作）</div>' +
     '<textarea id="peWChrono" class="le-in" rows="5" style="resize:vertical;line-height:1.7" placeholder="1848｜《共产党宣言》">' + v(chronoText(wchrono)) + '</textarea>' +
-    '<div class="le-hint">相关推荐（每行一个书名，会加进下方「本站收录」并标「推荐」）</div>' +
+    '<div class="le-hint">相关推荐（每行一个书名，会加进下方本站收录并标推荐）</div>' +
     '<textarea id="peRelated" class="le-in" rows="3" style="resize:vertical;line-height:1.7" placeholder="如：共产党宣言">' + v((related||[]).join('\n')) + '</textarea>' +
     (g
-      ? '<div class="le-hint">只改本机这一份，不上传；随「导出我的数据」一起带走。</div>'
-      : '<div class="le-hint" style="color:#e0a800">⚠️ 这位人物还没收录进人物库，改动无处落脚。请到「史料 → 自助编辑」把他加入人物库后再改。</div>') +
+      ? '<div class="le-hint">只改本机这一份，不上传；随导出我的数据一起带走。</div>'
+      : '<div class="le-hint" style="color:#e0a800">⚠️ 这位人物还没收录进人物库，改动无处落脚。请到史料 → 自助编辑把他加入人物库后再改。</div>') +
     '<div class="le-ops">' + (g ? '<button class="go" data-pe="save">保存</button>' : '') +
       '<button data-pe="cancel">' + (g ? '取消' : '知道了') + '</button></div>' +
     '</div>';
@@ -4367,7 +4627,7 @@ function openPersonEdit(idOrName){
     try { if (gnode) openFigure(gnode.id); else openAuthor(nm); } catch(err){}
   });
 }
-/* 「年份｜事件」文本 → [{y,t}]（兼容只写事件、不写年份的行） */
+/* 年份｜事件文本 → [{y,t}]（兼容只写事件、不写年份的行） */
 function parseChrono(txt){
   return String(txt || '').split('\n').map(function(line){
     var l = line.trim(); if (!l) return null;
@@ -4383,7 +4643,7 @@ function openPersonEditByName(nm){ return openPersonEdit(nm); }
 
 /* ---- 人名索引：这个人在站内哪几篇文本里被提到（data/person-index.js）
    数据由 tools/make_person_index.py 生成：段落级计数，附一句原文。
-   用途：人物页给「文中出现」，搜索结果给「文中出现」一档。 ---- */
+   用途：人物页给文中出现，搜索结果给文中出现一档。 ---- */
 function personMentionEntry(pid){
   var PI = window.SITE_PERSON_INDEX || {};
   return PI[pid] || null;
@@ -4414,7 +4674,7 @@ window.yzOpenMention = function(f, w){
 window.yzMentionsPage = function(pid){
   var e = personMentionEntry(pid);
   if (!e) { if (window.toast) toast('没有这个人的索引'); return; }
-  openContent('📖 文中出现 · ' + e.name, '<p class="sub" style="margin:0 0 8px">共 <b>' + e.n + '</b> 段提到「' + escHtml(e.name) + '」，分布在 ' + e.f.length + ' 篇文献里。</p>' + personMentionsHTML(pid).replace(/^<h2[^>]*>[^<]*<\/h2>/, ''));
+  openContent('📖 文中出现 · ' + e.name, '<p class="sub" style="margin:0 0 8px">共 <b>' + e.n + '</b> 段提到' + escHtml(e.name) + '，分布在 ' + e.f.length + ' 篇文献里。</p>' + personMentionsHTML(pid).replace(/^<h2[^>]*>[^<]*<\/h2>/, ''));
 };
 
 /* ---- 反向索引的三块 UI：本书涉及 / 概念原文出处 / 事件相关原文 ----
@@ -4424,22 +4684,37 @@ function conceptByIdOf(id){
   return null;
 }
 /* 书名 → 书库条目（图谱节点上的代表作只是文字，点了要能进书） */
-window.openBookByTitle = function(t){
-  var norm = function (x) {
-    return String(x || '').replace(/[《》〈〉\s「」“”"]/g, '').replace(/[（(][^）)]*[）)]/g, '');
-  };
-  var s = norm(t);
-  if (!s) return;
-  var i, exact = -1, loose = -1;
+function yzNormTitle(x){
+  return String(x || '').replace(/[《》〈〉\s“”"]/g, '').replace(/[（(][^）)]*[）)]/g, '');
+}
+/* 在书库里找同名条目：返回下标，找不到 -1。人物页判断「有没有书壳」也用它。 */
+function findBookByTitle(t){
+  var s = yzNormTitle(t);
+  if (!s) return -1;
+  var i, loose = -1;
   for (i = 0; i < RES.length; i++) {
-    var rt = norm(RES[i].title);
+    var rt = yzNormTitle(RES[i].title);
     if (!rt) continue;
-    if (rt === s) { exact = i; break; }
+    if (rt === s) return i;
     if (loose < 0 && (rt.indexOf(s) === 0 || s.indexOf(rt) === 0) && Math.abs(rt.length - s.length) <= 8) loose = i;
   }
-  if (exact >= 0) return openItemDetail(exact);
-  if (loose >= 0) return openItemDetail(loose);
-  if (window.toast) toast('书库里没有《' + s + '》');
+  return loose;
+}
+window.openBookByTitle = function(t){
+  var s = yzNormTitle(t);
+  if (!s) return;
+  var i = findBookByTitle(t);
+  if (i >= 0) return openItemDetail(i);
+  /* 书库里没有这本书：以前只弹一句 toast 就没下文。人物介绍里引用的文献
+     有三百多种属于这种情况，所以这里给一个说明页：书名、为什么没有、
+     可以去全站搜、也可以自己把正文导进来。 */
+  var q = encodeURIComponent(String(t).replace(/^《|》$/g, ''));
+  openContent('📚 ' + (String(t).match(/^《/) ? t : '《' + t + '》'),
+    '<p class="sub" style="line-height:1.9">这条文献目前只有书名。站内人物与概念的介绍里引用了它，但书库里还没有收录对应条目，所以打不开正文。</p>' +
+    '<p class="sub" style="line-height:1.9;opacity:.75">要找这本书，可以先在站内搜同名条目；也可以把自己的 TXT / EPUB 导入书库，导入后这里就能直接打开。</p>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:16px 0">' +
+      '<a class="lk-btn" href="index.html?q=' + q + '" style="text-decoration:none">🔎 在全站搜这本书</a>' +
+    '</div>');
 };
 function bookIndexHTML(it){
   var BI = window.SITE_BOOK_INDEX;
@@ -4504,7 +4779,7 @@ function eventTextsHTML(i){
 }
 
 /* ---------- 跨图谱关系网（2026-11-14） ----------
-   以前人物/事件页只有一个「去图谱看」的按钮，看不到这个人跟别处的关联：
+   以前人物/事件页只有一个去图谱看的按钮，看不到这个人跟别处的关联：
    毛泽东在主图谱里有 133 条关系，在文革图谱、世界图谱、新民图谱里还有另外一批，
    但它们分散在四份数据里，页面上一条都不显示。
    现在按 id 聚合所有图谱的边（各图谱里同一人物 id 是一致的），分组列出、点一下跳过去。 */
@@ -4567,11 +4842,20 @@ function crossGraphRelsHTML(id){
 
 function openFigure(id, fromRoute){
   var G = allGraphNodes();
-  var p = G.find(function(n){ return n.id === id; }); if (!p) return;
+  var p = G.find(function(n){ return n.id === id; });
+  /* 不在图谱里的人（data/people-extra.js）：照样能打开，只是不进图谱 */
+  if (!p && window.SITE_PEOPLE_EXTRA) {
+    p = (window.SITE_PEOPLE_EXTRA || []).find(function (x) { return x.id === id; });
+  }
+  if (!p) return;
   yzSetCur({ kind:'person', id:id });
   var _fe = { k:'p:'+p.id, name:p.name, img:imgOf(p), sub:[p.years, p.role].filter(Boolean).join(' · '), act:"openFigure('"+p.id+"')" };
   var pts = (p.points && p.points.length) ? `<h2 class="sub-title" style="margin-top:16px">📌 要点</h2><ul style="list-style:none;padding:0;font-size:.85rem;line-height:1.95;opacity:.92">${p.points.map(function(x){return '<li style="padding-left:16px;position:relative">▸ '+x+'</li>';}).join('')}</ul>` : '';
-  var works = (p.works && p.works.length) ? `<h2 class="sub-title" style="margin-top:16px">📚 代表文献</h2><div class="tagrow">${p.works.map(function(w){return '<span class="tag" style="cursor:pointer" onclick="openBookByTitle(\''+String(w).replace(/['\\]/g,'')+'\')">'+w+'</span>';}).join('')}</div>` : '';
+  /* 没有书壳的文献淡一档并标「仅书名」：点了不会什么都没有，但也别让人以为能读 */
+  var works = (p.works && p.works.length) ? `<h2 class="sub-title" style="margin-top:16px">📚 代表文献</h2><div class="tagrow">${p.works.map(function(w){
+    var hasB = (typeof findBookByTitle === 'function') && findBookByTitle(w) >= 0;
+    return '<span class="tag" style="cursor:pointer' + (hasB ? '' : ';opacity:.55') + '" onclick="openBookByTitle(\'' + String(w).replace(/['\\]/g, '') + '\')">' + w + (hasB ? '' : '<i style="font-style:normal;font-size:.86em;opacity:.75"> · 仅书名</i>') + '</span>';
+  }).join('')}</div>` : '';
   /* 资料来源：主图谱节点用单条 source，文革图谱等用数组 sources，两者都显示 */
   var src = (p.sources && p.sources.length)
     ? `<h2 class="sub-title" style="margin-top:16px">🗃 资料来源</h2><div class="tagrow">${p.sources.map(function(x){return '<span class="tag">'+x+'</span>';}).join('')}</div>`
@@ -4600,7 +4884,7 @@ function openWengeNode(id){
        <h3>${p.name}</h3><div class="prole">${[p.years, p.role, p.prov].filter(Boolean).join(' · ')}</div>
        <p>${p.desc || ''}</p>
      </div>` + pts + src +
-    `<p style="margin-top:18px"><a href="graph.html?g=wenge#${p.id}" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在「文革图谱」中查看 →</a></p>`);
+    `<p style="margin-top:18px"><a href="graph.html?g=wenge#${p.id}" style="display:inline-block;padding:9px 16px;border:1px solid var(--accent);border-radius:10px;color:var(--accent);text-decoration:none;font-size:.85rem">🕸 在文革图谱中查看 →</a></p>`);
 }
 function openCritic(i, fromRoute){
   const c = (EX.critics || [])[i]; if (!c) return;
@@ -4623,7 +4907,7 @@ function openEvent(i, fromRoute){
   if (sch.length) rel.push(`<h2 class="sub-title" style="margin-top:12px">🧩 相关思想 · 组织</h2><div class="tagrow">${linkChips(sch, 'school')}</div>`);
   const detail = [];
   /* 依据（0.18.11）：src / source 里有内容就显示，空着就不出现——
-     这是「每条史料都能被核查」的最小实现，后续补一条就自动露一条。 */
+     这是每条史料都能被核查的最小实现，后续补一条就自动露一条。 */
   const _evSrc = String(e.src || e.source || '').trim();
   if (_evSrc) rel.push(`<h2 class="sub-title" style="margin-top:16px">🗃 依据</h2><p style="font-size:.8rem;line-height:1.9;opacity:.8">${escHtml(_evSrc)}</p>`);
   if (e.bg) detail.push(`<h2 class="sub-title" style="margin-top:16px">📜 背景</h2><p style="font-size:.85rem;line-height:1.95;opacity:.92">${e.bg}</p>`);
@@ -4638,7 +4922,7 @@ function openEvent(i, fromRoute){
   if (!fromRoute) setHash('#/e/' + i);
 }
 /* 人物 → 相关事件：事件的 people 数组已经写明参与者，直接反查，不需要人工标注。
-   以前人物页只列「本站收录的书」和「相关思想·组织」，看不到他参与过哪些事件。 */
+   以前人物页只列本站收录的书和相关思想·组织，看不到他参与过哪些事件。 */
 function relatedEventsHTML(name){
   const L = EX.events || [];
   const hits = [];
@@ -4684,16 +4968,16 @@ function relatedSchoolsHTML(name){
   if (!hits.length) return '';
   return `<h2 class="sub-title" style="margin-top:18px">🧩 相关思想 · 组织</h2><div class="tagrow">` + hits.map(h => `<span class="tag" onclick="openSchoolItem(${h.gi},${h.ii})">${h.it.name}</span>`).join('') + `</div>`;
 }
-/* 按名字找节点：必须查「五张图谱合起来」，只查主图谱时，
-   旧民 / 新民 / 文革 / 世界图谱里的条目（如「中学为体，西学为用」）
-   在详情页就没有「在关系图谱中查看」按钮——用户会以为图谱里没有它。 */
+/* 按名字找节点：必须查五张图谱合起来，只查主图谱时，
+   旧民 / 新民 / 文革 / 世界图谱里的条目（如中学为体，西学为用）
+   在详情页就没有在关系图谱中查看按钮——用户会以为图谱里没有它。 */
 function graphNodeByName(name){ return allGraphNodes().find(function(n){ return n && n.name === name; }) || null; }
 function graphNodeById(id){ var A = allGraphNodes(); for (var i = 0; i < A.length; i++){ if (A[i].id === id) return A[i]; } return null; }
 /* 图谱名 → 史料名 的别名（对不上的那几个） */
 var G_ALIAS = window.SITE_ALIAS || { '爱德华·伯恩施坦':'伯恩施坦', '卡尔·考茨基':'考茨基', '列夫·托洛茨基':'托洛茨基',
   '马赫主义':'马赫主义 · 经验批判主义', '维也纳国际 · 第二半国际':'社会主义国际 · 维也纳国际（第二半国际）',
   '苏联共产党':'苏联共产党 · 中国共产党', '中国共产党':'苏联共产党 · 中国共产党' };
-/* 找出图谱节点对应的「史料」条目 */
+/* 找出图谱节点对应的史料条目 */
 function resolveEntryOfNode(g){
   var names = [g.name, G_ALIAS[g.name]].filter(Boolean);
   function has(list){ return list.some(function(x){ return names.indexOf(x) >= 0; }); }
@@ -4710,9 +4994,9 @@ function resolveEntryOfNode(g){
     if (comrades.some(function(p){ return names.indexOf(p.name) >= 0; })) return { kind:'comrade', name:g.name };
     var ci = (EX.critics || []).findIndex(function(x){ return names.indexOf(x.name) >= 0; });
     if (ci >= 0) return { kind:'critic', i:ci };
-    /* 兜底：图谱里的人物节点一律进「人物页」。
+    /* 兜底：图谱里的人物节点一律进人物页。
        以前这里只认 mid 标记，于是主图谱 19 位将帅（彭德怀、刘伯承、粟裕…）
-       和文革图谱 195 人点「在革命史料中查看」全都进不去，只能停在图谱节点页。 */
+       和文革图谱 195 人点在革命史料中查看全都进不去，只能停在图谱节点页。 */
     return { kind:'figure', id:g.id };
   } else {
     for (var gi = 0; gi < schoolGroups().length; gi++){
@@ -4733,8 +5017,8 @@ var GRAPH_SETS = [
   ['world', function () { return window.SITE_GRAPH_WORLD; }]
 ];
 /* 某个节点 id 属于哪张图谱（返回 ds：main/old/new/wenge/world；都不是则空串）。
-   用途：生成「在关系图谱中查看」链接时带上 ?g=，否则图谱页按上次选中的那张打开，
-   节点在别的图谱里就静默定位失败——看起来就是「点开没有找到」。 */
+   用途：生成在关系图谱中查看链接时带上 ?g=，否则图谱页按上次选中的那张打开，
+   节点在别的图谱里就静默定位失败——看起来就是点开没有找到。 */
 function graphOfNode(id){
   if (!id) return '';
   for (var i = 0; i < GRAPH_SETS.length; i++){
@@ -4745,9 +5029,9 @@ function graphOfNode(id){
   }
   return '';
 }
-/* 生成「在关系图谱中查看」的链接：必须带上节点所属图谱（?g=ds）。
+/* 生成在关系图谱中查看的链接：必须带上节点所属图谱（?g=ds）。
    不带的时候，图谱页按上次选中的那张打开，节点在别的图谱里就静默定位不到，
-   用户看到的就是「点开没有找到」。 */
+   用户看到的就是点开没有找到。 */
 function graphUrlOf(id){
   var ds = ''; try { ds = graphOfNode(id); } catch (e) { ds = ''; }
   return 'graph.html' + (ds && ds !== 'main' ? '?g=' + encodeURIComponent(ds) : '') + '#' + encodeURIComponent(id);
@@ -4788,7 +5072,7 @@ function ensureAllGraphs(cb){
     if (!fired){ fired = true; setTimeout(cb, 0); }
   }
 }
-/* 找不到节点时给几个「可能是你想找的」：按 id 的 2-gram 相似度排，最多 6 个 */
+/* 找不到节点时给几个可能是你想找的：按 id 的 2-gram 相似度排，最多 6 个 */
 function nearGraphNodes(id){
   var key = String(id || '').toLowerCase().replace(/[_\-\s]/g, '');
   if (key.length < 2) return [];
@@ -4806,7 +5090,7 @@ function nearGraphNodes(id){
   scored.sort(function (a, b) { return b.sc - a.sc; });
   return scored.slice(0, 6).map(function (x) { return x.n; });
 }
-/* 「用这个词搜一搜」：找不到节点时的兜底出口（先走页内搜索，退不到就用 URL 参数重开首页） */
+/* 用这个词搜一搜：找不到节点时的兜底出口（先走页内搜索，退不到就用 URL 参数重开首页） */
 function yzSearchMissing(q){
   try { if (typeof quickSearch === 'function') { quickSearch(q); return; } } catch (e) {}
   try { location.href = 'index.html?q=' + encodeURIComponent(q); } catch (e) {}
@@ -4815,15 +5099,15 @@ function openGraphNodeById(id, fromRoute, _tries){
   _tries = _tries || 0;
   /* 每次新的跳转（_tries 为 0）都允许重新按需拉一次：
      以前 _wengeTried/_wldTried 一旦置真就永不复位，第一次没命中之后，
-     后面点任何文革/世界图谱里的节点都直接判「没有找到」。 */
+     后面点任何文革/世界图谱里的节点都直接判没有找到。 */
   if (_tries === 0) _allGraphsPulled = false;
   var g = graphNodeById(id);
   if (!g){
     /* ① 五张图谱都还没齐：先并行拉齐再重试。
-         主图谱「先到」并不能说明其它图谱也到了——旧民 83 个、新民 94 个节点
-         只存在于各自图谱里（例如「中学为体，西学为用」id=zhongtixiyong），
-         真机上 old/new 排在主图谱后面注入，常比「主+文革+世界」更晚到。
-         实测：只等主图谱时，1.3 秒就误报「没有找到」；节点实际 5 秒后才可用。 */
+         主图谱先到并不能说明其它图谱也到了——旧民 83 个、新民 94 个节点
+         只存在于各自图谱里（例如中学为体，西学为用id=zhongtixiyong），
+         真机上 old/new 排在主图谱后面注入，常比主+文革+世界更晚到。
+         实测：只等主图谱时，1.3 秒就误报没有找到；节点实际 5 秒后才可用。 */
     if (!_allGraphsPulled){
       _allGraphsPulled = true;
       /* 弱机/弱网下要等一会儿才有结果：超过 500ms 还没落到详情，就先说一句，
@@ -4852,7 +5136,7 @@ function openGraphNodeById(id, fromRoute, _tries){
       : '';
     openContent('❓ 找不到这个节点',
       crumbFrom([{ t: HUB_NAME, fn: function () { openSection(0); } }, { t: '未收录', fn: function () { } }]) +
-      '<div class="ldetail"><h3>没有找到「' + esc(id) + '」</h3>' +
+      '<div class="ldetail"><h3>没有找到' + esc(id) + '</h3>' +
       '<p class="sub" style="line-height:1.9;opacity:.85">主图谱、旧民图谱、新民图谱、文革图谱、世界图谱里都没有这个节点。<br>' +
       '常见原因：这条链接来自更早的版本，或者节点在别的图谱里被改过名。</p>' + nearHTML +
       '<p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">' +
@@ -4909,12 +5193,12 @@ function openGraphNode(g, fromRoute, noEntry){
     : '<div class="lface-lg" style="display:grid;place-items:center;font-size:2.2rem">'+(g.type === 'idea' ? '💡' : g.type === 'org' ? '🏛️' : g.type === 'event' ? '📅' : '👤')+'</div>';
   var pts = (g.points && g.points.length) ? '<h2 class="sub-title" style="margin-top:16px">📌 要点</h2><ul style="list-style:none;padding:0;font-size:.85rem;line-height:1.95;opacity:.92">' + g.points.map(function(x){return '<li style="padding-left:16px">▸ '+x+'</li>';}).join('') + '</ul>' : '';
   var wks = (g.works && g.works.length) ? '<h2 class="sub-title" style="margin-top:16px">📚 代表文献</h2><div class="tagrow">' + g.works.map(function(w){return '<span class="tag">'+w+'</span>';}).join('') + '</div>' : '';
-  /* 史料库里没有这个人（或这条组织/思想）：别让用户以为是「跳失败了」，
-     说清楚「图谱里有、史料里还没有」，并给补一条的入口。 */
+  /* 史料库里没有这个人（或这条组织/思想）：别让用户以为是跳失败了，
+     说清楚图谱里有、史料里还没有，并给补一条的入口。 */
   var noE = noEntry
     ? '<div style="margin-top:16px;padding:10px 12px;border:1px dashed var(--accent);border-radius:10px;background:rgba(245,197,24,.06)">' +
-      '<div style="font-size:.8rem;line-height:1.85;opacity:.92">📌 <b>史料库还没有「' + escHtml(g.name) + '」的条目</b><br>' +
-      '下面是关系图谱收录的信息。要补一条人物史料，可以开「自助编辑」新增人物。</div>' +
+      '<div style="font-size:.8rem;line-height:1.85;opacity:.92">📌 <b>史料库还没有' + escHtml(g.name) + '的条目</b><br>' +
+      '下面是关系图谱收录的信息。要补一条人物史料，可以开自助编辑新增人物。</div>' +
       '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="tag" onclick="openSelfEdit()">✏️ 补一条史料</button>' +
       '<button class="tag" onclick="openSection(0)">🕸 回图谱</button>' +
@@ -4944,7 +5228,7 @@ function showLeaderDetail(i){
   setHash('#/p/' + slugOf(p.name));
 }
 function personOf(name){ return leaders.concat(comrades).find(x => x.name === name) || null; }
-/* 作者名 → 人物页：直接命中（导师/同志/其他人物/被批判），或经作者别名表反查（「马克思恩格斯」→ 两人） */
+/* 作者名 → 人物页：直接命中（导师/同志/其他人物/被批判），或经作者别名表反查（马克思恩格斯→ 两人） */
 function authorPeople(name){
   const n = String(name || '').trim();
   if (!n) return [];
@@ -4962,11 +5246,11 @@ function authorPeople(name){
   };
   const direct = one(n);
   if (direct) return [direct];
-  /* 简称 → 全名：书库作者写「卢森堡」「普列汉诺夫」，人物库存的是「罗莎·卢森堡」「格奥尔基·普列汉诺夫」。
-     不补这一步，明明有人物页也会落到「还没有建立人物页」。（data/author-alias.js） */
+  /* 简称 → 全名：书库作者写卢森堡普列汉诺夫，人物库存的是罗莎·卢森堡格奥尔基·普列汉诺夫。
+     不补这一步，明明有人物页也会落到还没有建立人物页。（data/author-alias.js） */
   const AL = (window.YZ_AUTHOR_ALIAS || {})[n];
   /* 别名表是懒加载的：没到就先去拉，拉到了把当前页重画一遍。
-     不这么做，窗口期内点「卢森堡」会落到「还没有建立人物页」——这个坑修过一次又回来了。 */
+     不这么做，窗口期内点卢森堡会落到还没有建立人物页——这个坑修过一次又回来了。 */
   if (!AL && !window.YZ_AUTHOR_ALIAS && window.YZData && YZData.need) {
     YZData.need('data/author-alias.js', function (ok) {
       if (!ok) return;
@@ -4993,7 +5277,7 @@ function openAuthor(name, fromRoute){
   const _ppl = authorPeople(name);
   if (_ppl.length === 1 && _ppl[0].kind === 'figure') return openFigure(_ppl[0].id);
   if (_ppl.length === 1 && _ppl[0].kind === 'critic') return openCritic(_ppl[0].idx);
-  /* 导师 / 同志命中全名（如「马克思」→「卡尔·马克思」）时用全名重进，页头才有生卒年与简介 */
+  /* 导师 / 同志命中全名（如马克思→卡尔·马克思）时用全名重进，页头才有生卒年与简介 */
   if (_ppl.length === 1 && _ppl[0].kind === 'comrade' && _ppl[0].name !== name) return openAuthor(_ppl[0].name, fromRoute);
   if (_ppl.length > 1) {
     const trail = [{ t: HUB_NAME, fn: () => openSection(0) }, { t: name, fn: () => openAuthor(name) }];
@@ -5002,7 +5286,7 @@ function openAuthor(name, fromRoute){
         <div class="prole">${x.kind === 'figure' ? '人物' : (x.kind === 'critic' ? '被批判人物' : '革命导师 / 同志')}</div></div>
         <span style="opacity:.4">›</span></div>`).join('');
     openContent('👤 ' + name,
-      crumbFrom(trail) + `<p class="sub" style="margin:0 0 10px;line-height:1.75">「${escHtml(name)}」是多位作者的合署名，本站为每位作者都建了页面，点开看具体一位。</p>` + cards);
+      crumbFrom(trail) + `<p class="sub" style="margin:0 0 10px;line-height:1.75">${escHtml(name)}是多位作者的合署名，本站为每位作者都建了页面，点开看具体一位。</p>` + cards);
     if (!fromRoute) setHash('#/a/' + slugOf(name));
     return;
   }
@@ -5020,7 +5304,7 @@ function openAuthor(name, fromRoute){
         ${p.points ? `<div style="text-align:left;margin-top:12px"><b>主要贡献与思想</b><ul>${p.points.map(x=>`<li>${x}</li>`).join('')}</ul></div>` : ''}
       </div>`
     : (function () {
-        /* 书作者简介：魏巍、李达、艾思奇这类「有书无页」的作者，先给一段可读的生平（data/authors-bio.js） */
+        /* 书作者简介：魏巍、李达、艾思奇这类有书无页的作者，先给一段可读的生平（data/authors-bio.js） */
         if (!window.YZ_AUTHOR_BIO && window.YZData && YZData.need) {
           YZData.need('data/authors-bio.js', function (ok) {
             if (ok) { try { if (window.openCurrent) openCurrent(); } catch (e) { } }
@@ -5064,7 +5348,7 @@ function allIndexHTML(){
      <div class="tagrow">` + HUB.map(h => `<span class="tag" onclick="openHub('${h.key}')">${h.icon} ${h.title}（${hubCount(h.key)}）</span>`).join('') + `</div>`;
 }
 
-/* 精华摘要：优先用「重新精炼过的简介」数据（window.YZ_INTRO_SHORT，如有）；否则用数据里那句话简介 desc；
+/* 精华摘要：优先用重新精炼过的简介数据（window.YZ_INTRO_SHORT，如有）；否则用数据里那句话简介 desc；
    再否则取详细介绍的首句 / 截断到 100 字以内。——保证一眼看到的是重点，而不是一大段。 */
 function briefIntro(it){
   const id = it.id || it.title;
@@ -5109,11 +5393,11 @@ function isInlineText(it){
   return /\.(txt|md)$/i.test(u) && /^(books|assets|data)\//.test(u);
 }
 /* 书目记录页：这条书库条目站内没有正文（456 条里 394 条如此）。
-   以前点「打开」直接弹「填写链接」的编辑框，看着像程序坏了；
+   以前点打开直接弹填写链接的编辑框，看着像程序坏了；
    现在先说清楚状况，再给三条真能走的路。 */
 function openNoBodyPage(idx){
   var it = RES[idx]; if (!it) return;
-  /* 数字一律现算，别再写死——上一版写的是「456 条 / 39 篇 / 46 万字」，
+  /* 数字一律现算，别再写死——上一版写的是456 条 / 39 篇 / 46 万字，
      早已和实际（495 / 43 / 62 万字）脱节，这类硬编码每加一本书就过期一次。 */
   var _tot = RES.length, _rd = RES.filter(function (x) { return hasBody(x); }).length;
   var html = '<div class="yzThin">' +
@@ -5132,7 +5416,7 @@ function openNoBodyPage(idx){
 function openBookLink(idx){
   var it = RES[idx]; if (!it) return;
   var u = linkOf(it); if (!u) { openNoBodyPage(idx); return; }
-  /* 0.18.47：链接统一过白名单。以前只在「链接编辑器」保存时调 normLink，
+  /* 0.18.47：链接统一过白名单。以前只在链接编辑器保存时调 normLink，
      备份 JSON 导入的 links 是原样落的库，于是 javascript: 能直接进 location.href。 */
   var safeU = normLink(u);
   if (!safeU) { toast('这条链接不可用（已拦下非 http/站内地址）'); return; }
@@ -5140,7 +5424,7 @@ function openBookLink(idx){
   if (/^https?:\/\//i.test(u)) { confirmLeave(u, it.title || '链接'); return; }
   /* 站内正文（books/*.txt｜*.md）走内置阅读器：
      直接跳 .txt 会让 WebView 裸显示纯文本（字小、无排版、无目录、无进度）。
-     现在统一用「我的书」那套全屏阅读器（和 EPUB/PDF 同一个壳），
+     现在统一用我的书那套全屏阅读器（和 EPUB/PDF 同一个壳），
      不再另开一套轻量阅读器——两套界面同一篇正文，横屏时还只它一半能看。 */
   if (/\.(txt|md)$/i.test(u) && /^(books|assets|data)\//.test(u)) {
     var _bid = it.id || it.title;
@@ -5225,10 +5509,10 @@ function openResEdit(idx){
     '<div class="le-hint">出版年</div><input id="reYear" class="le-in" value="' + v(it.pubyear) + '" placeholder="如 2013">' +
     '<div class="le-hint">译者 / 编者</div><input id="reTrans" class="le-in" value="' + v(it.translator) + '">' +
     '<div class="le-hint">标签（空格分隔）</div><input id="reTags" class="le-in" value="' + v((it.tags||[]).join(' ')) + '">' +
-    '<div class="le-hint">相关推荐（每行一个书名，会排在详情页「相关推荐」最前面）</div>' +
+    '<div class="le-hint">相关推荐（每行一个书名，会排在详情页相关推荐最前面）</div>' +
     '<textarea id="reRelated" class="le-in" rows="3" style="resize:vertical;line-height:1.7" placeholder="如：共产党宣言">' + v((it.related||[]).join('\n')) + '</textarea>' +
     '<div class="le-hint">来源 · 校订说明</div><textarea id="reNote" class="le-in" rows="3" style="resize:vertical">' + v(it.note) + '</textarea>' +
-    '<div class="le-hint">只改本机这一份，不上传；随「导出我的数据」一起带走。想恢复原样，可到「导出我的数据」里清空覆盖层。</div>' +
+    '<div class="le-hint">只改本机这一份，不上传；随导出我的数据一起带走。想恢复原样，可到导出我的数据里清空覆盖层。</div>' +
     '<div class="le-ops"><button class="go" data-re="save">保存</button><button data-re="cancel">取消</button></div>' +
     '</div>';
   document.body.appendChild(d);
@@ -5270,10 +5554,10 @@ function openResEdit(idx){
 }
 
 /* 书目 → 人物 / 概念（0.18.54）
-   人物页早有「📚 本站收录 N 本」，但书目页一直没有反向的「这本书涉及谁、讲的是哪些概念」，
+   人物页早有📚 本站收录 N 本，但书目页一直没有反向的这本书涉及谁、讲的是哪些概念，
    两边的链接是单向的。这里**不落任何数据文件**：打开详情时拿现有的人物名、概念名
    在本书的标题 / 作者 / 简介 / 要点 / 标签里做包含匹配，所以人物概念增删会自动跟随，体积 0。
-   概念里「国家 / 革命 / 资本」这类通用词误报高（任何一本讲国家的书都会出现），
+   概念里国家 / 革命 / 资本这类通用词误报高（任何一本讲国家的书都会出现），
    因此要求出现 ≥2 次才算；人物名足够具体，出现 1 次即可。 */
 function bookLinksInner(it) {
   if (!it) return '';
@@ -5281,10 +5565,10 @@ function bookLinksInner(it) {
     .filter(Boolean).join(' ');
   if (!hay) return '';
   function cnt(sub) { var c = 0, i = 0; while ((i = hay.indexOf(sub, i)) >= 0) { c++; i += sub.length; } return c; }
-  /* 名字变体：人物条目多用全名（「卡尔·马克思」「弗拉基米尔·伊里奇·列宁」），
-     而书目作者栏写的是合称（「马克思恩格斯」「列宁」）——只匹配全名会漏掉最核心的那批书
-     （实测《共产党宣言》《资本论》一本都匹配不上）。所以再取「·」分段后的末段作短名，
-     并拆掉「秦邦宪（博古）」这类括号别名。 */
+  /* 名字变体：人物条目多用全名（卡尔·马克思弗拉基米尔·伊里奇·列宁），
+     而书目作者栏写的是合称（马克思恩格斯列宁）——只匹配全名会漏掉最核心的那批书
+     （实测《共产党宣言》《资本论》一本都匹配不上）。所以再取·分段后的末段作短名，
+     并拆掉秦邦宪（博古）这类括号别名。 */
   function variants(nm) {
     var s = String(nm || '').trim(), out = [s];
     var seg = s.split(/[·・\s]+/).filter(Boolean);
@@ -5316,7 +5600,7 @@ function bookLinksInner(it) {
   if (ppl.length) {
     out += '<div style="font-size:.7rem;opacity:.6;margin:2px 0 5px">👤 人物</div>';
     out += ppl.slice(0, 12).map(function (x) {
-      /* 注意 openFigure 的第一个参数是「节点 id」不是人名——传名字会 find 不到并静默 return（踩过一次） */
+      /* 注意 openFigure 的第一个参数是节点 id不是人名——传名字会 find 不到并静默 return（踩过一次） */
       return '<button style="' + chip + '" onclick="openFigure(\'' + escAttr(x.n.id) + '\')">👤 ' + escHtml(x.n.name) + '</button>';
     }).join('');
   }
@@ -5330,9 +5614,9 @@ function bookLinksInner(it) {
   return out;
 }
 
-/* 为什么要有「槽 + 常驻补画」这一层：人物名和图谱概念都在延迟加载的数据里，
+/* 为什么要有槽 + 常驻补画这一层：人物名和图谱概念都在延迟加载的数据里，
    冷启动直接打开书目详情（深链 / 搜索结果跳转）时它们还没到，算出来就是空的，
-   而且详情页不会自己重绘——表现是「有的书有这一块、有的没有」（与导读区当年一模一样）。
+   而且详情页不会自己重绘——表现是有的书有这一块、有的没有（与导读区当年一模一样）。
    照 yzFillSlot 的办法：先输出一个空槽，等数据就绪后再算一次并标记，之后不再重算。 */
 function bookPeopleHTML(it) {
   if (!it) return '';
@@ -5341,7 +5625,7 @@ function bookPeopleHTML(it) {
 function yzFillBookLinks() {
   var slot = document.getElementById('yzBookLinksSlot');
   if (!slot || slot.getAttribute('data-filled') === '1') return;
-  /* 判「数据到没到」直接用数据本身，不依赖某个全局名——曾写成 window.YZLazy.ready，
+  /* 判数据到没到直接用数据本身，不依赖某个全局名——曾写成 window.YZLazy.ready，
      而真实入口是 window.YZData，结果两个判据永远为假、补画从来没跑过。 */
   var hasP = !!(window.SITE_GRAPH && (window.SITE_GRAPH.nodes || []).length);
   var hasC = !!(window.SITE_CONCEPTS && (window.SITE_CONCEPTS.nodes || []).length);
@@ -5352,7 +5636,7 @@ function yzFillBookLinks() {
   if (!it) return;
   var h = bookLinksInner(it);
   if (h) slot.innerHTML = h;
-  /* 只有「人物 + 概念」两份数据都到位才算画完：两份是不同文件、不同时刻到达的，
+  /* 只有人物 + 概念两份数据都到位才算画完：两份是不同文件、不同时刻到达的，
      早先只要先到一份就标记完成，结果概念区永远空着（实测《共产党宣言》只出人物不出概念）。 */
   if (hasP && hasC) slot.setAttribute('data-filled', '1');
 }
@@ -5364,7 +5648,7 @@ if (window.YZData && window.YZData.ready) {
 setInterval(function () { try { yzFillBookLinks(); } catch (e) { } }, 400);
 
 /* 版本信息（0.18.11）：出版社 / 出版年 / 译者这些字段早就存在（130 本有出版社、67 本有出版年、
-   32 本有译者），但详情页从来没显示过——写了等于没写。史料的「可核查」第一步就是版本著录。 */
+   32 本有译者），但详情页从来没显示过——写了等于没写。史料的可核查第一步就是版本著录。 */
 function bookMetaHTML(it){
   if (!it) return '';
   const rows = [];
@@ -5406,17 +5690,17 @@ function openItemDetail(idx, fromRoute){
   const fullIntro = String(it.intro || '').trim();
   const brief = briefIntro(it);
   /* 书壳诚实化（0.17.41）：431 条书目里 181 条简介不到 40 字，点进来基本等于空壳。
-     以前这种条目仍然输出一行小字，看起来像「有内容其实没有」。
-     现在明确说「简介还没写全」，并给出三条真能走的路，而不是拿一句 20 字的话糊过去。 */
+     以前这种条目仍然输出一行小字，看起来像有内容其实没有。
+     现在明确说简介还没写全，并给出三条真能走的路，而不是拿一句 20 字的话糊过去。 */
   const briefBlock = (function () {
     var bt = String(brief || '').trim();
     var _full = String(it.intro || '').replace(/\s+/g, ' ').trim();
     var _desc = String(it.desc || '').replace(/\s+/g, ' ').trim();
-    /* 判「空壳」要看三处里的最长者：有的条目 desc 只有 12 个字（所以 brief 很短），
+    /* 判空壳要看三处里的最长者：有的条目 desc 只有 12 个字（所以 brief 很短），
        但 intro 有几百字——那不是空壳，只是摘要短。按 brief 判会误伤。 */
     var _rich = Math.max(bt.length, _full.length, _desc.length);
     /* 阈值从 40 降到 20：456 条现在全部有简介，最短的一句 21 字（如《VLC 媒体播放器》），
-       再按 40 判会把「有简介但写得不长」也当成空壳，反而吓人。 */
+       再按 40 判会把有简介但写得不长也当成空壳，反而吓人。 */
     if (_rich >= 20) {
       var show = bt;
       if (bt.length < 40 && _full.length >= 40) show = _full.length > 140 ? (_full.slice(0, 140) + '…') : _full;
@@ -5435,17 +5719,17 @@ function openItemDetail(idx, fromRoute){
     return h;
   })();
   /* ① 详细介绍（默认收起，点标题展开）  ② 章节目录 = 逐条可折叠：点开看该章内容，再点收起 */
-  /* 只有当「完整介绍」明显比精华摘要长时才给折叠全文，避免同一段话在页面上说两遍 */
+  /* 只有当完整介绍明显比精华摘要长时才给折叠全文，避免同一段话在页面上说两遍 */
   const introSection = (fullIntro && fullIntro.replace(/\s+/g, ' ') !== brief) ? `<details class="fold" style="margin-top:14px">
     <summary class="fold-t">📘 详细介绍</summary>
     <p class="fold-body" style="font-size:.86rem;line-height:1.95;opacity:.92;white-space:pre-line;padding:12px 14px;background:rgba(245,197,24,.06);border-left:3px solid var(--accent);border-radius:6px">${escAttr(fullIntro)}</p></details>` : '';
   const tocItems = (it.chapters && it.chapters.length) ? it.chapters : [];
-  /* 目录（0.17.41 合并）：原先「章级骨架」和「目录」是两个区块，都在列章节、都在讲每章说什么，
+  /* 目录（0.17.41 合并）：原先章级骨架和目录是两个区块，都在列章节、都在讲每章说什么，
      属于同一件事的两个入口。现在合成一个——点开一章，章内容摘要 + 这一章要回答什么 +
      论点步骤 + 常见误读，全在这一折叠里。 */
   const _ol = (window.YZStudy && YZStudy.outlineOf) ? YZStudy.outlineOf(it.title) : [];
-  /* 按「第几章」匹配，不能按下标：目录里常有「序言」「附录」这类不计章号的项，
-     按下标会整体错位一位（实测《宣言》第 1 项「序言」被挂上了「第一章」的骨架）。 */
+  /* 按第几章匹配，不能按下标：目录里常有序言附录这类不计章号的项，
+     按下标会整体错位一位（实测《宣言》第 1 项序言被挂上了第一章的骨架）。 */
   const _CN = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
   const _chNum = function (str) {
     const m = /第\s*([一二三四五六七八九十]+)\s*[章篇节]/.exec(String(str || ''));
@@ -5471,14 +5755,14 @@ function openItemDetail(idx, fromRoute){
         if (_chNum(_ol[i].h) === cn) { _olUsed[i] = 1; return _ol[i]; }
       }
     }
-    /* ② 标题互相包含（去掉「第X章/篇/节」「一、」这类前缀再比） */
+    /* ② 标题互相包含（去掉第X章/篇/节一、这类前缀再比） */
     const nt = _normT(ct);
     if (nt) for (let i = 0; i < _ol.length; i++) {
       if (_olUsed[i]) continue;
       const oh = _normT(String(_ol[i].h || '').replace(/^第[一二三四五六七八九十]+[章篇节]/, '').replace(/^[一二三四五六七八九十]+[、.]/, ''));
       if (oh && (nt.indexOf(oh) >= 0 || oh.indexOf(nt) >= 0)) { _olUsed[i] = 1; return _ol[i]; }
     }
-    /* ③ 字面重合度过半也算同一个（「商品和货币」vs「商品」这种缩写） */
+    /* ③ 字面重合度过半也算同一个（商品和货币vs商品这种缩写） */
     if (nt) for (let i = 0; i < _ol.length; i++) {
       if (_olUsed[i]) continue;
       const oh = _normT(String(_ol[i].h || '').replace(/^第[一二三四五六七八九十]+[章篇节]/, '').replace(/^[一二三四五六七八九十]+[、.]/, ''));
@@ -5559,9 +5843,9 @@ function openItemDetail(idx, fromRoute){
          <button class="lk-btn" onclick="openLinkEditor(${idx})">${linkOf(it) ? '✏️ 修改链接' : '🔗 添加链接'}</button>
          ${localIdOf(it) ? `<button class="go" onclick="openLocalBook('${escAttr(localIdOf(it))}')">📖 开始阅读</button>` : (canImport(it) ? `<button class="go" onclick="importIntoBook('${escAttr(it.id || '')}')">📥 导入本书</button>` : '')}
          ${it.local
-           ? `<p class="sub" style="margin:0;font-size:.76rem;opacity:.7">这是你导入本机的书，内容只存在本机；点「📖 开始阅读」在应用内阅读。</p>`
+           ? `<p class="sub" style="margin:0;font-size:.76rem;opacity:.7">这是你导入本机的书，内容只存在本机；点📖 开始阅读在应用内阅读。</p>`
            : (canImport(it)
-             ? `<p class="sub" style="margin:0;font-size:.76rem;opacity:.7">本站只提供条目介绍与索引，<b>不含原文文件</b>；点「📥 导入本书」把你手机里的电子书导进来，就能在这一页阅读（只存在本机、不上传）。</p>`
+             ? `<p class="sub" style="margin:0;font-size:.76rem;opacity:.7">本站只提供条目介绍与索引，<b>不含原文文件</b>；点📥 导入本书把你手机里的电子书导进来，就能在这一页阅读（只存在本机、不上传）。</p>`
              : `<p class="sub" style="margin:0;font-size:.76rem;opacity:.7">本站仅作条目介绍与索引，<b>不提供外部跳转</b>；如需获取，请自行在浏览器中检索书名。</p>`)}
          ${linkOf(it) ? `<button class="go" onclick="openBookLink(${idx})">${isInlineText(it) ? '📖 打开阅读' : '🔗 打开链接'}</button>` : ''}
          <button onclick="openLinkEditor(${idx})">${linkOf(it) ? '✏️ 修改链接' : '🔗 添加链接'}</button>
@@ -5595,25 +5879,25 @@ function openItemDetail(idx, fromRoute){
 /* ---------- 使用指南 ---------- */
 function helpFaqHTML(){
   var quick = [
-    ['🔎 找书', '顶部搜索框输入书名 / 作者 / 关键词，回车即可；也可回首页点「分类」按类型浏览。'],
+    ['🔎 找书', '顶部搜索框输入书名 / 作者 / 关键词，回车即可；也可回首页点分类按类型浏览。'],
     ['📚 看条目', '点任意条目进入详情页，可看作者、版本、简介、要点与相关推荐。'],
-    ['⭐ 收藏', '卡片上的「☆」即加入收藏；「个人中心 → 收藏」里集中查看。'],
-    ['🗂 分类', '底栏「分类」按类型汇总：推荐 / 原著 / 讲堂 / 歌曲 / 影像 / 工具 / 图书馆 / 对公文献 / 做题；右上角「⚙️」可隐藏不看的分类。'],
-    ['📡 频道', '底栏「频道」是导师语录与思想交流的信息流，可点赞、评论、复制发言。'],
-    ['📜 史料', '底栏「史料」按分组 / 人物 / 图谱整理全部人物与文献；右上角「＋」可打开自助编辑，添加或修改内容。'],
-    ['🕸️ 关系图谱', '「史料 → 图谱」进入图谱页：顶栏下拉可切换内置图谱（主图谱 / 文革图谱 / 世界图谱）。拖动平移、滚轮缩放、点节点看它的关系网；工具栏还可切「列表 / 排名 / 关系工具 / 地图 / 社区 / 时间轴」。'],
-    ['🏛️ 图书馆', '「分类 → 图书馆」列出常见第三方书库（Z-Library、安娜的档案、Internet Archive、马克思主义文库等）的定位与收录范围——本站只作介绍，不跳转。'],
+    ['⭐ 收藏', '卡片上的☆即加入收藏；个人中心 → 收藏里集中查看。'],
+    ['🗂 分类', '底栏分类按类型汇总：推荐 / 原著 / 讲堂 / 歌曲 / 影像 / 工具 / 图书馆 / 对公文献 / 做题；右上角⚙️可隐藏不看的分类。'],
+    ['📡 频道', '底栏频道是导师语录与思想交流的信息流，可点赞、评论、复制发言。'],
+    ['📜 史料', '底栏史料按分组 / 人物 / 图谱整理全部人物与文献；右上角＋可打开自助编辑，添加或修改内容。'],
+    ['🕸️ 关系图谱', '史料 → 图谱进入图谱页：顶栏下拉可切换内置图谱（主图谱 / 文革图谱 / 世界图谱）。拖动平移、滚轮缩放、点节点看它的关系网；工具栏还可切列表 / 排名 / 关系工具 / 地图 / 社区 / 时间轴。'],
+    ['🏛️ 图书馆', '分类 → 图书馆列出常见第三方书库（Z-Library、安娜的档案、Internet Archive、马克思主义文库等）的定位与收录范围——本站只作介绍，不跳转。'],
     ['👤 个人中心', '点左上角头像，或在首页从屏幕左边缘向右滑，打开个人中心（相册 / 收藏 / 文件 / 设置）。'],
-    ['🌗 显示设置', '「个人中心 → 设置 → 显示」可切换主题、字号、行距与版心。']
+    ['🌗 显示设置', '个人中心 → 设置 → 显示可切换主题、字号、行距与版心。']
   ];
   var local = [
-    ['✏️ 自助编辑', '点「史料」页右上角的「＋」打开：可在本机新增资源、修改人物介绍与头像、增删目录、编辑关系图谱。改动只存本机，不上传服务器。'],
-    ['🕸️ 图谱的导出与导入', '图谱页右上角「⬇ 数据」可把<b>当前图谱</b>导出为 JSON / CSV / GraphML——几套内置图谱都能直接导出；同一菜单里的「📥 导入图谱」可从一份 JSON 建一张你自己的图谱。'],
-    ['🗂 新建 / 重命名 / 删除图谱', '开启「自助编辑」后，图谱页会多出「🗂 图谱」按钮：可新建、重命名、删除、切换图谱；新建与导入的图谱都只存本机。'],
-    ['💾 导出位置与打开', '「个人中心 → 设置 → 导出位置」可指定一个文件夹（无需任何权限）；每次导出完成都会显示真实保存位置、文件名与大小，并可直接点「用其他应用打开」。'],
-    ['🔐 导入 / 导出数据', '打开「个人中心」，点头像进入账号页：可导出账号数据（头像、名字、收藏、书签、设置）为 JSON；换设备时点「登录」粘贴即可恢复。'],
-    ['📥 导入频道内容', '在「频道」右上角点 📥，粘贴 JSON 数组即可添加自己的发言（只存本机）。'],
-    ['🖼️ 相册', '「个人中心 → 相册」可查看内置照片、保存到手机，或点「＋导入照片」把自己手机里的照片加进来。']
+    ['✏️ 自助编辑', '点史料页右上角的＋打开：可在本机新增资源、修改人物介绍与头像、增删目录、编辑关系图谱。改动只存本机，不上传服务器。'],
+    ['🕸️ 图谱的导出与导入', '图谱页右上角⬇ 数据可把<b>当前图谱</b>导出为 JSON / CSV / GraphML——几套内置图谱都能直接导出；同一菜单里的📥 导入图谱可从一份 JSON 建一张你自己的图谱。'],
+    ['🗂 新建 / 重命名 / 删除图谱', '开启自助编辑后，图谱页会多出🗂 图谱按钮：可新建、重命名、删除、切换图谱；新建与导入的图谱都只存本机。'],
+    ['💾 导出位置与打开', '个人中心 → 设置 → 导出位置可指定一个文件夹（无需任何权限）；每次导出完成都会显示真实保存位置、文件名与大小，并可直接点用其他应用打开。'],
+    ['🔐 导入 / 导出数据', '打开个人中心，点头像进入账号页：可导出账号数据（头像、名字、收藏、书签、设置）为 JSON；换设备时点登录粘贴即可恢复。'],
+    ['📥 导入频道内容', '在频道右上角点 📥，粘贴 JSON 数组即可添加自己的发言（只存本机）。'],
+    ['🖼️ 相册', '个人中心 → 相册可查看内置照片、保存到手机，或点＋导入照片把自己手机里的照片加进来。']
   ];
   var rows = function(a){ return a.map(function(x){ return '<div class="hp"><span class="hp-t">' + x[0] + '</span><span class="hp-d">' + x[1] + '</span></div>'; }).join(''); };
   return '<h2 class="stage">🚀 快速上手</h2>' + rows(quick) +
@@ -5623,7 +5907,7 @@ function helpFaqHTML(){
 }
 
 /* ---------- 阅读与手册 ---------- */
-/* ---------- 推荐书单：本地「已读」勾选与进度（只存本机，不上传） ---------- */
+/* ---------- 推荐书单：本地已读勾选与进度（只存本机，不上传） ---------- */
 function rlKey(t){ return String(t || '').replace(/[^\u4e00-\u9fff0-9A-Za-z]/g, '').slice(0, 44); }
 function rlDone(){ try { const a = JSON.parse(localStorage.getItem('readlistDone') || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; } }
 function rlSave(a){ try { lset('readlistDone', JSON.stringify(a)); } catch(e){} }
@@ -5637,7 +5921,7 @@ function rlToggle(ev, k){
   rlUpdate();
 }
 function rlClearAll(){
-  if (!confirm('清空本机记录的全部「已读」标记？')) return;
+  if (!confirm('清空本机记录的全部已读标记？')) return;
   rlSave([]);
   try { Array.prototype.forEach.call(document.querySelectorAll('input[data-rl]'), x => { x.checked = false; const li = x.closest ? x.closest('li') : null; if (li) li.classList.remove('rl-done'); }); } catch(e){}
   rlUpdate();
@@ -5691,7 +5975,7 @@ function readManualHTML(){
       <hr style="border:0;border-top:1px dashed var(--card-border);margin:18px 0">`;
   }
   return html + `<h2 class="sub-title" style="margin-top:0">📖 推荐阅读书单</h2>` +
-    `<p class="sub" style="margin:2px 0 0;line-height:1.7">带「前往 ↗」的条目可直接点进资源库中的对应书籍。</p>` + readlistMergedHTML() +
+    `<p class="sub" style="margin:2px 0 0;line-height:1.7">带前往 ↗的条目可直接点进资源库中的对应书籍。</p>` + readlistMergedHTML() +
     (window.yzPathsHTML ? yzPathsHTML() : '');
 }
 
@@ -5718,7 +6002,7 @@ function featuresHTML(filter){
   if (!F.length) return '<p class="sub">暂无专题。</p>';
   const bookCard = i => `<div class="lcard" onclick="openItemDetail(${i})"><span class="li">${escHtml(RES[i].icon || '📕')}</span><div style="flex:1"><div class="pname">${escHtml(RES[i].title)}</div><div class="prole">${escHtml(RES[i].desc || '')}</div></div><span style="opacity:.4">›</span></div>`;
   const H3 = t => `<h3 style="font-size:.88rem;color:var(--accent);letter-spacing:1px;margin:13px 0 6px">${t}</h3>`;
-  return `<p class="sub" style="margin-top:0;line-height:1.75">按主题把「书 · 人物 · 事件 · 思想」聚合在一起，点任意项即可跳转。</p>` +
+  return `<p class="sub" style="margin-top:0;line-height:1.75">按主题把书 · 人物 · 事件 · 思想聚合在一起，点任意项即可跳转。</p>` +
     F.map(f => {
       const books = (f.books || []).map(id => { const i = RES.findIndex(r => r.id === id); return i < 0 ? '' : bookCard(i); }).join('');
       const ppl = linkChips(f.people || [], 'people');
@@ -5759,15 +6043,15 @@ function openSponsor(){
   const L2 = 'https://ima.qq.com/copilot-industry-workflow/share?assistUserId=V_5sR_vRxr6uWRsf9qaanw&industryId=gov';
   openContent('❤️ 免费赞助', crumbFrom([{ t:'设置', fn:()=>openAccount() }, { t:'免费赞助', fn:()=>openSponsor() }]) + `
     <p class="sub" style="line-height:1.95;margin-top:0">本站<b>完全免费、公开</b>，不向任何人收费，也不设任何门槛。</p>
-    <p class="sub" style="line-height:1.95">目前唯一缺的是<b>算力</b>——没有算力，网站与 App 就难以继续更新和完善。如果你愿意，可以点下面的链接帮本站「助力」：<b>邀请新用户使用 ima，双方都能领到免费算力</b>。这些算力<b>只会投入到本软件的创作</b>之中。</p>
-    <p class="sub" style="line-height:1.95;margin-top:4px;opacity:.9">如有余力，可在「ima」中通过官方入口给予算力支援；本应用内不提供外部跳转。</p>
+    <p class="sub" style="line-height:1.95">目前唯一缺的是<b>算力</b>——没有算力，网站与 App 就难以继续更新和完善。如果你愿意，可以点下面的链接帮本站助力：<b>邀请新用户使用 ima，双方都能领到免费算力</b>。这些算力<b>只会投入到本软件的创作</b>之中。</p>
+    <p class="sub" style="line-height:1.95;margin-top:4px;opacity:.9">如有余力，可在ima中通过官方入口给予算力支援；本应用内不提供外部跳转。</p>
     <p class="sub" style="line-height:1.95;margin-top:14px;opacity:.88"><b>无论你是否赞助，本站内容都一律免费公开</b>，任何人都能看、都能用。</p>
     <p class="sub" style="text-align:center;margin-top:20px;color:var(--accent)">最后，感谢每一位支持本站的同志。🙏</p>`);
 }
 
-const privacyHTML = '<p class="sub" style="line-height:1.8">本站与「学通」App 均为纯本地 / 静态实现：不收集、不上传任何个人数据，无第三方统计脚本、无账号服务器。你的收藏、书签、笔记、做题题库与本机书库，全部只保存在本机浏览器 / App 存储中。</p><div class="ops" style="margin-top:12px"><a class="go" style="text-decoration:none;padding:8px 16px;border-radius:9px;display:inline-block" href="privacy.html">📄 打开完整隐私政策</a></div>';
+const privacyHTML = '<p class="sub" style="line-height:1.8">本站与学通App 均为纯本地 / 静态实现：不收集、不上传任何个人数据，无第三方统计脚本、无账号服务器。你的收藏、书签、笔记、做题题库与本机书库，全部只保存在本机浏览器 / App 存储中。</p><div class="ops" style="margin-top:12px"><a class="go" style="text-decoration:none;padding:8px 16px;border-radius:9px;display:inline-block" href="privacy.html">📄 打开完整隐私政策</a></div>';
 
-const licensesHTML = '<p class="sub" style="line-height:1.8">本站与本 App 内置了以下开源软件，版权归各自作者所有，谨致谢意：</p>' + '<ul style="line-height:2;font-size:.83rem">' + '<li><b>3d-force-graph</b> 1.80.1 — MIT License · © Vasco Asturiano</li>' + '<li><b>three.js</b> r186 — MIT License · © three.js authors</li>' + '<li><b>qrcode-generator</b> 1.4.4 — MIT License · © Kazuhiko Arase</li>' + '</ul>' + '<p class="sub" style="line-height:1.7;opacity:.75;margin-top:6px">历史版本曾使用 epub.js / JSZip / PDF.js（随「本地书库」下线，当前发行版已不再内置，详见许可页）。</p>' + '<div class="ops" style="margin-top:12px"><a class="go" href="licenses.html" style="text-decoration:none;padding:8px 16px;border-radius:9px;display:inline-block">📄 查看许可全文</a></div>';
+const licensesHTML = '<p class="sub" style="line-height:1.8">本站与本 App 内置了以下开源软件，版权归各自作者所有，谨致谢意：</p>' + '<ul style="line-height:2;font-size:.83rem">' + '<li><b>3d-force-graph</b> 1.80.1 — MIT License · © Vasco Asturiano</li>' + '<li><b>three.js</b> r186 — MIT License · © three.js authors</li>' + '<li><b>qrcode-generator</b> 1.4.4 — MIT License · © Kazuhiko Arase</li>' + '</ul>' + '<p class="sub" style="line-height:1.7;opacity:.75;margin-top:6px">历史版本曾使用 epub.js / JSZip / PDF.js（随本地书库下线，当前发行版已不再内置，详见许可页）。</p>' + '<div class="ops" style="margin-top:12px"><a class="go" href="licenses.html" style="text-decoration:none;padding:8px 16px;border-radius:9px;display:inline-block">📄 查看许可全文</a></div>';
 
 const SECTIONS = [
   { icon:'📜', title:HUB_NAME,       get:() => historyPageHTML() },
@@ -5792,10 +6076,10 @@ function openSection(i){
   openContent(s.icon + ' ' + s.title, (i === 0 ? '' : crumbFrom([{ t:s.title, fn:()=>openSection(i) }])) + s.get(), { root: true, right: (i === 0 ? { text:'＋', act:'openSelfEdit()' } : null) });
 }
 
-/* 设置页的「查看」分组已删除：它只是把底栏/快捷面板已有的分区再列一遍（纯重复入口）。
+/* 设置页的查看分组已删除：它只是把底栏/快捷面板已有的分区再列一遍（纯重复入口）。
    如日后需要，用 openSection(i) 从底栏进入即可。 */
 
-/* ---------- 顶部快捷面板（仿 QQ「+」） ---------- */
+/* ---------- 顶部快捷面板（仿 QQ+） ---------- */
 function togglePlus(){ try{ var p=document.getElementById('qPanel'), s=document.getElementById('qScrim'); if(!p) return; var open=p.hidden; p.hidden=!open; if(s) s.hidden=!open; }catch(e){} }
 function closePlus(){ try{ var p=document.getElementById('qPanel'), s=document.getElementById('qScrim'); if(p) p.hidden=true; if(s) s.hidden=true; }catch(e){} }
 document.addEventListener('click', function(e){
@@ -5819,13 +6103,13 @@ function dynamicsHTML(){
   }).join('');
 }
 /* 分类 → 某个分类的条目列表。
-   ⚠️ 这里必须「入栈」，不能再用 homeCat()（它只改 hash、把页面交给首页结果视图）。
+   ⚠️ 这里必须入栈，不能再用 homeCat()（它只改 hash、把页面交给首页结果视图）。
    用 hash 的话，返回键一退就把 hash 退没了 → 直接落回主页，回不到分类页。 */
 function catListHTML(cat){
   var list = RES.filter(function(r){ return r && r.cat === cat; });
   if (!list.length) return '<p class="sub">这个分类下还没有条目。</p>';
   /* 可读 / 待补分开列（0.18.12）：456 本书里只有 28 本能真正打开，
-     以前两者混在一起，用户点开一本又一本才发现「暂无原文」。
+     以前两者混在一起，用户点开一本又一本才发现暂无原文。
      现在能读的排前面，待补的折起来（带计数），一眼看得出这个分类能读到什么。 */
   var ok = [], miss = [];
   list.forEach(function(r){ (hasBody(r) ? ok : miss).push(r); });
@@ -5839,7 +6123,7 @@ function catListHTML(cat){
   out += '<details style="margin-top:14px"' + (ok.length ? '' : ' open') + '>' +
     '<summary style="cursor:pointer;font-size:.78rem;letter-spacing:1px;opacity:.85;padding:8px 0;list-style:none">' +
     '📭 待补原文 · ' + miss.length + ' 本（点这里展开）</summary>' +
-    '<p class="sub" style="margin:2px 0 8px;opacity:.7;font-size:.74rem;line-height:1.7">以下条目有书名与简介，正文还没进库。可以先看简介，或用右上角「＋」提一份。</p>' +
+    '<p class="sub" style="margin:2px 0 8px;opacity:.7;font-size:.74rem;line-height:1.7">以下条目有书名与简介，正文还没进库。可以先看简介，或用右上角＋提一份。</p>' +
     rows(miss) + '</details>';
   return out;
 }
@@ -5847,7 +6131,7 @@ function openCatPage(cat){
   cat = String(cat || '').trim();
   if (!cat) return;
   var icon = (typeof catIcon !== 'undefined' && catIcon[cat]) ? catIcon[cat] : '📁';
-  /* 歌曲 / 影像：这两类是「可以自己导入」的，页面顶部给导入与库入口 */
+  /* 歌曲 / 影像：这两类是可以自己导入的，页面顶部给导入与库入口 */
   var extra = '';
   if (cat === '歌曲' || cat === '影像') {
     extra = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px">' +
@@ -5910,7 +6194,7 @@ function openClassifyManage(){
   document.body.appendChild(sc); document.body.appendChild(d);
   if (!window._clsEsc){
     window._clsEsc = 1;
-    /* 鼠标：捕获阶段判断「点的是不是面板内部」，点外面就收起（并用 guard 防止这一次 click 漏到下层） */
+    /* 鼠标：捕获阶段判断点的是不是面板内部，点外面就收起（并用 guard 防止这一次 click 漏到下层） */
     document.addEventListener('click', function(e){
       if (_clsGuardHit()) { e.stopPropagation(); e.preventDefault(); return; }
       var dm = document.getElementById('clsM'); if (!dm) return;
@@ -5922,7 +6206,7 @@ function openClassifyManage(){
   }
 }
 function closeClassifyManage(){ var d=document.getElementById('clsM'); if(d)d.remove(); var s=document.getElementById('clsScrim'); if(s)s.remove(); }
-/* 关闭后 400ms 内吞掉那一次 click，避免「点遮罩关闭 → 顺手点到底下的分类项」（移动端点透） */
+/* 关闭后 400ms 内吞掉那一次 click，避免点遮罩关闭 → 顺手点到底下的分类项（移动端点透） */
 var _clsGuardT = 0;
 function _clsGuardOn(){ _clsGuardT = Date.now(); }
 function _clsGuardHit(){ return _clsGuardT && (Date.now() - _clsGuardT) < 400; }
@@ -5981,8 +6265,8 @@ document.getElementById('modal').addEventListener('click', e => { if (e.target.i
 document.getElementById('dataModal').addEventListener('click', e => { if (e.target.id === 'dataModal') closeDataModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { var _d = document.getElementById('drawer'); if (_d && _d.classList.contains('open')) { pageBack(); return; } closePlus(); closePreview(); closeLeave(); closeShare(); closeDataModal(); } });
 
-/* ---------- 页导航（QQ 原生「整页推进」） ---------- */
-/* 「我的资料」在 mine.js（懒加载）：没到就先拉，到了直接打开 */
+/* ---------- 页导航（QQ 原生整页推进） ---------- */
+/* 我的资料在 mine.js（懒加载）：没到就先拉，到了直接打开 */
 /* 编辑台在 editor.js（懒加载）：开启自助编辑时如果还没到，先拉再启动 */
 /* 读书笔记块（booknote.js，懒加载）：没到就先拉，到货后重绘当前页补上 */
 function yzBookNoteLazy(nid) {
@@ -6028,10 +6312,10 @@ function closeDrawer(){ var d = document.getElementById('drawer'); if (d) d.clas
   try { document.body.classList.remove('yzreading'); } catch (e) { }   /* 退出阅读：底栏与安装按钮恢复 */
   /* 保险：回到主页时顶栏必须是 root 模式。此前有几条出口（直接关抽屉、某些返回路径）
      不经过 setTopbar('root')，顶栏停在 page 模式 → #qSearchBar 保持 hidden，
-     用户看到的就是「主页的搜索框没了」。 */
+     用户看到的就是主页的搜索框没了。 */
   /* 关抽屉 = 回到主界面：无条件清栈、显示主页、顶栏切回 root。
-     以前只在「栈已空」时才复位，于是点遮罩关抽屉（栈还有个人中心 + 相册两层）会留下
-     「抽屉关了、主页显示中、但没有搜索框」的坏状态。 */
+     以前只在栈已空时才复位，于是点遮罩关抽屉（栈还有个人中心 + 相册两层）会留下
+     抽屉关了、主页显示中、但没有搜索框的坏状态。 */
   try {
     _pageStack.length = 0;
     var _h = document.getElementById('view-home'), _r = document.getElementById('view-results');
@@ -6040,9 +6324,9 @@ function closeDrawer(){ var d = document.getElementById('drawer'); if (d) d.clas
     setTopbar('root', { right: { text:'＋', act:'togglePlus()' } });
   } catch (e) { }
   updateToTop(); }
-/* 从页面「退出」→ 回到主页（而不是停在设置） */
+/* 从页面退出→ 回到主页（而不是停在设置） */
 function exitToHome(){ try { resetPageStack(); } catch(e){} try { closeDrawer(); } catch(e){} try { goHome(); } catch(e){} }
-/* 抽屉滑动：仅允许在「主页」从左侧边缘右滑打开（其他页面不响应） */
+/* 抽屉滑动：仅允许在主页从左侧边缘右滑打开（其他页面不响应） */
 (function(){
   var sx=0, sy=0, tracking=false;
   function homeVisible(){ var h=document.getElementById('view-home'); return !!h && !h.hidden; }
@@ -6087,7 +6371,7 @@ function exitToHome(){ try { resetPageStack(); } catch(e){} try { closeDrawer();
 function _hideDrawerViews(){
   ['pcView','accountView','settingsView','contentView'].forEach(function(id){ var e = document.getElementById(id); if (e) e.style.display = 'none'; });
 }
-function openPc(){                       /* 个人中心：左侧抽屉（仿 QQ「我的」）—— 它是抽屉根，重开即重置 */
+function openPc(){                       /* 个人中心：左侧抽屉（仿 QQ我的）—— 它是抽屉根，重开即重置 */
   resetPageStack();
   _pageStack.push({ view: 'pcView', title: '' });
   _renderPage(_pageStack[_pageStack.length - 1]);
@@ -6095,9 +6379,9 @@ function openPc(){                       /* 个人中心：左侧抽屉（仿 QQ
 function openSettings(){                 /* 设置页：入栈，返回回到上一层（个人中心 / 资料） */
   _pageStack.push({ view: 'settingsView', title: '⚙️ 设置' });
   _renderPage(_pageStack[_pageStack.length - 1]);
-  /* 本机数据概览（2026-11-13）：把 datamap.js 的清单从「诊断报告里的一行」
+  /* 本机数据概览（2026-11-13）：把 datamap.js 的清单从诊断报告里的一行
      变成用户能点开看的东西 —— 有哪些数据、占多少、哪些会随导出带走。
-     以前这些只有开发者看得见，而「本地优先」是产品承诺，用户该能自己核对。 */
+     以前这些只有开发者看得见，而本地优先是产品承诺，用户该能自己核对。 */
   function openDataMap(){
     var D = window.YZDATAMAP;
     if (!D || !D.detail) { toast('数据清单未加载'); return; }
@@ -6118,7 +6402,7 @@ function openSettings(){                 /* 设置页：入栈，返回回到上
       var head = '<div style="font-size:12.5px;line-height:1.7;opacity:.85;margin-bottom:10px">'
         + escHtml(d.text) + '</div>';
       var tip = '<div style="font-size:12px;opacity:.65;margin-top:12px;line-height:1.7">'
-        + '「随导出」的数据会写进「导出我的数据」生成的 Markdown；'
+        + '随导出的数据会写进导出我的数据生成的 Markdown；'
         + '书籍正文与内容包体积大，需在各自入口单独导出。</div>';
       openContent('📋 本机数据概览', '<div style="padding:4px 2px">' + head + rows + tip + '</div>');
     });
@@ -6172,7 +6456,7 @@ function openSettings(){                 /* 设置页：入栈，返回回到上
     }
   } catch (e) { }
 }
-/* 清空本机错误日志（诊断页「清空」按钮） */
+/* 清空本机错误日志（诊断页清空按钮） */
 function yzDiagClearAsk(){
   if (!window.YZDiagClear) { toast('诊断模块未加载'); return; }
   if (!confirm('清空本机错误日志？（不影响收藏 / 笔记 / 自助编辑）')) return;
@@ -6183,8 +6467,8 @@ function openAccountView(){              /* 账号页：入栈，返回回到上
   _renderPage(_pageStack[_pageStack.length - 1]);
 }
 function secIdx(t){ return SECTIONS.findIndex(s => s.title === t); }
-/* 默认必须是「关」：overlay.js 未加载/加载失败时如果返回 true，
-   界面会显示「已开启」但实际编辑器并不存在（用户点了没反应）。 */
+/* 默认必须是关：overlay.js 未加载/加载失败时如果返回 true，
+   界面会显示已开启但实际编辑器并不存在（用户点了没反应）。 */
 function selfEditOn(){ try{ if (window.YZY && typeof YZY.editorEnabled === "function") return !!YZY.editorEnabled(); }catch(e){} return false; }
 function syncSelfEditSwitch(){ try{ var b=document.getElementById("editSw"); if(b) b.textContent = selfEditOn() ? "已开启" : "已关闭"; }catch(e){} }
 function toggleSelfEdit(){
@@ -6222,8 +6506,8 @@ function renderAccount(){
       <button class="go" onclick="openDataIO('import')">🔐 登录（导入数据）</button>
       <button class="lbtn" onclick="exportData()">💾 导出账号数据</button>
     </div>
-    <p class="acct-note">本站无服务器，账号只存在本机。换设备或重装后，用此前导出的 JSON 点「登录」，即可把头像、名字、收藏、书签与设置全部恢复。</p>
-    <p class="acct-note">「我的数据」也在这一页：书签、导出 / 导入、清除本机数据。收藏、书签、笔记与本机设置不上传服务器。</p>
+    <p class="acct-note">本站无服务器，账号只存在本机。换设备或重装后，用此前导出的 JSON 点登录，即可把头像、名字、收藏、书签与设置全部恢复。</p>
+    <p class="acct-note">我的数据也在这一页：书签、导出 / 导入、清除本机数据。收藏、书签、笔记与本机设置不上传服务器。</p>
     <div class="acct-menu">
       <button class="acct-item" onclick="openSection(secIdx('隐私与协议'))"><span>🛡️</span>隐私与协议<i>数据与隐私</i></button>
       <button class="acct-item" onclick="openSection(secIdx('开源许可'))"><span>📜</span>开源许可<i>使用了哪些开源库</i></button>
@@ -6245,7 +6529,7 @@ function renderAccount(){
    数据可迁出（Longevity）：两条出口
      · exportNotesMD()  —— 你自己产生的文字（进度/摘录/标注/笔记/收藏）→ 一份 Markdown
      · exportBooksOut() —— 你导入的书本文件 → 原格式（EPUB 重新打包成标准 .epub）
-   为什么要做：local-first 的底线是「不用这个软件了，数据还能拿走」。
+   为什么要做：local-first 的底线是不用这个软件了，数据还能拿走。
    ===================================================================== */
 
 /* 书名：书库条目优先，其次 App 里导入的书 */
@@ -6291,7 +6575,7 @@ function exportNotesMD() {
     ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()));
   L.push('');
   L.push('这是你自己产生的部分：阅读进度、摘录、标注、笔记、收藏。用任何 Markdown 编辑器都能打开。');
-  L.push('书本身（EPUB / PDF / TXT）在「导出我导入的书」里另外导出。');
+  L.push('书本身（EPUB / PDF / TXT）在导出我导入的书里另外导出。');
   L.push('');
 
   var read = {};
@@ -6425,7 +6709,7 @@ function exportNotesMD() {
   var txt = L.join('\n');
   var fname = '学通-我的资料-' + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + '.md';
   try {
-    /* App 内走分享（不再写进系统「下载」） */
+    /* App 内走分享（不再写进系统下载） */
     if (window.YZSave && YZSave.share && YZSave.isApp && YZSave.isApp()) {
       if (YZSave.share(fname, 'text/markdown;charset=utf-8', txt)) {
         toast('已导出 ' + fname + '（在分享面板里选发给谁）');
@@ -6443,7 +6727,7 @@ function exportNotesMD() {
   } catch (e) { toast('导出失败：' + (e.message || '未知原因')); }
 }
 
-/* 导出我导入的书：Java 侧把书库目录里的文件逐个写到「导出文件夹」。
+/* 导出我导入的书：Java 侧把书库目录里的文件逐个写到导出文件夹。
    EPUB 在导入时被解成了目录，Java 会重新打包成标准 .epub。 */
 function exportBooksOut() {
   var A = window.AndroidApp;
@@ -6460,7 +6744,7 @@ function exportBooksOut() {
       toast('导出未全部成功' + why);
       return;
     }
-    var where = (r.folder === 'tree' && r.folderName) ? ('「' + r.folderName + '」') : '系统「下载」';
+    var where = (r.folder === 'tree' && r.folderName) ? ('' + r.folderName + '') : '系统下载';
     toast('已导出 ' + r.n + ' 本（' + (Math.round((r.bytes || 0) / 1024 / 1024 * 10) / 10) + ' MB）到' + where);
   }, 60);
 }
@@ -6537,7 +6821,7 @@ function _renderPage(entry){
     return;
   }
   _hideDrawerViews();
-  /* 从「搜索结果」返回到普通页面时，把底层视图也复位，否则 results 还亮着 */
+  /* 从搜索结果返回到普通页面时，把底层视图也复位，否则 results 还亮着 */
   try {
     var _h = document.getElementById('view-home'), _r = document.getElementById('view-results');
     if (_h) _h.hidden = false;
@@ -6554,7 +6838,7 @@ function _renderPage(entry){
 function openContent(title, html, opts){
   opts = opts || {};
   var body = html || '<p class="sub">暂无内容</p>';
-  /* 自定义层：若当前是详情页，交给 custom.js 套模板、追加「我的标注」。
+  /* 自定义层：若当前是详情页，交给 custom.js 套模板、追加我的标注。
      失败一律回落到内置内容（自定义配置绝不能让页面打不开）。 */
   try {
     var _deco = _yzDeco;
@@ -6564,7 +6848,7 @@ function openContent(title, html, opts){
   var top = _pageStack[_pageStack.length - 1];
   function _sameRight(x, y){ if (!x && !y) return true; if (!x || !y) return false; return x.text === y.text && x.act === y.act; }
   if (top && top.title === title && top.html === body && top.root === !!opts.root && _sameRight(top.right, opts.right || null) && _sameRight(top.right2, opts.right2 || null)){ _renderPage(top); return; }
-  /* 阅读模式：正文阅读时藏掉底栏与「安装到桌面」，把屏幕整块给文字 */
+  /* 阅读模式：正文阅读时藏掉底栏与安装到桌面，把屏幕整块给文字 */
   try {
     document.body.classList.remove('yzreading');
     if (String(body).indexOf('id="yzReader"') >= 0) document.body.classList.add('yzreading');
@@ -6574,7 +6858,7 @@ function openContent(title, html, opts){
   var _tp = window.__YZTiming ? __YZTiming.now() : 0;
   _renderPage(_pageStack[_pageStack.length - 1]);
   if (_tp && window.__YZTiming) {
-    /* 只留「最慢的一次」，避免记录无限增长；标题去掉图标便于辨认 */
+    /* 只留最慢的一次，避免记录无限增长；标题去掉图标便于辨认 */
     var _cost = Math.round(__YZTiming.now() - _tp);
     if (!__YZTiming.m.pageSlowest || _cost > __YZTiming.m.pageSlowestMs) {
       __YZTiming.m.pageSlowest = String(title || '').slice(0, 24);
@@ -6585,11 +6869,11 @@ function openContent(title, html, opts){
   yzFillGuide();
 }
 
-/* 「逐节研读」导读区要等 study.js（延迟加载）就绪才能画。
+/* 逐节研读导读区要等 study.js（延迟加载）就绪才能画。
    以前只在渲染那一刻判断一次：那次 study.js 还没到，这块就永远空着，
-   表现是「有的书有导读、有的没有」。而且详情页的重绘不止一条路径
-   （openContent / openCurrent / 自定义层装饰后再画），靠「在某个函数末尾补一次」并不可靠。
-   所以用一个很轻的常驻检查：每 400ms 看一眼有没有「空的导读槽」。
+   表现是有的书有导读、有的没有。而且详情页的重绘不止一条路径
+   （openContent / openCurrent / 自定义层装饰后再画），靠在某个函数末尾补一次并不可靠。
+   所以用一个很轻的常驻检查：每 400ms 看一眼有没有空的导读槽。
    代价是一次 getElementById + 读属性，比一个定时器还便宜。 */
 var __yzGuideTimer = 0;
 function yzFillSlot(){
@@ -6599,7 +6883,7 @@ function yzFillSlot(){
   if (!(window.YZStudy && YZStudy.guideBlock)) return false;
   var html = '';
   try { html = YZStudy.guideBlock(slot.getAttribute('data-b') || '') || ''; } catch (e) { return false; }
-  /* 空串说明 guides.js（延迟加载）还没到 —— 这时不能标记「已填」，
+  /* 空串说明 guides.js（延迟加载）还没到 —— 这时不能标记已填，
      否则以后永远不会再试，导读区就永久空着。这一条是上面那个 bug 的正解。 */
   if (!String(html).trim()) return false;
   slot.innerHTML = html;
@@ -6617,7 +6901,7 @@ function pageBack(){
   if (_pageStack.length === 1){
     var top = _pageStack[0];
     /* ① 个人中心：返回＝关抽屉 + 回主页。以前只关抽屉不 goHome，顶栏留在 page 模式，
-       用户看到的就是「从相册/个人中心返回后，主页的搜索框没了」。 */
+       用户看到的就是从相册/个人中心返回后，主页的搜索框没了。 */
     if (top && top.view === 'pcView'){ _pageStack.length = 0; closeDrawer(); goHome(); return; }
     /* ② 当前显示的不是这个栈条目（例如从分类页点进了搜索结果）→ 先回到它 */
     if (_shownEntry !== top){ _renderPage(top); return; }
@@ -6630,8 +6914,16 @@ function resetPageStack(){ _pageStack.length = 0; }
 
 /* 系统返回键 / 顶栏 ← 的统一入口（Java 每次返回都先调 window.__appBack，返回 true 才拦截）。
    层级：页内栈 → 栈里那条（分类页点进搜索结果后）→ 首页视图 → 退出。
-   ⚠️ 这里必须只在「确实有上一层」时返回 true，否则用户退不出 App。 */
+   ⚠️ 这里必须只在确实有上一层时返回 true，否则用户退不出 App。 */
 window.__appBack = function(){
+  try {
+    /* 比阅读器更内层的是正文编辑器浮层（#yzTextEdit，z-index 100060）：它也是 fixed 全屏、
+       不进页面栈。以前这里没管它，按返回键会去关背后的阅读器，而它留在最上层——
+       用户看到的就是编辑正文退不出去，只能杀进程。 */
+    if (window.YZTextEdit && typeof YZTextEdit.onBack === 'function') {
+      try { if (YZTextEdit.onBack()) return true; } catch (e) { }
+    }
+  } catch (e) { }
   try {
     /* 最内层是阅读器：它是个 DOM 浮层，不进页面栈，
        以前这里没管它，于是按返回键操作的是背后的页面（抽屉就露出来了）。 */
@@ -6645,7 +6937,7 @@ window.__appBack = function(){
     if (_pageStack.length === 1) { _pageStack.length = 0; goHome(); return true; }
     var h = location.hash || '';
     if (h && h !== '#') {
-      /* 用 replaceState 清 hash：不新增历史条目，避免「返回键在旧页面之间来回跳」 */
+      /* 用 replaceState 清 hash：不新增历史条目，避免返回键在旧页面之间来回跳 */
       try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
       goHome();
       return true;
@@ -6678,20 +6970,35 @@ function applyTheme(mode){
   document.querySelectorAll('#themeSeg button').forEach(b => b.classList.toggle('active', b.dataset.th === m));
 }
 function setTheme(mode){ applyTheme(mode); try { lset('theme', mode); } catch(e){} }
+/* 系统字体大小缩放比（1.0 = 默认）。
+   App 侧已经用 setTextZoom(100) 关掉了 WebView 的二次放大，
+   所以这里把系统缩放乘进基准 —— 用户的观感大小不变，App 内三档才是线性可见的。 */
+function sysFontScale(){
+  try {
+    if (window.AndroidApp && typeof AndroidApp.fontScale === 'function') {
+      var f = Number(AndroidApp.fontScale());
+      if (f > 0.5 && f < 3) return f;
+    }
+  } catch (e) {}
+  return 1;
+}
 function setFS(v){
   const map = { sm:'15px', md:'16px', lg:'18px' };
-  document.documentElement.style.fontSize = map[v] || map.md;
+  const base = parseFloat(map[v] || map.md) * sysFontScale();
+  document.documentElement.style.fontSize = base.toFixed(2) + 'px';
   document.querySelectorAll('#fsSeg button').forEach(b => b.classList.toggle('active', b.dataset.fs === v));
   lset('fs', v);
-  /* 正开着的阅读器要立刻跟着变 —— 阅读器正文的字号是「基准 × 档位」算出来的，
-     只改基准不会自动重算，得让它重跑一次。 */
+  /* 正开着的阅读器要立刻跟着变 —— 阅读器正文的字号是基准 × 档位算出来的，
+     只改基准不会自动重算，得让它重跑一次。两套阅读器（资源阅读器 / 我的书）都要刷。 */
   try { if (window.YZAppBooks && typeof window.YZAppBooks.reapplyText === 'function') window.YZAppBooks.reapplyText(); } catch (e) {}
+  try { if (window.yzBooks && typeof window.yzBooks.reapplyText === 'function') window.yzBooks.reapplyText(); } catch (e) {}
 }
 function setLH(v){
   document.documentElement.style.setProperty('--lh', v);
   document.querySelectorAll('#lhSeg button').forEach(b => b.classList.toggle('active', b.dataset.lh === v));
   lset('lh', v);
   try { if (window.YZAppBooks && typeof window.YZAppBooks.reapplyText === 'function') window.YZAppBooks.reapplyText(); } catch (e) {}
+  try { if (window.yzBooks && typeof window.yzBooks.reapplyText === 'function') window.yzBooks.reapplyText(); } catch (e) {}
 }
 function setW(v){
   document.documentElement.style.setProperty('--maxw', v + 'px');
@@ -6722,7 +7029,7 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferr
 function installPWA(){ if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; const b = document.getElementById('installBtn'); if (b) b.hidden = true; }); }
 
 
-/* ---------- 做题（选择题题库：只存本机 · 不记录答题/成绩 · 不进「我的数据」） ---------- */
+/* ---------- 做题（选择题题库：只存本机 · 不记录答题/成绩 · 不进我的数据） ---------- */
 const QUIZ_KEY = 'quizBank';
 let quizPicked = {};   // 临时选择，不持久化、不计分
 function quizBank(){
@@ -6758,12 +7065,12 @@ function quizHTML(){
     `<label class="tag" style="cursor:pointer">📥 导入选择题<input type="file" accept="application/json,.json" onchange="quizImport(this)" style="display:none"></label>` +
     (bank.length ? `<button class="tag" onclick="quizExport()">📤 导出选择题</button><button class="tag" onclick="quizClear()">🗑 清空题库</button>` : '') +
     `</div>`;
-  const note = `<p class="sub" style="margin-top:0;line-height:1.75">只导入 <b>选择题</b>：题干 · 选项 · 答案 · 解析（含<b>逐项说明每个选项为什么对 / 为什么错</b>）。题库<b>只存本机</b>、<b>不记录答题与成绩</b>；可在本页<b>单独导入 / 导出</b>，也会一并进「导出我的数据」。</p>`;
+  const note = `<p class="sub" style="margin-top:0;line-height:1.75">只导入 <b>选择题</b>：题干 · 选项 · 答案 · 解析（含<b>逐项说明每个选项为什么对 / 为什么错</b>）。题库<b>只存本机</b>、<b>不记录答题与成绩</b>；可在本页<b>单独导入 / 导出</b>，也会一并进导出我的数据。</p>`;
   if (!bank.length){
     return note + tools +
       `<div style="margin-top:10px;padding:12px;border:1px dashed var(--card-border);border-radius:10px;line-height:1.9">
         <div style="color:var(--accent);font-weight:700;margin-bottom:6px">题库为空</div>
-        点上方「📥 导入选择题」，选一个 JSON 文件即可。格式示例：
+        点上方📥 导入选择题，选一个 JSON 文件即可。格式示例：
         <pre style="white-space:pre-wrap;font-size:.72rem;opacity:.85;margin-top:8px;line-height:1.7">{
   "title": "我的题库",
   "questions": [
@@ -6874,7 +7181,7 @@ function openNotifs(){
   nfBadge();
 }
 
-/* ===================== 史料：仿 QQ「联系人」页 ===================== */
+/* ===================== 史料：仿 QQ联系人页 ===================== */
 function historyPageHTML(){
   var ava = 'avatar.svg'; try { ava = localStorage.getItem('acctAvatar') || 'avatar.svg'; } catch(e){}
   var T = [['group','分组'],['people','人物'],['graph','图谱'],['topic','专题'],['archive','史料']];
@@ -6920,9 +7227,9 @@ function histGraphHTML(){
 }
 
 /* ---------- 初始化 ---------- */
-/* 主题默认「跟随系统」。早期版本出厂默认深色，需要一次性迁移成 auto；
+/* 主题默认跟随系统。早期版本出厂默认深色，需要一次性迁移成 auto；
    但迁移只能在首次做一次——原来每次启动都把 'dark' 吞成 'auto'，
-   于是用户「在设置里选了深色」，重开 App（以及打开图谱页）又变回浅色。
+   于是用户在设置里选了深色，重开 App（以及打开图谱页）又变回浅色。
    现在：迁移只跑一次（themeMigrated 标记），之后完全尊重用户的选择。 */
 try {
   const _saved = localStorage.getItem('theme');
@@ -6968,7 +7275,7 @@ jsonldBase();
     if (!q) return;
     var sb = document.getElementById('search'); if (sb) sb.value = q;
     if (location.hash !== '#browse') location.hash = 'browse';
-    /* 等结果渲染：若恰好只有一条命中，直接打开它的详情页（有原文就能点「📖 开始阅读」） */
+    /* 等结果渲染：若恰好只有一条命中，直接打开它的详情页（有原文就能点📖 开始阅读） */
     setTimeout(function(){
       try{
         var low = q.toLowerCase();
@@ -6988,7 +7295,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   if (window.AndroidApp) {
     /* App 内：本地资源由 App 自己（shouldInterceptRequest）提供，WebView 的 Service
        Worker 拦截不到这些请求，留着只会把页面拖成白屏 —— 主动注销。
-       「本地站点」在 App 内走 App 的本地主机，不依赖 SW。 */
+       本地站点在 App 内走 App 的本地主机，不依赖 SW。 */
     try { navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {}); } catch(e){}
   } else {
   const hadController = !!navigator.serviceWorker.controller;
@@ -7067,7 +7374,7 @@ function libReset(id){
   delete o.edited[id];
   o.added = o.added.filter(function (x) { return x.id !== id; });
   libSaveLocal(o);
-  setLibLink(id, '');   /* ★ 链接也要一起复原：否则「恢复默认」后自定义链接还留着，页面照旧显示旧地址 */
+  setLibLink(id, '');   /* ★ 链接也要一起复原：否则恢复默认后自定义链接还留着，页面照旧显示旧地址 */
 }
 /* 编辑 / 新增图书馆条目：名称、标签、介绍、链接都能改（只存本机） */
 function openLibEditor(id){
@@ -7084,7 +7391,7 @@ function openLibEditor(id){
     '<input id="leTag" class="le-in" placeholder="标签（如 电子书 / 古籍 / 工具）" value="' + escAttr(l.tag || '') + '">' +
     '<input id="leNote" class="le-in" placeholder="一句话介绍（收录范围、使用特点）" value="' + escAttr(l.note || '') + '">' +
     '<input id="leInput" class="le-in" type="url" inputmode="url" placeholder="https://…（可留空）" value="' + escAttr(cur) + '">' +
-    '<div class="le-hint">四项都可改，只存本机、不上传。' + (isNew ? '' : '内置条目改坏了可「恢复默认」。') + '</div>' +
+    '<div class="le-hint">四项都可改，只存本机、不上传。' + (isNew ? '' : '内置条目改坏了可恢复默认。') + '</div>' +
     '<div class="le-ops">' +
       '<button class="go" data-le="save">保存</button>' +
       (isNew ? '' : (libIsAdded(l.id) ? '<button data-le="del">删除</button>'
@@ -7159,7 +7466,7 @@ function libsHTML(){
 
 /* =====================================================================
    关系图谱 —— 独立页面（graph.html）
-   点击「关系图谱」直接跳转到图谱页，不再弹出中间层
+   点击关系图谱直接跳转到图谱页，不再弹出中间层
    ===================================================================== */
 
 /* ---------- 导出位置（App 内可自选文件夹，零权限） ---------- */
@@ -7185,8 +7492,8 @@ function refreshExportDir(){
     }
   } catch(e){}
   if (n) n.textContent = has
-    ? ('当前导出到：' + (label || '你选择的文件夹') + '。导出的文件一定能在文件管理器中找到；导出完成后可直接「用其他应用打开」。')
-    : '当前导出到：系统「下载」（媒体库）。若在文件管理器里找不到，建议点「选择文件夹…」指定一个文件夹——无需任何权限，之后导出都存那里。';
+    ? ('当前导出到：' + (label || '你选择的文件夹') + '。导出的文件一定能在文件管理器中找到；导出完成后可直接用其他应用打开。')
+    : '当前导出到：系统下载（媒体库）。若在文件管理器里找不到，建议点选择文件夹…指定一个文件夹——无需任何权限，之后导出都存那里。';
 }
 window.chooseExportDir = chooseExportDir; window.refreshExportDir = refreshExportDir;
 try { refreshExportDir(); } catch(e){}
@@ -7215,7 +7522,7 @@ try { if (!storageSelfTest()) setTimeout(function(){ try { toast('本机存储�
    形如 index.html?read=books/bk_guojia_yu_geming.txt&p=37
    为什么不用 hash：hash 已被 #/p/<id>、#/r/<id> 这套路由占着，加进去会和返回键打架。 */
 /* 按关键词定位：打开原文后滚到第一处提到它的段落，并高亮一下。
-   不用「第 N 段」做深链——索引按行切段、阅读器按空行切段，序号会错位；关键词不会。 */
+   不用第 N 段做深链——索引按行切段、阅读器按空行切段，序号会错位；关键词不会。 */
 window.yzJumpWord = function (w) {
   w = String(w || '').trim();
   if (!w) return false;

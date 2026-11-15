@@ -82,7 +82,7 @@ def collect(root):
             continue
         if any(part in EXCLUDE_DIRS for part in p.relative_to(root).parts):
             continue
-        if p.suffix.lower() in (".js", ".css"):
+        if p.suffix.lower() in (".js", ".css", ".woff2"):   # 字体也要预缓存，否则离线切楷体会回退
             scripts.append(p)
 
     # 4) data 下全部 js（超限的排除，FORCE_CORE 例外）

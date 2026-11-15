@@ -1,8 +1,8 @@
 /* =====================================================================
    学通 · 我的资料（mine.js）
    ---------------------------------------------------------------------
-   把散在各处的「我的东西」收进一页，五个页签：书架 / 收藏 / 书签 / 摘录 / 标注。
-   为什么要合并：这些功能都挂在「同一个条目」上，分散成四五个入口时，
+   把散在各处的我的东西收进一页，五个页签：书架 / 收藏 / 书签 / 摘录 / 标注。
+   为什么要合并：这些功能都挂在同一个条目上，分散成四五个入口时，
    用户既记不住哪个东西存在哪，也看不出自己到底积累了多少。
 
    数据来源（全部只读，不复制、不搬家）：
@@ -58,25 +58,25 @@
           return row(b.title, (b.author || '') + ' · ' + (b.cat || '') + p, 'openItemDetail(' + RES().indexOf(b) + ')');
         }).join('');
     });
-    return html || emptyBox('书架还空着。打开任意一本书，在「阅读状态」里点「想读 / 在读 / 读完」就会出现在这里。');
+    return html || emptyBox('书架还空着。打开任意一本书，在阅读状态里点想读 / 在读 / 读完就会出现在这里。');
   }
 
   function tabFavs() {
     var f = favSet(), list = RES().filter(function (r) { return f.has(r.id); });
-    if (!list.length) return emptyBox('还没有收藏。在资源卡片上点「☆」即可加入。');
+    if (!list.length) return emptyBox('还没有收藏。在资源卡片上点☆即可加入。');
     return list.map(function (r) { return row(r.title, (r.author || '') + ' · ' + (r.cat || ''), 'openItemDetail(' + RES().indexOf(r) + ')'); }).join('');
   }
 
   function tabMarks() {
     var m = marks();
-    if (!m.length) return emptyBox('还没有书签。在条目上点「🔖」加入，方便下次回来接着看。');
+    if (!m.length) return emptyBox('还没有书签。在条目上点🔖加入，方便下次回来接着看。');
     var list = m.map(function (id) { return RES().findIndex(function (r) { return (r.id || r.title) === id; }); }).filter(function (i) { return i >= 0; });
     return list.map(function (i) { var r = RES()[i]; return row(r.title, (r.author || '') + ' · ' + (r.cat || ''), 'openItemDetail(' + i + ')'); }).join('');
   }
 
   function tabExcerpts() {
     var a = exAll();
-    if (!a.length) return emptyBox('还没有摘录。打开一本书，在「我的摘录」里可以存原文和自己的想法。');
+    if (!a.length) return emptyBox('还没有摘录。打开一本书，在我的摘录里可以存原文和自己的想法。');
     return a.slice(0, 200).map(function (x) {
       var b = RES().find(function (r) { return r.id === x.b; });
       var i = b ? RES().indexOf(b) : -1;
@@ -91,7 +91,7 @@
 
   function tabMeta() {
     var all = metaAll(), keys = Object.keys(all);
-    if (!keys.length) return emptyBox('还没有标注。在任意书 / 人物 / 概念 / 事件的详情页底部，可以加「评分 / 阅读状态 / 摘抄页码」这类自定义字段。');
+    if (!keys.length) return emptyBox('还没有标注。在任意书 / 人物 / 概念 / 事件的详情页底部，可以加评分 / 阅读状态 / 摘抄页码这类自定义字段。');
     return keys.map(function (k) {
       var p = k.split(':');
       var name = (typeof yzNameOf === 'function') ? yzNameOf(p[0], p[1]) : p[1];
@@ -111,7 +111,7 @@
 
   /* ---------------- 导出（Markdown / CSV）与本机存储用量 ----------------
      实现在 assets/exportdata.js（window.YZEXPORT），这里只负责按钮与提示。
-     下载通道在 exportdata.js 里已做「AndroidApp 桥优先 → 浏览器 Blob 兜底」。 */
+     下载通道在 exportdata.js 里已做AndroidApp 桥优先 → 浏览器 Blob 兜底。 */
   function say(m) {
     try { if (typeof window.toast === 'function') { window.toast(m); return; } } catch (e) {}
     try { console.log('[学通·我的资料] ' + m); } catch (e) {}
@@ -145,7 +145,7 @@
     }).join('');
     var body = (TABS.find(function (t) { return t.id === cur; }) || TABS[0]).f();
     var html = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px">' + tabsHTML + '</div>' +
-      '<p class="sub" style="font-size:.74rem;opacity:.6;line-height:1.7;margin:0 0 8px">五类都在本机，互不重复：书架管「读到哪」，收藏是「想留着」，书签是「下次接着看」，摘录存「原话」，标注记「我的字段」。随「导出我的数据」一起走。</p>' +
+      '<p class="sub" style="font-size:.74rem;opacity:.6;line-height:1.7;margin:0 0 8px">五类都在本机，互不重复：书架管读到哪，收藏是想留着，书签是下次接着看，摘录存原话，标注记我的字段。随导出我的数据一起走。</p>' +
       actionsHTML() +
       body;
     try {

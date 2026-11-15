@@ -1,11 +1,11 @@
 /* =====================================================================
    学通 · 图谱问答引擎（专家系统，零模型、零网络、零参数）
    ---------------------------------------------------------------------
-   设计原则（对应「两条腿走路」的正规军那条腿）：
+   设计原则（对应两条腿走路的正规军那条腿）：
      · 事实来自已有的结构化图谱，不来自参数记忆 → 不会编造
      · 推理路径完全可追踪（走了哪条边、依据是什么）→ 可审计
      · 纯前端、无依赖、内存占用≈图谱本身 → 断网可用、老机型可跑
-     · 关系方向严格按数据语义判定 → 不把「谁批判谁」说反
+     · 关系方向严格按数据语义判定 → 不把谁批判谁说反
 
    对外接口：
      YZQA.ask(question)   -> { ok, intent, answer, notes[], evidence[] }
@@ -34,7 +34,7 @@
       var cat = relCat(l.rel, l.kind);
       var dir = relDir(l.rel, cat);
       /* src：关系边可选出处（data/graph.js 头部注释里的约定字段）。
-         以前这里丢弃了它，导致问答给出的「依据」无法回溯到任何材料。
+         以前这里丢弃了它，导致问答给出的依据无法回溯到任何材料。
          兼容三种写法：src / source_ref / ref。 */
       var lsrc = l.src || l.source_ref || l.ref || '';
       addAdj(l.source, { to: l.target, rel: l.rel, kind: l.kind, cat: cat, dir: 'out', sem: dir, src: lsrc });
@@ -52,7 +52,7 @@
   }
 
   /* ---------- 联合图谱 ----------
-     用户不该知道「彭德怀」在哪个图谱里。三个图谱合并成一份「全部」，
+     用户不该知道彭德怀在哪个图谱里。三个图谱合并成一份全部，
      按 id 去重、同名建别名、关系去重，默认就用它。
      合并后约 325 节点 / 648 关系，比任何单图谱都完整。 */
   function buildUnion() {
@@ -87,7 +87,7 @@
 
     /* 1.5 遍：概念层补全
        concepts.js 的释义通常比图谱节点更系统（有 role / 要点 / 出处）。
-       同名（不同 id）时如果只按「先出现者优先」，问「空想社会主义」就只能得到
+       同名（不同 id）时如果只按先出现者优先，问空想社会主义就只能得到
        图谱里那句一句话概述，看不到代表人物与出处。这里用更详细的那份覆盖。 */
     try {
       var cnodes = (GRAPHS.concepts && GRAPHS.concepts.nodes) || [];
@@ -165,7 +165,7 @@
 
   /* ---------- 关系归一化 ----------
      90 多种 rel 归到 8 类，并判定方向语义。
-     dir 含义：'out' 表示 source 对 target 施加该关系（如「领导」「批判」） */
+     dir 含义：'out' 表示 source 对 target 施加该关系（如领导批判） */
   var CAT_RULES = [
     { cat: '对立',   re: /批判|对立|分歧|论战|开除|分裂|反对|声讨/ },
     { cat: '领导',   re: /领导|总书记|总司令|首任|缔造者之一|缔造·领导|领导党|遵义会议/ },
@@ -197,7 +197,7 @@
   /* 方向语义：'src' 表示 source 是主语；'sym' 表示对称；'rev' 表示 target 是主语 */
   function relDir(rel, cat) {
     if (SYMMETRIC[cat]) return 'sym';
-    /* 「X 是 Y 的成员 / X 代表 Y」：主语是 X，但语义上是「属于」 */
+    /* X 是 Y 的成员 / X 代表 Y：主语是 X，但语义上是属于 */
     if (cat === '组织成员' || cat === '包含') return 'belong';
     return 'src';
   }
@@ -214,10 +214,10 @@
     if (!nq) return 0;
     var name = norm(node.name);
     if (!name) return 0;
-    /* 人物加权：问「列宁」时应命中人物，而不是「列宁主义」 */
+    /* 人物加权：问列宁时应命中人物，而不是列宁主义 */
     var bonus = node.type === 'person' ? 5 : 0;
     if (name === nq) return 100;
-    /* 后缀匹配优先于前缀：「弗拉基米尔·伊里奇·列宁」←「列宁」应胜过「列宁主义」←「列宁」 */
+    /* 后缀匹配优先于前缀：弗拉基米尔·伊里奇·列宁←列宁应胜过列宁主义←列宁 */
     if (name.length > nq.length && name.slice(-nq.length) === nq) return 92 + bonus;
     if (name.indexOf(nq) === 0) return 80 + bonus;
     if (name.indexOf(nq) >= 0) return 60 + bonus;
@@ -225,7 +225,7 @@
     var tags = node.tags || [];
     for (var i = 0; i < tags.length; i++) {
       var t = norm(tags[i]);
-      /* 单字 tag（如「有」「人」）会让任何含该字的问句误命中，必须要求长度 ≥ 2 */
+      /* 单字 tag（如有人）会让任何含该字的问句误命中，必须要求长度 ≥ 2 */
       if (t.length < 2) continue;
       if (t === nq) return 90;
       if (t.indexOf(nq) >= 0 || nq.indexOf(t) >= 0) return 55;
@@ -234,8 +234,8 @@
     /* 别名：合并时把同名异 id 的节点并进来了，旧 id / 旧名字也要能查到 */
     if (node.alias) {
       /* ★ 兼容两种写法：alias 可能是数组，也可能是空格分隔的字符串。
-         写成字符串时若直接 node.alias[a] 会逐「字符」遍历（"山东四二二" → 山/东/四/二/二），
-         于是单字「要」就能命中「马克思的主要观点」→ 任何问句都被这类节点抢走。
+         写成字符串时若直接 node.alias[a] 会逐字符遍历（"山东四二二" → 山/东/四/二/二），
+         于是单字要就能命中马克思的主要观点→ 任何问句都被这类节点抢走。
          0.18.57 给文革组织加 alias 时踩到了这个坑（此前没有节点带 alias，这段代码从未被触发）。
          另外单字别名一律跳过（与 tags 同一套保护）。 */
       var al = Array.isArray(node.alias) ? node.alias : String(node.alias).split(/\s+/);
@@ -250,9 +250,9 @@
   }
 
   function find(text) {
-    /* 问句常带疑问尾缀（「洋务运动是什么」「林则徐是什么人」）。
-       实体名本身不会带这些字，直接整句比对必然 0 分 —— 实测「洋务运动是什么」匹配不到，
-       「洋务运动」却 100 分。这里对去掉尾缀的版本再匹配一次，取高分。 */
+    /* 问句常带疑问尾缀（洋务运动是什么林则徐是什么人）。
+       实体名本身不会带这些字，直接整句比对必然 0 分 —— 实测洋务运动是什么匹配不到，
+       洋务运动却 100 分。这里对去掉尾缀的版本再匹配一次，取高分。 */
     var alts = [text];
     var t2 = String(text || '').replace(/[?？。！!]+$/, '')
       .replace(/(是什么|是谁|是啥|有什么|有哪些|怎么样|如何|干什么的|什么人|什么样|怎么|吗|呢|的)$/, '');
@@ -296,7 +296,7 @@
 
   /* ---------- 关系级时序与置信度（data/edge-meta.js） ----------
      2026-11-13：这份标注以前只被校验器和搜索副标题用，问答完全读不到 ——
-     用户问「彭德怀和毛泽东什么关系」时看不见「这条关系 1935—1959 成立」这类信息。
+     用户问彭德怀和毛泽东什么关系时看不见这条关系 1935—1959 成立这类信息。
      key 用 id 拼（a|b|rel），标注只写一次，所以两个方向都要试。 */
   function edgeMetaOf(aId, bId, rel) {
     var M = window.SITE_EDGE_META || {};
@@ -333,7 +333,7 @@
     if (Array.isArray(n.sources) && n.sources.length) return n.sources.filter(Boolean).join('；');
     if (typeof n.sources === 'string') return n.sources;
     /* 节点自身没有出处 → 回落到所属图谱的参考书目。
-       这是「文献级通说来源」，不是这一条的具体依据，所以必须把性质写在字面上，
+       这是文献级通说来源，不是这一条的具体依据，所以必须把性质写在字面上，
        不能让它看起来跟逐条核对过的出处一样。旧民 68 个、新民 86 个节点走这条回落。 */
     if (CUR && CUR.refs && CUR.refs.length) return CUR.refs[0] + '（图谱通说来源，未逐条核对）';
     return '';
@@ -357,21 +357,21 @@
     return out;
   }
 
-  /* 关系名能不能直接当名词性宾语用：「战友」「同志」「父子」可以，
-     「先前定为接班人」「其间召开」不行。判断不了就走安全句式，不猜词性。
+  /* 关系名能不能直接当名词性宾语用：战友同志父子可以，
+     先前定为接班人其间召开不行。判断不了就走安全句式，不猜词性。
      历史病句（2026-11-07 实跑复现）：
-       「毛泽东是林彪的先前定为接班人」   ← rel 被塞进「是……的 X」
-       「遵义会议与长征：其间召开」       ← rel 是谓语短语，缺主语 */
+       毛泽东是林彪的先前定为接班人   ← rel 被塞进是……的 X
+       遵义会议与长征：其间召开       ← rel 是谓语短语，缺主语 */
   function relLooksNoun(rel) {
     var s = String(rel || '').trim();
     if (!s) return false;
     if (s.length > 10) return false;
     if (s.indexOf('的') >= 0) return false;
     /* ① 谓语性短语的强标记：时间/情状状语、被动、V为结构。
-       「先前定为接班人」「其间召开」「被批判」都在这里被拦下。 */
+       先前定为接班人其间召开被批判都在这里被拦下。 */
     if (/(先前|此前|其后|后来|当时|其间|期间|随后|此后|同年|次年|继而|被|定为|指定为|改为|转为|成为|当选为|誉为|称为|为)/.test(s)) return false;
-    /* ② 身份/角色类后缀（「创建人之一」「缔造者之一」「入党介绍人」「总司令」）本来是名词，
-       可以安全地放进「是……的 X」。 */
+    /* ② 身份/角色类后缀（创建人之一缔造者之一入党介绍人总司令）本来是名词，
+       可以安全地放进是……的 X。 */
     if (/(之一|者|人|员|长|书记|主席|委员|代表|领袖|导师|战友|同志|朋友|对手|敌人|父亲|母亲|儿子|女儿|妻子|丈夫|兄弟|姐妹|学生|老师|元老|前辈|元勋|骨干)$/.test(s)) return true;
     /* ③ 其余含动词词干的，一律走安全句式（宁可生硬，不生造语法）。 */
     if (/(定为|指定|担任|当选|任命|领导|率领|创建|创立|缔造|提出|参与|参加|发动|批判|批评|支持|声援|影响|继承|发展|改编|组建|成立|负责|主持|起草|翻译|介绍|吸收|开除|撤销|恢复|合并|分裂|转移|到达|经过|途经|隶属|下辖|包含|追随|辅佐|协助|接任|兼任|出席|签署|签订|访问|会见|谈判|起义|会师|作战|牺牲|逝世|去世|病逝|召开|成为|转为|调任|赞扬|肯定|否定|反对|攻击|打击|保卫|解救|指挥|统领|接管|整编|收编|分化自|奠基|奠立|建党|共事|承继|阐释|总结)/.test(s)) return false;
@@ -380,7 +380,7 @@
 
   /* 安全句式：把原始关系名原样加引号报出。宁可读着生硬，也不生造语法。 */
   function looseRel(a, b, rel) {
-    return a.name + ' 与 ' + b.name + ' 的关系：「' + rel + '」';
+    return a.name + ' 与 ' + b.name + ' 的关系：' + rel + '';
   }
 
   /* 用自然语言描述一条边（站在 a 的视角） */
@@ -396,8 +396,8 @@
       case '对立':   return noun ? (subj.name + '与' + obj.name + '存在' + e.rel) : looseRel(subj, obj, e.rel);
       case '领导':   return isOut ? (subj.name + '领导或影响了' + obj.name) : (obj.name + '领导或影响了' + subj.name);
       case '创立':   return isOut ? (subj.name + '创立或提出了' + obj.name) : (obj.name + '创立或提出了' + subj.name);
-      /* 「继承·发展 / 影响 / 源流」这类关系的方向在原始数据里并不统一，
-         强行断言「谁继承谁」会说反，因此只报关系名，不判断方向。 */
+      /* 继承·发展 / 影响 / 源流这类关系的方向在原始数据里并不统一，
+         强行断言谁继承谁会说反，因此只报关系名，不判断方向。 */
       case '承继':   return looseRel(subj, obj, e.rel);
       case '组织成员': return noun ? (isOut ? (subj.name + '是' + obj.name + '的' + e.rel) : (obj.name + '是' + subj.name + '的' + e.rel)) : looseRel(subj, obj, e.rel);
       case '亲属':   return noun ? (subj.name + '与' + obj.name + '是' + e.rel + '关系') : looseRel(subj, obj, e.rel);
@@ -439,7 +439,7 @@
 
   /* ---------- 意图分派 ---------- */
 
-  /* 条目介绍（原 intro 分支，0.18.61 抽出来，供「问句就是条目名」直接调用） */
+  /* 条目介绍（原 intro 分支，0.18.61 抽出来，供问句就是条目名直接调用） */
   function renderIntro(n) {
     var res = { ok: true, intent: 'intro', answer: '', notes: [], evidence: [] };
     var head = label(n);
@@ -455,12 +455,12 @@
     var src = srcOf(n);
     if (src) res.answer += '\n\n📖 来源：' + src;
     else res.answer += '\n\n📖 来源：待补（该条目尚未标注文献）';
-    /* 「类型＝人物」是节点属性，不是依据，不进证据。真正的出处才进，标成 fact。 */
+    /* 类型＝人物是节点属性，不是依据，不进证据。真正的出处才进，标成 fact。 */
     if (src) res.evidence.push({ kind: 'fact', from: n.name, rel: '出处', to: src });
     return res;
   }
 
-  /* 问句归一化后与某条目名完全相同（「毛泽东」「巴黎公社」）时返回该节点 */
+  /* 问句归一化后与某条目名完全相同（毛泽东巴黎公社）时返回该节点 */
   function exactEntity(raw) {
     var qn = norm(raw);
     if (!qn || !CUR || !CUR.nodes) return null;
@@ -468,30 +468,30 @@
     for (var i = 0; i < CUR.nodes.length; i++) {
       var nm = norm(CUR.nodes[i].name);
       if (nm === qn) return CUR.nodes[i];
-      /* 复合名拆分：「无政府主义 · 巴枯宁主义」应当能被「无政府主义」直接问到。
-         注意不能拿 norm 后的名字来切 —— norm 会把「·」也删掉，
-         「无政府主义巴枯宁主义」切不出头段。所以用原始 name 切，再各自 norm 比对。
-         只认完全相等，避免「革命」这类泛词误命中。 */
+      /* 复合名拆分：无政府主义 · 巴枯宁主义应当能被无政府主义直接问到。
+         注意不能拿 norm 后的名字来切 —— norm 会把·也删掉，
+         无政府主义巴枯宁主义切不出头段。所以用原始 name 切，再各自 norm 比对。
+         只认完全相等，避免革命这类泛词误命中。 */
       var rn = String(CUR.nodes[i].name || '');
       var head = rn.split(/[·・（(\/｜|]/)[0];
       if (head && head !== rn && norm(head) === qn) return CUR.nodes[i];
 
-      /* 常用简称：问「马克思」时节点名是「卡尔·马克思」。
-         只认后缀且必须唯一——「革命」是「文化大革命」等的后缀，命中多个就不认。 */
+      /* 常用简称：问马克思时节点名是卡尔·马克思。
+         只认后缀且必须唯一——革命是文化大革命等的后缀，命中多个就不认。 */
       if (qn.length >= 2 && nm.length > qn.length && nm.slice(-qn.length) === qn) suf.push(CUR.nodes[i]);
     }
     return suf.length === 1 ? suf[0] : null;
   }
 
   /* 类型统计 / 计数问句（0.18.61 抽成函数，提前到实体与术语之前执行）。
-     原因：「一共有多少位革命导师」先被实体「革命」抢答成条目介绍；
-     「有多少个人物」匹配不到旧正则的「有哪些」前缀，落到兜底检索后
-     开头写「没有找到…」后面又列统计，自相矛盾。 */
+     原因：一共有多少位革命导师先被实体革命抢答成条目介绍；
+     有多少个人物匹配不到旧正则的有哪些前缀，落到兜底检索后
+     开头写没有找到…后面又列统计，自相矛盾。 */
   function typeAnswer(raw) {
     var tm = raw.match(/(有哪些|列出|所有的?|全部|有(?:多少|几)[个位名]?|共(?:有)?(?:多少|几)[个位名]?)\s*(人物|组织|思想|事件|概念|著作|革命导师|导师)/);
     if (!tm) return null;
-    /* 问句里点名了具体的人（「毛泽东有哪些著作」）时不能走这里——
-       这里只能数全库有多少「著作」节点，而人的代表文献是节点的 works 字段。
+    /* 问句里点名了具体的人（毛泽东有哪些著作）时不能走这里——
+       这里只能数全库有多少著作节点，而人的代表文献是节点的 works 字段。
        让给下面的 works 分支。 */
     var _qt = norm(raw), _hitSelf = false;
     if (CUR && CUR.nodes) {
@@ -502,11 +502,11 @@
     }
     if (_hitSelf) return null;
     var res = { ok: false, intent: 'type', answer: '', notes: [], evidence: [] };
-    /* 「有多少位革命导师」——导师不是节点类型，取站内 leaders 名单 */
+    /* 有多少位革命导师——导师不是节点类型，取站内 leaders 名单 */
     if (tm[2] === '导师' || tm[2] === '革命导师') {
       var lds = (window.SITE_CONTENT && window.SITE_CONTENT.leaders) || [];
       var lnames = lds.map(function (x) { return x.name || x.title; }).filter(Boolean);
-      res.answer = '站内收录的「革命导师」共 ' + lnames.length + ' 位：' + lnames.join('、') + '。';
+      res.answer = '站内收录的革命导师共 ' + lnames.length + ' 位：' + lnames.join('、') + '。';
       res.ok = !!lnames.length;
       return res;
     }
@@ -514,9 +514,9 @@
                  '概念': 'concept', '著作': 'work' }[tm[2]];
     var list = CUR.nodes.filter(function (n) { return n.type === want; }).map(function (n) { return n.name; });
     if (!list.length) {
-      /* 「有哪些著作」这类问的是书库，图谱里没有 work 节点，让给书库答 */
+      /* 有哪些著作这类问的是书库，图谱里没有 work 节点，让给书库答 */
       if (want === 'work') return null;
-      res.answer = '当前还没有收录「' + tm[2] + '」类条目。\n'
+      res.answer = '当前还没有收录' + tm[2] + '类条目。\n'
         + '这是已知的内容缺口，不是查询出错——分类浏览里能看到现有全部 ' + CUR.nodes.length + ' 个节点。';
       res.ok = false;
       return res;
@@ -528,8 +528,8 @@
 
   /* 旧译 / 别称 → 标准词（2026-11-14）
      中文马列文献里同一概念常有两三个译名（无政府主义＝安那其主义、无产阶级＝普罗列塔利亚…），
-     只按字面查会直接「查不到」。这张表只收公认的历史对应关系，不做近义联想，
-     匹配顺序是长词在前，避免「安那其」先把「安那其主义」切碎。 */
+     只按字面查会直接查不到。这张表只收公认的历史对应关系，不做近义联想，
+     匹配顺序是长词在前，避免安那其先把安那其主义切碎。 */
   var ALIAS = [
     ['安那其主义', '无政府主义'], ['安那其', '无政府主义'],
     ['普罗列塔利亚', '无产阶级'],
@@ -539,7 +539,7 @@
     ['狄克推多', '专政'],
     ['布尔什维克主义', '布尔什维主义'],
     /* 同义归一（不限旧译）：事件/概念的常用别称也一并收进来，
-       否则「苏东剧变」会因为图谱里写的是「东欧剧变」而查不到。 */
+       否则苏东剧变会因为图谱里写的是东欧剧变而查不到。 */
     ['苏东剧变', '东欧剧变'],
     ['苏东解体', '东欧剧变']
   ];
@@ -553,7 +553,7 @@
     return { text: str, from: '', to: '' };
   }
 
-  /* 名字相近度：完全相等 > 互相包含 > 共享汉字。只用来「猜你想找谁」，不做最终判定。 */
+  /* 名字相近度：完全相等 > 互相包含 > 共享汉字。只用来猜你想找谁，不做最终判定。 */
   function nearNodes(kw, n) {
     var q = norm(kw);
     if (!q || q.length < 2) return [];
@@ -580,9 +580,9 @@
 
   function askCore(q) {
     var raw = String(q || '').trim();
-    /* 旧译先归一化：问「安那其是什么」时，实际去查「无政府主义」 */
+    /* 旧译先归一化：问安那其是什么时，实际去查无政府主义 */
     var _al = applyAlias(raw);
-    var _aliasNote = _al.from ? ('「' + _al.from + '」按「' + _al.to + '」查（同一概念的旧译）') : '';
+    var _aliasNote = _al.from ? ('' + _al.from + '按' + _al.to + '查（同一概念的旧译）') : '';
     if (_al.from) raw = _al.text;
     var res = { ok: false, intent: 'unknown', answer: '', notes: [], evidence: [] };
     if (!raw) { res.answer = '请输入问题。'; return res; }
@@ -590,7 +590,7 @@
     /* 0.4 人工审定的题库第一档：术语卡与答疑（精确命中优先于书库与图谱）。
        只回放静态文本，不生成任何新句子；分数不到 12 分就让给后面的检索。 */
     /* 0.35 书名优先（0.18.50 补）：问的是书名时，不能让术语卡抢答。
-       原先「国家与革命」被术语卡「国家」命中，返回了国家的定义而不是书。
+       原先国家与革命被术语卡国家命中，返回了国家的定义而不是书。
        判据：书名与查询串归一化（去书名号/空白）后完全相同，或查询串是书名的前缀且长度 ≥ 4。 */
     if (window.YZBOOK && typeof window.YZBOOK.search === 'function') {
       try {
@@ -601,14 +601,14 @@
           var _t0 = String(_bs[_k].title || '').replace(/[《》\s「」]/g, '');
           if (!_t0) continue;
           if (_t0 === _q0) { _exact0 = true; break; }
-          /* 0.18.61：前缀命中也算书名（「资本论」→《资本论（第一至三卷）》），
-             但必须唯一一本以该前缀开头，否则「马克思」会被判成《马克思恩格斯选集》。 */
+          /* 0.18.61：前缀命中也算书名（资本论→《资本论（第一至三卷）》），
+             但必须唯一一本以该前缀开头，否则马克思会被判成《马克思恩格斯选集》。 */
           if (_t0.indexOf(_q0) === 0 && _q0.length >= 3) _pref0++;
         }
         if (_exact0) {
           /* 书名与概念同名时（《无产阶级专政》既是考茨基那本书，也是一个理论范畴）：
              带书名号问的是书，不带书名号问的是概念。
-             例：问「无产阶级专政」应给范畴定义；问「《无产阶级专政》」应给那本书。 */
+             例：问无产阶级专政应给范畴定义；问《无产阶级专政》应给那本书。 */
           var _entSame = null;
           try { _entSame = exactEntity(raw); } catch (e) {}
           var _bookMark = /[《》〈〉]/.test(raw);
@@ -617,11 +617,11 @@
             if (_bk0) return _bk0;
           }
         }
-        /* 前缀命中只在「不是已有条目」时才当书名。
-           反例（2026-11-14 实测）：问「帝国主义」时，《帝国主义是资本主义的最高阶段》
+        /* 前缀命中只在不是已有条目时才当书名。
+           反例（2026-11-14 实测）：问帝国主义时，《帝国主义是资本主义的最高阶段》
            以它开头，于是被当成了问书，答回一本《资本积累论》——而概念库里
-           「帝国主义」是 100 分精确命中。同一现象还有「资本积累」「无产阶级专政」。
-           书名完全相等仍然优先（问「资本论」就是问书），只是前缀不再压过精确词条。 */
+           帝国主义是 100 分精确命中。同一现象还有资本积累无产阶级专政。
+           书名完全相等仍然优先（问资本论就是问书），只是前缀不再压过精确词条。 */
         if (_pref0 >= 1 && _pref0 <= 2) {
           var _ent0 = null;
           try { _ent0 = exactEntity(raw); } catch (e) {}
@@ -633,8 +633,8 @@
       } catch (e) {}
     }
 
-    /* 0.18.61：问句就是条目名（「毛泽东」「巴黎公社」）时直接答该条目。
-       原先问「毛泽东」被答疑库抢答成一段无关的原理讨论。 */
+    /* 0.18.61：问句就是条目名（毛泽东巴黎公社）时直接答该条目。
+       原先问毛泽东被答疑库抢答成一段无关的原理讨论。 */
     var _ex0 = null;
     try { _ex0 = exactEntity(raw); } catch (e) {}
     if (_ex0) return renderIntro(_ex0);
@@ -652,8 +652,8 @@
         if ((_hits[_i].kind === 'answer' || _hits[_i].kind === 'term') && _hits[_i].score >= 12) { _top = _hits[_i]; break; }
       }
       /* ★ 0.18.61：术语/答疑不得抢走实体问题。
-         问「文化大革命是什么」时术语卡「革命」命中（raw.indexOf('革命') >= 0 → +13 分），
-         于是答成「革命」的定义，而问的其实是文革这个事件。
+         问文化大革命是什么时术语卡革命命中（raw.indexOf('革命') >= 0 → +13 分），
+         于是答成革命的定义，而问的其实是文革这个事件。
          判据：问句里若出现比命中的术语更长的图谱实体名（≥3 字），说明主干是实体，让给后面的分支。 */
       if (_top) {
         var _qn0 = norm(raw), _tn0 = norm(_top.title || ''), _blocked = false;
@@ -683,19 +683,19 @@
       }
     }
 
-    /* 0. 书库问题先于图谱：问「《共产党宣言》讲什么」时，不该被同名图谱节点抢答。
+    /* 0. 书库问题先于图谱：问《共产党宣言》讲什么时，不该被同名图谱节点抢答。
           YZBOOK 未加载（如测试环境）则自动跳过。 */
     if (window.YZBOOK && typeof window.YZBOOK.tryAnswer === 'function') {
       try { var _bk = window.YZBOOK.tryAnswer(raw); if (_bk) return _bk; } catch (e) {}
     }
 
-    /* 0.6 人工审定的题库第二档：导读骨架（问「这本书讲什么、怎么读」时用）。
-       它不是答案，是结构：回一句「这本书要解决的问题」，并指明骨架在哪。 */
+    /* 0.6 人工审定的题库第二档：导读骨架（问这本书讲什么、怎么读时用）。
+       它不是答案，是结构：回一句这本书要解决的问题，并指明骨架在哪。 */
     if (_hits && _hits.length) {
       for (var _j = 0; _j < _hits.length; _j++) {
         if (_hits[_j].kind === 'guide') {
           res.intent = 'guide';
-          res.answer = _hits[_j].text + '\n（这本书的导读骨架在「书详情页 → 导读骨架」，正文需自己填写。）';
+          res.answer = _hits[_j].text + '\n（这本书的导读骨架在书详情页 → 导读骨架，正文需自己填写。）';
           res.notes.push('来源：导读骨架（结构由软件提供，正文由读者填写）');
           (_hits[_j].basis || []).forEach(function (b) { res.evidence.push({ kind: 'fact', from: '同读', to: b, g: 'guide' }); });
           res.ok = true;
@@ -740,9 +740,9 @@
 
     /* 1.5 史料事件（含 events-extra 扩容批）。
        事件不是图谱节点，上面 best() 找不到，必须单独查一次；
-       放在关系问题之后、单实体之前，这样「A 和 B 什么关系」不会被事件名抢答。
+       放在关系问题之后、单实体之前，这样A 和 B 什么关系不会被事件名抢答。
        限制：查询 ≥4 字、且图谱里没有同名实体时才接管。
-       注意：必须用「先取名、再在外层 return」的写法——IIFE 里的 return 只退出
+       注意：必须用先取名、再在外层 return的写法——IIFE 里的 return 只退出
        它自己，不会中断 askCore（第一版就踩了这个坑，导致事件永远答不出）。 */
     var _evHit = (function () {
       if (!(window.SITE_EXTRA && Array.isArray(window.SITE_EXTRA.events))) return null;
@@ -832,7 +832,7 @@
         res.intent = 'neighbors';
         var nb = (CUR.adj[n.id] || []).map(function (e) {
           var o = CUR.byId[e.to]; if (!o) return null;
-          /* 入边不写「被X」：原始数据方向不统一，加了「被」容易说反，只报关系名 */
+          /* 入边不写被X：原始数据方向不统一，加了被容易说反，只报关系名 */
           return o.name + '（' + e.rel + '）';
         }).filter(Boolean);
         res.answer = nb.length
@@ -861,14 +861,14 @@
     });
     res.intent = 'search';
     if (hits.length) {
-      res.answer = '包含「' + kw + '」的条目有 ' + hits.length + ' 个：'
+      res.answer = '包含' + kw + '的条目有 ' + hits.length + ' 个：'
         + hits.slice(0, 12).map(function (n) { return n.name + '（' + typeName(n.type) + '）'; }).join('、')
         + (hits.length > 12 ? ' 等' : '') + '。';
       res.ok = true;
       return res;
     }
-    /* 4.5 兜底兜得像人话：先找「最接近的条目」，再给相关书目，最后才说覆盖范围。
-       起因：搜「安人」这类没有独立词条的词，原来只回一句「没有找到 + 收录了多少节点」，
+    /* 4.5 兜底兜得像人话：先找最接近的条目，再给相关书目，最后才说覆盖范围。
+       起因：搜安人这类没有独立词条的词，原来只回一句没有找到 + 收录了多少节点，
        用户看到等于被推开了。现在尽量给出一个能接着看的落点。 */
     var near = nearNodes(kw, 3);
     var bookHits = [];
@@ -881,16 +881,16 @@
     if (near.length) {
       var _tp = near[0];
       var _isIdea = (_tp.type === 'concept' || _tp.type === 'idea');
-      /* 最接近的是概念/思想时，直接把它的定义读出来——这就是「直接回答概念」，
-         而不是丢一句「没找到」让人自己去翻书。 */
-      res.answer = '没有找到「' + kw + '」这个词条。'
+      /* 最接近的是概念/思想时，直接把它的定义读出来——这就是直接回答概念，
+         而不是丢一句没找到让人自己去翻书。 */
+      res.answer = '没有找到' + kw + '这个词条。'
         + (_isIdea
-            ? '最接近的概念是「' + _tp.name + '」：' + (_tp.role ? _tp.role + '。' : '') + String(_tp.desc || '').slice(0, 260)
-            : '最接近的条目是「' + _tp.name + '」（' + typeName(_tp.type) + '）' + (_tp.desc ? '：' + String(_tp.desc).slice(0, 160) : '。'));
+            ? '最接近的概念是' + _tp.name + '：' + (_tp.role ? _tp.role + '。' : '') + String(_tp.desc || '').slice(0, 260)
+            : '最接近的条目是' + _tp.name + '（' + typeName(_tp.type) + '）' + (_tp.desc ? '：' + String(_tp.desc).slice(0, 160) : '。'));
       res.ok = true;
       res.notes.push('候选：' + near.map(function (x) { return x.name + '（' + typeName(x.type) + '）'; }).join(' ｜ '));
     } else {
-      res.answer = '没有找到与「' + kw + '」相关的条目（' + CUR.label + '，' + CUR.nodes.length + ' 个），也没有相近的。'
+      res.answer = '没有找到与' + kw + '相关的条目（' + CUR.label + '，' + CUR.nodes.length + ' 个），也没有相近的。'
         + (kw.length <= 2 ? '\n这个词只有两个字符，能匹配到的东西太少 —— 试试写成完整的名字或术语。' : '')
         + '\n查不到属于覆盖范围限制，不是没有这段史实。';
     }
@@ -901,19 +901,19 @@
   }
 
   /* ---------- 跳转链接：答案要能落回站点里的具体位置 ----------
-     用户的抱怨是「搜人物时没有图谱跳转和人物介绍跳转」——
+     用户的抱怨是搜人物时没有图谱跳转和人物介绍跳转——
      答案只给文字，用户没法接着看下去。这里按节点类型给出口：
        · 概念 → 概念详情页（频道 → 概念频道）
        · 人物/组织/事件/思想 → 站点详情页（#/g/id）+ 图谱定位（graph.html#id）
-     注意只给「点进去真的存在」的链接，不编造。 */
+     注意只给点进去真的存在的链接，不编造。 */
   function gLabelOf(n) {
     if (!n || !n._g || !n._g.length) return '';
     var L = n._g.map(function (k) { return (GRAPHS[k] && GRAPHS[k].label) || k; });
     return L.length === 1 ? L[0] : (L[0] + ' 等 ' + L.length + ' 处');
   }
   /* 图谱定位链接必须带上节点所属图谱（?g=ds）：
-     只写 graph.html#id 时，图谱页会按「上次看的那张图」打开，
-     节点在别的图谱里就静默定位不到（用户看到的是「点开没有找到」）。 */
+     只写 graph.html#id 时，图谱页会按上次看的那张图打开，
+     节点在别的图谱里就静默定位不到（用户看到的是点开没有找到）。 */
   function yzGraphHref(id, node) {
     var ds = '';
     try {
@@ -937,9 +937,9 @@
     return out;
   }
   /* 从答案里收集要挂链接的节点：主实体 + 证据链两端 */
-  /* 原文出处：问句里提到某个人或某个概念时，指出「哪几篇原文里讲过」，并附一句原句。
+  /* 原文出处：问句里提到某个人或某个概念时，指出哪几篇原文里讲过，并附一句原句。
      数据来自 data/person-index.js 与 data/book-index.js（都是构建时算好的，不做在线检索）。
-     只在该问句确实指着一个人/一个概念时才挂，避免「国家」这类高频词把每条回答都糊满。 */
+     只在该问句确实指着一个人/一个概念时才挂，避免国家这类高频词把每条回答都糊满。 */
   function attachTexts(res, raw) {
     if (!res) return res;
     var q = String(raw || '').trim();
@@ -990,10 +990,10 @@
     });
     if (links.length) res.links = links;
 
-    /* 来源说明：三图谱合并后，同一个问题可能落到不同图谱，不标来源会像「混在一起」。
-       ★ 必须跟着「关系」走，不能跟着「最近匹配到的节点」走：
-       问「毛泽东和周恩来什么关系」时，best() 匹配到的可能是文革图谱里的「毛泽东逝世」
-       事件节点，于是来源被写成「该条收录于 文革图谱」——而这条关系在主图谱等 3 处都有，
+    /* 来源说明：三图谱合并后，同一个问题可能落到不同图谱，不标来源会像混在一起。
+       ★ 必须跟着关系走，不能跟着最近匹配到的节点走：
+       问毛泽东和周恩来什么关系时，best() 匹配到的可能是文革图谱里的毛泽东逝世
+       事件节点，于是来源被写成该条收录于 文革图谱——而这条关系在主图谱等 3 处都有，
        用户看到的是一句与事实不符的说明。优先取 evidence 里关系自带的来源。 */
     try {
       var evGs = (res.evidence || []).map(function (e) { return e && e.g; }).filter(Boolean);
@@ -1013,12 +1013,12 @@
     var r = null;
     var _alQ = applyAlias(q);   /* 只用来加一句说明 */
     try { r = askCore(q); } catch (e) { r = { ok: false, intent: 'error', answer: '查询出错：' + (e && e.message), notes: [], evidence: [] }; }
-    try { if (_alQ.from && r) { r.notes = r.notes || []; r.notes.push('「' + _alQ.from + '」按「' + _alQ.to + '」查（同一概念的旧译）'); } } catch (e) {}
+    try { if (_alQ.from && r) { r.notes = r.notes || []; r.notes.push('' + _alQ.from + '按' + _alQ.to + '查（同一概念的旧译）'); } } catch (e) {}
     try { attachLinks(r, String(q || '').trim()); } catch (e) {}
     try { attachTexts(r, String(q || '').trim()); } catch (e) {}
     /* 证据可分度统计 + 出处回落：
        关系边本身几乎都没标 src（1360 条边 0 条），但两端节点有出处。
-       这时候不能显示「未标出处」就完了，也不能假装那是这条关系的出处 ——
+       这时候不能显示未标出处就完了，也不能假装那是这条关系的出处 ——
        标成 srcLevel='node'（条目级出处），界面据此用不同措辞。 */
     try {
       var ev = r.evidence || [], nEdgeSrc = 0, nNodeSrc = 0, nNone = 0, factN = 0, edgeN = 0, mEdgeSrc = 0;
@@ -1031,14 +1031,14 @@
         var e = ev[i];
         if (e.kind === 'fact') { factN++; if (e.src || e.to) e.srcLevel = e.src ? 'edge' : 'none'; continue; }
         edgeN++;
-        /* edge-meta 里「原文直述 / 有明确出处」的标注算关系级出处；
+        /* edge-meta 里原文直述 / 有明确出处的标注算关系级出处；
            c=1（推断待核）不算 —— 它是我们推的，不能当成材料里写的。 */
         if (!e.src && e.metaSrc && e.c >= 2) {
           e.src = e.metaSrc; e.srcLevel = 'edge'; mEdgeSrc++; continue;
         }
         if (e.src) { e.srcLevel = 'edge'; nEdgeSrc++; continue; }
         /* 有 edge-meta 标注但核不到出处的（c=1 推断，或 c>=2 却漏写 src），
-           不冒充「节点级出处」—— 报告那边（src_report）也是这么归类的，
+           不冒充节点级出处—— 报告那边（src_report）也是这么归类的，
            两套口径必须一致，tests/src_consistency_test.js 锁住这一点。 */
         if (e.c && (!e.metaSrc || e.c === 1)) { e.srcLevel = 'none'; nNone++; continue; }
         var a = nodeByName(e.from), b = nodeByName(e.to);
@@ -1071,7 +1071,7 @@
     ask: ask,
     find: find,
     hasEntity: hasEntity,
-    /* 供测试与调试用：关系名能否直接当「是……的 X」的名词宾语 */
+    /* 供测试与调试用：关系名能否直接当是……的 X的名词宾语 */
     _relLooksNoun: relLooksNoun,
     /* 供 RAG 层使用：返回某节点的直接邻居（带中文名，便于拼 context） */
     _src: srcOf,
@@ -1095,16 +1095,16 @@
   /* ---------- 初始化：主图谱必载，其余有则加载 ---------- */
   buildGraph('main', window.SITE_GRAPH, '主图谱');
   /* 旧民 / 新民两套 2026-11 起已进站点（graph.html 第七、八套），但问答引擎一直没注册，
-     结果是「林则徐」「康有为」「长征」这类问题全答不到 —— 196 个节点在问答里不存在。 */
+     结果是林则徐康有为长征这类问题全答不到 —— 196 个节点在问答里不存在。 */
   buildGraph('old', window.SITE_GRAPH_OLD, '旧民图谱');
   buildGraph('new', window.SITE_GRAPH_NEW, '新民图谱');
   buildGraph('wenge', window.SITE_GRAPH_WENGE, '文革图谱');
   buildGraph('world', window.SITE_GRAPH_WORLD, '世界图谱');
   buildGraph('concepts', window.SITE_CONCEPTS, '理论概念');
   rebuildUnion();
-  if (GRAPHS.all) CUR = GRAPHS.all;   /* 默认就是「全部」，不再让用户选 */
+  if (GRAPHS.all) CUR = GRAPHS.all;   /* 默认就是全部，不再让用户选 */
 
-  /* 按需注册：页面动态加载完某个图谱文件后，自动重建「全部」 */
+  /* 按需注册：页面动态加载完某个图谱文件后，自动重建全部 */
   window.YZQA_ADD = function (id, raw, label) {
     buildGraph(id, raw, label);
     rebuildUnion();

@@ -1,5 +1,5 @@
-/* 设置页「本机数据概览」入口（2026-11-13）
-   以前数据清单只出现在诊断报告里（要导出 JSON 才看得到），而「本地优先」是
+/* 设置页本机数据概览入口（2026-11-13）
+   以前数据清单只出现在诊断报告里（要导出 JSON 才看得到），而本地优先是
    产品承诺 —— 用户应该能自己点开看到有哪些数据、占多少、哪些会随导出带走。 */
 const fs = require('fs'), path = require('path');
 const { JSDOM, VirtualConsole } = require(__dirname + '/node_modules/jsdom');
@@ -35,7 +35,7 @@ lazy.waitData(() => {
 
   try { w.openSettings(); } catch (e) {}
   const btn = d.getElementById('yzDmBtn');
-  ok('设置页有「本机数据概览」按钮', !!btn, btn ? btn.textContent.trim() : '未找到');
+  ok('设置页有本机数据概览按钮', !!btn, btn ? btn.textContent.trim() : '未找到');
 
   if (btn) {
     let opened = false, text = '';
@@ -46,9 +46,9 @@ lazy.waitData(() => {
         text = (d.getElementById('contentView') || d.body).textContent || '';
         opened = /数据清单 v/.test(text) && /随导出/.test(text);
         const qtitle = (d.getElementById('qTitle') || {}).textContent || '';
-        ok('点开后标题是「本机数据概览」', /本机数据概览/.test(qtitle), qtitle || '(空)');
+        ok('点开后标题是本机数据概览', /本机数据概览/.test(qtitle), qtitle || '(空)');
         ok('点开后能看到清单内容', opened, text.replace(/\s+/g, ' ').slice(0, 80));
-        ok('清单里出现了键名与「随导出」标记',
+        ok('清单里出现了键名与随导出标记',
            /yzExcerpts/.test(text) && /随导出/.test(text));
         ok('说明了书籍正文需单独导出', /单独导出|IndexedDB/.test(text));
         ok('页面无脚本错误', errs.length === 0, errs.slice(0, 2).join(' | '));

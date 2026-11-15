@@ -30,11 +30,11 @@ waitData(() => {
 
   /* ① 改 */
   const first = gl()[0];
-  const r1 = Y.editTerm(first.id, { dic: '【改过的定义】' });
+  const r1 = Y.editTerm(first.id, { dic: '改过的定义' });
   ok('editTerm 返回 ok', !!(r1 && r1.ok));
   Y.reapply();
   const after1 = gl().filter(x => x.id === first.id)[0];
-  ok('改完 reapply 后定义确实变了', after1 && after1.dic === '【改过的定义】', after1 && after1.dic);
+  ok('改完 reapply 后定义确实变了', after1 && after1.dic === '改过的定义', after1 && after1.dic);
 
   /* ② 净化：带标签的输入要被清掉 */
   Y.editTerm(first.id, { note: '正常文字<script>alert(1)</script>尾巴' });

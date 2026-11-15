@@ -1,17 +1,17 @@
 /* =====================================================================
    学通 · 自定义层（custom.js）
    ---------------------------------------------------------------------
-   一句话：把「能改什么」从「内容」扩到「外观 / 结构 / 版式」，且全部存在本机。
+   一句话：把能改什么从内容扩到外观 / 结构 / 版式，且全部存在本机。
 
    四块能力：
      ① 主题外观（look）：强调色 / 页面底色 / 文字色 / 卡片色 / 圆角 / 字号 / 字体
-     ② 样式片段（snippets）：20 个「勾选即生效」的预设，手机上不必写 CSS
+     ② 样式片段（snippets）：20 个勾选即生效的预设，手机上不必写 CSS
      ③ 自定义 CSS（css）：给想深入的人一个口子（64KB 上限）
      ④ 详情页模板（tpl）：用占位符写自己的版式（安全迷你模板引擎，禁脚本）
 
    设计约束（与业界一致的几条）：
      · 用户输入一律先转义再插入；模板只允许白名单标签，属性只留 class —— 杜绝 XSS
-     · 配置存 localStorage（'yzCustom'），随「导出我的数据」一起走
+     · 配置存 localStorage（'yzCustom'），随导出我的数据一起走
      · 注入用 <style> + !important，顺序无关，不会被内置样式压掉
      · 出错不影响主流程：任何异常都吞掉并保留内置样式
    ===================================================================== */
@@ -57,12 +57,12 @@
 
   /* ---------------- 11 个预设片段 ----------------
      取舍原则（2026-10 · 按软件实际情况收窄）：
-       只保留「设置页里没有的、且在本 App 里真的看得出效果」的项。
+       只保留设置页里没有的、且在本 App 里真的看得出效果的项。
        字号 / 行距 / 版心 / 动效已有设置页控件，圆角与字体在外观页里改，
        统统不在这里重复 —— 否则两处都写 !important，必然互相覆盖。 */
   var SNIPPETS = [
     { id: 'hide-stars', g: '简洁', name: '隐藏背景装饰', desc: '去掉背景里漂浮的五角星', css: '.stars{display:none !important}' },
-    { id: 'hide-daily', g: '简洁', name: '隐藏「每日一句」', desc: '首页顶部那句每天换的语录', css: '.daily{display:none !important}' },
+    { id: 'hide-daily', g: '简洁', name: '隐藏每日一句', desc: '首页顶部那句每天换的语录', css: '.daily{display:none !important}' },
     { id: 'hide-search', g: '简洁', name: '隐藏顶部搜索框', desc: '屏幕顶部那条搜索栏', css: '.qsearchbar{display:none !important}' },
     { id: 'hide-footer', g: '简洁', name: '隐藏页脚', desc: '底部版本与声明那一行', css: 'footer{display:none !important}' },
     { id: 'hide-cats', g: '简洁', name: '隐藏快捷分类', desc: '首页那一排分类按钮', css: '.quickcats{display:none !important}' },
@@ -360,7 +360,7 @@
     }).join('');
     var addBtn = '<button class="sbtn" data-act="yzMetaAdd" data-arg="' + esc(kind + '|' + id) + '">＋ 添加标注</button>';
     /* 概念 / 事件没有编辑台，这里给一个就地编辑入口（仅开启自助编辑时显示） */
-    /* 以前只给概念/事件显示，其余类型连按钮都没有（或点了报「不支持的条目类型」）。
+    /* 以前只给概念/事件显示，其余类型连按钮都没有（或点了报不支持的条目类型）。
        现在统一走 yzEdit：认识的类型给专用字段，不认识的回退通用编辑器。 */
     var canEdit = false;
     try { canEdit = !!window.yzEdit && !!(window.YZY && YZY.editorEnabled && YZY.editorEnabled()); } catch (e) {}
@@ -368,7 +368,7 @@
     return '<div class="yz-meta" style="margin-top:18px">' +
       '<h2 class="sub-title">🏷 我的标注' + (list.length ? '（' + list.length + '）' : '') + '</h2>' +
       (list.length ? '<table style="width:100%;border-collapse:collapse;font-size:.82rem">' + rows + '</table>'
-                   : '<p class="sub" style="font-size:.78rem;opacity:.7;line-height:1.8">可以给自己加字段，比如「评分」「阅读状态」「摘抄页码」。只存在本机，随「导出我的数据」一起带走。</p>') +
+                   : '<p class="sub" style="font-size:.78rem;opacity:.7;line-height:1.8">可以给自己加字段，比如评分阅读状态摘抄页码。只存在本机，随导出我的数据一起带走。</p>') +
       '<div style="margin-top:8px">' + addBtn + editBtn + '</div>' +
       '</div>';
   }
@@ -398,7 +398,7 @@
       '<div style="width:100%;max-width:560px;background:var(--panel-bg,#1b1412);color:var(--panel-text,#f2e9e4);' +
       'border:1px solid var(--panel-line,rgba(255,255,255,.16));border-radius:14px;padding:14px;max-height:86vh;overflow:auto">' +
       '<b style="font-size:.92rem">✏️ 编辑：' + esc(d.name || id) + '</b>' +
-      '<p style="font-size:.72rem;opacity:.6;margin:6px 0 8px;line-height:1.6">只改本机，不动随包数据；导出「我的数据」会带走。留空则不修改。</p>' +
+      '<p style="font-size:.72rem;opacity:.6;margin:6px 0 8px;line-height:1.6">只改本机，不动随包数据；导出我的数据会带走。留空则不修改。</p>' +
       '<label style="display:block;font-size:.76rem;opacity:.75;margin:10px 0 4px">定位（一句话）</label>' +
       '<input id="yzE_role" value="' + esc(d.role || '') + '" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:inherit;border-radius:8px;padding:7px 9px;font-size:.82rem">' +
       '<label style="display:block;font-size:.76rem;opacity:.75;margin:10px 0 4px">正文介绍</label>' +
@@ -503,7 +503,7 @@
     var body = '';
     if (T === 'look') {
       body =
-        '<p style="font-size:.76rem;opacity:.7;margin:0 0 10px;line-height:1.7">这里只放<b>设置页没有的</b>项：强调色 / 页面底色 / 文字色 / 卡片色 / 圆角 / 字体。<b>字号、行距、版心、动效</b>请到「设置 → 显示」调，两边都写会互相覆盖。只影响本机，立刻生效。</p>' +
+        '<p style="font-size:.76rem;opacity:.7;margin:0 0 10px;line-height:1.7">这里只放<b>设置页没有的</b>项：强调色 / 页面底色 / 文字色 / 卡片色 / 圆角 / 字体。<b>字号、行距、版心、动效</b>请到设置 → 显示调，两边都写会互相覆盖。只影响本机，立刻生效。</p>' +
         colorRow('强调色', L.accent, 'accent', '#f5c518') +
         colorRow('页面底色 1', L.bg1, 'bg1', '#4a0808') +
         colorRow('页面底色 2', L.bg2, 'bg2', '#170303') +
@@ -520,7 +520,7 @@
     } else if (T === 'snip') {
       var groups = {};
       SNIPPETS.forEach(function (s) { (groups[s.g] = groups[s.g] || []).push(s); });
-      body = '<p style="font-size:.76rem;opacity:.7;margin:0 0 10px;line-height:1.7">勾选即生效，不用写代码，可叠加。这里只留<b>设置页做不到</b>的事情（隐藏元素、紧凑列表、扁平化、护眼纸色、打印优化…）；字号 / 行距 / 版心 / 动效在「设置 → 显示」里，不在此重复。</p>' +
+      body = '<p style="font-size:.76rem;opacity:.7;margin:0 0 10px;line-height:1.7">勾选即生效，不用写代码，可叠加。这里只留<b>设置页做不到</b>的事情（隐藏元素、紧凑列表、扁平化、护眼纸色、打印优化…）；字号 / 行距 / 版心 / 动效在设置 → 显示里，不在此重复。</p>' +
         Object.keys(groups).map(function (g) {
           return '<div style="margin:0 0 12px"><div style="font-size:.74rem;opacity:.6;margin:0 0 6px">' + g + '</div>' +
             groups[g].map(function (s) {
@@ -553,7 +553,7 @@
         }).join('');
     } else if (T === 'prof') {
       var ps = C.profiles || [];
-      body = '<p style="font-size:.76rem;opacity:.7;margin:0 0 10px;line-height:1.7">把当前这套外观（主题 + 片段 + CSS + 模板 + 首页编排）存成档案，之后一键切换。比如「阅读」「研究」各一套。</p>' +
+      body = '<p style="font-size:.76rem;opacity:.7;margin:0 0 10px;line-height:1.7">把当前这套外观（主题 + 片段 + CSS + 模板 + 首页编排）存成档案，之后一键切换。比如阅读研究各一套。</p>' +
         '<button id="yzProfSave" style="' + btn(0, 'margin-bottom:10px') + '">＋ 保存当前设置为档案</button>' +
         (ps.length ? ps.map(function (p) {
           return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.1)">' +
@@ -708,7 +708,7 @@
     if (T === 'prof') {
       var saveBtn = wrap.querySelector('#yzProfSave');
       if (saveBtn) saveBtn.onclick = function () {
-        var n = prompt('档案名称（如「阅读用」「研究用」）', '我的配置');
+        var n = prompt('档案名称（如阅读用研究用）', '我的配置');
         if (!n) return;
         C.profiles = C.profiles || [];
         C.profiles.unshift({ id: 'pf' + Date.now().toString(36), name: String(n).slice(0, 24), at: new Date().toLocaleString(),

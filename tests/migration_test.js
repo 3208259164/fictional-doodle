@@ -23,7 +23,7 @@ const dom = new JSDOM(html, {
     w.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, { get: () => () => ({}) });
     w.scrollTo = () => {};
     w.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
-    /* ---- 造「旧版本」数据 ---- */
+    /* ---- 造旧版本数据 ---- */
     /* ① 覆盖层：只写了人物改名，没有新版才有的字段（term/edu/edge 等） */
     w.localStorage.setItem('yzy_ov_v1', JSON.stringify({
       v: 1,
@@ -50,17 +50,17 @@ lazy.waitData(() => {
   ok('覆盖层模块已加载', !!w.YZY);
   let gd = null;
   try { gd = w.YZY.graphData(); } catch (e) { gd = null; }
-  /* 阈值 200 → 150：2026-11-14 主图谱瘦身，把「思想源流 / 西方马克思主义 / 国际共运组织」
-     82 个节点拆成独立图谱（270 → 188）。这里只验「能读出来、没被旧数据搞坏」，
+  /* 阈值 200 → 150：2026-11-14 主图谱瘦身，把思想源流 / 西方马克思主义 / 国际共运组织
+     82 个节点拆成独立图谱（270 → 188）。这里只验能读出来、没被旧数据搞坏，
      不该绑死具体规模。 */
   ok('旧版覆盖层不会让图谱读不出来', !!gd && Array.isArray(gd.nodes) && gd.nodes.length > 150,
      gd ? gd.nodes.length + ' 节点' : '读取失败');
-  /* 结构不明的旧数据：不要求「字段一定认得」，要求「不崩、不清空」 */
+  /* 结构不明的旧数据：不要求字段一定认得，要求不崩、不清空 */
   ok('旧版覆盖层没有被清掉', (w.localStorage.getItem('yzy_ov_v1') || '').indexOf('旧版改名') >= 0);
 
   /* 用当前 API 写一条编辑再读回 —— 这是升级前用户真实做过的事 */
   /* editPerson(group, name, patch)：分组名是 leaders / comrades / critics。
-     这里关心的是「写进去了、没被旧数据结构挤掉」，而不是某个显示名。 */
+     这里关心的是写进去了、没被旧数据结构挤掉，而不是某个显示名。 */
   let okWrite = false;
   try {
     if (w.YZY && w.YZY.editPerson) {

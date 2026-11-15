@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* ① 未开启「自助编辑」时，书籍/人物详情页也要有 ✏️ ② 改过的内容能搜到、能导出 */
+/* ① 未开启自助编辑时，书籍/人物详情页也要有 ✏️ ② 改过的内容能搜到、能导出 */
 const fs = require('fs'), path = require('path');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
 const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site'));

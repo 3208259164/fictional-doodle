@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* =====================================================================
-   link_world_events.js —— 让「世界图谱事件」与「史料 · 重大事件」不再是两份各写一遍的文案
+   link_world_events.js —— 让世界图谱事件与史料 · 重大事件不再是两份各写一遍的文案
 
    背景：同一事件在两处存在
      · data/knowledge.js 的 SITE_EXTRA.events —— 史料 → 重大事件（背景 / 要点 / 影响 / 相关人物）
@@ -9,7 +9,7 @@
 
    做法（幂等，可重复执行）：
      · 世界图谱事件节点的 desc / points 统一取 SITE_EXTRA.events 的文本（史料为唯一文本真源）
-     · 标记 ex:true —— 表示「完整记述在史料 → 重大事件」，graph.html 据此给出跳转
+     · 标记 ex:true —— 表示完整记述在史料 → 重大事件，graph.html 据此给出跳转
    世界图谱独有的那部分事件（国际共运、苏东、亚非拉等）原样保留。
 
    ⚠️ knowledge.js 里除了 SITE_EXTRA 主对象，后面还有追加字段与一段 IIFE（追加 events），

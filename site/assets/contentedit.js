@@ -1,11 +1,11 @@
 /* =====================================================================
    学通 · 内容编辑器（contentedit.js）
    ---------------------------------------------------------------------
-   为什么重写：原来的「✏️ 改介绍」只给两个输入框（定位 + 正文介绍），
+   为什么重写：原来的✏️ 改介绍只给两个输入框（定位 + 正文介绍），
    概念改不了出处/相关文献/关键词，史料改不了年份、背景、经过、影响、涉及人物，
    而且部分入口传的参数对不上（事件按名字存、面板却按 id 找），点了像没反应。
 
-   这一版：按类型给「全部字段」，数组字段一行一条；保存走 YZY 的既有接口，
+   这一版：按类型给全部字段，数组字段一行一条；保存走 YZY 的既有接口，
    写完立刻 reapply + 重绘当前页，肉眼能看到变化。
 
    对外：yzEdit(kind, ref)
@@ -110,8 +110,8 @@
   };
 
   /* 兜底：没有专用字段的类型（会议、频道、术语、人物频道发言……）
-     不再弹「不认识的类型」，而是给一个通用编辑器：
-     改动存进「我的标注」（YZY.setMeta），会显示在该页下方，随导出一起带走。 */
+     不再弹不认识的类型，而是给一个通用编辑器：
+     改动存进我的标注（YZY.setMeta），会显示在该页下方，随导出一起带走。 */
   function genericSchema(kind) {
     return {
       title: '内容',
@@ -136,7 +136,7 @@
         if (patch.m_备注) arr.push({ k: '备注', v: patch.m_备注 });
         return window.YZY.setMeta(kind + ':' + ref, arr);
       },
-      note: '这一类没有专用字段，改动会显示在本页下方「🏷 我的标注」里。'
+      note: '这一类没有专用字段，改动会显示在本页下方🏷 我的标注里。'
     };
   }
   function val(o, f) {
@@ -145,8 +145,8 @@
     return v == null ? '' : String(v);
   }
 
-  /* 统一「找这条内容」：专用表找不到就换着地方找，再找不到才退回通用编辑器。
-     以前直接 toast('找不到这条内容') 或走错类型，用户看到的就是「点了没反应 / 不支持」。 */
+  /* 统一找这条内容：专用表找不到就换着地方找，再找不到才退回通用编辑器。
+     以前直接 toast('找不到这条内容') 或走错类型，用户看到的就是点了没反应 / 不支持。 */
   function resolve(kind, ref) {
     var sc = SCHEMA[kind];
     if (sc) {
@@ -221,8 +221,8 @@
         '<button data-a="close" style="background:none;border:none;color:inherit;font-size:1.1rem;padding:4px 8px">✕</button>' +
       '</div>' +
       '<p style="font-size:.72rem;opacity:.6;margin:6px 0 2px;line-height:1.7">' +
-        '只改本机，不动随包数据；改完随「导出我的数据」一起备份。数组字段一行一条，留空表示不改。' +
-        '要恢复原样，点下面的「清除本条改动」。</p>' +
+        '只改本机，不动随包数据；改完随导出我的数据一起备份。数组字段一行一条，留空表示不改。' +
+        '要恢复原样，点下面的清除本条改动。</p>' +
       rows +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">' +
         '<button data-a="reset" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.24);' +
@@ -260,7 +260,7 @@
       if (a === 'save') {
         var patch = readAll();
         if (!Object.keys(patch).length) { close(); return toast('没有填写内容'); }
-        /* 先算出「哪些字段真的变了」，保存后才有话可说 */
+        /* 先算出哪些字段真的变了，保存后才有话可说 */
         var fields = [];
         Object.keys(patch).forEach(function (k) {
           var f = sc.fields.filter(function (x) { return x[0] === k; })[0];

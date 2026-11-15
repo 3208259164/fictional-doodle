@@ -1,5 +1,5 @@
 # 已过时的测试：功能还在，但这些断言跟不上当前实现。
-# CI 不会因它们变红，但也不许「变多」——名单外的新失败一律阻断。
+# CI 不会因它们变红，但也不许变多——名单外的新失败一律阻断。
 # 修好一个就从这里删掉（run_all.js 会提示）。
 #
 # 2026-11-06：graph_years_test.js 已删除——它断言的是 11-02 重构前的 toggleYears/#yearbar，
@@ -11,7 +11,7 @@
 #                               graph_draw_audit_test（地图绘制）覆盖。
 #   graph_draw_audit_test.js    已修：toggleYears → toggleTime，stA/stB 区间模型。
 #   e2e_01718_test.js           已修：补 _lazy_hook 加载按需模块；onclick 阈值 3→4；
-#                               「文革图谱未加载」改为「首屏无静态引用」。
+#                               文革图谱未加载改为首屏无静态引用。
 #   answer_import_test.js       已修：导出文本长度阈值 200→100（3 条内容实际 123 字）。
-#   chan_book_test.js           已修：补 _lazy_hook；频道由「概念/人物」改为「概念/文章」。
-#   yearbook_test.js            已修：年鉴口径收窄到 1840 起，改断言「最早年份能打开」。
+#   chan_book_test.js           已修：补 _lazy_hook；频道由概念/人物改为概念/文章。
+#   yearbook_test.js            已修：年鉴口径收窄到 1840 起，改断言最早年份能打开。

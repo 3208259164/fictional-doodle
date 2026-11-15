@@ -7,7 +7,7 @@
      ③ 原著导读（data/guides.js）—— 骨架由软件给，正文由用户填（只存本机）
 
    设计约束：
-     · 不新增孤立页面：答疑挂在「史料」栏目里一页两签（答疑 / 术语）；
+     · 不新增孤立页面：答疑挂在史料栏目里一页两签（答疑 / 术语）；
        术语卡挂在概念详情页；导读挂在书详情页。
      · 用户填的导读正文存 localStorage 'yzGuides'，结构与线上数据完全分离，
        升级换版本不会覆盖，导出/备份会带上（已加入 app.js 的 DATA_KEYS）。
@@ -56,7 +56,7 @@
   function guideByBook(title) {
     var L = gds();
     for (var i = 0; i < L.length; i++) if (L[i].book === title) return L[i];
-    /* 书名不完全一致时退化匹配（如「共产主义运动中的"左派"幼稚病」引号不同） */
+    /* 书名不完全一致时退化匹配（如共产主义运动中的"左派"幼稚病引号不同） */
     var k = String(title || '').replace(/[《》「」“”"'\s]/g, '');
     for (var j = 0; j < L.length; j++) {
       if (String(L[j].book).replace(/[《》「」“”"'\s]/g, '') === k) return L[j];
@@ -103,7 +103,7 @@
         if (hay.indexOf(_q) >= 0) hits.push({ term: t });
       });
       out += '<div class="sub" style="margin:0 0 8px;opacity:.7">命中 ' + hits.length + ' 条' +
-        (hits.length ? '' : '——换个词试试，或者用「问一问」') + '</div>';
+        (hits.length ? '' : '——换个词试试，或者用问一问') + '</div>';
       out += hits.map(function (h) {
         if (h.term) return '<div class="lcard" style="margin:8px 0;align-items:flex-start;flex-direction:column;gap:4px"><div class="pname">📗 ' + esc(h.term.term) + '</div><div style="font-size:.84rem;line-height:1.85;opacity:.9">' + esc(h.term.dic) + '</div></div>';
         return answerCard(h.it);
@@ -153,7 +153,7 @@
         (t.note ? '<p style="margin:8px 0 0;font-size:.8rem;line-height:1.8;color:var(--accent)">▸ ' + esc(t.note) + '</p>' : '') +
       '</div></details>';
   }
-  /* 概念详情页用：只取「关联到该概念」的术语卡，直接铺开（不折叠） */
+  /* 概念详情页用：只取关联到该概念的术语卡，直接铺开（不折叠） */
   function glossaryBlock(conceptId) {
     if (!conceptId) return '';
     var hit = gls().filter(function (t) { return t.concept === conceptId; });
@@ -169,10 +169,10 @@
   }
 
   /* ---------------- ③ 原著导读 ---------------- */
-  /* 章级论证骨架：按书的真实章节，给出「这一章回答什么问题、由哪几个论点构成、
-     最容易在哪里读偏」。这是原书的论证结构，不是读后感，也不替代原文。 */
-  /* 取某本书的章级骨架数据（不是 HTML）——目录要把每章的「在论证什么」并进章节里，
-     避免出现「章级骨架」和「目录」两个区块讲同一件事（用户明确指出这处重复）。 */
+  /* 章级论证骨架：按书的真实章节，给出这一章回答什么问题、由哪几个论点构成、
+     最容易在哪里读偏。这是原书的论证结构，不是读后感，也不替代原文。 */
+  /* 取某本书的章级骨架数据（不是 HTML）——目录要把每章的在论证什么并进章节里，
+     避免出现章级骨架和目录两个区块讲同一件事（用户明确指出这处重复）。 */
   function outlineOf(bookTitle) {
     var g = guideByBook(bookTitle);
     return (g && g.outline) ? g.outline : [];
@@ -232,7 +232,7 @@
     var has = !!t.trim();
     var bg = (s.bg && String(s.bg).trim()) ? String(s.bg).trim() : '';
     /* 背景材料：客观事实与脉络（谁在什么背景下写、这一节讲什么、原文怎么走）。
-       写作提示：把「该说什么」拆成具体问题。正文 t 仍由读者自己填，软件不代下结论。 */
+       写作提示：把该说什么拆成具体问题。正文 t 仍由读者自己填，软件不代下结论。 */
     var bgHTML = bg
       ? '<details class="yzGBg" open style="margin:2px 0 4px">' +
           '<summary style="cursor:pointer;font-size:.79rem;color:var(--accent);opacity:.9;padding:2px 0;list-style:none">📎 背景材料<span style="opacity:.5;font-weight:400">（点此收起）</span></summary>' +
@@ -261,7 +261,7 @@
         '<button onclick="YZStudy._close()">取消</button>' +
         (cur ? '<button onclick="YZStudy._clear(\'' + gid + '\',' + i + ')">清空这段</button>' : '') +
       '</div>' +
-      '<p class="sub" style="margin:10px 0 0;font-size:.74rem;line-height:1.7;opacity:.55">只存本机，不上传。可用「导出我的数据」带走（设置 → 导入导出）。</p>';
+      '<p class="sub" style="margin:10px 0 0;font-size:.74rem;line-height:1.7;opacity:.55">只存本机，不上传。可用导出我的数据带走（设置 → 导入导出）。</p>';
     var ov = document.getElementById('yzGEdit');
     if (!ov) {
       ov = document.createElement('div');
@@ -403,11 +403,11 @@
       tfFld('出处', 'tfFrom', init.from, '恩格斯《路德维希·费尔巴哈和德国古典哲学的终结》第二章') +
       tfFld('分组', 'tfGroup', init.group, '哲学与认识 / 历史观与阶级 / 政治经济学 / …') +
       tfFld('一句话辨析（可选）', 'tfNote', init.note, '判断标准只有一条：物质与意识谁是第一性') +
-      tfFld('易混辨析（可选，每行一条，写成「标题|说明」）', 'tfConfuse', cf, '与「唯物」的日常用法|日常说这人很唯物多指重实际…', 'textarea') +
+      tfFld('易混辨析（可选，每行一条，写成标题|说明）', 'tfConfuse', cf, '与唯物的日常用法|日常说这人很唯物多指重实际…', 'textarea') +
       '<div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">' +
       '<button class="lk-btn" id="tfSave">保存</button>' +
       '<button class="sbtn" style="padding:6px 12px" onclick="document.getElementById(\'yzTermBox\').remove()">取消</button></div>' +
-      '<p class="sub" style="margin:9px 0 0;font-size:.74rem;line-height:1.7;opacity:.6">只存本机，不上传；可用「导出我的数据」一起带走。</p></div>';
+      '<p class="sub" style="margin:9px 0 0;font-size:.74rem;line-height:1.7;opacity:.6">只存本机，不上传；可用导出我的数据一起带走。</p></div>';
     document.body.appendChild(d);
     function val(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
     document.getElementById('tfSave').onclick = function () {
@@ -451,7 +451,7 @@
     if (window.toast) toast('已删除');
     afterTermSave();
   }
-  /* 宽松解析：每行一条，列分隔认 | ｜ 制表符；只有「术语：定义」两列也能认 */
+  /* 宽松解析：每行一条，列分隔认 | ｜ 制表符；只有术语：定义两列也能认 */
   function parseTermText(text) {
     var out = [], bad = [];
     String(text || '').split(/\r?\n/).forEach(function (line) {
@@ -480,7 +480,7 @@
       '<button onclick="document.getElementById(\'yzTermImp\').remove()" style="background:none;border:0;color:inherit;font-size:1.1rem;cursor:pointer">✕</button></div>' +
       '<p class="sub" style="margin:0 0 8px;font-size:.78rem;line-height:1.8">每行一张卡，列之间用 <b>|</b> 或 <b>｜</b> 或 Tab 分隔：<br>' +
       '<code style="font-size:.76rem">术语 | 一句话定义 | 出处（可空） | 分组（可空）</code><br>' +
-      '只有「术语：定义」两列也能认；以 # 开头的行会被忽略。</p>' +
+      '只有术语：定义两列也能认；以 # 开头的行会被忽略。</p>' +
       '<textarea id="timTa" style="width:100%;min-height:190px;padding:9px;border-radius:9px;border:1px solid var(--line);background:transparent;color:inherit;font-size:.82rem;line-height:1.9;font-family:inherit" placeholder="唯物主义 | 主张物质第一性、精神第二性…… | 恩格斯《费尔巴哈论》第二章 | 哲学与认识&#10;唯心主义 | 主张精神第一性、物质第二性…… | 同上 | 哲学与认识"></textarea>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
       '<button class="sbtn" style="padding:6px 12px" id="timPrev">先看解析结果</button>' +
@@ -528,7 +528,7 @@
       if (mq) { flush(); cur = { group: group, q: mq[1].trim(), a: '' }; return; }
       var ma = t.match(/^(?:A|a|答|答案)\s*[:：]\s*(.+)$/);
       if (ma) { if (cur) cur.a = (cur.a ? cur.a + '\n' : '') + ma[1].trim(); else bad.push(t); return; }
-      /* 依据 / 出处 / 来源：一路可对应「依据」字段，这样导出的文件再导入不会把依据粘进答案里 */
+      /* 依据 / 出处 / 来源：一路可对应依据字段，这样导出的文件再导入不会把依据粘进答案里 */
       var mb = t.match(/^(?:依据|出处|来源)\s*[:：]\s*(.+)$/);
       if (mb) { if (cur) cur.basis = (cur.basis || []).concat(mb[1].split(/[、;；]/).map(function (x) { return x.trim(); }).filter(Boolean));
         else bad.push(t); return; }
@@ -550,8 +550,8 @@
       '<button onclick="document.getElementById(\'yzAnsImp\').remove()" style="background:none;border:0;color:inherit;font-size:1.1rem;cursor:pointer">✕</button></div>' +
       '<p class="sub" style="margin:0 0 8px;font-size:.78rem;line-height:1.85">' +
       '按下面的格式贴进来（从 TXT / MD 复制的也行）：<br>' +
-      '<code style="font-size:.76rem;white-space:pre-wrap"># 分组名（可省略，省略则归入「导入」）\nQ: 问题\nA: 答案（可以多行，直接往下写）\nQ: 下一个问题\nA: ……</code><br>' +
-      '「问：」「答：」和「问题：」「答案：」也能认；空行会被忽略。</p>' +
+      '<code style="font-size:.76rem;white-space:pre-wrap"># 分组名（可省略，省略则归入导入）\nQ: 问题\nA: 答案（可以多行，直接往下写）\nQ: 下一个问题\nA: ……</code><br>' +
+      '问：答：和问题：答案：也能认；空行会被忽略。</p>' +
       '<textarea id="ansTa" style="width:100%;min-height:210px;padding:9px;border-radius:9px;border:1px solid var(--line);background:transparent;color:inherit;font-size:.82rem;line-height:1.9;font-family:inherit" placeholder="# 哲学与认识&#10;Q: 什么是唯物辩证法？&#10;A: ……&#10;Q: 它和形而上学有什么区别？&#10;A: ……"></textarea>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
       '<button class="sbtn" style="padding:6px 12px" id="ansPrev">先看解析结果</button>' +
@@ -586,7 +586,7 @@
     };
   }
   /* ---------------- 答疑：导出 ---------------- */
-  /* 导出成与「导入」完全相同的格式（# 分组 / Q: / A: / 依据：），
+  /* 导出成与导入完全相同的格式（# 分组 / Q: / A: / 依据：），
      这样导出文件可以直接再导入，用于备份、搬设备、或者在电脑上编辑后再贴回来。 */
   function answersText(groupName) {
     var G = (window.SITE_ANSWERS || {}).groups || [], out = [];
@@ -615,7 +615,7 @@
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
       '<b style="font-size:.94rem">📤 导出答疑</b>' +
       '<button onclick="document.getElementById(\'yzAnsExp\').remove()" style="background:none;border:0;color:inherit;font-size:1.1rem;cursor:pointer">✕</button></div>' +
-      '<p class="sub" style="margin:0 0 8px;font-size:.78rem;line-height:1.8">导出的格式与「从文档导入」完全一致，可以直接再导入。</p>' +
+      '<p class="sub" style="margin:0 0 8px;font-size:.78rem;line-height:1.8">导出的格式与从文档导入完全一致，可以直接再导入。</p>' +
       '<select id="ansExpG" style="width:100%;padding:8px;border-radius:9px;border:1px solid var(--line);background:transparent;color:inherit;font-size:.82rem;margin-bottom:8px">' +
       '<option value="">全部答疑（' + G.length + ' 组）</option>' +
       G.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') + '</select>' +
@@ -651,7 +651,7 @@
         if (window.YZSave && YZSave.share) ok = !!(YZSave.share(name, 'text/plain;charset=utf-8', t) || (YZSave.text && YZSave.text(name, 'text/plain;charset=utf-8', t)));
         else if (window.YZSave && YZSave.text) ok = !!YZSave.text(name, 'text/plain;charset=utf-8', t);
       } catch (e) {}
-      if (window.toast) toast(ok ? '已保存：' + name : '这台设备不支持直接存文件，请用「复制全文」');
+      if (window.toast) toast(ok ? '已保存：' + name : '这台设备不支持直接存文件，请用复制全文');
     };
   }
   /* 自测模块是懒加载的：没到就先拉，到了自动打开 */

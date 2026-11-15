@@ -46,7 +46,7 @@ if (miss.length) console.warn('⚠ 图谱里没有这些 id：' + miss.join(' ')
 
 /* 这个文件不是纯 JSON：前面有 IIFE、byName、links.push、地理落点等逻辑，
    最后才是 window.SITE_GRAPH_WENGE={...}，末尾还有 })(); 收尾。
-   截断时必须把「赋值之后的尾部代码」原样接回去，否则括号不配平、整个文件语法错误。 */
+   截断时必须把赋值之后的尾部代码原样接回去，否则括号不配平、整个文件语法错误。 */
 const cut = src.lastIndexOf('window.SITE_GRAPH_WENGE=');
 const tailAt = src.lastIndexOf('})();');
 const tail = (tailAt > cut) ? src.slice(tailAt) : '';

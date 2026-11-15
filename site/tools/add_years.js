@@ -2,9 +2,9 @@
    与 tools/add_book_years.js（书库首次发表年），不要混用。 */
 
 /* 给主图谱节点补数字型 y0/y1（供时间轴使用）。
-   - person：由现成的 years 字符串（如「1818—1883」）解析，客观可核实
+   - person：由现成的 years 字符串（如1818—1883）解析，客观可核实
    - org   ：取成立年与解散/改名年（表内手写，依据各组织史实）
-   - idea  ：取该思潮「标志性年份」而非严格起止，见每项 yearBasis 说明
+   - idea  ：取该思潮标志性年份而非严格起止，见每项 yearBasis 说明
    不覆盖已有字段，只做补充；重复执行安全。 */
 const fs = require('fs'), vm = require('vm');
 const P = 'data/graph.js';
@@ -46,7 +46,7 @@ const IDEA = {
   anarchism:      { y0: 1864, y1: 1876, basis: '第一国际内斗争期（1864—1876）为主' },
   revisionism:    { y0: 1899, y1: null, basis: '以 1899 年伯恩施坦《社会主义的前提和社会民主党的任务》为标志' },
   kautskyism:     { y0: 1910, y1: 1917, basis: '1910 年前后形成中派立场，1917 年后彻底右转' },
-  trotskyism:     { y0: 1905, y1: null, basis: '以 1905 年「不断革命论」提出为起点' },
+  trotskyism:     { y0: 1905, y1: null, basis: '以 1905 年不断革命论提出为起点' },
   permanentrev:   { y0: 1905, y1: null, basis: '1905 年提出，1906 年《总结与展望》系统化' },
   economism:      { y0: 1897, y1: 1902, basis: '1897 年《工人思想报》创刊起，1902 年《怎么办？》批判后衰落' },
   machism:        { y0: 1886, y1: 1914, basis: '1886 年马赫《感觉的分析》起，1914 年前后影响消退' },

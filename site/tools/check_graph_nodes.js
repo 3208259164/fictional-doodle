@@ -1,14 +1,14 @@
 /* =====================================================================
    学通 · 图谱体检（tools/check_graph_nodes.js）
    ---------------------------------------------------------------------
-   目的：把「整个图谱」一次查清，避免再出现「点开节点 → 没有找到」。
+   目的：把整个图谱一次查清，避免再出现点开节点 → 没有找到。
 
    检查项：
      ① 五张图谱能否读入；节点 / 边计数
      ② 悬空边：link.source / target 指向不存在的节点
      ③ 节点字段缺失：没有 id / name / type / desc
      ④ 跨图谱 id 冲突：同一 id 在两张图谱里指的不是同一个东西
-     ⑤ 重名节点：同名不同 id（会导致「按名字跳」只落到其中一个）
+     ⑤ 重名节点：同名不同 id（会导致按名字跳只落到其中一个）
      ⑥ 全部节点 id 是否都能在 allGraphNodes() 聚合里命中（= 前端解析入口能查到）
 
    输出：问题清单 + 退出码（0 通过 / 1 有问题）
@@ -60,9 +60,9 @@ for (const [label, , key] of GRAPHS) {
     if (ids.has(n.id)) warn(`[重复 id] ${label} 内 id=${n.id} 出现两次`);
     ids.add(n.id);
     if (!n.name) warn(`[字段] ${label} id=${n.id} 缺 name`);
-    if (!n.type) warn(`[字段] ${label} id=${n.id}「${n.name}」缺 type`);
+    if (!n.type) warn(`[字段] ${label} id=${n.id}${n.name}缺 type`);
     else if (!['person', 'event', 'org', 'idea'].includes(n.type)) warn(`[字段] ${label} id=${n.id} type=${n.type} 不在 person/event/org/idea 内`);
-    if (!n.desc) warn(`[字段] ${label} id=${n.id}「${n.name}」缺 desc（详情页会空一段）`);
+    if (!n.desc) warn(`[字段] ${label} id=${n.id}${n.name}缺 desc（详情页会空一段）`);
     nodesByGraph[label].push(n);
   });
   /* 悬空边 */
@@ -83,8 +83,8 @@ for (const [label] of Object.entries(nodesByGraph)) {
   for (const n of nodesByGraph[label]) {
     if (idMap.has(n.id)) {
       const prev = idMap.get(n.id);
-      if (prev.name !== n.name) warn(`[id 冲突] id=${n.id}：${prev.graph}「${prev.name}」 vs ${label}「${n.name}」`);
-      else if (prev.type !== n.type) warn(`[id 类型冲突] id=${n.id}「${n.name}」：${prev.graph}=${prev.type} vs ${label}=${n.type}`);
+      if (prev.name !== n.name) warn(`[id 冲突] id=${n.id}：${prev.graph}${prev.name} vs ${label}${n.name}`);
+      else if (prev.type !== n.type) warn(`[id 类型冲突] id=${n.id}${n.name}：${prev.graph}=${prev.type} vs ${label}=${n.type}`);
     } else idMap.set(n.id, { name: n.name, type: n.type, graph: label });
     const arr = nameMap.get(n.name) || [];
     arr.push(`${label}:${n.id}`);
@@ -94,7 +94,7 @@ for (const [label] of Object.entries(nodesByGraph)) {
 for (const [name, arr] of nameMap) {
   if (arr.length > 1) {
     const ids = arr.map(x => x.split(':').slice(1).join(':'));
-    if (new Set(ids).size > 1) note(`「${name}」出现在 ${arr.join(' / ')}（同名不同 id：按名字跳转只会命中靠前那张图谱，按 id 打开不受影响）`);
+    if (new Set(ids).size > 1) note(`${name}出现在 ${arr.join(' / ')}（同名不同 id：按名字跳转只会命中靠前那张图谱，按 id 打开不受影响）`);
   }
 }
 

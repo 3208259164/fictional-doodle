@@ -3,7 +3,7 @@
    于是那些地方永远取后退值（浅色主题下变成一块深色）——0.17.70 补齐。 */
 :root { --accent:#f5c518; --card:rgba(255,255,255,.09); --card-border:rgba(255,255,255,.34); --text:#f2e8d8;
   --bg:#2b0505; --line:rgba(255,255,255,.18); --ev:rgba(255,255,255,.10);
-  /* 顶栏/底栏取「主页渐变在这一位置的实测色」。纯色绘制，不依赖 background-attachment
+  /* 顶栏/底栏取主页渐变在这一位置的实测色。纯色绘制，不依赖 background-attachment
      或 100vh（横屏 vh 会塌缩，这正是横屏栏与内容错色的根源）。竖屏实测值。 */
   --bar-top:#621310; --bar-bot:#3b0808;
   color-scheme:dark; }
@@ -43,9 +43,9 @@ body { font-family:-apple-system,"PingFang SC","Noto Serif SC",serif; color:var(
 @keyframes float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-24px) rotate(18deg)}}
 
 .view { width:100%; display:flex; flex-direction:column; align-items:center; }
-/* ★ main 在 body(flex column, align-items:center) 下是「按内容收缩」的：
-   一旦首页的「每日一句」被隐藏（自定义片段），最宽的子元素消失，整个首页就会缩成一条，
-   表现为「我的主页内容变小」。这里强制撑满，宽度不再取决于内容。 */
+/* ★ main 在 body(flex column, align-items:center) 下是按内容收缩的：
+   一旦首页的每日一句被隐藏（自定义片段），最宽的子元素消失，整个首页就会缩成一条，
+   表现为我的主页内容变小。这里强制撑满，宽度不再取决于内容。 */
 main#main { width:100%; min-width:0; }
 #view-home, #view-results { max-width:100%; }
 
@@ -215,7 +215,7 @@ body.sepia { --panel-bg:#fbf3e0; --panel-bg2:#f4e7cc; --panel-line:rgba(120,80,2
              --panel-glass:rgba(251,243,224,.95); }
 
 /* ---------- 书志卡（booknote.js，0.17.38）----------
-   目录学「解题」的做法：作者爵里 → 成书 → 版本 → 大要 → 源流 → 读法。
+   目录学解题的做法：作者爵里 → 成书 → 版本 → 大要 → 源流 → 读法。
    默认折叠，不抢简介的位置；字段对齐用固定标签列，长文本自动换行。 */
 .booknote{margin:12px 0;border:1px solid var(--line);border-radius:10px;background:var(--card);overflow:hidden}
 .booknote>summary{padding:10px 12px;cursor:pointer;font-weight:700;font-size:.88rem;list-style:none;display:flex;align-items:center}
@@ -232,8 +232,8 @@ body.light .booknote,body.sepia .booknote{background:rgba(0,0,0,.02)}
 body.light .bn-row,body.sepia .bn-row{border-top-color:rgba(0,0,0,.08)}
 
 /* ---------- 章级论证骨架（study.js outlineBlock，0.17.39）----------
-   按原书章节给出「这一章回答什么 → 哪几个论点 → 容易在哪读偏」。
-   与书志卡区分：书志讲「书是什么」，这里讲「书在论证什么」。 */
+   按原书章节给出这一章回答什么 → 哪几个论点 → 容易在哪读偏。
+   与书志卡区分：书志讲书是什么，这里讲书在论证什么。 */
 .yzOl{margin:12px 0;border:1px solid var(--line);border-radius:10px;background:rgba(245,197,24,.045);overflow:hidden}
 .yzOl>summary{padding:11px 12px;cursor:pointer;font-weight:700;font-size:.9rem;list-style:none;display:flex;align-items:center;gap:8px}
 .yzOl>summary::-webkit-details-marker{display:none}
@@ -252,7 +252,7 @@ body.light .yzOl,body.sepia .yzOl{background:rgba(122,84,0,.05)}
 body.light .ol-ch,body.sepia .ol-ch{border-top-color:rgba(122,84,0,.16)}
 
 /* ---------- 书壳诚实化（0.17.41）----------
-   简介不足 40 字的条目不再拿一句短话糊过去，而是明确标注「还没写全」并给出三条可走的路。 */
+   简介不足 40 字的条目不再拿一句短话糊过去，而是明确标注还没写全并给出三条可走的路。 */
 .yzThin{margin:8px 0 4px;padding:10px 12px;border:1px dashed rgba(245,197,24,.42);border-radius:10px;background:rgba(245,197,24,.05)}
 .yzThin-t{font-size:.8rem;font-weight:700;color:var(--accent);opacity:.95;margin-bottom:2px}
 .yzThin-s{font-size:.76rem;opacity:.7;line-height:1.85;margin-bottom:8px}

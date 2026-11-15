@@ -31,7 +31,7 @@ setTimeout(() => {
   const w = d2.window;
   try {
     ok('管理面板存在', !!w.document.getElementById('mgPanel'));
-    ok('「顶部显示」段已加入', !!w.document.getElementById('mgTop'));
+    ok('顶部显示段已加入', !!w.document.getElementById('mgTop'));
     const tops = w.document.querySelectorAll('#mgTop button');
     ok('顶部显示有 3 项（节点图例/关系线图例/操作提示）', tops.length === 3, '实际 ' + tops.length);
 
@@ -69,8 +69,8 @@ setTimeout(() => {
     try {
       ok('3D：名字容器 #yzLabels 存在', !!w3.document.getElementById('yzLabels'));
       ok('3D：管理面板 #mg3 存在', !!w3.document.getElementById('mg3'));
-      ok('3D：工具栏有「🏷 名字」', !!w3.document.getElementById('lb3'));
-      ok('3D：工具栏有「⚙ 管理」', !!w3.document.getElementById('mgb3'));
+      ok('3D：工具栏有🏷 名字', !!w3.document.getElementById('lb3'));
+      ok('3D：工具栏有⚙ 管理', !!w3.document.getElementById('mgb3'));
       ok('3D：yz3d.toggleLabels 已暴露', w3.yz3d && typeof w3.yz3d.toggleLabels === 'function');
       ok('3D：yz3d.toggleMgr3 已暴露', w3.yz3d && typeof w3.yz3d.toggleMgr3 === 'function');
       // 面板开合

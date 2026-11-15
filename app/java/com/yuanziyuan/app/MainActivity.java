@@ -169,13 +169,27 @@ public class MainActivity extends Activity {
         s.setJavaScriptCanOpenWindowsAutomatically(false);
         s.setDefaultTextEncodingName("utf-8");
         s.setMediaPlaybackRequiresUserGesture(true);
-        s.setLoadWithOverviewMode(true);
+        /* 2026-11-15：setLoadWithOverviewMode(true) 会先按 980px 布局再缩放到屏宽，
+           这正是 Chromium Text Autosizer（字体自动放大）的典型触发条件 ——
+           它会把「小于 32×multiplier−16」的字统一拉大，导致 App 里 15/16/18px 三档
+           在真机上被抹平成同一个大小（用户反馈「字号怎么调都一样」）。
+           站点有 width=device-width 的 viewport meta，本来就不需要 overview 缩放。 */
+        s.setLoadWithOverviewMode(false);
         s.setUseWideViewPort(true);
         s.setSupportZoom(false);   // 禁用双击 / 捏合缩放（避免点按每日一句触发整页缩放）
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        // 注意：不设置 setTextZoom —— 保留系统「字体大小」无障碍缩放能力
+        /* 2026-11-15：固定 textZoom=100。
+           原来是「不设置」以保留系统字体缩放的辅助功能，但它和 App 内字号设置叠加后，
+           用户把系统字体调大时正文大小由系统决定、App 内三档几乎看不出差别。
+           现在改为：这里固定 100（去掉系统对网页的二次放大），
+           同时把系统 fontScale 通过桥交给网页，由 JS 乘进字号基准 —— 用户的观感大小不变，
+           而 App 内「小/标准/大」是线性的、看得见的。 */
+        s.setTextZoom(100);
+        /* 再显式钉死布局算法：TEXT_AUTOSIZING 是「允许 Blink 自动放大文字」的枚举值，
+           默认值在部分 ROM 上会被厂商内核改成 TEXT_AUTOSIZING，等于绕过了前面两条设置。 */
+        try { s.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL); } catch (Exception e) {}
         if (Build.VERSION.SDK_INT >= 21) s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         if (Build.VERSION.SDK_INT >= 26) s.setSafeBrowsingEnabled(true);
         if (Build.VERSION.SDK_INT >= 33) s.setAlgorithmicDarkeningAllowed(false);
@@ -2611,6 +2625,17 @@ public class MainActivity extends Activity {
 
         /** 当前语速（只读，用于诊断）；设置语速请直接传 ttsSpeak 的第二个参数。 */
         @JavascriptInterface public String ttsRate() { return String.format(Locale.US, "%.2f", Float.valueOf(ttsRate)); }
+
+        /** 系统「字体大小」缩放比（1.0 = 默认）。网页用它乘进字号基准，
+            这样关掉 WebView 的 textZoom 之后，用户的观感大小仍然保留。 */
+        @JavascriptInterface public float fontScale() {
+            try { return getResources().getConfiguration().fontScale; } catch (Throwable t) { return 1f; }
+        }
+
+        /** WebView 当前的文字缩放（诊断用，应为 100）。 */
+        @JavascriptInterface public int textZoom() {
+            try { return web == null ? -1 : web.getSettings().getTextZoom(); } catch (Throwable t) { return -1; }
+        }
     }
 
     /* ---------------- 版本分支隔离（避免旧系统类校验问题） ---------------- */

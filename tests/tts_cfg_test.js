@@ -1,6 +1,6 @@
 /* 朗读的语速与定时（2026-11-14）
  *
- * 需求：能调语速，能设「读多久就停」，到点自动截止。
+ * 需求：能调语速，能设读多久就停，到点自动截止。
  * 实现要点：
  *   · 语速走系统 TTS（setSpeechRate，0.5~2.0，1.0 常速），档位 0.7/0.85/1/1.2/1.5
  *   · 定时不另起计时器：分段朗读本来就在轮询，每段开始前检查 deadline，
@@ -27,7 +27,7 @@ const dom = new JSDOM(html, {
     w.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, { get: () => () => ({}) });
     w.scrollTo = () => {};
     w.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
-    /* 用假的 speechSynthesis 顶替系统引擎：不真出声，只把「念了哪段、什么语速」记下来 */
+    /* 用假的 speechSynthesis 顶替系统引擎：不真出声，只把念了哪段、什么语速记下来 */
     w.SpeechSynthesisUtterance = function (t) { this.text = t; };
     Object.defineProperty(w, 'speechSynthesis', {
       configurable: true,
@@ -78,15 +78,15 @@ lazy.waitData(async () => {
   ok('setMinutes(15) 记下时长', c1.minutes === 15, JSON.stringify(c1));
   ok('截止时间 ≈ 15 分钟后', c1.deadline > t0 + 14 * 60000 && c1.deadline < t0 + 16 * 60000, new Date(c1.deadline).toISOString());
   S.setMinutes(0);
-  ok('设「不限」清掉截止', S.cfg().deadline === 0, String(S.cfg().deadline));
+  ok('设不限清掉截止', S.cfg().deadline === 0, String(S.cfg().deadline));
   S.setMinutes(999);
-  ok('非法时长回落到「不限」', S.cfg().minutes === 0, String(S.cfg().minutes));
+  ok('非法时长回落到不限', S.cfg().minutes === 0, String(S.cfg().minutes));
 
   /* ---- 4. 面板 ---- */
   S.openCfg(d.body);
   const panel = d.getElementById('yzTtsPanel');
   ok('设置面板能打开', !!panel);
-  ok('面板有「语速」和「时长」', !!panel && panel.textContent.indexOf('语速') >= 0 && panel.textContent.indexOf('时长') >= 0);
+  ok('面板有语速和时长', !!panel && panel.textContent.indexOf('语速') >= 0 && panel.textContent.indexOf('时长') >= 0);
   const rateBtn = panel && panel.querySelector('[data-yzr="1.2"]');
   ok('面板里有语速档位按钮', !!rateBtn, rateBtn ? rateBtn.textContent : '无');
   if (rateBtn) {
@@ -110,7 +110,7 @@ lazy.waitData(async () => {
 
   /* ---- 6. 到点自动截止 ----
      先按真实入口走一遍：挂按钮 → 点按钮开始朗读（这样 ownerKey 才会被设上，
-     按钮才会显示「停止 · 剩余时间」；直接 speak() 属于后台调用，不动按钮）。 */
+     按钮才会显示停止 · 剩余时间；直接 speak() 属于后台调用，不动按钮）。 */
   const host = d.createElement('div');
   d.body.appendChild(host);
   S.attach(host, () => '这是一段用于验证定时朗读的测试正文。');
@@ -126,13 +126,49 @@ lazy.waitData(async () => {
     return btns.some(b => b.textContent.indexOf('·') >= 0 && /\d+:\d\d/.test(b.textContent));
   })(), (Array.from(d.querySelectorAll('button[data-yztts]')).map(b => b.textContent).join(' / ') || '无按钮'));
 
-  /* 把截止时间推到过去，模拟「到点了」 */
+  /* 把截止时间推到过去，模拟到点了 */
   const realNow = w.Date.now;
   w.Date.now = () => realNow() + 20 * 60000;
   const up = S._tick();
   w.Date.now = realNow;
   ok('到点后自动停止', up === true && S.busy() === false, 'tick=' + up + ' busy=' + S.busy());
   ok('停止后清掉截止时间', S.cfg().deadline === 0, String(S.cfg().deadline));
+
+  /* ---- 6.5 语速：正在朗读时改，立刻用新语速重读当前段 ----
+     以前要等下一段才生效，而短文本只有一段 → 用户点了 1.5× 完全没反应。 */
+  const host2 = d.createElement('div');
+  d.body.appendChild(host2);
+  S.attach(host2, () => '这是一段用于验证语速即时生效的测试正文，需要足够长一些。');
+  const btn2 = host2.querySelector('button[data-yztts]');
+  spoken = [];
+  if (btn2) btn2.click();
+  await sleep(60);
+  const before = spoken.length;
+  S.openCfg(host2);
+  const pnl = d.getElementById('yzTtsPanel');
+  const fast = pnl && pnl.querySelector('[data-yzr="1.5"]');
+  if (fast) { fast.click(); await sleep(120); }
+  ok('改语速后立刻重读（不用等下一段）', spoken.length > before, before + ' → ' + spoken.length);
+  ok('重读用的是新语速', spoken.length > before && Math.abs(Number(spoken[spoken.length - 1].rate) - 1.5) < 0.01,
+    spoken.length ? String(spoken[spoken.length - 1].rate) : '无');
+  S.stop();
+  if (pnl) pnl.remove();
+
+  /* ---- 7. 到点检查必须自己跑（不能只靠每段开始前） ----
+     反例：短文本整篇一次发送，只在开头查一次 → 读 20 分钟也不会停。
+     这里把引擎换成永不回调的假实现，模拟一次长朗读，再把时间推到截止之后，
+     不点任何按钮、不调 _tick，等 1.5 秒看它会不会自己停。 */
+  const realNow2 = w.Date.now;
+  w.speechSynthesis.speak = function (u) { /* 永不结束：模拟一段很长的朗读 */ };
+  S.setMinutes(15);
+  S.speak('这是一段用于验证定时器会自动截止的文字。');
+  await sleep(80);
+  ok('长朗读进行中', S.busy() === true, 'busy=' + S.busy());
+  w.Date.now = () => realNow2() + 16 * 60000;   /* 越过截止时间 */
+  await sleep(1600);
+  w.Date.now = realNow2;
+  ok('不靠段前进检查，计时器自己到点停', S.busy() === false, 'busy=' + S.busy());
+  ok('停止后截止时间被清掉', S.cfg().deadline === 0, String(S.cfg().deadline));
 
   S.stop();
   ok('没有未捕获的脚本错误', errs.length === 0, errs.slice(0, 2).join(' / '));

@@ -14,10 +14,10 @@ function inline(h){return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>/g
   ok('底图数据 SITE_GEO 已加载', !!(w.SITE_GEO&&w.SITE_GEO.provinces&&w.SITE_GEO.provinces.length>=30), w.SITE_GEO&&w.SITE_GEO.provinces.length+' 省级');
   ok('节点已算出地理落点 o.gx/o.gy', (w.ns||[]).every(o=>typeof o.gx==='number'&&typeof o.gy==='number'));
 
-  // 文革图谱为「地方」而作 → 默认地图；关闭地图才是关系网
+  // 文革图谱为地方而作 → 默认地图；关闭地图才是关系网
   ok('文革图谱默认进入地图', w.viewMode==='geo');
   const vb=d.getElementById('vb');
-  ok('地图开关默认已开（按钮显示「关系网」）', !!vb && vb.classList.contains('on') && /关系网/.test(vb.textContent), vb&&vb.textContent);
+  ok('地图开关默认已开（按钮显示关系网）', !!vb && vb.classList.contains('on') && /关系网/.test(vb.textContent), vb&&vb.textContent);
 
   w.toggleViewMode();
   ok('关闭地图 → 关系构图', w.viewMode==='net' && !vb.classList.contains('on'), vb.textContent);
@@ -33,7 +33,7 @@ function inline(h){return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>/g
   w.clearSel();
 
   // 底部控件面板可收起
-  ok('底部面板含「收起」开关 #trFold', !!d.getElementById('trFold'));
+  ok('底部面板含收起开关 #trFold', !!d.getElementById('trFold'));
   const tr=d.getElementById('tr');
   w.toggleTr();
   ok('点收起后面板折叠（#tr.folded）', tr.classList.contains('folded'));

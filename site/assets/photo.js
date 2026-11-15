@@ -1,5 +1,5 @@
 /* 学通 · 相册（YZPhoto）
-   定位：给「图片」一个正确的归宿。
+   定位：给图片一个正确的归宿。
    以前图片被当成书导入书架 → 读不了、还卡。现在导入时按类型自动分派，
    图片进这里；书架里不再出现读不了的东西。
 
@@ -123,7 +123,7 @@
     document.getElementById('phTitle').textContent = '相册' + (list.length ? ' · ' + list.length : '');
     if (!list.length) {
       body.innerHTML = '<div class="ph-empty">相册是空的。<br>'
-        + '点右上角「＋ 导入照片」选几张图，也可以从书架用「＋ 导入文件」把照片和书一起选进来。<br><br>'
+        + '点右上角＋ 导入照片选几张图，也可以从书架用＋ 导入文件把照片和书一起选进来。<br><br>'
         + '<b>照片只存这台手机里</b>，不联网、不上传；App 也不会去读你系统相册里的其它图片。</div>';
       return;
     }
@@ -180,7 +180,7 @@
     var p = list[idx];
     if (!p) return;
     var ok = true;
-    try { ok = window.confirm('从相册删除这张照片？\n\n「' + (p.name || '') + '」\n\n只删除 App 里的副本，不影响你手机里原来的照片。'); } catch (e) { ok = true; }
+    try { ok = window.confirm('从相册删除这张照片？\n\n' + (p.name || '') + '\n\n只删除 App 里的副本，不影响你手机里原来的照片。'); } catch (e) { ok = true; }
     if (!ok) return;
     var A = app();
     try { if (A && A.photoRemove) A.photoRemove(p.id); } catch (e) { }
@@ -193,7 +193,7 @@
     if (!p) return;
     var A = app();
     if (!A || !A.photoExport) { toast('导出需要在 App 内使用'); return; }
-    try { A.photoExport(p.id); toast('正在导出到「下载」…'); } catch (e) { toast('导出失败'); }
+    try { A.photoExport(p.id); toast('正在导出到下载…'); } catch (e) { toast('导出失败'); }
   }
 
   function show() {
@@ -214,7 +214,7 @@
   }
 
   function open() { show(); }
-  /* 从「我的资料 → 相册」点某一张进来：直接进全屏那一张 */
+  /* 从我的资料 → 相册点某一张进来：直接进全屏那一张 */
   function openAt(id) {
     list = read();
     var i = -1;

@@ -9,7 +9,7 @@
 <title>3D 关系图谱 · 学通</title>
 <style>
   :root{ --bg:#000011; --fg:#e8e8ea; --accent:#12B7F5; --panel:rgba(12,14,30,.94); }
-  /* ---------- 浅色主题：跟随「设置 → 显示 → 主题」，与站点其它页面（graph.html 等）同一口径 ---------- */
+  /* ---------- 浅色主题：跟随设置 → 显示 → 主题，与站点其它页面（graph.html 等）同一口径 ---------- */
   body.light{--bg:#f6f2ea;--fg:#2a2320;--panel:rgba(255,252,246,.96);--accent:#b45309}
   body.light #bar{background:linear-gradient(#f6f2eaff,#f6f2ea00)}
   body.light #bar .tab,body.light #lbtn,body.light #fbtn,body.light #back,
@@ -102,7 +102,7 @@
   #panel .collapse{position:absolute;top:calc(10px + env(safe-area-inset-top));right:54px;background:none;
     border:1px solid #2a2a44;color:#9aa0c6;border-radius:8px;padding:4px 10px;font-size:0.75rem;
     cursor:pointer;font-family:inherit;white-space:nowrap}
-  /* 收起后的「展开介绍」悬浮胶囊：行为与 2D 图谱页（graph.html 的 #ptab）一致 */
+  /* 收起后的展开介绍悬浮胶囊：行为与 2D 图谱页（graph.html 的 #ptab）一致 */
   #ptab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(130px + env(safe-area-inset-bottom,0px));
     z-index:32;padding:9px 18px;border-radius:22px;background:var(--panel);color:var(--fg);
     border:1px solid var(--accent);font-size:0.8125rem;font-family:inherit;cursor:pointer;display:none;
@@ -168,7 +168,7 @@ body.clean #dataMenu{display:none !important}
   body.light #ebox .eb{background:#f7efe9;color:#2a2320;border-color:rgba(0,0,0,.12)}
   body.light #ebox input,body.light #ebox select,body.light #ebox textarea{background:#fff;border-color:rgba(0,0,0,.16);color:#2a2320}
   #panel .pacts{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
-  /* 「在史料中查看」：与 2D 图谱页同一个入口，强调色描边 */
+  /* 在史料中查看：与 2D 图谱页同一个入口，强调色描边 */
   #panel .pacts a.hlink{padding:7px 12px;border-radius:9px;border:1px solid var(--accent);
     color:var(--accent);text-decoration:none;font-size:.82rem;display:inline-flex;align-items:center;gap:4px}
   #panel .pacts a.hlink:active{opacity:.7}
@@ -236,7 +236,7 @@ body.light #mg3 button{background:rgba(0,0,0,.05);color:#3a322c;border-color:rgb
 </div>
 <div id="hint">拖动旋转 · 双指/滚轮缩放 · 点击节点查看</div>
 <div id="legend"></div>
-<!-- 数据菜单：与 2D 关系图谱（graph.html）**同一个「⬇ 数据」按钮 + 弹出菜单**，用法完全一致 -->
+<!-- 数据菜单：与 2D 关系图谱（graph.html）**同一个⬇ 数据按钮 + 弹出菜单**，用法完全一致 -->
 <div id="dataMenu" role="menu" aria-label="导出数据">
   <button role="menuitem" onclick="yz3d.exportData3D('json')">JSON（节点 + 关系）</button>
   <button role="menuitem" onclick="yz3d.exportData3D('csv')">CSV（关系表，Excel 可读）</button>
@@ -247,7 +247,7 @@ body.light #mg3 button{background:rgba(0,0,0,.05);color:#3a322c;border-color:rgb
 <div id="loading"><div class="box" id="lbox">正在加载 3D 图谱…</div></div>
 
 <script>
-/* 先装好错误捕获：任何脚本「加载失败」或「解析/执行出错」都记录下来，便于准确诊断。 */
+/* 先装好错误捕获：任何脚本加载失败或解析/执行出错都记录下来，便于准确诊断。 */
 window.__3dErrs = [];
 window.yz3d = window.yz3d || { toggleList:function(){}, renderList:function(){}, pick:function(){}, fit:function(){},
   toggleYears:function(){}, yearSet:function(){}, exportData3D:function(){}, importData3D:function(){},
@@ -313,7 +313,7 @@ window.addEventListener('error', function (ev) {
 
   /* 主题口径与 graph.html 的 isLightMode() 一致：localStorage.theme = light | dark | auto
      （auto 时先问 App 桥的系统深色，再退到 prefers-color-scheme）。
-     以前 3D 页写死深色背景，导致「设置里选的深色/浅色」在 3D 图谱里不生效。 */
+     以前 3D 页写死深色背景，导致设置里选的深色/浅色在 3D 图谱里不生效。 */
   var LIGHT = (function () {
     var t = 'auto';
     try { t = localStorage.getItem('theme') || 'auto'; } catch (e) {}
@@ -341,14 +341,14 @@ window.addEventListener('error', function (ev) {
       .linkDirectionalParticleWidth(1.2)
       /* 省电①：默认 cooldownTicks=Infinity，模拟永不因 tick 数停下；给定有限值让物理确定收敛 */
       .cooldownTicks(300)
-      /* 省电②：监听「引擎停止＝布局稳定」，稍后暂停渲染循环 */
+      /* 省电②：监听引擎停止＝布局稳定，稍后暂停渲染循环 */
       .onEngineStop(function () { engineRunning = false; wake(700); })
       .nodeLabel(function (n) { return '<div style="background:#0c0e1e;border:1px solid #2a2a44;border-radius:8px;padding:6px 10px;font-size:13px"><b>' + n.name + '</b>' + (n.years ? ' · ' + n.years : '') + '</div>'; })
       .onNodeClick(function (n) { pickNode(n.id); })
       .onBackgroundClick(function () { clearSel(); });
 
     /* ★ 闭包钩子：G 与 NODES 是 start() 的局部变量，外层名字层拿不到。
-       这里把「用当前的 G/NODES 做一件事」暴露成全局函数，彻底绕开作用域问题。 */
+       这里把用当前的 G/NODES 做一件事暴露成全局函数，彻底绕开作用域问题。 */
     window.__yz3dWith = function (fn) {
       try { return fn(G, NODES, typeof nodeVisible === 'function' ? nodeVisible : null); } catch (e) { return null; }
     };
@@ -358,14 +358,14 @@ window.addEventListener('error', function (ev) {
        逐帧重绘；即使力导向已冷却、画面完全静止，也照画不误 → 空闲时仍产生海量 WebGL 调用、耗电发热。
        做法（不引入依赖、不改视觉结果）：
          · cooldownTicks(300) 使物理模拟确定收敛；
-         · onEngineStop 收到「引擎已停＝布局稳定」信号后，暂停渲染循环 G.pauseAnimation()；
+         · onEngineStop 收到引擎已停＝布局稳定信号后，暂停渲染循环 G.pauseAnimation()；
          · 任何交互/视觉变更（拖拽、缩放、点击、hover、resize、切数据集、时间滑块、恢复上下文…）
            调用 wake() → G.resumeAnimation() 短暂恢复渲染，空闲一段时间且引擎已停后再次暂停。
-       这样「停下来」不等于「卡死」：需要时随时会重新渲染。 */
+       这样停下来不等于卡死：需要时随时会重新渲染。 */
     var animPaused = false, engineRunning = true, pauseTimer = 0;
     function pauseLoop() { if (animPaused) return; animPaused = true; try { G.pauseAnimation(); } catch (e) {} }
     function resumeLoop() { if (!animPaused) return; animPaused = false; try { G.resumeAnimation(); } catch (e) {} }
-    /* 恢复渲染，并计划在「ms 毫秒空闲后」再次暂停；仅在物理引擎已停且页面可见时才真正暂停 */
+    /* 恢复渲染，并计划在ms 毫秒空闲后再次暂停；仅在物理引擎已停且页面可见时才真正暂停 */
     function wake(ms) {
       resumeLoop();
       if (pauseTimer) clearTimeout(pauseTimer);
@@ -440,7 +440,7 @@ window.addEventListener('error', function (ev) {
       try { document.body.classList.remove('p-collapsed'); } catch (e) {}
       applyA11y(); hintText();
     }
-    /* ---- 面板「收起 / 展开」：与 2D 图谱页（graph.html 的 collapsePanel/expandPanel）行为一致 ----
+    /* ---- 面板收起 / 展开：与 2D 图谱页（graph.html 的 collapsePanel/expandPanel）行为一致 ----
        收起后只留一个底部胶囊，被面板挡住的连线立刻可见；选中状态（高亮邻居）保持不变。 */
     function collapsePanel() {
       var p = document.getElementById('panel'); if (p) p.classList.remove('open');
@@ -480,7 +480,7 @@ window.addEventListener('error', function (ev) {
       applyA11y();
     }
     function yearSet(v) { yVal = parseInt(v, 10); yLabel(); applyA11y(); }
-    /* ---------- 「⬇ 数据」按钮：弹出菜单（照搬 2D 关系图谱的交互与定位） ---------- */
+    /* ---------- ⬇ 数据按钮：弹出菜单（照搬 2D 关系图谱的交互与定位） ---------- */
     var _dmEsc = false;
     function openDataMenu(ev) {
       var m = document.getElementById('dataMenu'), b = document.getElementById('dtb');
@@ -543,7 +543,7 @@ window.addEventListener('error', function (ev) {
           mime = 'application/xml'; txt = x.join('\n');
         } else {
           var o = { name: datasetKey, source: '学通', date: stamp,
-            /* 与 2D 关系图谱（graph.html）导出保持「同一套字段」，两个页面的 JSON 可互相导入：
+            /* 与 2D 关系图谱（graph.html）导出保持同一套字段，两个页面的 JSON 可互相导入：
                完整字段都带上（重建后不丢信息），运行期坐标 x/y/z 不导出。 */
             nodes: nodes.map(function (n) {
               var m = { id: n.id, name: n.name, type: n.type, years: n.years || '', role: n.role || '' };
@@ -610,14 +610,14 @@ window.addEventListener('error', function (ev) {
       } catch (e) { flash('导出失败：' + (e && e.message ? e.message : e), 4000); }
     }
 
-    /* ---------- 数据导入（与「导出」成对）：JSON → 作为一张新图谱打开 ----------
+    /* ---------- 数据导入（与导出成对）：JSON → 作为一张新图谱打开 ----------
        说明：App 内 WebView 的文件选择器由原生 onShowFileChooser 支持；
        导入结果同时写入 localStorage，下次打开 3D 图谱仍在。 */
     function _norm3D(obj) {
       var nodes = (obj && Array.isArray(obj.nodes) ? obj.nodes : []).filter(function (n) {
         return n && n.id != null && String(n.id).length > 0;
       }).map(function (n) {
-        /* 与 2D 导出同一套字段：完整保留业务字段，保证「导出 → 导入 → 再导出」不丢信息 */
+        /* 与 2D 导出同一套字段：完整保留业务字段，保证导出 → 导入 → 再导出不丢信息 */
         var o = { id: String(n.id), name: String(n.name == null ? n.id : n.name), type: String(n.type || 'person') };
         o.years = String(n.years || '');
         o.role = String(n.role || '');
@@ -721,10 +721,10 @@ window.addEventListener('error', function (ev) {
     /* 连续 10 秒渲染正常 → 重置自动恢复次数，避免无限重载 */
     setTimeout(function () { try { sessionStorage.removeItem('yz3dCtx'); } catch (e) {} }, 10000);
 
-    /* ---------- 主图谱增量：3D 的「全景星云」就是主图谱的 3D 视图 ----------
+    /* ---------- 主图谱增量：3D 的全景星云就是主图谱的 3D 视图 ----------
        2D 关系图谱与 3D 共用同一份自助编辑覆盖层（localStorage: yzy_ov_v1）。
        这里把覆盖层里针对主图谱（gid=main）的增删叠加到 base 数据集上，
-       从而做到「2D 里改的，3D 立刻能看到；3D 里加的，2D 也立刻能看到」。 */
+       从而做到2D 里改的，3D 立刻能看到；3D 里加的，2D 也立刻能看到。 */
     var DS_BASE = {};
     function dsBase(k) {
       if (!DS_BASE[k]) {
@@ -743,14 +743,14 @@ window.addEventListener('error', function (ev) {
       } catch (e) {}
       return { rmN: [], rmE: [], addN: [], addE: [] };
     }
-    /* 主图谱的「关系样式」覆盖（关系名 / 颜色） */
+    /* 主图谱的关系样式覆盖（关系名 / 颜色） */
     function mainEdgeStyle() {
       try {
         var g = (YZY.state() || {}).graphs || {};
         return (g.edgeStyle && g.edgeStyle.main) || {};
       } catch (e) { return {}; }
     }
-    /* 主图谱的「节点样式/内容」覆盖（改名、改类型、改介绍）——与 2D 同一份数据 */
+    /* 主图谱的节点样式/内容覆盖（改名、改类型、改介绍）——与 2D 同一份数据 */
     function mainNodeStyle() {
       try {
         var g = (YZY.state() || {}).graphs || {};
@@ -792,7 +792,7 @@ window.addEventListener('error', function (ev) {
         if (seen[key]) return;
         seen[key] = 1; out.push({ source: e.source, target: e.target, rel: e.rel || '关联' });
       });
-      /* 关系名 / 颜色覆盖（key 用「原 rel」，与 setEdgeStyle 写入时一致） */
+      /* 关系名 / 颜色覆盖（key 用原 rel，与 setEdgeStyle 写入时一致） */
       var est = mainEdgeStyle();
       out = out.map(function (l) {
         var sid = endId(l.source), tid = endId(l.target);
@@ -821,7 +821,7 @@ window.addEventListener('error', function (ev) {
       NODES = vd.nodes; LINKS = vd.links;
       window.__yzN = NODES; window.__yzG = G;   /* ★ 供名字层使用：它们原本是 start() 的局部变量 */
       /* 必须把“同一批对象”交给引擎：引擎会把 x/y/z 写在传入的节点上，
-         若这里传副本，页面里的 NODES 就永远拿不到坐标（曾经导致「列表→跳转」飞到原点）。 */
+         若这里传副本，页面里的 NODES 就永远拿不到坐标（曾经导致列表→跳转飞到原点）。 */
       G.graphData({ nodes: vd.nodes, links: vd.links });
       scheduleFit();
       legend();
@@ -969,7 +969,7 @@ window.addEventListener('error', function (ev) {
             return '<span class="sw' + (c === cur ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></span>';
           }).join('') + '</div>' +
         '<input id="er_color" value="' + cur + '" readonly>' +
-        '<div class="tip">关系名与颜色写入主图谱覆盖层：2D 关系图谱、图谱导出同步；「反向」会把这层方向掉过来。</div>' +
+        '<div class="tip">关系名与颜色写入主图谱覆盖层：2D 关系图谱、图谱导出同步；反向会把这层方向掉过来。</div>' +
         '<div class="row"><button type="button" onclick="yz3d.closeEdit()">取消</button>' +
         '<button type="button" onclick="yz3d.reverseEdgeUI()">⇄ 反向</button>' +
         '<button type="button" class="dgr" onclick="yz3d.deleteEdgeUI()">删除</button>' +
@@ -996,7 +996,7 @@ window.addEventListener('error', function (ev) {
       if (!r || r.ok === false) { flash('保存失败：' + ((r && r.msg) || '未知原因'), 3400); return; }
       closeEdit(); load('nebula');
       setTimeout(function () { var n = findNodeById(k.sid); if (n) { openPanel(n); pickNode(k.sid); } }, 700);
-      flash('关系已更新为「' + nm + '」', 3000);
+      flash('关系已更新为' + nm + '', 3000);
     }
     function deleteEdgeUI() {
       var k = edgeEditKey; if (!k) return;
@@ -1034,9 +1034,9 @@ window.addEventListener('error', function (ev) {
       if (!(window.YZY && YZY.removeGraphNode)) { flash('本版本不支持删除节点', 3000); return; }
       var n = findNodeById(selId);
       if (!n) { flash('请先点一个节点', 2400); return; }
-      if (!nodeInMain(n.id)) { flash('「' + (n.name || n.id) + '」不在主图谱，无法在这里删除', 3600); return; }
-      openEdit('<h3>删除节点「' + esc3(n.name || n.id) + '」？</h3>' +
-        '<div class="tip">与它相连的关系线会一起删除。删除写入主图谱，2D 图谱同步；可用 2D 编辑台的「撤销」恢复。</div>' +
+      if (!nodeInMain(n.id)) { flash('' + (n.name || n.id) + '不在主图谱，无法在这里删除', 3600); return; }
+      openEdit('<h3>删除节点' + esc3(n.name || n.id) + '？</h3>' +
+        '<div class="tip">与它相连的关系线会一起删除。删除写入主图谱，2D 图谱同步；可用 2D 编辑台的撤销恢复。</div>' +
         '<div class="row"><button type="button" onclick="yz3d.closeEdit()">取消</button>' +
         '<button type="button" class="dgr" onclick="yz3d.doDeleteNode()">确定删除</button></div>');
     }
@@ -1047,15 +1047,15 @@ window.addEventListener('error', function (ev) {
       var r = YZY.removeGraphNode('main', id);
       if (!r || r.ok === false) { flash('删除失败：' + ((r && r.msg) || '未知原因'), 3200); return; }
       closeEdit(); clearSel(); load('nebula');
-      flash('已删除「' + (n.name || id) + '」', 3000);
+      flash('已删除' + (n.name || id) + '', 3000);
     }
 
     function editNodeUI() {
       if (!(window.YZY && YZY.setNodeStyle)) { flash('本版本不支持在图谱里改节点', 3000); return; }
       var n = findNodeById(selId);
       if (!n) { flash('请先点一个节点', 2400); return; }
-      if (!nodeInMain(n.id)) { flash('「' + (n.name || n.id) + '」不在主图谱（属于文献/著作视图），改名请到 2D 图谱的编辑台', 4200); return; }
-      openEdit('<h3>✏️ 编辑「' + esc3(n.name || n.id) + '」</h3>' +
+      if (!nodeInMain(n.id)) { flash('' + (n.name || n.id) + '不在主图谱（属于文献/著作视图），改名请到 2D 图谱的编辑台', 4200); return; }
+      openEdit('<h3>✏️ 编辑' + esc3(n.name || n.id) + '</h3>' +
         '<label for="ed_name">名称（改名后 3D / 2D / 导出一起变）</label><input id="ed_name" maxlength="40" value="' + escAttr3(n.name || '') + '">' +
         '<label for="ed_type">类型</label><select id="ed_type">' +
           EDIT_TYPES.map(function (t) {
@@ -1092,7 +1092,7 @@ window.addEventListener('error', function (ev) {
         var nn = findNodeById(keep);
         if (nn) { openPanel(nn); pickNode(keep); }
       }, 700);
-      flash('已保存「' + name + '」（写入主图谱）', 3200);
+      flash('已保存' + name + '（写入主图谱）', 3200);
     }
 
     function addNodeUI() {
@@ -1118,7 +1118,7 @@ window.addEventListener('error', function (ev) {
       closeEdit();
       setTab('nebula'); load('nebula');
       setTimeout(function () { pickNode(r.id); }, 600);
-      flash('已新增节点「' + nm + '」（已写入主图谱）', 3400);
+      flash('已新增节点' + nm + '（已写入主图谱）', 3400);
     }
     function addEdgeUI() {
       if (!(window.YZY && YZY.addGraphEdge)) { flash('本版本不支持在图谱里加关系', 3000); return; }
@@ -1164,7 +1164,7 @@ window.addEventListener('error', function (ev) {
       var from = selId, to = ((document.getElementById('ee_target') || {}).value) || '';
       var rel = String(((document.getElementById('ee_rel') || {}).value) || '').trim() || '关联';
       if (!from || !to) { flash('请选择起点与终点', 2600); return; }
-      /* 端点若不在主图谱（例如「文献·著作」视图里的著作节点），先补进主图谱再连，否则会被拒 */
+      /* 端点若不在主图谱（例如文献·著作视图里的著作节点），先补进主图谱再连，否则会被拒 */
       var have = {};
       try { (window.SITE_GRAPH.nodes || []).forEach(function (n) { have[n.id] = 1; }); } catch (e) {}
       try { var st = YZY.state() || {}; ((st.graphs && st.graphs.nodeAdd && st.graphs.nodeAdd.main) || []).forEach(function (n) { have[n.id] = 1; }); } catch (e) {}
@@ -1181,7 +1181,7 @@ window.addEventListener('error', function (ev) {
       closeEdit();
       setTab('nebula'); load('nebula');
       setTimeout(function () { pickNode(from); }, 600);
-      flash('已加关系「' + rel + '」（写入主图谱）' + (added.length ? '，并把 ' + added.join('、') + ' 一并加入' : ''), 3600);
+      flash('已加关系' + rel + '（写入主图谱）' + (added.length ? '，并把 ' + added.join('、') + ' 一并加入' : ''), 3600);
     }
 
     /* ===== 节点名字：DOM 叠加层，用 graph2ScreenCoords 跟随投影 ===== */
@@ -1195,9 +1195,9 @@ window.addEventListener('error', function (ev) {
       }
       return LB_BOX;
     }
-    /* 取「真正在动的那些节点」。
+    /* 取真正在动的那些节点。
        ⚠️ 原来直接用 NODES（传给 graphData 的原数组）：3d-force-graph 会把节点复制成内部对象，
-       原数组元素可能根本没有 x/y/z → 全部按 (0,0,0) 投影到屏幕正中，看上去就是「没有名字」。
+       原数组元素可能根本没有 x/y/z → 全部按 (0,0,0) 投影到屏幕正中，看上去就是没有名字。
        这里优先取 G.graphData().nodes（引擎内部那份，一定带坐标），拿不到才退回原数组。 */
     var LB_SRC = [];
     function lbLive() {
@@ -1267,9 +1267,9 @@ window.addEventListener('error', function (ev) {
         el.style.display = out ? 'none' : '';
         if (!out) { el.style.left = Math.round(c.x) + 'px'; el.style.top = Math.round(c.y) + 'px'; }
       }
-      /* 把「可见/总数」显到按钮上：用户不用打开管理面板就能看出名字层是否在干活 */
+      /* 把可见/总数显到按钮上：用户不用打开管理面板就能看出名字层是否在干活 */
       if (++_lbSyncTick % 8 === 1) { try { syncLbBtn(); } catch (e) { } }
-      /* 连续 ~4 秒一个都看不见 → 说明不是「节点在视野外」，而是渲染层出了问题 */
+      /* 连续 ~4 秒一个都看不见 → 说明不是节点在视野外，而是渲染层出了问题 */
       var _visN = 0;
       for (var q = 0; q < LB_ITEMS.length; q++) if (LB_ITEMS[q].el.style.display !== 'none') _visN++;
       if (LB_ITEMS.length && !_visN) { if (++_lbDead === 30) { try { lbWarn(); } catch (e) { } } }
@@ -1324,7 +1324,7 @@ window.addEventListener('error', function (ev) {
     })(0);
     /* 数据是异步载入的：早中晚各尝试一次建标签 */
     [300, 1200, 2600].forEach(function (t) { setTimeout(function () { try { lbBuild(); } catch (e) {} }, t); });
-    /* 图例避让：让「关系图例」始终停在按钮组上方，互不遮挡 */
+    /* 图例避让：让关系图例始终停在按钮组上方，互不遮挡 */
     function syncLegendPos() {
       try {
         var t = document.getElementById('tools'), l = document.getElementById('legend');
@@ -1351,10 +1351,10 @@ window.addEventListener('error', function (ev) {
       var vis = 0;
       for (var i = 0; i < LB_ITEMS.length; i++) if (LB_ITEMS[i].el.style.display !== 'none') vis++;
       var why = '';
-      if (!LB_ON) why = '（名字层已关闭，点「🏷 名字」打开）';
+      if (!LB_ON) why = '（名字层已关闭，点🏷 名字打开）';
       else if (!nn) why = '（还没拿到节点数据）';
       else if (!LB_ITEMS.length) why = '（节点里没有可用对象——请把此状态告知维护者）';
-      else if (!vis) why = '（节点都在视野外，转一下或点「⤢ 适应窗口」）';
+      else if (!vis) why = '（节点都在视野外，转一下或点⤢ 适应窗口）';
       el.textContent = '状态：节点 ' + nn + ' · 标签 ' + LB_ITEMS.length + ' · 已显示 ' + vis +
         ' · 坐标API ' + (hasApi ? '有' : '无') + (conv ? (' · 示例 ' + first) : '') + why;
     }, 800);
@@ -1373,7 +1373,7 @@ window.addEventListener('error', function (ev) {
 
     window.yz3d = { toggleList: toggleList, renderList: renderList, pick: pickNode, fit: fitView,
       toggleLabels: toggleLabels, toggleMgr3: toggleMgr3,
-      /* 名字层自检：给「为什么看不到名字」提供可核对的数据 */
+      /* 名字层自检：给为什么看不到名字提供可核对的数据 */
       labelState: function () {
         var vis = 0, i;
         for (i = 0; i < LB_ITEMS.length; i++) if (LB_ITEMS[i].el && LB_ITEMS[i].el.style.display !== 'none') vis++;

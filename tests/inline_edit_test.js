@@ -61,7 +61,7 @@ setTimeout(() => {
       ok('介绍输入框有初值', !!i && i.value === String(book.intro || ''));
 
       // ⑤ 改介绍并保存
-      const NEWTXT = '【测试】这段是内联编辑写入的介绍。';
+      const NEWTXT = '测试这段是内联编辑写入的介绍。';
       i.value = NEWTXT;
       const oldIntro = book.intro;
       const save = box.querySelector('[data-re="save"]');
@@ -77,7 +77,7 @@ setTimeout(() => {
 
       // ⑦ 校验：内存中的 RES 已更新（reapply 生效）
       const after = w.eval(`RES.find(function(x){return (x.id||x.title)===${JSON.stringify(id)}})`) || w.eval('RES[0]');
-      ok('页面数据已刷新为新的介绍', String(after.intro || '').indexOf('【测试】') >= 0,
+      ok('页面数据已刷新为新的介绍', String(after.intro || '').indexOf('测试') >= 0,
           String(after.intro || '').slice(0, 24));
 
       // ⑧ 校验：旧内容确实被替换（不是追加）

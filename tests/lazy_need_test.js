@@ -1,4 +1,4 @@
-/* 学通：懒加载模块「要用时才拉」（0.18.24）
+/* 学通：懒加载模块要用时才拉（0.18.24）
    背景：speech/zoompane/photo/selftest/quote-match/exportdata/booknote/mine/editor
         这 9 个被挪进懒加载队列尾部，用户点了才发现在排队 → 看着像功能没了。
    本测试锁住：need/guard 能现拉、不重复拉、到货后接着执行。 */
@@ -17,15 +17,15 @@ html = html.replace(/<script([^>]*?)\ssrc="([^"]+)"([^>]*)><\/script>/g, (m, a, 
   try { return '<script>' + fs.readFileSync(BASE + src, 'utf8') + '</' + 'script>'; } catch (e) { return ''; }
 });
 const loads = [];      // 记录懒加载/按需加载了哪些文件
-const block = new Set(); // 故意「卡住」的文件（模拟还在排队）
-let holdQueue = true;   // 队列先不动，方便验证「用到时才拉」
+const block = new Set(); // 故意卡住的文件（模拟还在排队）
+let holdQueue = true;   // 队列先不动，方便验证用到时才拉
 
 const dom = new JSDOM(html, {
   url: 'https://local.test/', runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: vc,
   beforeParse(w) {
     w.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, { get: () => () => ({ width: 0 }), set: () => true });
     w.scrollTo = () => {};
-    /* 关键：让队列停在原地（真正模拟「模块还在排队」）。
+    /* 关键：让队列停在原地（真正模拟模块还在排队）。
        lazydata 的每一步都走 requestIdleCallback，这里给一个永不回调的实现。 */
     w.requestIdleCallback = function () { };
     const orig = w.document.createElement.bind(w.document);
@@ -130,7 +130,7 @@ const w = dom.window, d = w.document;
 
   ok('全程无 JS 错误', errs.length === 0, errs.slice(0, 2).join(' | '));
 
-  console.log('\n===== 懒加载「要用时再拉」 =====');
+  console.log('\n===== 懒加载要用时再拉 =====');
   console.log('通过 ' + pass + ' · 失败 ' + fail);
   if (bad.length) { bad.forEach(x => console.log('  ✗ ' + x)); process.exit(1); }
   process.exit(0);

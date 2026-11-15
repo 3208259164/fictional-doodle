@@ -9,11 +9,11 @@
 .crumb a { color:var(--text); text-decoration:none; }
 .crumb .sep { opacity:.45; margin:0 5px; }
 
-/* ---------- 「上新」角标 ---------- */
+/* ---------- 上新角标 ---------- */
 .badge-new { font-style:normal; font-size:0.6rem; letter-spacing:1px; color:#3a0d0d; background:var(--accent);
   border-radius:5px; padding:0 5px; margin-left:6px; vertical-align:middle; font-weight:bold; }
 
-/* ---------- 「被批判」角标 ---------- */
+/* ---------- 被批判角标 ---------- */
 .badge-crit { font-style:normal; font-size:0.6rem; letter-spacing:1px; color:var(--text); background:transparent;
   border:1px solid var(--card-border); border-radius:5px; padding:0 5px; margin-left:6px; vertical-align:middle; opacity:.7; }
 
@@ -88,7 +88,7 @@ body.light .leave-card { background:linear-gradient(160deg,#fff8f3,#f3e3d8); box
 
 /* ---------- 底部标签栏（仅移动端显示） ---------- */
 .tabbar { position:fixed; left:0; right:0; bottom:0; z-index:55; display:none;
-  /* 与主页共用同一套背景：原来用半透明深色 rgba(28,3,3,.86)，深色主题下会缩成一块「黑色」，
+  /* 与主页共用同一套背景：原来用半透明深色 rgba(28,3,3,.86)，深色主题下会缩成一块黑色，
      与正文不符（用户反馈）。改用 inherit + fixed 附着，让底栏和它上方的内容严格同色。 */
   background:var(--bar-bot);
   border-top:1px solid var(--card-border);
@@ -98,7 +98,7 @@ body.light .leave-card { background:linear-gradient(160deg,#fff8f3,#f3e3d8); box
 .tabbar button .ti { font-size:1.05rem; line-height:1; }
 .tabbar button:hover, .tabbar button:focus-visible { opacity:1; color:var(--text); }
 
-/* ---------- 可折叠块：详情页「详细介绍」与「章节目录 · 章节内容」 ---------- */
+/* ---------- 可折叠块：详情页详细介绍与章节目录 · 章节内容 ---------- */
 details.fold > summary.fold-t { cursor:pointer; list-style:none; display:flex; align-items:center; gap:6px;
   font-size:.9rem; font-weight:700; color:var(--accent); padding:10px 2px; min-height:44px;
   border-bottom:1px solid var(--card-border); }
@@ -217,6 +217,18 @@ details.q p { opacity:.85; margin:6px 0 2px; }
 .note-box { font-size:.78rem; line-height:1.9; opacity:.85; }
 .cite { font-size:.8rem; line-height:1.9; padding:10px 12px; border:1px dashed var(--card-border); border-radius:10px; user-select:all; }
 
+/* ---------- 文字自动放大（Font Boosting）----------
+   Chromium 的 Text Autosizer 会在移动端把过小的正文统一放大：
+     multiplier = max(1, deviceScaleAdjustment × textScalingSlider × systemFontScale × clusterWidth / screenWidth)
+     若 originFontSize <= 32×multiplier−16，就按 32×multiplier−16 渲染。
+   multiplier 常见 1.0~1.3 → 阈值 16~25.6px，正好把我们 15/16/18px 的字号全拉平，
+   于是字号小/标准/大在手机上看起来一模一样（2026-11-15 定位到的真因）。
+   修法用标准的 text-size-adjust:100%（不要用 none，那会连带禁用系统无障碍缩放）。 */
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+body { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+/* 阅读区再单独锁一次：长段纯文本是最容易被 Autosizer 挑中的区域 */
+#yzbkBody, #yzReader .reader-body { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+
 /* ---------- 行距 / 版心（设置里可调） ---------- */
 :root { --lh:1.9; --maxw:460px; --qtop-h:50px; }   /* --qtop-h：顶栏高度，body 留白与 .qtop 共用，横屏改一处即可 */
 body { line-height:var(--lh); }
@@ -262,9 +274,9 @@ a.card .tags i { border:0; background:transparent; }
 body { padding-top: calc(var(--qtop-h) + env(safe-area-inset-top, 0px)); }
 .qtop { position:fixed; top:0; left:0; right:0; z-index:95; display:flex; align-items:center; gap:10px;
   height:calc(var(--qtop-h) + env(safe-area-inset-top, 0px)); padding:env(safe-area-inset-top, 0px) 12px 0;
-  /* 顶栏必须与正文「同一片颜色」：这里不再用半透明实色（那会和正文渐变背景形成明显色块分层），
+  /* 顶栏必须与正文同一片颜色：这里不再用半透明实色（那会和正文渐变背景形成明显色块分层），
      而是复用 body 的同一套背景图层，并把背景尺寸显式设为 100vw×100vh、定位到左上角——顶栏固定
-     在视口顶部，于是它呈现的正是正文背景在「视口顶部」的那一段，与紧邻下方的内容区严格同色、
+     在视口顶部，于是它呈现的正是正文背景在视口顶部的那一段，与紧邻下方的内容区严格同色、
      无缝衔接。显式 background-size 不依赖 background-attachment:fixed 的行为，兼容性更好；
      最后一行纯色是不支持多层渐变时的后备。 */
   background:var(--bar-top); }
@@ -344,14 +356,14 @@ body.light .qtop { }
 .drawer.page.open { transform:none; opacity:1; visibility:visible; }
 /* 抽屉模式：从左滑出 */
 /* 个人中心（左侧抽屉）：底部不留白 —— 底栏自己带 safe-area，抽屉再留就会
-   在「设置 / 夜间」下方多出一条不同色的空隙（用户反复反馈的色差来源之一）。
+   在设置 / 夜间下方多出一条不同色的空隙（用户反复反馈的色差来源之一）。
    自身也不滚动：滚动交给中间的 .pc-list。 */
 .drawer:not(.page){ width:100%; z-index:96; padding:calc(14px + env(safe-area-inset-top, 0px)) 18px 0; overflow:hidden; visibility:hidden; transition:transform .25s ease, visibility 0s .25s; }
 .drawer:not(.page).open{ visibility:visible; transition:transform .25s ease, visibility 0s; }
 .scrim { z-index:65; }
 
-/* ---------- 个人中心（仿 QQ「我的」） ---------- */
-/* ---------- 个人中心（抽屉）：对齐 QQ「我的」结构 ----------
+/* ---------- 个人中心（仿 QQ我的） ---------- */
+/* ---------- 个人中心（抽屉）：对齐 QQ我的结构 ----------
    上：用户卡片（独立圆角块）
    中：功能列表 —— 无分隔线；每行通栏，左右屏幕边界都能点到；行高收紧
    下：设置 / 夜间 —— 与中间隔开，滑动时固定不动（sticky bottom）
@@ -376,7 +388,7 @@ body.light .qtop { }
 .pc-ar { opacity:.35; }
 /* 个人中心三段式：头（固定）＋ 列表（唯一滚动区）＋ 底栏（固定）。
    底栏背景设为 transparent，直接透出抽屉自身的渐变 —— 不再复制一份渐变去
-   「对齐」，因为 Android WebView 对 background-attachment:fixed 支持不稳，
+   对齐，因为 Android WebView 对 background-attachment:fixed 支持不稳，
    复制出来的渐变会被当成小块铺，颜色永远对不上（用户反复反馈的那块色差）。 */
 #pcView { display:flex; flex-direction:column; height:100%; min-height:0; overflow:hidden; }
 .pc-bottom { display:flex; gap:10px; justify-content:flex-start; flex:none;
@@ -393,7 +405,7 @@ body.light .qtop { }
 /* 每日一句：预留最小高度，避免翻页时下方内容跳动 */
 #dailyQuote { height:6.88rem; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 
-/* ===================== 主页「我的好友」（QQ 式） ===================== */
+/* ===================== 主页我的好友（QQ 式） ===================== */
 #homeFriends .group-title { letter-spacing:2px; }
 .frow { display:flex; align-items:center; gap:12px; padding:9px 4px; cursor:pointer; border-bottom:1px solid var(--card-border); }
 .frow:last-child { border-bottom:0; }
@@ -469,12 +481,12 @@ body.light .qtop { }
 .hp .hp-t { display:block; font-size:.84rem; font-weight:600; margin-bottom:3px; }
 .hp .hp-d { display:block; font-size:.82rem; line-height:1.85; opacity:.85; }
 
-/* ---------- 分类页管理（下拉面板，样式同「＋」） ---------- */
+/* ---------- 分类页管理（下拉面板，样式同＋） ---------- */
 .cls-tt { font-size:.78rem; font-weight:700; opacity:.85; padding:6px 10px 8px; border-bottom:1px solid var(--card-border); margin-bottom:3px; }
 .qpanel .cls-row { padding:7px 10px; border-radius:8px; border-bottom:0; }
 .qpanel .cls-row:hover { background:rgba(245,197,24,.14); }
 .qpanel .cls-ok { justify-content:center; color:var(--accent); font-weight:700; margin-top:5px;
-  /* 面板可能比一屏高（快捷分类 12 项），「完成」要一直贴在可视区底部，否则要滚到最下面才点得到 */
+  /* 面板可能比一屏高（快捷分类 12 项），完成要一直贴在可视区底部，否则要滚到最下面才点得到 */
   position:sticky; bottom:0; background:var(--card); box-shadow:0 -8px 12px -8px rgba(0,0,0,.35); }
 
 /* ===== 抽屉（整页推进 / 左侧个人中心）都与首页共用同一套页面背景 =====
@@ -583,7 +595,7 @@ body.light .qtop { }
 .fintro p:first-child { text-indent:2em; }
 .fintro b, .fintro strong { color:var(--accent); }
 
-/* 专题「关键论断」原文引文 */
+/* 专题关键论断原文引文 */
 .fquote { margin:4px 0 10px; }
 .fquote blockquote { margin:0 0 10px; padding:9px 12px 8px; border-left:3px solid var(--accent);
   background:rgba(245,197,24,.06); border-radius:0 8px 8px 0; }
@@ -611,7 +623,7 @@ body.light .qtop { }
 .aa-panel button.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
 .aa-panel b { min-width:2.6em; text-align:center; font-variant-numeric:tabular-nums; opacity:.85; }
 
-/* 阅读模式：底栏粘住、藏掉底导与「安装到桌面」 */
+/* 阅读模式：底栏粘住、藏掉底导与安装到桌面 */
 .reader-foot { position:sticky; bottom:0; z-index:3; background:var(--bg); }
 body.yzreading .tabbar, body.yzreading #installBtn, body.yzreading #toTop { display:none !important; }
 #yzReader.th-night .reader-foot { background:transparent; }

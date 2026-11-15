@@ -2,7 +2,7 @@
 /* 生成 edge-meta 候选：按两端节点的存续年份推导关系的有效区间
  *
  * 逻辑：一条边的两端节点都标了 y0/y1 时，节点存续区间之交可作为
- * 「这条关系可能成立的时间窗」的**候选**（不等于事实，故输出 c:1）。
+ * 这条关系可能成立的时间窗的**候选**（不等于事实，故输出 c:1）。
  * 只列尚未标注过的边；两端年份无交集或缺失的跳过。
  *
  * 用法：node tools/gen_edgemeta_cand.js [数量]
@@ -31,7 +31,7 @@ links.forEach(l => {
   if (!a || !b) return;
   const y0 = Math.max(a.y0 || 0, b.y0 || 0), y1 = Math.min(a.y1 || 0, b.y1 || 0);
   if (!y0 || !y1 || y1 < y0) return;
-  /* 只挑「组织/事件」参与的边：这类关系的起止最可能跟节点存续一致 */
+  /* 只挑组织/事件参与的边：这类关系的起止最可能跟节点存续一致 */
   const topical = /org|event/.test(a.type || '') || /org|event/.test(b.type || '');
   cand.push({
     key, a: a.name, b: b.name, rel: l.rel, t: [y0, y1],

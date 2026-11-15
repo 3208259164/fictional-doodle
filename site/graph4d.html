@@ -75,7 +75,7 @@ body.light #tl{background:linear-gradient(to top,rgba(245,233,226,.97),rgba(245,
   border:1px solid var(--card-border,rgba(255,255,255,.24));border-radius:999px;padding:.15rem .5rem;cursor:pointer;opacity:.8}
 #bandrow2 button.on{background:var(--accent,#f5c518);color:#2b0505;border-color:transparent;font-weight:600;opacity:1}
 #bandrow2 .sep{opacity:.3;font-size:.6875rem}
-/* 顶部提示条：用于「本图谱时间跨度只有一段」这类结构性说明 */
+/* 顶部提示条：用于本图谱时间跨度只有一段这类结构性说明 */
 #banner{position:fixed;left:.5rem;right:calc(4.6rem);top:calc(3.1rem + env(safe-area-inset-top,0px));z-index:35;
   display:none;font-size:.75rem;line-height:1.6;padding:.5rem .7rem;border-radius:.5rem;
   background:rgba(245,197,24,.14);border:1px solid rgba(245,197,24,.45);color:var(--text);
@@ -169,7 +169,7 @@ body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:
    学通 · 3D 时空立方体（graph4d.html，站点 0.36.32 新增）
    ---------------------------------------------------------------------
    为什么不用 WebGL / 3d-force-graph：
-     ① 立方体是「静态几何 + 正交投影」，没有任何物理与光照需求，
+     ① 立方体是静态几何 + 正交投影，没有任何物理与光照需求，
         本质是把 3 维坐标投到 2 维再画，Canvas 2D 足够（百级图元 <2ms/帧）；
      ② 3d-force-graph 的 UMD 包没有暴露 THREE 命名空间（官方 issue #729 确认），
         nodeThreeObject 里造不出线段/立方块/薄片，自定义几何这条路走不通；
@@ -219,8 +219,8 @@ body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:
     'rgba(180,180,60,.55)', 'rgba(120,170,90,.55)', 'rgba(90,150,190,.55)'];
 
   /* 时间刻度两种模式：
-     · seg（默认）六段等宽——解决「1919—1949 只占 1/5 高度」的挤压；
-       代价是 79 年与 4 年画成同样高度，会误导对「时长」的判断，
+     · seg（默认）六段等宽——解决1919—1949 只占 1/5 高度的挤压；
+       代价是 79 年与 4 年画成同样高度，会误导对时长的判断，
        所以轴上必须标年份、并且给用户切回线性刻度的开关。
      · lin 等距年份——不做任何压缩，时长判断准确，但 burst 区会挤死。 */
   var timeMode = 'seg';
@@ -317,7 +317,7 @@ body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:
         bb.y0 = Math.min(bb.y0, y); bb.y1 = Math.max(bb.y1, y);
       }
     });
-    /* 同城节点「花瓣散开」：同一 0.2° 网格内的节点围成小圈，半径随数量增长。
+    /* 同城节点花瓣散开：同一 0.2° 网格内的节点围成小圈，半径随数量增长。
        为什么不用随机抖动：随机会让两次打开的位置不同，用户无法建立空间记忆；
        花瓣是有序的（按索引逆时针），同一个城市永远长成同一朵花。 */
     respread();
@@ -351,11 +351,11 @@ body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:
   }
   var BYID = {};
 
-  /* 散开半径按「屏幕像素」算，不按度数写死：
+  /* 散开半径按屏幕像素算，不按度数写死：
      上一版写 0.75+0.42√m 度，乘 3.16px/度 在屏幕上只有 2~8px，
      小于节点直径（5.8px），等于没散。现在目标间距 13px，
      换算成度数要除以当前 scale；上下限防极端（scale 很小时不把点甩到别的省去）。 */
-  /* 散开：只处理「同城 + 同年」的真重叠。
+  /* 散开：只处理同城 + 同年的真重叠。
      实测数据（新民 113 节点）：同城多点的 14 个组里，40 个点靠 Z 轴（年份）本来就分开了，
      真正叠在一起（同城同年、Z 也相同）的只有 6 对；旧民是 44 比 7。
      所以上一版按城市整体散开是错的——它散了本不重叠的点，还让相邻城市互相穿插
@@ -387,7 +387,7 @@ body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:
       });
     });
   }
-  /* 验收用：把所有「同城同年」组投影到屏幕，返回组内最小间距 */
+  /* 验收用：把所有同城同年组投影到屏幕，返回组内最小间距 */
   function overlapCheck() {
     var key = {}, i;
     for (i = 0; i < GR.nodes.length; i++) {
@@ -411,12 +411,12 @@ body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:
   }
 
   /* ---------- 自适应缩放 ----------
-     ⚠ 这里必须分清两件事，否则会出现「缩放后一拖动就回弹」：
+     ⚠ 这里必须分清两件事，否则会出现缩放后一拖动就回弹：
        · 重算 scale —— 只在换图谱 / 切视角 / 改窗口尺寸时做；
        · 只重算中心 —— 拖拽旋转时做，scale 保持不变。
      上一版把两件事塞在同一个 fit() 里，而 pointermove 每帧都调 fit()，
      于是用户滚轮放大后只要一拖动，scale 立刻被重置回初始值。
-     规范依据：Canvas 场景里「位置随变换走、字形保持屏幕尺寸」，
+     规范依据：Canvas 场景里位置随变换走、字形保持屏幕尺寸，
      等价地，视图中心可以变、但用户设定的缩放级别不该被他没碰的操作改掉。 */
   function boxOf() {
     var cs = [];
@@ -464,9 +464,9 @@ body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:
 
   /* 时间筛选两种模式（学术上叫 focus+context 的两种取法）：
      · window（默认）当前年份 ±半窗，窗口外的节点淡到 7% 作为上下文——
-       这是切开「1927—1949 挤成一团」的关键：一屏只认真看 1~2 段。
+       这是切开1927—1949 挤成一团的关键：一屏只认真看 1~2 段。
      · cum 截至某年累积，保留“到这一年为止已发生什么”的读法。
-     窗口宽度按「段」而不是「年」来定：分段刻度下每段等宽，
+     窗口宽度按段而不是年来定：分段刻度下每段等宽，
      按年算会让 1840—1919 段的窗口只有几像素、1945—1949 段的窗口超过一整段。 */
   var cutYear = T1;
   var winMode = 'window';
@@ -814,7 +814,7 @@ body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:
     var k = Object.keys(used).length;
     if (k <= 1 && GR.nodes.length > 4) {
       banner.innerHTML = '<b>本图谱时间跨度只有一段</b>（' + minY + '—' + maxY +
-        '，全部落在「' + SEG[Object.keys(used)[0] | 0][2] + '」里）。Z 轴不提供额外信息，换「等距年份」或直接用 2D 地图看得更清楚。' +
+        '，全部落在' + SEG[Object.keys(used)[0] | 0][2] + '里）。Z 轴不提供额外信息，换等距年份或直接用 2D 地图看得更清楚。' +
         '<button id="bnGo">去 2D 地图</button><button id="bnX">知道了</button>';
       banner.classList.add('show');
       document.getElementById('bnX').onclick = function () { banner.classList.remove('show'); };
@@ -927,7 +927,7 @@ body.light #panel{background:linear-gradient(160deg,#fbf3ee,#f2e2d8);box-shadow:
     winRange: function () { return winRange(); },
     banner: function () { return document.getElementById('banner').classList.contains('show'); },
     overlap: function () { return overlapCheck(); },
-    /* 屏幕上相邻节点最近距离（验证「散开是否真的张开」用） */
+    /* 屏幕上相邻节点最近距离（验证散开是否真的张开用） */
     spacing: function () {
       var S = GR.nodes.filter(function (n) { return typeOn[n.type]; }).map(function (n) {
         var p = proj(n._x, n._y, n._z1); return { x: p.x, y: p.y };

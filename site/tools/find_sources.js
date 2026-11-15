@@ -10,8 +10,8 @@
    只做检索，不下载、不做正版/盗版判定。
 
    已考虑的情况：单源失败不影响其它源 / 超时 / 限流(403/429) / 地区限制 /
-   本机无网络 / 中文书名命中率低 —— 均如实标注，并区分「本机网络问题」与
-   「源本身问题」（先做联网预检，再逐条判定）。
+   本机无网络 / 中文书名命中率低 —— 均如实标注，并区分本机网络问题与
+   源本身问题（先做联网预检，再逐条判定）。
    来源：Internet Archive · Google Books · Open Library · 维基文库 · HathiTrust · marxists.org */
 const fs = require('fs');
 const path = require('path');

@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------
    为什么需要：用户数据分散在三处 —— localStorage、IndexedDB、Android 私有文件。
    它们承接的东西完全不同（进度 / 正文 / 编辑），但以前没有任何一处能回答
-   「我有哪些数据、存在哪、能不能导出、换版本会不会丢」。
+   我有哪些数据、存在哪、能不能导出、换版本会不会丢。
 
    这份清单是**声明式**的：代码、诊断报告、导出流程都从这里取口径，
    不再各自硬编码键名。改数据结构时先改这里，再改实现。
@@ -12,7 +12,7 @@
      k     键名或键名前缀（* 结尾表示前缀匹配）
      where local | idb | native
      ver   该数据的结构版本（升级时写迁移函数并 +1）
-     export 是否随「导出」带走（false 表示只在本机有效，如主题偏好）
+     export 是否随导出带走（false 表示只在本机有效，如主题偏好）
      desc  一句话说明
    ===================================================================== */
 (function () {
@@ -47,7 +47,7 @@
   function sizeOf(v) { return v == null ? 0 : String(v).length; }
 
   /* 统计当前实际占用：每条数据是否在场、大约多少字节。
-     localStorage 能直接量；IndexedDB / 原生文件这里只报「清单声明」，不假装量过。 */
+     localStorage 能直接量；IndexedDB / 原生文件这里只报清单声明，不假装量过。 */
   function audit() {
     var out = [], legacy = 0;
     for (var i = 0; i < ITEMS.length; i++) {
@@ -69,7 +69,7 @@
       out.push({ k: it.k, where: it.where, ver: it.ver, present: it.where === 'local' ? hit > 0 : null,
         count: n, bytes: bytes, desc: it.desc, export: !!it.export });
     }
-    /* 未登记的 localStorage 键：不算错误，但要报出来，避免「悄悄长出一份没人管的数据」 */
+    /* 未登记的 localStorage 键：不算错误，但要报出来，避免悄悄长出一份没人管的数据 */
     try {
       for (var q = 0; q < localStorage.length; q++) {
         var kk = localStorage.key(q);
@@ -110,7 +110,7 @@
 
   /* ---------------- 真实占用（不只是声明） ----------------
      localStorage 能逐键量；IndexedDB 与原生目录只能整体量。
-     量不到就说量不到 —— 不拿「清单里有这一项」冒充「已经量过」。 */
+     量不到就说量不到 —— 不拿清单里有这一项冒充已经量过。 */
   function storageEstimate(cb) {
     try {
       if (window.navigator && navigator.storage && navigator.storage.estimate) {
@@ -123,7 +123,7 @@
     cb(null);
   }
 
-  /* 原生侧：有桥就数条目，没有桥（网页版）就明确报「不适用」 */
+  /* 原生侧：有桥就数条目，没有桥（网页版）就明确报不适用 */
   function nativeStats() {
     var out = { available: false, books: null, media: null, note: '网页版没有原生文件目录' };
     try {

@@ -80,9 +80,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok(!!ev, '有依据折叠块');
     ok(ev.querySelectorAll('li').length > 0, '依据条目 ' + ev.querySelectorAll('li').length + ' 条');
     const sum = ev.querySelector('summary').textContent;
-    /* 2026-11-07 起不再一律宣称「可核对」：
-       图谱 1360 条关系边一条都没标出处，写「可核对」是不实承诺。
-       现在必须按实际情况区分「关系级出处 / 只有条目级出处 / 未标出处」。 */
+    /* 2026-11-07 起不再一律宣称可核对：
+       图谱 1360 条关系边一条都没标出处，写可核对是不实承诺。
+       现在必须按实际情况区分关系级出处 / 只有条目级出处 / 未标出处。 */
     ok(/关系依据/.test(sum), '文案点明这是关系依据');
     ok(/这一关系本身的出处|只能核到条目级文献|未标注出处/.test(sum), '出处强度说得清楚：' + sum.slice(0, 48));
     const li0 = ev.querySelector('li');

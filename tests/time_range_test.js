@@ -2,12 +2,12 @@
    学通 · 时间轴 / 时空区间回归
    ---------------------------------------------------------------------
    2026-11-02 把两套东西合并成一套：
-     旧：`toggleYears` + 「单年淡化」+ `#yearbar`
-     新：`toggleTime` + 「起止区间」+ `#stbar`（两个 range + ▶ 播放）
+     旧：`toggleYears` + 单年淡化+ `#yearbar`
+     新：`toggleTime` + 起止区间+ `#stbar`（两个 range + ▶ 播放）
    区间外的节点淡出到 12%（保留上下文），不是整块消失。
 
    这一段原本没有测试盯着（旧测试 graph_years_test 断言的是已删除的旧 UI），
-   本文件是重构后新写的，锁住的是「现在的模型」：
+   本文件是重构后新写的，锁住的是现在的模型：
 
      ① _yr 解析：years 字符串 / y0-y1 / 单年 / 反序 / 无年份
      ② 开关：默认关、打开有 #stbar、关闭后全部恢复
@@ -68,9 +68,9 @@ function inline(h) {
   console.log('\n[1] _yr：年份从哪来');
   const yr = dflt => { try { return w.eval('_yr(' + JSON.stringify(dflt) + ')'); } catch (e) { return 'ERR:' + e.message; } };
   const a1 = yr({ years: '1818—1883' });
-  ok('人物区间「1818—1883」', a1 && a1.a === 1818 && a1.b === 1883, a1 && (a1.a + '-' + a1.b));
+  ok('人物区间1818—1883', a1 && a1.a === 1818 && a1.b === 1883, a1 && (a1.a + '-' + a1.b));
   const a2 = yr({ years: '1917' });
-  ok('单年「1917」→ 起止相同', a2 && a2.a === 1917 && a2.b === 1917, a2 && (a2.a + '-' + a2.b));
+  ok('单年1917→ 起止相同', a2 && a2.a === 1917 && a2.b === 1917, a2 && (a2.a + '-' + a2.b));
   const a3 = yr({ years: '1883—1818' });
   ok('反序自动交换', a3 && a3.a === 1818 && a3.b === 1883, a3 && (a3.a + '-' + a3.b));
   const a4 = yr({ y0: 1927, y1: 1936, years: '1900' });
@@ -115,7 +115,7 @@ function inline(h) {
   console.log('\n[4] 淡化比例');
   const outside = w.ns.find(o => { const y = w.eval('_yr(' + JSON.stringify(o.d) + ')'); return y && y.b < narrowA; });
   ok('落在区间外的节点淡到 0.12', !!outside && w.spot(outside) === 0.12, outside && w.spot(outside));
-  // 把区间收到「某个节点自己的年份」上：它必须保持 1（最不受数据分布影响的判据）
+  // 把区间收到某个节点自己的年份上：它必须保持 1（最不受数据分布影响的判据）
   const anyNode = w.ns.find(o => w.eval('_yr(' + JSON.stringify(o.d) + ')'));
   const anyY = w.eval('_yr(' + JSON.stringify(anyNode.d) + ')');
   w.stA = anyY.a; w.stB = anyY.b;

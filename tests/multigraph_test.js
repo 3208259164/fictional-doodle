@@ -1,4 +1,4 @@
-/* 多图谱骨架功能测试：内置「文革图谱」应可切换、可读取、不可删除/改名 */
+/* 多图谱骨架功能测试：内置文革图谱应可切换、可读取、不可删除/改名 */
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
@@ -19,8 +19,8 @@ const YZY = w.YZY;
 ok('暴露 YZY 接口', !!YZY && typeof YZY.listGraphs === 'function');
 
 const list = YZY.listGraphs();
-ok('listGraphs 含「主图谱」', list.some(g => g.id === 'main' && g.builtin));
-ok('listGraphs 含内置「文革图谱」', list.some(g => g.id === 'wenge' && g.builtin), list.map(g => g.id + ':' + g.name).join(' | '));
+ok('listGraphs 含主图谱', list.some(g => g.id === 'main' && g.builtin));
+ok('listGraphs 含内置文革图谱', list.some(g => g.id === 'wenge' && g.builtin), list.map(g => g.id + ':' + g.name).join(' | '));
 const wg = list.find(g => g.id === 'wenge');
 ok('文革图谱被标记 builtin:true', !!wg && wg.builtin === true);
 ok('文革图谱计数随数据（≥20 节点）', !!wg && wg.nodes >= 20, wg && (wg.nodes + ' 节点 / ' + wg.links + ' 关系'));

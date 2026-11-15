@@ -1,7 +1,7 @@
-/* 主图谱瘦身：把「主线之外」的节点并入世界图谱（2026-11-14）
+/* 主图谱瘦身：把主线之外的节点并入世界图谱（2026-11-14）
  *
- * 需求原文：「我不是叫你新增图谱，是主图谱那些不是很重要的节点，移到其他图谱当中。
- *           要保证改了以后还是节点能跳转，问一问也能问得到。」
+ * 需求原文：我不是叫你新增图谱，是主图谱那些不是很重要的节点，移到其他图谱当中。
+ *           要保证改了以后还是节点能跳转，问一问也能问得到。
  *
  * 做法：主图谱只留马克思主义主线（270 → 188），把三类节点并入**已有的世界图谱**
  *       （188 → 269），不新增任何图谱：
@@ -11,7 +11,7 @@
  *       id 一律不改，所以按 id 的跳转、收藏、笔记、编辑全部照旧。
  *
  * 这个测试锁住两件事：**节点还能跳转**、**图谱数量没有多出来**。
- * 「问一问答得到」在 qa_concept_fallback_test.js 里验（那边才有问答引擎）。
+ * 问一问答得到在 qa_concept_fallback_test.js 里验（那边才有问答引擎）。
  */
 const fs = require('fs'), path = require('path');
 const { JSDOM, VirtualConsole } = require(__dirname + '/node_modules/jsdom');
@@ -71,7 +71,7 @@ lazy.waitData(() => {
     ok('介绍页仍显示关系网', v.indexOf('关系网') >= 0);
 
     const url = w.graphUrlOf('kant');
-    ok('「在关系图谱中查看」指向世界图谱', url.indexOf('?g=world') >= 0, url);
+    ok('在关系图谱中查看指向世界图谱', url.indexOf('?g=world') >= 0, url);
     const url2 = w.graphUrlOf('mao');
     ok('主图谱节点的链接仍指向主图谱', url2.indexOf('?g=') < 0 || url2.indexOf('?g=world') < 0, url2);
 

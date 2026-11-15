@@ -1,6 +1,6 @@
 /* =====================================================================
    学通 · 内容覆盖层（overlay）v2
-   作用：允许“客户端自助添加/修改”内容，且【只影响本机】。
+   作用：允许“客户端自助添加/修改”内容，且只影响本机。
    加载顺序：data/*.js → data/overrides.js → assets/overlay.js → assets/app.js（→ assets/editor.js）
    两层来源（后者覆盖前者）：
      ① 官方覆盖：data/overrides.js 的 window.SITE_OVERRIDES（运营者发布，全站生效）
@@ -27,9 +27,9 @@
     var m = {};
     /* 文革图谱：**始终注册**，取数据时才看 SITE_GRAPH_WENGE 在不在。
        原因：首页为了首屏体积，把 142KB 的 data/graph-wenge.js 放到 400ms 后动态加载，
-       而首页「我的主页」里的图谱入口是启动那一刻用 listGraphs() 渲染的 ——
-       以前这里要求「数据已在」才注册，于是首页永远少一个「文革图谱」入口
-       （用户反馈的「文革图谱在我的首页看不到」就是这个）。 */
+       而首页我的主页里的图谱入口是启动那一刻用 listGraphs() 渲染的 ——
+       以前这里要求数据已在才注册，于是首页永远少一个文革图谱入口
+       （用户反馈的文革图谱在我的首页看不到就是这个）。 */
     m.wenge = {
       name: '文革图谱',
       get: function () {
@@ -37,7 +37,7 @@
         return (W && Array.isArray(W.nodes)) ? W : { nodes: [], links: [] };
       }
     };
-    /* 世界图谱：与「主图谱」同一批人物/思想/组织，但落到真实世界经纬度（geo）。
+    /* 世界图谱：与主图谱同一批人物/思想/组织，但落到真实世界经纬度（geo）。
        单列为一个内置图谱，避免和主图谱（纯关系网）互相争夺视图模式。 */
     /* 旧民图谱（1840—1919）：与主图谱同批注入（data/graph-old.js，41KB）。
        始终注册——即使数据还没到，下拉与首页入口也要先出现，否则首屏少一项。 */
@@ -68,7 +68,7 @@
     return m;
   }
 
-  /* ---------------- 首页图谱入口（哪些图谱出现在首页「我的主页」） ----------------
+  /* ---------------- 首页图谱入口（哪些图谱出现在首页我的主页） ----------------
      默认全部开启；只记录被关掉的那些，这样以后新增内置图谱会自动出现。 */
   function homeOffList() {
     try { var a = JSON.parse(localStorage.getItem('homeGraphsOff') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
@@ -192,7 +192,7 @@
       resources: { added: [], edited: {}, removed: [], catLabels: {}, catAdded: [], catRemoved: [] },
       people: { edited: {}, moved: {}, added: [], avatars: {} },
       /* 概念 / 事件的本机改动（通用条目编辑）：id 或 name → 字段覆盖 */
-      concepts: { edited: {} },
+      concepts: { edited: {}, added: [], removed: [] },
       events: { edited: {}, added: [], removed: [] },
       /* 史料补充内容：推荐人物 / 思想组织 / 答疑（键 = 人物名 / 条目名 / 答疑 id） */
       /* 术语卡（data/glossary.js）：改 / 增 / 删，与史料四类同一套机制 */
@@ -200,7 +200,7 @@
       edu: { rec: { edited: {}, added: [], removed: [] },
              sch: { edited: {}, added: [], removed: [] },
              qa:  { edited: {}, added: [], removed: [] } },
-      /* 自定义字段（「我的标注」）：键 = "<kind>:<id>"，值 = [{k,v}]。
+      /* 自定义字段（我的标注）：键 = "<kind>:<id>"，值 = [{k,v}]。
          kind 取 book / person / concept / event；跟着个人覆盖层走，随导出一起带走。 */
       meta: {},
       hubLabels: {}, hubName: '',
@@ -236,7 +236,7 @@
     });
     if (p.url !== undefined) q.url = cleanUrl(p.url);
     if (p.tags !== undefined) q.tags = cleanList(p.tags, 30, 12);
-    /* 元信息与章节目录：详情页「✏️ 编辑」要能改，否则被这里过滤掉、保存等于白做 */
+    /* 元信息与章节目录：详情页✏️ 编辑要能改，否则被这里过滤掉、保存等于白做 */
     ['publisher', 'pubyear', 'translator', 'pages', 'size', 'fmt', 'src'].forEach(function (k) {
       if (p[k] !== undefined) q[k] = clean(p[k], 120);
     });
@@ -247,7 +247,7 @@
         return { t: clean(c.t, 120), d: clean(c.d, 800) };
       }).filter(function (c) { return c.t || c.d; });
     }
-    /* 手动指定的相关推荐（书名 / id 都行），会排到详情页「相关推荐」最前面 */
+    /* 手动指定的相关推荐（书名 / id 都行），会排到详情页相关推荐最前面 */
     if (p.related !== undefined) q.related = cleanList(p.related, 80, 40);
     return q;
   }
@@ -294,7 +294,7 @@
     if (p.people !== undefined) q.people = cleanList(p.people, 60, 30);
     return q;
   }
-  /* 术语卡：字段少但都是要显示的文本，逐项限长；confuse 是「易混辨析」数组 */
+  /* 术语卡：字段少但都是要显示的文本，逐项限长；confuse 是易混辨析数组 */
   function normTerm(p) {
     p = p || {}; var q = {};
     if (p.term !== undefined) q.term = clean(p.term, 40);
@@ -332,7 +332,7 @@
       years: clean(n.years, 40), role: clean(n.role, 200), desc: clean(n.desc, MAX),
       img: cleanAvatar(n.img), crit: !!n.crit, color: cleanColor(n.color)
     };
-    /* ★ 业务字段：这里是「导出 → 导入」的唯一收口，不能裁掉，
+    /* ★ 业务字段：这里是导出 → 导入的唯一收口，不能裁掉，
        否则图谱导出再导入会丢要点 / 代表文献 / 标签 / 出处 / 地理坐标。 */
     if (n.points && n.points.length) o.points = cleanList(n.points, 300, 30);
     if (n.works && n.works.length) o.works = cleanList(n.works, 120, 40);
@@ -467,9 +467,9 @@
     G.removed = (Array.isArray(G.removed) ? G.removed : []).map(function (x) { return clean(x, 40); }).filter(Boolean);
     G.active = clean(G.active, 40) || GID_MAIN;
     /* ★ 内置图谱（文革 / 世界）也是合法 active。这里以前只认 S.graphs.created，
-       于是「在文革图谱里删一个节点/一条关系」→ persist → reapply → load → normalize
+       于是在文革图谱里删一个节点/一条关系→ persist → reapply → load → normalize
        把 active 强制改回 main，界面直接切成主图谱的另一套节点（用户看到的就是
-       「删一下就整张图都乱了」）。setActiveGraph 本来就允许内置图谱，这里是漏判。 */
+       删一下就整张图都乱了）。setActiveGraph 本来就允许内置图谱，这里是漏判。 */
     if (G.active !== GID_MAIN && !G.created[G.active] && !builtinGraphs()[G.active]) G.active = GID_MAIN;
     ['nodeAdd', 'edgeAdd'].forEach(function (k) {
       var m = {}, so = G[k];
@@ -525,11 +525,16 @@
       });
       return out;
     }
-    /* 可编辑字段要「全」：以前概念只能改 name/role/desc/points，出处、相关文献、关键词都改不了；
+    /* 可编辑字段要全：以前概念只能改 name/role/desc/points，出处、相关文献、关键词都改不了；
        事件也只能改概述，人物、思潮、影响都动不了。这里把能编辑的字段一次列全。 */
     OV.concepts.edited = normEdits(OV.concepts.edited,
       ['name', 'role', 'desc', 'points', 'source', 'works', 'tags', 'quotes'],
       ['points', 'works', 'tags', 'quotes']);
+    /* 新增 / 删除通道：以前概念只能改不能加，缺的概念只能回头改内置数据 */
+    OV.concepts.added = (OV.concepts.added || []).map(normConcept)
+      .filter(function (c) { return c && c.id && c.name; });
+    OV.concepts.removed = (OV.concepts.removed || [])
+      .map(function (x) { return clean(x, 60); }).filter(Boolean);
     OV.events.edited = normEdits(OV.events.edited,
       ['name', 'year', 'desc', 'points', 'bg', 'impact', 'people', 'schools', 'src'],
       ['points', 'people', 'schools']);
@@ -605,6 +610,8 @@
     // 概念 / 事件的本机改动（个人后写覆盖官方）
     r.concepts = r.concepts || { edited: {} };
     r.concepts.edited = Object.assign({}, (r.concepts.edited || {}), ((b.concepts || {}).edited) || {});
+    r.concepts.added = (r.concepts.added || []).concat((b.concepts || {}).added || []);
+    r.concepts.removed = (r.concepts.removed || []).concat((b.concepts || {}).removed || []);
     r.events = r.events || { edited: {}, added: [], removed: [] };
     r.events.edited = Object.assign({}, (r.events.edited || {}), ((b.events || {}).edited) || {});
     r.events.added = (r.events.added || []).concat((b.events || {}).added || []);
@@ -640,7 +647,7 @@
     if (!Array.isArray(R)) return;
     /* ★ 从基线重建，而不是在原数组上就地删改。
        原来删除资源是 splice 掉，撤销时基线已经被吃掉，条目再也回不来
-       （「删了还想撤回」会失效）。现在首次应用时留一份原始副本，
+       （删了还想撤回会失效）。现在首次应用时留一份原始副本，
        之后每次重算：基线 − 删除 + 新增 + 字段覆盖。数组引用保持不变，
        别的模块拿到的 R 依然是同一个数组。 */
     if (!window.__YZY_BASE_RES) {
@@ -821,7 +828,7 @@
   var S = null;
   function load() {
     var off = normalize(official());
-    /* 安全模式（crash.js 设置）：连续两次启动未成功时跳过「本机个人改动」，
+    /* 安全模式（crash.js 设置）：连续两次启动未成功时跳过本机个人改动，
        先用官方内容把界面打开；用户可在横条里导出/清除本机改动后退出安全模式。 */
     var per = window.__yzSafeMode ? normalize(null) : normalize(stored());
     var base = merge(off, per);
@@ -834,8 +841,8 @@
       if (!had) { _hist = [now]; _pos = 0; _histBytes = now.length; }
       else if (_hist[_pos] !== now) histPush(now);   /* 存档与当前不一致（外部改过）→ 以当前为新一步 */
     } else if (!_suppHist && (_pos < 0 || _hist[_pos] !== now)) {
-      /* reapply 里的这次 load 不算「用户改了一步」：merge 会补默认字段，
-         stringify 出来与存档不完全相同，若在此入栈，撤销会「原地踏步」
+      /* reapply 里的这次 load 不算用户改了一步：merge 会补默认字段，
+         stringify 出来与存档不完全相同，若在此入栈，撤销会原地踏步
          （一次操作变成两步，undo 之后又被动多出一步）。 */
       histPush(now);
     }
@@ -843,9 +850,9 @@
   }
   /* ---------- 撤销 / 重做 ----------
      所有写入都经过 persist()，所以入栈只挂在 persist 上。
-     存「写入之后的完整 JSON」：实测一次普通编辑约 1KB、连续改 50 处约 5KB，
+     存写入之后的完整 JSON：实测一次普通编辑约 1KB、连续改 50 处约 5KB，
      所以内存里留 1000 步也才几百 KB，不必每步做差量。
-     满了以后**不丢**「最初状态」：_hist[0] 永远是第一次装载时的样子，
+     满了以后**不丢**最初状态：_hist[0] 永远是第一次装载时的样子，
      只在它之后挤掉最老的，任何时候都能一路撤回到刚装软件的状态。
      另外用本机 localStorage 'yzHist' 存一份（最初 + 最近 100 步），
      刷新页面、重开 App 历史都还在；存储写满时静默退回只在本会话有效。 */
@@ -904,6 +911,25 @@
     reapply();
   }
   /* 概念 / 事件：把本机改动直接写回页面正在用的数据对象（就地覆盖，宁可少改不弄坏结构） */
+  /* 一条新增概念的形状：与 data/concepts.js 的节点同构，否则频道卡片与详情页读不到 */
+  function normConcept(o) {
+    if (!o || typeof o !== 'object') return null;
+    var c = {
+      id: clean(o.id, 60).replace(/[^A-Za-z0-9_-]/g, '_'),
+      name: clean(o.name, 80),
+      role: clean(o.role, 160),
+      desc: clean(o.desc, 4000),
+      source: clean(o.source, 240),
+      type: 'concept'
+    };
+    ['points', 'works', 'tags'].forEach(function (k) {
+      if (Array.isArray(o[k])) {
+        c[k] = o[k].map(function (x) { return clean(x, 240); }).filter(Boolean).slice(0, 40);
+      }
+    });
+    return c;
+  }
+
   function applyConcepts(OV) {
     try {
       var nodes = (window.SITE_CONCEPTS && window.SITE_CONCEPTS.nodes) || [];
@@ -911,9 +937,9 @@
       var FIELDS = ['name', 'role', 'desc', 'source', 'points', 'works', 'tags', 'quotes'];
       var ARR = ['points', 'works', 'tags', 'quotes'];
 
-      /* 幂等的做法：先「还原上一次应用前记下的原始值」，再应用本次改动。
+      /* 幂等的做法：先还原上一次应用前记下的原始值，再应用本次改动。
          不建独立基线——concepts.js 是懒加载的，overlay 启动时它可能还没到，
-         按「首次捕获基线」会把空数组当基线，之后整张概念表就被清空了。 */
+         按首次捕获基线会把空数组当基线，之后整张概念表就被清空了。 */
       var prev = window.__YZY_APPLIED_CONCEPTS || [];
       prev.forEach(function (rec) {
         if (rec.added) {
@@ -947,7 +973,22 @@
         applied.push({ id: c.id, added: true, orig: {} });
       });
 
+      /* 删除：按 id 从页面数据里摘掉（只影响本机） */
+      var remC = (OV.concepts && OV.concepts.removed) || [];
+      if (remC.length) {
+        for (var ri = nodes.length - 1; ri >= 0; ri--) {
+          if (remC.indexOf(nodes[ri].id) >= 0) nodes.splice(ri, 1);
+        }
+      }
+
       window.__YZY_APPLIED_CONCEPTS = applied;
+      /* 问答引擎的索引是启动时建的：概念增删改之后必须重建一次，
+         否则「搜得到但问不到」。这里有 SITE_CONCEPTS 就重建，没有就交给启动流程。 */
+      try {
+        if (window.YZQA_ADD && window.SITE_CONCEPTS) {
+          window.YZQA_ADD('concepts', window.SITE_CONCEPTS, '理论概念');
+        }
+      } catch (e) { }
     } catch (e) {}
   }
 
@@ -956,7 +997,7 @@
       var list = (window.SITE_EXTRA && window.SITE_EXTRA.events) || [];
       if (!Array.isArray(list) || !window.SITE_EXTRA) return;
       /* 基线：第一次应用时留一份原始副本，之后每次都从基线重建。
-         这样「新增 / 删除 / 撤销 / 重复 apply」都是幂等的，不会越点越多。 */
+         这样新增 / 删除 / 撤销 / 重复 apply都是幂等的，不会越点越多。 */
       if (!window.__YZY_BASE_EVENTS) {
         try { window.__YZY_BASE_EVENTS = JSON.parse(JSON.stringify(list)); }
         catch (e) { window.__YZY_BASE_EVENTS = list.map(function (x) { return Object.assign({}, x); }); }
@@ -1017,7 +1058,7 @@
   }
 
   /* 史料补充内容的编辑结果写回页面数据。
-     幂等：edited 是「绝对值覆盖」，added 按名称/id 去重，removed 用 filter 生成新数组。
+     幂等：edited 是绝对值覆盖，added 按名称/id 去重，removed 用 filter 生成新数组。
      顺序固定：先覆盖 → 再新增 → 最后删除。 */
   function applyEdu(OV) {
     var ED = (OV && OV.edu) || {};
@@ -1115,15 +1156,15 @@
   }
 
   /* 生平年表 / 著作年表存在 SITE_EXTRA（不在人物数组里），必须单独回写。
-     ⚠️ 必须是「基线 → 删 → 按 id 写回」：只做「有则写」的话，把年表清空保存后旧内容会残留
-     （用户会看到「删了还在」），重置覆盖层后也撤不掉。 */
+     ⚠️ 必须是基线 → 删 → 按 id 写回：只做有则写的话，把年表清空保存后旧内容会残留
+     （用户会看到删了还在），重置覆盖层后也撤不掉。 */
   var _chronoBase = null;
   /* 术语卡的编辑结果写回 SITE_GLOSSARY：先覆盖 → 再新增 → 最后删除（与 applyEdu 同序，幂等） */
   function applyTerm(OV) {
     if (!Array.isArray(window.SITE_GLOSSARY)) return;
     /* 先把上一轮由覆盖层加进来的项剔掉再重加。
        否则 removeTerm 只把 added 清空，而上一轮 push 进数组的那一条会留在页面上
-       ——「加了又删，删不掉」就是这里（push 型数据必须可撤销，apply 才幂等）。 */
+       ——加了又删，删不掉就是这里（push 型数据必须可撤销，apply 才幂等）。 */
     window.SITE_GLOSSARY = window.SITE_GLOSSARY.filter(function (x) { return !(x && x.__ov); });
     var T = window.SITE_GLOSSARY;
     var B = (OV && OV.term) || {}, ed = B.edited || {};
@@ -1183,7 +1224,7 @@
     });
   }
 
-  /* 批量操作取「可写记录」：自己新增的返回原对象；官方条目返回覆盖层里的补丁对象，
+  /* 批量操作取可写记录：自己新增的返回原对象；官方条目返回覆盖层里的补丁对象，
      并把原来没改过的字段（如 tags）先继承过来，否则批量加标签会把手上的标签全清掉。 */
   function resWritable(id) {
     id = clean(id, 120); if (!id) return null;
@@ -1222,7 +1263,7 @@
   }
   window.YZY = {
     version: 2,
-    /* 诊断用：返回当前覆盖层快照（只读副本），排查「改完没生效」时先用它看数据到底在不在 */
+    /* 诊断用：返回当前覆盖层快照（只读副本），排查改完没生效时先用它看数据到底在不在 */
     dumpOverlay: function () { try { return JSON.parse(JSON.stringify(S)); } catch (e) { return null; } },
     sanitize: clean,
     storage: storageInfo,
@@ -1399,8 +1440,8 @@
     setMeta: function (key, arr) {
       var k = clean(key, 80);
       /* 以前这里只放行 book/person/concept/event 四种前缀，别处（会议、频道、
-         术语……）一点「添加标注」就报「不支持的条目类型」。标注只是本机自定义字段，
-         与内容类型无关，改成：只要有「类型:」的形状就接受。 */
+         术语……）一点添加标注就报不支持的条目类型。标注只是本机自定义字段，
+         与内容类型无关，改成：只要有类型:的形状就接受。 */
       if (!k || k.indexOf(':') <= 0) return { ok: false, err: '标注键格式不对' };
       var list = [];
       (Array.isArray(arr) ? arr : []).slice(0, 20).forEach(function (f) {
@@ -1427,9 +1468,47 @@
     allMeta: function () { return clone((S && S.meta) || {}); },
 
     /* ---- 概念 / 事件：通用条目编辑 ---- */
+    /* 新增一条概念：写本机覆盖层 → 立刻 reapply，页面数据里就有了，
+       搜索与问一问读的是同一份 SITE_CONCEPTS，所以不用另做同步。 */
+    addConcept: function (obj) {
+      var c = normConcept(obj);
+      if (!c || !c.id) return { ok: false, msg: '编号不能为空' };
+      if (!c.name) return { ok: false, msg: '名称不能为空' };
+      var nodes = (window.SITE_CONCEPTS && window.SITE_CONCEPTS.nodes) || [];
+      if (nodes.some(function (x) { return x.id === c.id; })) {
+        return { ok: false, msg: '编号已存在：' + c.id };
+      }
+      S.concepts = S.concepts || { edited: {} };
+      S.concepts.added = (S.concepts.added || []).concat([c]);
+      S.concepts.removed = (S.concepts.removed || []).filter(function (x) { return x !== c.id; });
+      S = normalize(S); persist(); reapply();
+      return { ok: true, id: c.id, name: c.name };
+    },
+    removeConcept: function (id) {
+      var k = clean(id, 60); if (!k) return { ok: false, msg: '编号不能为空' };
+      S.concepts = S.concepts || { edited: {} };
+      S.concepts.added = (S.concepts.added || []).filter(function (c) { return c.id !== k; });
+      if (S.concepts.added) { /* 不是本机新增的，记一条删除 */ }
+      if (!(S.concepts.added || []).some(function (c) { return c.id === k; })) {
+        S.concepts.removed = (S.concepts.removed || []).filter(function (x) { return x !== k; }).concat([k]);
+      }
+      if (S.concepts.edited) delete S.concepts.edited[k];
+      S = normalize(S); persist(); reapply();
+      return { ok: true };
+    },
     editConcept: function (id, patch) {
       var k = clean(id, 60); if (!k) return { ok: false };
       S.concepts = S.concepts || { edited: {} };
+      /* 本机新增的概念要先在 added 里改：edited 只作用于内置节点，
+         改 added 里的副本时走 edited 会「改了没反应」（用户报过这类名实不符）。 */
+      var added = S.concepts.added || [];
+      var ai = -1;
+      for (var ii = 0; ii < added.length; ii++) { if (added[ii] && added[ii].id === k) { ai = ii; break; } }
+      if (ai >= 0) {
+        added[ai] = Object.assign({}, added[ai], patch || {});
+        S = normalize(S); persist(); reapply();
+        return { ok: true };
+      }
       S.concepts.edited[k] = Object.assign(S.concepts.edited[k] || {}, patch || {});
       S = normalize(S); persist(); reapply();
       return { ok: true };
@@ -1580,7 +1659,7 @@
       var name = clean(obj.name, 80);
       if (!name) return { ok: false, msg: '姓名不能为空' };
       var g = GROUPS_PERSON.indexOf(obj.group) >= 0 ? obj.group : 'comrades';
-      if (g === 'leaders') return { ok: false, msg: '「革命导师」为内置固定的五位，不接受新增；请改添加到「革命同志」或「被批判人物」' };
+      if (g === 'leaders') return { ok: false, msg: '革命导师为内置固定的五位，不接受新增；请改添加到革命同志或被批判人物' };
       var rec = { key: uid('p'), name: name, group: g, years: clean(obj.years, 40), role: clean(obj.role, 200),
         intro: clean(obj.intro, MAX), desc: clean(obj.desc || obj.intro, MAX),
         works: clean(obj.works, 600), points: cleanList(obj.points, 300, 20),
@@ -1609,7 +1688,7 @@
     canUndo: function () { return _pos > 0; },
     canRedo: function () { return _pos < _hist.length - 1; },
     histInfo: function () { return { steps: _hist.length, pos: _pos, bytes: _histBytes, saved: !!_histSaveT || !!localStorage.getItem(_HIST_KEY) }; },
-    /* 一路撤回到「最初」（第一次装载时的样子）；可再用 redo 回来，不会丢 */
+    /* 一路撤回到最初（第一次装载时的样子）；可再用 redo 回来，不会丢 */
     undoAll: function () {
       if (_pos <= 0) return { ok: false, msg: '已经在最初状态' };
       _pos = 0; histApply(_hist[0]);
@@ -1665,7 +1744,7 @@
       S.graphs.active = gid; persist();
       return { ok: true, id: gid, name: name };
     },
-    /* 从 JSON 导入一张图谱 → 建为「自定义图谱」（只存本机）。
+    /* 从 JSON 导入一张图谱 → 建为自定义图谱（只存本机）。
        容错：节点缺 id/name 丢弃并去重；关系两端必须存在于节点表，否则丢弃（不产生悬空边）；
        重名自动加序号。返回 { ok, id, name, nodes, links, saved }。 */
     importGraph: function (obj) {
@@ -1680,7 +1759,7 @@
           var id = clean(n.id, 60), nm = clean(n.name, 80);
           if (!id || !nm) return;
           if (on.some(function (x) { return x.id === id; })) return;
-          /* ★ 统一走 normNode：字段白名单只有一处，避免「导入时又裁一遍」把
+          /* ★ 统一走 normNode：字段白名单只有一处，避免导入时又裁一遍把
              出处 / 地理 / 代表文献等悄悄丢掉（导入图谱曾因此丢 source 与 geo）。 */
           var nn = normNode(n);
           nn.id = id; nn.name = nm;
@@ -1950,9 +2029,9 @@
     _norm: normalize
   };
 
-  /* ---- 变更通知：内容被本机修改时，记一条通知（可在「史料 → 通知」清除） ---- */
+  /* ---- 变更通知：内容被本机修改时，记一条通知（可在史料 → 通知清除） ---- */
   /* 图谱页（graph.html）与编辑台（editor.html）没有加载 app.js，__yzNotify 不存在，
-     这里自带一份兜底写入（格式与 app.js 的「通知」完全一致），否则在这些页面做的修改不会留下通知。 */
+     这里自带一份兜底写入（格式与 app.js 的通知完全一致），否则在这些页面做的修改不会留下通知。 */
   function yzNote(text) {
     try {
       var a = []; try { a = JSON.parse(localStorage.getItem('notifs') || '[]') || []; } catch (e) { a = []; }

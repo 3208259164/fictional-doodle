@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 「其他人物」83 人可编辑 —— jsdom 实测 */
+/* 其他人物83 人可编辑 —— jsdom 实测 */
 const fs = require('fs'), path = require('path');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
 const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site'));
@@ -25,7 +25,7 @@ waitData(() => {
     const nFig = w.eval('(CT.figures||[]).length');
     const nList = w.eval('figuresList().length');
     ok('人物库 figures 组 83 条', nFig === 83, 'figures=' + nFig);
-    // 不再写死人数（数据会长）：只要「图谱里出现的每个人都在列表里」就说明没漏
+    // 不再写死人数（数据会长）：只要图谱里出现的每个人都在列表里就说明没漏
     const _gp = (w.SITE_GRAPH && w.SITE_GRAPH.nodes ? w.SITE_GRAPH.nodes.filter(function (x) { return x.type === 'person'; }).length : 0);
     ok('figuresList 覆盖图谱全部人物', nList > 100 && nList >= _gp, 'list=' + nList + ' / 图谱 person=' + _gp);
 
@@ -44,18 +44,18 @@ waitData(() => {
     const box = w.document.getElementById('personEditor');
     ok('弹层出现', !!box);
     if (box) {
-      ok('有「保存」按钮（说明已认定可编辑）', !!box.querySelector('[data-pe="save"]'));
+      ok('有保存按钮（说明已认定可编辑）', !!box.querySelector('[data-pe="save"]'));
       const ta = box.querySelector('#peIntro');
       ok('介绍框带出图谱原文', !!ta && String(ta.value).length > 10, String(ta.value).slice(0, 24));
 
       // ④ 保存并校验同步到图谱
-      ta.value = '【测试】其他人物组的编辑';
+      ta.value = '测试其他人物组的编辑';
       box.querySelector('[data-pe="save"]').dispatchEvent(new w.Event('click', { bubbles:true }));
       const st = w.YZY.state();
       const key = 'figures|' + target;
       ok('覆盖层 people.edited 有该条', !!(st.people.edited && st.people.edited[key]), key);
       const desc = w.eval('(allGraphNodes().find(function(n){return n.name===' + JSON.stringify(target) + '})||{}).desc');
-      ok('图谱 desc 已同步', String(desc).indexOf('【测试】') >= 0, String(desc).slice(0, 20));
+      ok('图谱 desc 已同步', String(desc).indexOf('测试') >= 0, String(desc).slice(0, 20));
 
       // ⑤ 幂等
       w.YZY.reapply(); w.YZY.reapply();

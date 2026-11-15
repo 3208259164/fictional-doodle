@@ -1,7 +1,7 @@
 /* =====================================================================
    学通 · 网络扫盲页（词条检索）
    ---------------------------------------------------------------------
-   入口：主页右上角「＋」→ 网络扫盲。
+   入口：主页右上角＋→ 网络扫盲。
    形态：分组 + 搜索 + 点击展开。刻意不做成"书"——每条只有三句话，
    翻页比点击慢。数据在 data/netbasics.js（离线，无外链）。
    ===================================================================== */
@@ -45,7 +45,7 @@
 
   function listHTML(q) {
     var gs = groups(q), n = 0;
-    if (!gs.length) return '<p class="netempty">没有匹配的词条。换个说法试试，比如「DNS」「后缀」「证书」。</p>';
+    if (!gs.length) return '<p class="netempty">没有匹配的词条。换个说法试试，比如DNS后缀证书。</p>';
     var html = '';
     for (var i = 0; i < gs.length; i++) {
       html += '<div class="netg-t">' + esc(gs[i].g) + '<span class="netg-n">' + gs[i].items.length + '</span></div>';
@@ -75,7 +75,7 @@
       return;
     }
     try { if (typeof closePlus === 'function') closePlus(); } catch (e) { }
-    /* 不用 root 模式：root 顶栏是「头像 + ＋」不带标题，词条页会看起来没有页名 */
+    /* 不用 root 模式：root 顶栏是头像 + ＋不带标题，词条页会看起来没有页名 */
     openContent('🌐 网络扫盲', pageHTML(), {});
   };
   window.netFilter = function (v) {

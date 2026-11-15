@@ -1,5 +1,5 @@
 /* =====================================================================
-   测试用：让 jsdom 能「真的加载」按需注入的脚本
+   测试用：让 jsdom 能真的加载按需注入的脚本
    ---------------------------------------------------------------------
    站点从 0.17.35 起把首屏不用的数据改成按需注入（assets/lazydata.js：
    document.createElement('script') → 设 src → appendChild）。jsdom 不会去
@@ -27,7 +27,7 @@ module.exports = function installLazyHook(w, SITE) {
       get() { return _src; },
       set(v) {
         _src = v;
-        // 站点代码是「先赋 src、后赋 onload」，所以这里必须异步，等 onload 挂上再回调
+        // 站点代码是先赋 src、后赋 onload，所以这里必须异步，等 onload 挂上再回调
         setTimeout(function () {
           try {
             const file = path.join(SITE, String(v).split('?')[0].replace(/^\.?\//, ''));
@@ -52,7 +52,7 @@ module.exports = function installLazyHook(w, SITE) {
       const st = d ? d.state() : {};
       const keys = Object.keys(st);
       const loading = keys.some(k => st[k] === 'loading');
-      // 必须「全部排到队尾」才算完成：只看 started && 无 loading 会撞上一个空档
+      // 必须全部排到队尾才算完成：只看 started && 无 loading 会撞上一个空档
       // （kick 已经把 started 置 true，但第一个文件还没开始 loading），那时数据还是 0 条
       const want = d && d.lazy ? d.lazy.length : 1;
       const done = (d && d.started() && keys.length >= want && !loading);

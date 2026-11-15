@@ -1,0 +1,40 @@
+{
+  "_说明": "这份清单说明该构建用了哪些输入；网页版与 APK 对不上时先比这里，别只比版本名。",
+  "generatedAt": "2026-11-15T02:09:13Z",
+  "commit": "",
+  "appVersion": "0.18.69",
+  "versionCode": 350,
+  "siteVersion": "0.37.51",
+  "swVersion": "v350",
+  "swCoreHash": "033b82f7504301231f4de7e50ce36abb7b6cdd575bb9cdf73afade95a0a813a4",
+  "keyFiles": {
+    "index.html": "cb32e2aff38a45c41ce20e4318a1e0cc6fd07de7f1a9a74114cb7062f004937d",
+    "sw.js": "d6bd32d505e8e1eb937684b77451e742e317b23b8b6c3bcf44e0acf195f6c34a",
+    "version.json": "d6daa26435ab3f3a9d67b792fb6f52b8bad983ebc08394eeae0386d91307facb",
+    "data/graph.js": "e7c910704271d6e8cc018bc6fc069df0a6b36520a14d131e3d1034d61a3552d3",
+    "data/graph-wenge.js": "ac50cabcec8d869553fc0edd9a2aaa06c917ce0f9e28bd2e96042f9bc76ce772",
+    "data/graph-world.js": "fe86aeb5898bfdf44ed14458eb1a174da57438846aa5b396cd5bcf3ee0e769ea",
+    "data/resources.js": "ee5f9976210997620bcabc4ea56ea0759559569c4ea56d386c04462099486c04",
+    "data/edge-meta.js": "d46043be664b1c9bba5910e81bcfa5b35d7d584d372fa2d03bcad95e7b8a0e4f",
+    "data/concepts.js": "8963c382cd942f243e1a80d6d7557b4d68cb6f56444ab73f6f37fc5c0f92e9c2",
+    "assets/app.js": "946e996850cfb78c637190175f6aaceaa7d6668acf61f70457e3494207ddd32c",
+    "assets/challenge.js": "5fe07f896d0a082de7158cb2d40e9d6253264600dd3c4ef0f15226d04afc0e2e",
+    "assets/qa-engine.js": "a0cfe92edec24ab97ae48adf7321b0e9d4713c1c529efea270d357522e77589f",
+    "assets/datamap.js": "33c90e261c0a7757241b04f0c6ad1083102cad4846019e6e93a97343610cc496",
+    "books/bk_zuopai_youzhibing.txt": "c4177389d607f987192666aa0400082c25b7f5a82edc5ebea4f4545d879b7e96"
+  },
+  "firstScreen": {
+    "scripts": 37,
+    "kb": 2109,
+    "missing": []
+  },
+  "size": {
+    "files": 234,
+    "bytes": 10493409,
+    "mb": 10.01
+  },
+  "tools": {
+    "python": "3.12.13",
+    "node": "v20.20.2"
+  }
+}

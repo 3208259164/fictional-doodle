@@ -2,22 +2,22 @@
    学通 · 正文级全文检索（fulltext.js）
    ---------------------------------------------------------------------
    解决什么问题：
-     顶部搜索原来只到「条目级」——搜一句话只能命中书名 / 人物名，
+     顶部搜索原来只到条目级——搜一句话只能命中书名 / 人物名，
      命中词典释义、概念正文、导读正文、答疑正文里那句话的，一条都出不来；
      本机导入的整本书正文更完全搜不到（正文在 IndexedDB 里，几十万字）。
 
    做什么：
      ① 段落级检索（同步）：把 词典 / 概念 / 导读 / 答疑 / 书库简介 / 史料正文
-        全部切段后扫一遍，命中时给出「命中上下文」片段，点开能看完整正文；
+        全部切段后扫一遍，命中时给出命中上下文片段，点开能看完整正文；
      ② 片段提取 snip()：给已有条目（书库、人物…）补一句命中上下文，
-        让用户知道「为什么这条会命中」；
+        让用户知道为什么这条会命中；
      ③ 本机书正文检索（异步）：读 IndexedDB 里的 TXT / MD 整本扫，
         每本书建一次切段缓存（存 IndexedDB），文件不变就不再重建。
 
    为什么不用 SQLite FTS5：
      本项目是 WebView 套壳，没有原生 SQLite 通道；站内可控文本约 2 MB，
      线性 indexOf 在现代 WebView 上 <50 ms，建倒排索引反而更慢更占内存。
-     真正值得建缓存的是「本机书正文」，所以只给它做切段缓存。
+     真正值得建缓存的是本机书正文，所以只给它做切段缓存。
 
    对外接口（window.YZFULLTEXT）：
      .snip(text,q,w)      → {pre,hit,post} | ''
@@ -233,8 +233,8 @@
 
 
   /* ---------- 站内正文（books/*.txt）也进检索 ----------
-     以前只扫「词典/概念/导读/答疑/简介/史料」，包里那 39 篇正文（四十多万字）
-     一句都搜不到：想找《反杜林论》里「自由和必然」那句，只能靠人名索引碰运气。
+     以前只扫词典/概念/导读/答疑/简介/史料，包里那 39 篇正文（四十多万字）
+     一句都搜不到：想找《反杜林论》里自由和必然那句，只能靠人名索引碰运气。
      这里在空闲时把正文 fetch 进来切段缓存，命中后直接跳到原文那一段（yzOpenMention）。
      不做构建期预生成：那等于把 1.4 MB 正文再复制一份进 JS，包会白白大一圈。 */
   var _bookSegs = null, _bookLoading = false;
@@ -447,7 +447,7 @@
      为什么单独一路：App 里导入的 EPUB / TXT / MD 存在应用私有目录，
      元数据在 AndroidApp.bookList()，正文只有 Java 取得到
      （EPUB 走 bookChapter(id,idx)，TXT/MD 走 bookTextUrl(id)）。
-     网页侧 IndexedDB 里没有它们 —— 所以「App 里读得到、搜不到」。
+     网页侧 IndexedDB 里没有它们 —— 所以App 里读得到、搜不到。
      PDF 不进来：页是位图，没有文字层。 */
 
   function AndroidBridge() { try { return window.AndroidApp || null; } catch (e) { return null; } }
@@ -579,7 +579,7 @@
     for (var i = 0; i < w.length; i++) { try { w[i](_app || []); } catch (e) { } }
   }
 
-  /* 对外：合并「网页侧 TXT/MD」+「App 侧导入的书」 */
+  /* 对外：合并网页侧 TXT/MD+App 侧导入的书 */
   function indexLocal(cb) {
     if (_local) return isFn(cb) && cb(_local);
     indexWeb(function (web) {
@@ -728,7 +728,7 @@
   window.YZFULLTEXT = {
     snip: snip, snipText: snipText, segs: segs,
     searchStation: searchStation, preloadStation: function () { loadJT(function () { }); },
-    /* 给「引文比对」用：暴露全部段落（含 text / cat / t / resIndex），只读不改 */
+    /* 给引文比对用：暴露全部段落（含 text / cat / t / resIndex），只读不改 */
     all: function () { try { return corpus().segs || []; } catch (e) { return []; } },
     search: search, searchLocal: searchLocal, indexLocal: indexLocal, stats: stats,
     indexApp: indexApp, warmApp: warmApp,

@@ -43,19 +43,19 @@ waitData(() => {
     ok('② 推荐人物弹层出现', !!box);
     if (box) {
       ok('② 弹层回填了原介绍', String(box.querySelector('#ee_intro').value).length > 20);
-      box.querySelector('#ee_intro').value = '【测试】推荐人物介绍已改';
+      box.querySelector('#ee_intro').value = '测试推荐人物介绍已改';
       box.querySelector('#ee_fans').value = '99.9万';
       box.querySelector('[data-ee="save"]').dispatchEvent(new w.Event('click', { bubbles: true }));
       const intro = w.eval(`(CT.recommend.filter(x=>x.name===${JSON.stringify(recName)})[0]||{}).intro`);
       const fans = w.eval(`(CT.recommend.filter(x=>x.name===${JSON.stringify(recName)})[0]||{}).fans`);
-      ok('② 介绍已保存', String(intro).indexOf('【测试】') >= 0, String(intro).slice(0, 18));
+      ok('② 介绍已保存', String(intro).indexOf('测试') >= 0, String(intro).slice(0, 18));
       ok('② 粉丝数已保存', fans === '99.9万', String(fans));
       ok('② 弹层已关闭', !w.document.getElementById('eduEditor'));
     }
     /* 幂等 */
     w.YZY.reapply(); w.YZY.reapply();
     const intro2 = w.eval(`(CT.recommend.filter(x=>x.name===${JSON.stringify(recName)})[0]||{}).intro`);
-    ok('② 重复 reapply 幂等', String(intro2).indexOf('【测试】') >= 0 && intro2.length < 40, String(intro2).slice(0, 18));
+    ok('② 重复 reapply 幂等', String(intro2).indexOf('测试') >= 0 && intro2.length < 40, String(intro2).slice(0, 18));
     ok('② 推荐条数未变', w.eval('CT.recommend.length') === 4);
 
     /* ---------- ③ 思想 / 组织 ---------- */
@@ -65,12 +65,12 @@ waitData(() => {
     ok('③ 思想弹层出现', !!box);
     if (box) {
       ok('③ 弹层回填了要点说明', String(box.querySelector('#ee_desc').value).length > 20);
-      box.querySelector('#ee_desc').value = '【测试】思想要点已改';
+      box.querySelector('#ee_desc').value = '测试思想要点已改';
       box.querySelector('#ee_people').value = '甲 乙 丙';
       box.querySelector('[data-ee="save"]').dispatchEvent(new w.Event('click', { bubbles: true }));
       const d = w.eval(`(EX.schools[0].items.filter(x=>x.name===${JSON.stringify(schName)})[0]||{}).desc`);
       const pp = w.eval(`(EX.schools[0].items.filter(x=>x.name===${JSON.stringify(schName)})[0]||{}).people`);
-      ok('③ 要点说明已保存', String(d).indexOf('【测试】') >= 0, String(d).slice(0, 18));
+      ok('③ 要点说明已保存', String(d).indexOf('测试') >= 0, String(d).slice(0, 18));
       ok('③ 相关人物按空格拆开', Array.isArray(pp) && pp.length === 3 && pp[0] === '甲', JSON.stringify(pp));
     }
 
@@ -81,12 +81,12 @@ waitData(() => {
     ok('④ 答疑弹层出现', !!box);
     if (box) {
       ok('④ 弹层回填了原回答', String(box.querySelector('#ee_a').value).length > 50);
-      box.querySelector('#ee_a').value = '【测试】答疑回答已改';
+      box.querySelector('#ee_a').value = '测试答疑回答已改';
       box.querySelector('#ee_basis').value = '《共产党宣言》\n《资本论》';
       box.querySelector('[data-ee="save"]').dispatchEvent(new w.Event('click', { bubbles: true }));
       const a = w.eval(`(SITE_ANSWERS.groups[0].items.filter(x=>x.id===${JSON.stringify(qid)})[0]||{}).a`);
       const bs = w.eval(`(SITE_ANSWERS.groups[0].items.filter(x=>x.id===${JSON.stringify(qid)})[0]||{}).basis`);
-      ok('④ 回答已保存', String(a).indexOf('【测试】') >= 0, String(a).slice(0, 18));
+      ok('④ 回答已保存', String(a).indexOf('测试') >= 0, String(a).slice(0, 18));
       ok('④ 依据按行拆成数组', Array.isArray(bs) && bs.length === 2 && bs[0] === '《共产党宣言》', JSON.stringify(bs));
     }
 
@@ -95,31 +95,31 @@ waitData(() => {
     w.openRecommendNew();
     box = w.document.getElementById('eduEditor');
     if (box) {
-      box.querySelector('#ee_name').value = '【测试新人】';
+      box.querySelector('#ee_name').value = '测试新人';
       box.querySelector('#ee_intro').value = '新增的推荐条目';
       box.querySelector('[data-ee="save"]').dispatchEvent(new w.Event('click', { bubbles: true }));
     }
     ok('⑤ 推荐人物已新增', w.eval('CT.recommend.length') === n0 + 1, String(w.eval('CT.recommend.length')));
     ok('⑤ 新增条目内容正确',
-      w.eval('CT.recommend.filter(x=>x.name==="【测试新人】")[0].intro') === '新增的推荐条目');
+      w.eval('CT.recommend.filter(x=>x.name==="测试新人")[0].intro') === '新增的推荐条目');
 
     const s0 = w.eval('EX.schools[0].items.length');
     w.openSchoolNew(0);
     box = w.document.getElementById('eduEditor');
     if (box) {
-      box.querySelector('#ee_name').value = '【测试思想】';
+      box.querySelector('#ee_name').value = '测试思想';
       box.querySelector('#ee_desc').value = '新增的要点';
       box.querySelector('[data-ee="save"]').dispatchEvent(new w.Event('click', { bubbles: true }));
     }
     ok('⑤ 思想条目已新增', w.eval('EX.schools[0].items.length') === s0 + 1);
     ok('⑤ 新增思想落在第 1 组',
-      w.eval('EX.schools[0].items.filter(x=>x.name==="【测试思想】").length') === 1);
+      w.eval('EX.schools[0].items.filter(x=>x.name==="测试思想").length') === 1);
 
     const q0 = w.eval('SITE_ANSWERS.groups[0].items.length');
     w.openAnswerNew();
     box = w.document.getElementById('eduEditor');
     if (box) {
-      box.querySelector('#ee_q').value = '【测试问题】';
+      box.querySelector('#ee_q').value = '测试问题';
       box.querySelector('#ee_a').value = '测试回答';
       box.querySelector('[data-ee="save"]').dispatchEvent(new w.Event('click', { bubbles: true }));
     }
@@ -144,13 +144,13 @@ waitData(() => {
     w.openHub('thoughts');
     ok('⑦ 思想列表每张卡有 ✏️',
       w.document.querySelectorAll('[id^="hub-s-0-"] .libedit').length > 0);
-    ok('⑦ 思想列表有「新增条目」按钮',
+    ok('⑦ 思想列表有新增条目按钮',
       /openSchoolNew\(0\)/.test(w.document.body.innerHTML));
     w.__yzAnsTab = 'qa';
     w.openHub('answers');
     const ansHTML = w.document.getElementById('yzAnsWrap');
     ok('⑦ 答疑卡片有 ✏️', !!ansHTML && ansHTML.querySelectorAll('.libedit').length > 0);
-    ok('⑦ 答疑页有「新增」按钮', /openAnswerNew\(\)/.test(w.document.body.innerHTML));
+    ok('⑦ 答疑页有新增按钮', /openAnswerNew\(\)/.test(w.document.body.innerHTML));
 
   } catch (e) {
     ok('未捕获异常', false, e && (e.stack || e.message));

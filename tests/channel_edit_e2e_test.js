@@ -64,15 +64,15 @@ function fakeCtx() { return new Proxy({}, { get(t, p) { if (p === 'measureText')
 
   w.chanEdit(keyEnc);
   await sleep(50);
-  ok('点「编辑」弹出编辑框', !!d.getElementById('chanEditBox'));
+  ok('点编辑弹出编辑框', !!d.getElementById('chanEditBox'));
   ok('编辑框带出原文', (d.getElementById('ceT') || {}).value === oldText);
 
-  d.getElementById('ceT').value = oldText + '【本机修订】';
+  d.getElementById('ceT').value = oldText + '本机修订';
   d.getElementById('ceSave').click();
   await sleep(80);
 
   const after = w.channelList().filter(x => w.chanKey(x) === key)[0];
-  ok('改完正文生效', after && after.text.indexOf('【本机修订】') >= 0, after ? after.text.slice(0, 20) : '找不到该条');
+  ok('改完正文生效', after && after.text.indexOf('本机修订') >= 0, after ? after.text.slice(0, 20) : '找不到该条');
   ok('改完键不变（评论/点赞不丢）', after && w.chanKey(after) === key);
   ok('编辑框已关闭', !d.getElementById('chanEditBox'));
 
@@ -88,7 +88,7 @@ function fakeCtx() { return new Proxy({}, { get(t, p) { if (p === 'measureText')
   ok('删除后列表里没了', w.channelList().filter(x => w.chanKey(x) === key).length === 0);
   ok('内置数据未被破坏', (w.SITE_CHANNEL || []).some(x => w.chanKey(x) === key) === true);
 
-  /* ---------- 3. 未知类型不再报「不支持」 ---------- */
+  /* ---------- 3. 未知类型不再报不支持 ---------- */
   let threw = null;
   try { w.yzEdit('meeting', 'no-such-meeting'); } catch (e) { threw = e.message; }
   ok('未知类型调用不抛错', threw === null, threw || '');
@@ -104,8 +104,8 @@ function fakeCtx() { return new Proxy({}, { get(t, p) { if (p === 'measureText')
   w.YZChanges.openPanel();
   await sleep(50);
   const panel = d.getElementById('yzChangesPanel');
-  ok('「最近的改动」面板可打开', !!panel);
-  ok('面板里列出了刚才的改动', panel && panel.innerHTML.indexOf('【本机修订】') >= 0 || (panel && /正文/.test(panel.innerHTML)));
+  ok('最近的改动面板可打开', !!panel);
+  ok('面板里列出了刚才的改动', panel && panel.innerHTML.indexOf('本机修订') >= 0 || (panel && /正文/.test(panel.innerHTML)));
 
   ok('全程无 JS 错误', errs.length === 0, errs.slice(0, 2).join(' | '));
 

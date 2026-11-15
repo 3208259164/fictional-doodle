@@ -1,6 +1,6 @@
 /* 文革图谱要点完整性回归（14 项）
    背景：这一层曾有两处硬伤 —— ①7 个人物节点的 name 直接用了英文 id（页面显示 "mao"），
-        缺 years/role/desc；②122 个节点没有「要点」，点开只有一句简介。
+        缺 years/role/desc；②122 个节点没有要点，点开只有一句简介。
    本测试锁住：要点全覆盖、每条 3 条以上、人物节点有中文名与生卒、关系无悬空、
             无重复 id、地理落点齐全、渲染链路能把要点显示出来。 */
 const path = require('path'), fs = require('fs');
@@ -25,12 +25,12 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
   let fail = 0; const ok = (n, c, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + n + (x ? (' — ' + x) : '')); if (!c) fail++; };
 
   const N = w.GR.nodes;
-  /* 不写死数量：内容会持续长。守的是「规模没塌、关系比节点多」这个结构下限。 */
+  /* 不写死数量：内容会持续长。守的是规模没塌、关系比节点多这个结构下限。 */
   ok('节点与关系规模', N.length >= 200 && w.GR.links.length >= N.length, N.length + ' / ' + w.GR.links.length);
 
   /* ① 要点全覆盖 */
   const noPts = N.filter(n => !n.points || !n.points.length);
-  ok('每个节点都有「要点」', noPts.length === 0, noPts.map(n => n.id).join(',') || '全覆盖');
+  ok('每个节点都有要点', noPts.length === 0, noPts.map(n => n.id).join(',') || '全覆盖');
   ok('每个节点要点 ≥ 3 条', N.every(n => (n.points || []).length >= 3),
     '最少 ' + Math.min(...N.map(n => (n.points || []).length)) + ' 条');
   const ptsChars = N.reduce((a, n) => a + (n.points || []).reduce((b, s) => b + s.length, 0), 0);

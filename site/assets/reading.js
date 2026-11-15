@@ -1,10 +1,10 @@
 /* =====================================================================
    学通 · 阅读层（reading.js）
    ---------------------------------------------------------------------
-   三件事，全部本机、随「导出我的数据」一起走：
+   三件事，全部本机、随导出我的数据一起走：
      ① 阅读状态与书架：想读 / 在读 / 读完 + 进度百分比
      ② 书摘与笔记：一处摘录、一处自己的话
-     ③ 首页「我的」模块的数据来源（书架 / 最近书摘 / 收藏）
+     ③ 首页我的模块的数据来源（书架 / 最近书摘 / 收藏）
 
    数据键（localStorage）：
      yzRead     { <bookId>: { st:'want'|'reading'|'done', p:0-100, t:时间戳 } }
@@ -124,14 +124,14 @@
     }).join('');
     var none = !Object.keys(a).length;
     page('📚 我的书架', none
-      ? '<p class="sub" style="line-height:1.9">书架还是空的。打开任意一本书，在「阅读状态」里点「想读 / 在读 / 读完」就会出现在这里。</p>'
+      ? '<p class="sub" style="line-height:1.9">书架还是空的。打开任意一本书，在阅读状态里点想读 / 在读 / 读完就会出现在这里。</p>'
       : groups);
   }
 
   /* ---------------- 全部摘录 ---------------- */
   function openExcerpts() {
     var a = excerpts();
-    if (!a.length) { page('✍️ 我的摘录', '<p class="sub" style="line-height:1.9">还没有摘录。打开一本书，在「我的摘录」里点「＋ 添加摘录」。</p>'); return; }
+    if (!a.length) { page('✍️ 我的摘录', '<p class="sub" style="line-height:1.9">还没有摘录。打开一本书，在我的摘录里点＋ 添加摘录。</p>'); return; }
     var html = '<div style="display:flex;gap:8px;margin:0 0 10px"><input id="yzExQ" placeholder="搜摘录 / 我的想法…" oninput="yzExFilter()" style="flex:1;background:var(--card);border:1px solid var(--card-border);color:var(--text);border-radius:10px;padding:7px 10px;font-size:.82rem"></div><div id="yzExList">';
     a.forEach(function (x, i) {
       var b = bookById(x.b);
@@ -166,7 +166,7 @@
   }
   function recentExcerpts(n) { return excerpts().slice(0, n || 3); }
 
-  /* 统一的「整页推进」：复用 app.js 的 openContent，没有就退化成简单容器 */
+  /* 统一的整页推进：复用 app.js 的 openContent，没有就退化成简单容器 */
   function page(title, html) {
     try {
       if (typeof openContent === 'function') { openContent(title, html); return; }

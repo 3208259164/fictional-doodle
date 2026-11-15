@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 人物内联编辑 + 「改了看不到」bug 修复 —— jsdom 实测 */
+/* 人物内联编辑 + 改了看不到bug 修复 —— jsdom 实测 */
 const fs = require('fs'), path = require('path');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
 const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site'));
@@ -33,10 +33,10 @@ waitData(() => {
 
     // ① 修 bug：editPerson 后图谱 desc 应同步
     const descBefore = w.eval('(allGraphNodes().find(n=>n.name==="卡尔·马克思")||{}).desc');
-    w.YZY.editPerson('leaders', '卡尔·马克思', { intro: '【测试】人物介绍已更新' });
+    w.YZY.editPerson('leaders', '卡尔·马克思', { intro: '测试人物介绍已更新' });
     w.YZY.reapply();
     const descAfter = w.eval('(allGraphNodes().find(n=>n.name==="卡尔·马克思")||{}).desc');
-    ok('图谱节点 desc 已同步（bug 修好）', String(descAfter).indexOf('【测试】') >= 0,
+    ok('图谱节点 desc 已同步（bug 修好）', String(descAfter).indexOf('测试') >= 0,
        String(descAfter).slice(0, 22));
     ok('旧 desc 确实被替换', descAfter !== descBefore);
 
@@ -52,14 +52,14 @@ waitData(() => {
     ok('弹层 #personEditor 已出现', !!box);
     if (box) {
       const ta = box.querySelector('#peIntro');
-      ok('介绍框有初值', !!ta && String(ta.value).indexOf('【测试】') >= 0);
-      ok('在人物库中的人有「保存」', !!box.querySelector('[data-pe="save"]'));
+      ok('介绍框有初值', !!ta && String(ta.value).indexOf('测试') >= 0);
+      ok('在人物库中的人有保存', !!box.querySelector('[data-pe="save"]'));
 
       // ④ 通过弹层再改一次
-      ta.value = '【测试2】通过详情页保存的介绍';
+      ta.value = '测试2通过详情页保存的介绍';
       box.querySelector('[data-pe="save"]').dispatchEvent(new w.Event('click', { bubbles: true }));
       const d2 = w.eval('(allGraphNodes().find(n=>n.name==="卡尔·马克思")||{}).desc');
-      ok('弹层保存后详情页数据更新', String(d2).indexOf('【测试2】') >= 0, String(d2).slice(0, 24));
+      ok('弹层保存后详情页数据更新', String(d2).indexOf('测试2') >= 0, String(d2).slice(0, 24));
       ok('保存后弹层关闭', !w.document.getElementById('personEditor'));
     }
 
@@ -69,7 +69,7 @@ waitData(() => {
       w.openPersonEdit(outsider.id);
       const b2 = w.document.getElementById('personEditor');
       ok('未收录人物也能打开只读提示', !!b2, outsider.name);
-      ok('未收录人物没有「保存」按钮', !!b2 && !b2.querySelector('[data-pe="save"]'));
+      ok('未收录人物没有保存按钮', !!b2 && !b2.querySelector('[data-pe="save"]'));
       ok('未收录人物给出说明', !!b2 && /未收录|无处落脚/.test(b2.textContent));
       w.closePersonEdit();
     } else {

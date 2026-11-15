@@ -3,14 +3,14 @@
    ---------------------------------------------------------------------
    解决的问题：
      书库里有 431 个书目入口，但站内一篇原文都没有；用户手上的真书
-     （EPUB / PDF）之前导入后「EPUB 提示开发中、PDF 完全读不了」。
+     （EPUB / PDF）之前导入后EPUB 提示开发中、PDF 完全读不了。
    怎么做的：
      走 App 侧的零依赖实现——EPUB 用 java.util.zip 自己解包解析，
      PDF 用系统 PdfRenderer 逐页出图（都不需要第三方库、不需要联网）。
-     本文件只负责「选书 → 书架 → 阅读器 → 记进度」这一层。
+     本文件只负责选书 → 书架 → 阅读器 → 记进度这一层。
    边界：
      · 只在 App 内可用（浏览器没有 AndroidApp 桥，会明确提示而不是假装能用）
-     · PDF 是「页图」，不能选中文字（系统 PdfRenderer 不暴露文本层）
+     · PDF 是页图，不能选中文字（系统 PdfRenderer 不暴露文本层）
      · 文件本身存在 App 私有目录，卸载即消失；书籍元信息在 localStorage
    ===================================================================== */
 (function () {
@@ -39,7 +39,7 @@
       try {
         var n = JSON.parse(A.bookPosLoad() || '{}');
         if (n && typeof n === 'object') {
-          /* 以「更晚的那条」为准：本地有就用本地，缺了才用原生的 */
+          /* 以更晚的那条为准：本地有就用本地，缺了才用原生的 */
           for (var k in n) if (!o[k] || (n[k].t || 0) > (o[k].t || 0)) o[k] = n[k];
           try { localStorage.setItem(LS, JSON.stringify(o)); } catch (e) { }
         }
@@ -50,7 +50,7 @@
   function posSet(id, p) {
     try {
       p = p || {};
-      p.t = Date.now();     /* 记下时间：「继续阅读」和「最近」标签靠它排序 */
+      p.t = Date.now();     /* 记下时间：继续阅读和最近标签靠它排序 */
       var o = posAll(); o[id] = p;
       localStorage.setItem(LS, JSON.stringify(o));
       var A = app();
@@ -77,15 +77,17 @@
       '#yzbk{z-index:135}',
       '#yzshelf{z-index:130}',
       /* 回到 flex 占位：工具栏在布局里吃饭，绝不压在正文/书架按钮上。
-         上一版为了「隐藏时省空间」改成 absolute，结果直接盖住了书架第一行按钮。 */
+         上一版为了隐藏时省空间改成 absolute，结果直接盖住了书架第一行按钮。 */
       '.yzbox .bk-top{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;border-bottom:1px solid var(--panel-line,rgba(255,255,255,.14));flex:0 0 auto}',
       '.yzbox .bk-title{flex:1;min-width:0;font-weight:700;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.yzbox .bk-btn{border:1px solid var(--panel-btn-line,rgba(255,255,255,.2));background:var(--panel-btn,rgba(255,255,255,.08));color:var(--panel-btn-text,inherit);border-radius:9px;padding:6px 11px;font-family:inherit;font-size:.82rem;cursor:pointer;flex:0 0 auto}',
       '.yzbox .bk-btn:disabled{opacity:.4}',
-      /* touch-action / overscroll-behavior 都不写：默认值就是「交给浏览器滚」。
+      /* touch-action / overscroll-behavior 都不写：默认值就是交给浏览器滚。
          之前写了 pan-y + contain，在部分 WebView 上会让滚动变得很黏甚至滑不动。 */
       '.yzbox .bk-body{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px 16px 40px;line-height:1.95;font-size:1rem}',
-      '.yzbox .bk-body p{margin:0 0 .95em}',
+      '.yzbox .bk-body p{margin:0 0 .95em}' +
+      /* 面板上的实测值：字号/行距到底是多少，一眼能看见 */
+      '  .yzbox .aa-val{font-style:normal;font-size:.72rem;opacity:.6;margin-left:auto;min-width:44px;text-align:right}',
       '.yzbox .bk-body h1,.yzbox .bk-body h2,.yzbox .bk-body h3{font-size:1.06em;margin:1.3em 0 .6em;line-height:1.5}',
       '.yzbox .bk-body img{max-width:100%;height:auto}',
       '.yzbox .bk-body blockquote{margin:.8em 0;padding-left:.9em;border-left:3px solid var(--panel-accent,#f5c518);opacity:.9}',
@@ -178,7 +180,7 @@
       '.yzbox .bk-toc{position:absolute;left:0;right:0;top:0;bottom:0;overflow:auto;padding:8px 0 60px;background:var(--chrome-bg2);color:var(--chrome-fg);z-index:8}',
       '.yzbox .bk-menu{position:absolute;left:0;right:0;bottom:0;z-index:14;background:var(--chrome-bg2);color:var(--chrome-fg);border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -6px 30px rgba(0,0,0,.22);padding:6px 0 10px;max-height:78%;overflow:auto}',
       /* 底部半屏面板（目录 / 书签 / 搜索）：带遮罩和把手，上半屏仍露着正文。
-         全屏面板会让人「为了调个字号而离开那一页」，回来排版已经变了。 */
+         全屏面板会让人为了调个字号而离开那一页，回来排版已经变了。 */
       '.yzbox .bk-scrim{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.36);z-index:12}',
       '.yzbox .bk-sheet{position:absolute;left:0;right:0;bottom:0;z-index:13;background:var(--chrome-bg2);color:var(--chrome-fg);border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.3);display:flex;flex-direction:column;max-height:min(62%,34rem)}',
       '.yzbox .bk-sheet .hd{padding:8px 0 2px;display:flex;justify-content:center}',
@@ -251,7 +253,7 @@
          PDF 页图是白底的，压在一片深红上边缘会特别刺眼。阅读器自己一套配色：
          纸白（日间）与夜间两档，退出阅读器就还原成站点主题。 */
       /* 阅读态统一色板：顶栏、底栏、Aa 面板、目录、分享菜单、划词卡全部引用这一组，
-         避免「顶栏米色、面板深褐、菜单白色」四套颜色打架。
+         避免顶栏米色、面板深褐、菜单白色四套颜色打架。
          书架（非读态）仍用 --panel-* 深色，不受影响。 */
       'html body .yzbox.bk-read{background:#ece7dc;color:#26221c;',
       '  --chrome-bg:#e3ddce;--chrome-bg2:#f5f0e6;--chrome-fg:#26221c;--chrome-line:rgba(0,0,0,.12)}',
@@ -264,11 +266,20 @@
 
       'html body .yzbox.bk-read.night .bk-btn{border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#d9d5cc}',
       'html body .yzbox.bk-read.night .bk-pdfimg{box-shadow:0 1px 3px rgba(0,0,0,.6),0 6px 22px rgba(0,0,0,.5)}',
-      'html body .yzbox.bk-read.night .bk-txt{color:#c9c5bd}',
+      'html body .yzbox.bk-read.night .bk-txt{color:#c9c5bd}' +
+      /* 选中态：原来这条规则的特异性与上面 .bk-btn 的夜间规则相同、又写在前面，
+         于是夜间模式把选中色整个盖掉，用户看不出自己选了哪个。 */
+      'html body .yzbox .bk-aa .row .bk-btn.on{background:var(--panel-accent,#f5c518)!important;' +
+      'color:#241b00!important;border-color:var(--panel-accent,#f5c518)!important;font-weight:700;' +
+      'box-shadow:0 0 0 2px rgba(245,197,24,.30)}' +
+      'body.light .yzbox .bk-aa .row .bk-btn.on{background:var(--panel-accent,#8a3a00)!important;' +
+      'color:#fff8ef!important;border-color:var(--panel-accent,#8a3a00)!important}' +
+      'html body .yzbox.bk-read.night .bk-aa .row .bk-btn.on{background:#f5c518!important;' +
+      'color:#241b00!important;border-color:#f5c518!important;box-shadow:0 0 0 2px rgba(245,197,24,.42)}',
       /* 纯黑档：OLED 上省电，也给喜欢全黑的人。字依然不是纯白 */
-      /* 只作用于「正在读 PDF」的书架主体。原来只写了 .fit-page .bk-body，
-         结果点过「整页」之后回到书架，书架列表也被 flex 居中挤压，
-         表现为「主体大片空白、只剩一条书居中」——就是用户截图那个画面。 */
+      /* 只作用于正在读 PDF的书架主体。原来只写了 .fit-page .bk-body，
+         结果点过整页之后回到书架，书架列表也被 flex 居中挤压，
+         表现为主体大片空白、只剩一条书居中——就是用户截图那个画面。 */
       '.yzbox.fit-page .bk-body.pdfread{display:flex;align-items:center;justify-content:center}',
       /* 适宽：铺满宽度 + 上下也居中。用 margin:auto 而不是 align-items:center ——
          后者在内容比容器高时会把顶部裁掉，前者的滚动是安全的。 */
@@ -287,7 +298,7 @@
      以前书架和阅读器共用 #yzbk 一个容器、一套 .bk-* 元素：
      进阅读态要手工把字号/边距/顶栏按钮一样样复位，漏一样就把书架搞乱
      （事故：fit-page 类残留 → 书架列表被 flex 居中挤成空白；
-            顶栏挂着「整页 / 页码 / 日夜间」→ 书架上点它出错）。
+            顶栏挂着整页 / 页码 / 日夜间→ 书架上点它出错）。
 
      现在：
        · #yzshelf  —— 书架（只有标题 / 关闭 / 正文三块）
@@ -349,10 +360,10 @@
 
   /* ---------------- 书架（0.17.38：两套书合并成一处） ----------------
      历史原因这里原先有两套：
-       · books.js  → 「我的书」，网页侧导入 TXT/MD，存 IndexedDB，能读纯文本
-       · appbooks.js → 「我的电子书」，App 侧导入 EPUB/PDF，存私有目录，能分章/翻页
+       · books.js  → 我的书，网页侧导入 TXT/MD，存 IndexedDB，能读纯文本
+       · appbooks.js → 我的电子书，App 侧导入 EPUB/PDF，存私有目录，能分章/翻页
      同一件事两个入口、两套存储、能力还互补，属于必须合并的重复。
-     现在统一成「我的书」一页，按「能用什么方式读」分成两组，点哪本走对应阅读器。 */
+     现在统一成我的书一页，按能用什么方式读分成两组，点哪本走对应阅读器。 */
   var _list = [];
 
   function localBooks() {
@@ -364,10 +375,10 @@
   }
 
   /* ================= 书架视图 =================
-     三个标签页解决的是「本机只有几本、书库却有几百条」这件事：
+     三个标签页解决的是本机只有几本、书库却有几百条这件事：
      有原文的排最前（能直接读），只有书壳的排后面（能看介绍、能挂文件）。
-     以前这是两个割裂的入口——「我的书」里只有导入的几本，431 条书壳在书库里另开一页，
-     用户不知道该去哪边找，也就没法把「书壳」和「本机文件」对上号。 */
+     以前这是两个割裂的入口——我的书里只有导入的几本，431 条书壳在书库里另开一页，
+     用户不知道该去哪边找，也就没法把书壳和本机文件对上号。 */
   var SHELF = { tab: 'mine', sort: 'at', view: 'list', more: 60, shell: [], manage: false };
   var SEL = {};   /* 批量管理时被勾中的书 id */
 
@@ -443,10 +454,10 @@
   }
 
   /* ---- 书壳挂载（新通道）----
-     书库里 431 条「书壳」是元数据；本机导入的是文件。两者本该是一回事：
+     书库里 431 条书壳是元数据；本机导入的是文件。两者本该是一回事：
      一本《国家与革命》只有一条记录，下面挂着一个本机文件。
-     旧通道（books.js）在导入时会问「要不要挂到书壳下」，但走书架导入的书不经过它，
-     所以这里补一条：导入后按书名相似度自动认领；从详情页点「导入本书」的则强制挂到那一条。 */
+     旧通道（books.js）在导入时会问要不要挂到书壳下，但走书架导入的书不经过它，
+     所以这里补一条：导入后按书名相似度自动认领；从详情页点导入本书的则强制挂到那一条。 */
   var __shellCache = null;
   function shellMapAll() {
     if (__shellCache) return __shellCache;
@@ -470,9 +481,9 @@
   function shellDetach(bookId) { var m = shellMapAll(); delete m[bookId]; shellSave(m); }
   function shellFor(bookId) { return shellMapAll()[bookId] || null; }
 
-  /* 书名比对：去掉扩展名和括号里的版本信息再比，避免「《资本论》(第一卷)」对不上「资本论」 */
+  /* 书名比对：去掉扩展名和括号里的版本信息再比，避免《资本论》(第一卷)对不上资本论 */
   function normTitle(x) {
-    return String(x || '').replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[（(【\[].*?[）)】\]]/g, '')
+    return String(x || '').replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[（(【\[].*?[）)\]]/g, '')
       .replace(/[\s·・.,，。:：;；'"“”‘’《》<>\-—_]/g, '').trim();
   }
   function matchShell(name) {
@@ -510,13 +521,13 @@
       + '</div>'
       + '<div class="bk-tip">书（EPUB / PDF / TXT / MD）进书架，照片自动进相册 —— 选完按类型自己分，不用先挑格式。</div>'
       /* 浏览器里打开（没有 App 桥）：书目照常能看，但导入和阅读要用 App——得说清楚，别让人点了没反应 */
-      + (webOnly ? '<div class="bk-tip" style="color:#e6b422">没读到 App 桥（AndroidApp）：站内自带的书和 TXT/MD 照样能读；「＋ 导入文件」、EPUB/PDF 阅读要在 App 内。若你确实是在 App 里，请把这条提示截图反馈。</div>' : '');
+      + (webOnly ? '<div class="bk-tip" style="color:#e6b422">没读到 App 桥（AndroidApp）：站内自带的书和 TXT/MD 照样能读；＋ 导入文件、EPUB/PDF 阅读要在 App 内。若你确实是在 App 里，请把这条提示截图反馈。</div>' : '');
 
     /* 继续阅读：最近读过的那本，一条就够，别做成第二个书架 */
     if (cont) {
       h += '<div class="bk-cont" onclick="YZAppBooks.open(\'' + esc(cont.id) + '\')">'
         + '<div class="ic">▶</div>'
-        + '<div class="nm"><b>继续读「' + esc(cont.name || cont.title || '') + '」</b>'
+        + '<div class="nm"><b>继续读' + esc(cont.name || cont.title || '') + '</b>'
         + '<span>' + (cont.pct ? ('读到 ' + cont.pct + '%') : '上次打开的') + '</span></div></div>';
     }
 
@@ -553,7 +564,7 @@
     if (rb) rb.classList.remove('open');
     shell().classList.add('open');
 
-    /* 阅读态的收尾只做「与硬件/全局有关」的三件事；
+    /* 阅读态的收尾只做与硬件/全局有关的三件事；
        排版、顶栏按钮、滚动位置都不需要复位 —— 它们现在住在另一个容器里。 */
     cur = null;
     if (zoom) { try { zoom.destroy(); } catch (e) { } zoom = null; }
@@ -565,7 +576,7 @@
   }
 
   /* 站内自带正文打在安装包里，删不掉——删了下次启动还在。
-     以前「删除选中」对它们照样调原生 bookRemove，文件根本不存在，
+     以前删除选中对它们照样调原生 bookRemove，文件根本不存在，
      书架刷新一遍又冒出来，看着像没删掉。现在改为记一份隐藏名单，只从书架收起。 */
   var HIDE_KEY = 'yzShelfHide';
   function hideSet() { try { return JSON.parse(localStorage.getItem(HIDE_KEY) || '[]') || []; } catch (e) { return []; } }
@@ -585,7 +596,7 @@
 
     var booksE = native.filter(function (b) { return b.type === 'pdf' || b.type === 'epub'; });
     var booksT = native.filter(function (b) { return b.type === 'txt' || b.type === 'md'; });
-    /* 站内自带正文：算「有原文」，不算「只有书壳」；被收起来的除外 */
+    /* 站内自带正文：算有原文，不算只有书壳；被收起来的除外 */
     var st = stationBooks().filter(function (b) { return !isHidden(b.id); });
     var stId = {}; for (var si = 0; si < st.length; si++) stId[st[si].id] = 1;
     _list = booksE.concat(booksT).concat(st);   /* open() 按 id 找 meta，三类都要在 */
@@ -594,14 +605,14 @@
     var goods = txt.filter(function (b) { return BOK.test(String(b.fmt || '').toUpperCase()); });
     var bads = txt.filter(function (b) { return !BOK.test(String(b.fmt || '').toUpperCase()); });
 
-    /* 书壳：资源库里除「我的书」之外、还没挂上本机文件的那些 */
+    /* 书壳：资源库里除我的书之外、还没挂上本机文件的那些 */
     var shells = [];
     try {
       var R = window.SITE_RESOURCES || [];
       shells = R.filter(function (r) {
         return r && r.cat !== '我的书' && !r.local
             && String(r.id || '').indexOf('local-') !== 0
-            && !stId[r.id];      /* 有原文的别再以「书壳」出现一次 */
+            && !stId[r.id];      /* 有原文的别再以书壳出现一次 */
       });
     } catch (e) { shells = []; }
     SHELF.shell = shells;
@@ -621,7 +632,7 @@
 
     if (!mineN && !shells.length) {
       body.innerHTML = h + '<div class="bk-empty">还没有书。<br>'
-        + '点上面的「＋ 导入（书 / 音视频）」，一次可以选好几本，图片、音频、视频也能一起选，导入后自动各归各位。<br>'
+        + '点上面的＋ 导入（书 / 音视频），一次可以选好几本，图片、音频、视频也能一起选，导入后自动各归各位。<br>'
         + '<b>EPUB</b> 带目录分章，<b>PDF</b> 逐页翻还能放大，<b>TXT / MD</b> 适合自己整理的笔记。<br>'
         + '<span style="opacity:.7;font-size:.82rem">文件会复制到 App 内部，原文件不受影响；卸载 App 才会删。</span></div>';
       return;
@@ -688,7 +699,7 @@
       var shown = sortList(shells, SHELF.sort === 'at' || SHELF.sort === 'read' ? 'title' : SHELF.sort).slice(0, SHELF.more);
       var h3 = '<div class="bk-sec">书壳 · 只有介绍与目录，还没有本机文件</div>'
         + '<div style="padding:0 12px .5rem;font-size:.8rem;opacity:.72">'
-        + '点开可以看简介、目录与导读；如果你本机有这本书的电子版，在详情页里「📥 导入本书」就会挂到这条书壳下面，不会再单独多出一本。</div>'
+        + '点开可以看简介、目录与导读；如果你本机有这本书的电子版，在详情页里📥 导入本书就会挂到这条书壳下面，不会再单独多出一本。</div>'
         + (SHELF.view === 'grid' ? '<div class="bk-grid">' : '')
         + shown.map(function (r) {
           var idx = (window.SITE_RESOURCES || []).indexOf(r);
@@ -725,8 +736,8 @@
   }
 
   /* ---- 批量管理 ----
-     一次导入十几本时，「一本一本删」是最烦的事。所以给一个管理态：
-     勾哪几本，底部一条「已选 N · 删除」。不做长按进入——长按在手机上容易和滚动打架。 */
+     一次导入十几本时，一本一本删是最烦的事。所以给一个管理态：
+     勾哪几本，底部一条已选 N · 删除。不做长按进入——长按在手机上容易和滚动打架。 */
   function selCount() { var n = 0; for (var k in SEL) if (SEL[k]) n++; return n; }
   function selBarHTML() {
     if (!SHELF.manage) return '';
@@ -801,7 +812,7 @@
     try { document.body.classList.remove('yzshelf-open'); } catch (e) { }
   }
 
-  /* 删掉误导入的非电子书条目（书架内直接清理，不用跑回「我的资料」） */
+  /* 删掉误导入的非电子书条目（书架内直接清理，不用跑回我的资料） */
   function delText(id) {
     try {
       if (window.yzBooks && window.yzBooks.remove) { window.yzBooks.remove(id); return; }
@@ -861,7 +872,7 @@
   }
 
   function addMark() {
-    if (!cur) { toast('请从「我的藏书」打开正文后再加书签'); return; }
+    if (!cur) { toast('请从我的藏书打开正文后再加书签'); return; }
     var a = curAnchor(); if (!a) return;
     var all = marksAll(), list = all[cur.id] || [];
     list.unshift({ id: 'm' + Date.now(), t: Date.now(), label: a.label, pos: a });
@@ -901,7 +912,7 @@
   var selBarEl = null;
   function hideSelBar() { if (selBarEl) { selBarEl.remove(); selBarEl = null; } }
 
-  /* 只处理「同一段内」的选区：跨段落包 <mark> 会把 HTML 结构切坏 */
+  /* 只处理同一段内的选区：跨段落包 <mark> 会把 HTML 结构切坏 */
   function rangeInOnePara(r) {
     var a = r.startContainer, b = r.endContainer;
     function paraOf(n) { while (n && n !== document.body) { if (n.nodeType === 1 && (n.tagName === 'P' || n.tagName === 'H3')) return n; n = n.parentNode; } return null; }
@@ -971,11 +982,11 @@
     all[cur.id] = list.slice(0, 300);
     notesSave(all);
     try { window.getSelection().removeAllRanges(); } catch (e) { }
-    toast('已存摘录（可在「目录 → 摘录」里写想法）');
+    toast('已存摘录（可在目录 → 摘录里写想法）');
   }
 
   var _selTimer = null;
-  /* 选中文字 → 弹「复制 / 划线 / 摘录」操作条；与原有的划词弹词典并存：
+  /* 选中文字 → 弹复制 / 划线 / 摘录操作条；与原有的划词弹词典并存：
      这里管操作，那边管解释。 */
   function onSelChangeOps() {
     clearTimeout(_selTimer);
@@ -1001,7 +1012,7 @@
   }
 
   function searchPanel() {
-    if (!cur) { toast('请从「我的藏书」打开正文后再搜（这里是简易阅读器）'); return; }
+    if (!cur) { toast('请从我的藏书打开正文后再搜（这里是简易阅读器）'); return; }
     if (cur.type === 'pdf') { toast('PDF 是页图，没有文字层，搜不了正文（可以搜书库，或在 EPUB/TXT 里搜）'); return; }
     var d = sheet('bkSearch', '搜索本书',
       '<div class="sw"><input id="bkQ" type="search" placeholder="输入关键词，回车搜索" autocomplete="off"></div>'
@@ -1021,7 +1032,7 @@
           n++;
           out += '<div class="hit" data-p="' + i + '">' + markHits(q, it.t.slice(0, 140)) + '</div>';
         }
-        box.innerHTML = n ? out : '<div class="none">没找到「' + esc(q) + '」</div>';
+        box.innerHTML = n ? out : '<div class="none">没找到' + esc(q) + '</div>';
       } else if (window.AndroidApp && typeof AndroidApp.bookSearch === 'function') {
         box.innerHTML = '<div class="none">搜索中…</div>';
         try {
@@ -1031,7 +1042,7 @@
             ? hs.map(function (h) {
                 return '<div class="hit" data-ch="' + h.ch + '"><span class="where">' + esc(h.t || '') + '</span>' + markHits(q, h.s || '') + '</div>';
               }).join('')
-            : '<div class="none">没找到「' + esc(q) + '」</div>';
+            : '<div class="none">没找到' + esc(q) + '</div>';
         } catch (e) { box.innerHTML = '<div class="none">搜索出错：' + esc(e.message || '') + '</div>'; }
       } else {
         box.innerHTML = '<div class="none">这本书的搜索需要在 App 内使用</div>';
@@ -1057,7 +1068,7 @@
   }
 
   /* ---------- 朗读（逐段跟随：读到哪段高亮哪段并自动滚） ----------
-     纯文本走「自己逐段投喂」的路线，好处是进度完全掌握在网页侧：
+     纯文本走自己逐段投喂的路线，好处是进度完全掌握在网页侧：
      一段念完再喂下一段，就能把高亮和滚动跟上。PDF / EPUB 仍交给 speech.js 整篇念。 */
   var ttsJob = null;
 
@@ -1082,7 +1093,7 @@
     var it = ttsJob.list[ttsJob.pos];
     ttsMark(it.el);
     var ok = 0;
-    try { ok = AndroidApp.ttsSpeak(it.text, '1.0'); } catch (e) { ok = -1; }
+    try { ok = AndroidApp.ttsSpeak(it.text, String(ttsCfgGet().rate)); } catch (e) { ok = -1; }
     var st = 0;
     try { st = AndroidApp.ttsState ? AndroidApp.ttsState() : 0; } catch (e) { }
     if (st !== 0) {
@@ -1091,12 +1102,18 @@
                       : '语音引擎没起来，稍后再试');
       return;
     }
-    /* 等这一段念完：连续两次「不在朗读」才推进，避免刚开始那一下误判 */
+    /* 等这一段念完：连续两次不在朗读才推进，避免刚开始那一下误判 */
     var idle = 0;
     (function poll() {
       if (!ttsJob) return;
       ttsJob.timer = setTimeout(function () {
         if (!ttsJob) return;
+        /* 到点检查：用户设了朗读 15/30/60 分钟就在这里停 */
+        if (ttsJob.deadline && Date.now() >= ttsJob.deadline) {
+          ttsStopFollow();
+          toast('已到设定的朗读时长，自动停止');
+          return;
+        }
         var busy = false;
         try { busy = AndroidApp.ttsBusy ? AndroidApp.ttsBusy() : false; } catch (e) { busy = false; }
         if (busy) { idle = 0; poll(); return; }
@@ -1108,7 +1125,7 @@
     })();
   }
 
-  /* 从第 start 段开始逐段朗读（0.18.26 抽出，好让「长按段落→从本段读」复用） */
+  /* 从第 start 段开始逐段朗读（0.18.26 抽出，好让长按段落→从本段读复用） */
   function ttsStartFrom(start) {
     var body = document.getElementById('yzbkBody');
     if (!body) { toast('还没打开正文'); return false; }
@@ -1124,7 +1141,9 @@
     }
     if (!list.length) { toast('这一段没有可读的文字'); return false; }
     ttsStopFollow();
-    ttsJob = { list: list, pos: 0, timer: null };
+    var _tc = ttsCfgGet();
+    ttsJob = { list: list, pos: 0, timer: null,
+      deadline: _tc.minutes > 0 ? Date.now() + _tc.minutes * 60000 : 0 };
     ttsMark(list[0].el);
     toast('从这里开始朗读（再点一次停止）');
     ttsPlayNext();
@@ -1136,7 +1155,7 @@
     var A = app();
     var isText = cur && (cur.type === 'txt' || cur.type === 'md');
     if (isText && A && typeof A.ttsBusy === 'function') {
-      /* 默认从「当前视口第一段」开始；想指定段落就长按那一段 */
+      /* 默认从当前视口第一段开始；想指定段落就长按那一段 */
       var body = document.getElementById('yzbkBody');
       var top = body.getBoundingClientRect().top;
       var ps = body.querySelectorAll('h3.bk-h, p[id^="bkp-"]');
@@ -1171,7 +1190,7 @@
   }
 
   /* ---------- 长按段落 → 从本段开始朗读（0.18.26） ----------
-     主流阅读器（番茄 / Reeden / 轻阅）都是这个交互：长按正文某段，浮出「从本段听」。
+     主流阅读器（番茄 / Reeden / 轻阅）都是这个交互：长按正文某段，浮出从本段听。
      这里不去改行内 HTML，直接用事件委托 + 600ms 计时，移动超过 12px 视为滚动不算长按。 */
   var ttsMenuEl = null;
   function ttsCloseMenu() {
@@ -1268,7 +1287,7 @@
     return (body.textContent || '').trim().slice(0, 3000);
   }
 
-  /* ---------- 书籍信息：回到这本书的「书壳」详情 ---------- */
+  /* ---------- 书籍信息：回到这本书的书壳详情 ---------- */
   function bookInfo() {
     if (!cur) return;
     var R = window.SITE_RESOURCES || [], idx = -1;
@@ -1278,7 +1297,7 @@
     setTimeout(function () { try { openShell(idx); } catch (e) { } }, 140);
   }
 
-  /* 「更多」：用其他应用打开 / 分享 / 搜索 / 书签 / 朗读 / 书籍信息 */
+  /* 更多：用其他应用打开 / 分享 / 搜索 / 书签 / 朗读 / 书籍信息 */
   function outMenu(kind, key, title) {
     var old = document.getElementById('bkMenu');
     if (old) { old.remove(); return; }
@@ -1328,7 +1347,7 @@
     };
   }
 
-  /* 从阅读器顶栏「⋯」进：按当前书判断来源 */
+  /* 从阅读器顶栏⋯进：按当前书判断来源 */
   function outMenuCur() {
     if (!cur) return;
     if (cur.src) outMenu('asset', cur.src, cur.title || '');
@@ -1339,7 +1358,7 @@
      参考通行做法：面板从底部升起 + 遮罩 + 把手，高度不超过屏高 62%，
      上半屏仍露着正文；遮罩与 ✕ 是两个关闭出口，面板打开时正文不翻页。 */
   function libPanel(tab) {
-    if (!cur) { toast('请从「我的藏书」打开正文后再用'); return; }
+    if (!cur) { toast('请从我的藏书打开正文后再用'); return; }
     var old = document.getElementById('bkLib');
     if (old) { closeTopPanel(); return; }        /* 再点一次收起 */
     var scOld = document.getElementById('bkScrim'); if (scOld) scOld.remove();
@@ -1380,7 +1399,7 @@
                 + '<div class="ops"><button type="button" data-edit="' + esc(n.id) + '">写想法</button>'
                 + '<button type="button" data-del2="' + esc(n.id) + '">删除</button></div></div>';
             }).join('')
-          : '<div class="none">还没有摘录。长按正文选中一段，点「摘录」。</div>';
+          : '<div class="none">还没有摘录。长按正文选中一段，点摘录。</div>';
       } else {
         body = list.length
           ? list.map(function (m) {
@@ -1389,10 +1408,10 @@
               return '<div class="mk"><span class="no">' + hh + '</span><span class="tt" data-j="' + esc(m.id) + '">' + esc(m.label || '') + '</span>'
                 + '<button class="bk-btn x2" type="button" data-del="' + esc(m.id) + '">删</button></div>';
             }).join('')
-          : '<div class="none">还没有书签。读到要记的地方，用「⋯ → 加书签」。</div>';
+          : '<div class="none">还没有书签。读到要记的地方，用⋯ → 加书签。</div>';
       }
       d.innerHTML = head + '<div class="bd">' + body + '</div>';
-      /* 打开时把「当前」那一行带进视野，不用自己翻 */
+      /* 打开时把当前那一行带进视野，不用自己翻 */
       var on = d.querySelector('.bd .ln.on');
       if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'center' }); } catch (e) { } }
     }
@@ -1482,7 +1501,7 @@
       return (f && B[f]) || null;
     } catch (e) { return null; }
   }
-  /* 跳到原书某一篇（锚点如「第 7 号」） */
+  /* 跳到原书某一篇（锚点如第 7 号） */
   function jumpAnchor(label) {
     var st = bookStruct();
     if (!st || !st.an) return false;
@@ -1494,7 +1513,7 @@
   }
 
   /* 按段落号定位（bkp-N）。摘录/标注里存了段号就直接跳这里，
-     不再依赖「前 12 个字」的模糊匹配 —— 文字一旦被改过就找不到了。 */
+     不再依赖前 12 个字的模糊匹配 —— 文字一旦被改过就找不到了。 */
   function gotoPara(p) {
     if (p == null || p === '') return false;
     var el = document.getElementById('bkp-' + p) || document.getElementById('bkch-' + p);
@@ -1558,7 +1577,7 @@
     };
   }
 
-  /* 上一章 / 下一章：按「当前视口顶部之上最后一个章节」定位，再 ±1 */
+  /* 上一章 / 下一章：按当前视口顶部之上最后一个章节定位，再 ±1 */
   function jumpCh(step) {
     if (!cur || !cur.chs || !cur.chs.length) { toast('这本书没有章节'); return; }
     var body = document.getElementById('yzbkBody');
@@ -1599,7 +1618,7 @@
         var pt = paras[pi].trim();
         if (!pt) { items.push(null); continue; }
         var pm = pt.match(/^(#{1,3})\s+(.+)$/);
-        /* 三种算章节：Markdown 标题、符合「第X章 / 一、/ 序言…」的短行 */
+        /* 三种算章节：Markdown 标题、符合第X章 / 一、/ 序言…的短行 */
         var isCh = !!pm || (pt.length <= 34 && CH_RE.test(pt));
         if (isCh) chs.push({ i: items.length, t: (pm ? pm[2].trim() : pt) });
         items.push(isCh ? { k: 'h', t: (pm ? pm[2].trim() : pt) } : { k: 'p', t: pt });
@@ -1617,7 +1636,7 @@
         return '<p id="bkp-' + i + '">' + esc(_t).replace(/\n/g, '<br>') + '</p>';
       }).join('') + '</div>';
       body.innerHTML = html;
-      /* 没有章节就别摆「上一章/下一章」——按了没反应的按钮比没有更糟 */
+      /* 没有章节就别摆上一章/下一章——按了没反应的按钮比没有更糟 */
       try {
         var fEl = document.getElementById('yzbkFoot');
         if (fEl) fEl.style.display = (cur.chs && cur.chs.length > 1) ? 'flex' : 'none';
@@ -1655,7 +1674,7 @@
   function openText(id) {
     /* 先看 App 桥能不能给出正文地址：能给就用全屏阅读器（目录 / 进度 / 摘录 / 朗读都在），
        桥没有（网页版、或老版本 App）才退回 books.js 那套轻量阅读器。
-       以前这里无条件转给 yzBooks，于是同样是 TXT，从「我的书」点进来和从 EPUB 点进来
+       以前这里无条件转给 yzBooks，于是同样是 TXT，从我的书点进来和从 EPUB 点进来
        是两套界面，横屏时轻量那套上下工具条要吃掉半屏。 */
     var A = app(), url = '';
     try { url = (A && A.bookTextUrl) ? A.bookTextUrl(id) : ''; } catch (e) { url = ''; }
@@ -1670,7 +1689,7 @@
     } catch (e) { toast('打不开这本书：' + (e.message || '未知原因')); }
   }
 
-  /* 从搜索/摘录等入口「打开这本书并落到那一句」。
+  /* 从搜索/摘录等入口打开这本书并落到那一句。
      正文是 fetch 来的，得等渲染完再定位：每 120ms 试一次，最多 4.8 秒。 */
   function openAt(id, needle, backFn) {
     open(id, backFn);
@@ -1712,9 +1731,9 @@
     } catch (e) { toast('无法打开文件选择器'); }
   }
 
-  var pendingShell = null;   /* 「导入本书」要挂到哪条书壳 */
+  var pendingShell = null;   /* 导入本书要挂到哪条书壳 */
 
-  /* 从书库详情页「📥 导入本书」调：选完文件自动挂到这条书壳下，不另开一条记录 */
+  /* 从书库详情页📥 导入本书调：选完文件自动挂到这条书壳下，不另开一条记录 */
   function pickFor(resId) { pendingShell = resId || null; pick(); }
 
   function pick() {
@@ -1741,11 +1760,11 @@
       if (nm) msg.push(nm + ' 个音视频');
       if (bad) msg.push(bad + ' 个跳过');
       if (msg.length) toast('已导入：' + msg.join(' · '));
-      /* 音视频导完顺手刷新「音视频」页（开着的话） */
+      /* 音视频导完顺手刷新音视频页（开着的话） */
       if (nm && window.YZMedia && YZMedia.refresh) { try { YZMedia.refresh(); } catch (e) { } }
       else toast('没有可导入的文件' + (r.error ? '：' + r.error : ''));
 
-      /* 从书详情页点「导入本书」进来的：强制挂到那一条书壳上 */
+      /* 从书详情页点导入本书进来的：强制挂到那一条书壳上 */
       if (pendingShell) {
         var pb = items.filter(function (x) { return x.kind !== 'photo' && x.id; })[0];
         if (pb) {
@@ -1779,7 +1798,7 @@
   var cur = null;   /* { id, type, title, idx, count } */
   var zoom = null;  /* YZZoom 实例（PDF 整页模式才有） */
 
-  /* 阅读配色三档。夜间不是「纯白字压纯黑底」——那样反而刺眼：
+  /* 阅读配色三档。夜间不是纯白字压纯黑底——那样反而刺眼：
      字用浅灰、底用近黑偏暖，对比度降下来才是能久看的夜间模式。 */
   /* 纯黑档已下线（0.17.70）：只剩日间/夜间。老配置里存 black 的，读到时落回夜间 */
   var READ_THEMES = ['day', 'night'];
@@ -1830,11 +1849,11 @@
     try { localStorage.setItem('yzBright', String(v)); } catch (e) { }
     applyBright();
   }
-  /* PDF 是页图，CSS 只能整体压暗；夜间要真的「白纸变深底」得让原生重渲染一次 */
+  /* PDF 是页图，CSS 只能整体压暗；夜间要真的白纸变深底得让原生重渲染一次 */
   function syncPdfNight() {
     try { var A = app(); if (A && A.setPdfNight) A.setPdfNight(readTheme() !== 'day'); } catch (e) { }
     /* 正在读 PDF：立刻重出一遍图。不然切了夜间看到的还是上一次渲染的白色页缓存，
-       用户会以为「夜间没用」。 */
+       用户会以为夜间没用。 */
     if (cur && cur.type === 'pdf') {
       setTimeout(function () {
         if (!cur || cur.type !== 'pdf') return;
@@ -1877,7 +1896,7 @@
   function renderPdfFlow() {
     var body = document.getElementById('yzbkBody');
     body.innerHTML = '<div class="bk-flow" id="bkFlow"></div>';
-    /* 必须把滚动位置清零：连续档是「从 cur.idx 往后铺」，若沿用上一次的 scrollTop，
+    /* 必须把滚动位置清零：连续档是从 cur.idx 往后铺，若沿用上一次的 scrollTop，
        跳页后会停在第 7 页而不是你要去的第 6 页（实测 717px 偏移）。 */
     try { body.scrollTop = 0; } catch (e) { }
     flowNext = cur.idx;
@@ -1934,7 +1953,7 @@
       sk.value = String(Math.min(mx, Math.max(0, cur.idx)));
     }
   }
-  /* 滚动时算「现在在第几页」，写进进度：切档位、退出再进都能接上 */
+  /* 滚动时算现在在第几页，写进进度：切档位、退出再进都能接上 */
   function syncFlowPage() {
     var body = document.getElementById('yzbkBody');
     if (!body) return;
@@ -1954,46 +1973,149 @@
   }
 
   /* ---- EPUB / 纯文本 排版 ----
-     这三项（字号、行距、边距）是「读不读得下去」的门槛：
+     这三项（字号、行距、边距）是读不读得下去的门槛：
      字小了看不清，行距挤了串行，边距宽了每屏没几个字。都只是 CSS，不动解析。 */
-  var RC_DEF = { fs: 1, lh: 1, pd: 16, jc: false };
-  var RC_FS = [0.9, 1, 1.14, 1.3];
-  var RC_LH = [0.85, 1, 1.15];
+  /* 朗读偏好与 speech.js 共用同一个键（yzTtsCfg）：{rate, minutes}。
+     阅读器里的逐段投喂朗读是 appbooks 自己的一套（为了跟着高亮推进），
+     以前语速写死 1.0、也没有定时 —— 用户在 Aa 面板里怎么调都没用，就是因为两套没打通。 */
+  function ttsCfgGet() {
+    try {
+      var o = JSON.parse(localStorage.getItem('yzTtsCfg') || '{}') || {};
+      var r = Number(o.rate) || 1;
+      if (r < 0.5) r = 0.5; if (r > 2) r = 2;
+      var m = [0, 15, 30, 60].indexOf(Number(o.minutes)) >= 0 ? Number(o.minutes) : 0;
+      return { rate: r, minutes: m };
+    } catch (e) { return { rate: 1, minutes: 0 }; }
+  }
+  function ttsCfgSet(patch) {
+    var c = ttsCfgGet();
+    if (patch.rate != null) c.rate = patch.rate;
+    if (patch.minutes != null) c.minutes = patch.minutes;
+    try { localStorage.setItem('yzTtsCfg', JSON.stringify(c)); } catch (e) { }
+    return c;
+  }
+
+  var RC_DEF = { fs: 1, lh: 1, pd: 16, jc: false, ff: 0 };
+  /* 字体只能用系统字库：Android / 鸿蒙没有楷体（"Kaiti SC" 是 iOS 的，
+     CSS cursive 在安卓会回退成默认黑体），所以只给系统确定存在的两副——
+     衬线（宋体）与无衬线（黑体）。要楷体必须内置字体文件（会增大包体积），未经确认不做。 */
+  var RC_FF_CSS = ['',
+    '"Noto Serif CJK SC","Songti SC","Source Han Serif SC",serif',
+    '"PingFang SC","Noto Sans CJK SC","Source Han Sans SC",sans-serif'];
+  var RC_FF_NAME = ['默认', '宋体', '黑体'];
+  var RC_FS = [0.85, 1, 1.2, 1.45];
+  var RC_LH = [0.85, 1, 1.2];
+  /* 旧档位值 → 新档位值：老用户存的是 0.9/1.14/1.3 与 1.15，直接丢掉会跳回默认 */
+  var RC_FS_OLD = { '0.9': 0.85, '1.14': 1.2, '1.3': 1.45 };
+  var RC_LH_OLD_V = { '1.15': 1.2 };
   /* 旧版存的是绝对行距（1.6/1.95/2.3），readCfg 里做一次迁移，不要静默改用户习惯 */
   var RC_LH_OLD = [1.6, 1.95, 2.3];
   var RC_PD = [10, 16, 24];
   function readCfg() {
     var o = {};
     try { o = JSON.parse(localStorage.getItem('yzReadCfg') || '{}') || {}; } catch (e) { o = {}; }
+    if (RC_LH_OLD_V[String(o.lh)] != null) o.lh = RC_LH_OLD_V[String(o.lh)];   /* 1.15 → 1.2 */
     var lh = RC_LH.indexOf(o.lh) >= 0 ? o.lh : null;
     if (lh === null) {
       var oi = RC_LH_OLD.indexOf(o.lh);
-      lh = oi >= 0 ? RC_LH[oi] : 1;          /* 旧绝对值 → 系数；没存过就是「中」 */
+      lh = oi >= 0 ? RC_LH[oi] : 1;          /* 旧绝对值 → 系数；没存过就是中 */
     }
-    return { fs: RC_FS.indexOf(o.fs) >= 0 ? o.fs : RC_DEF.fs, lh: lh,
-             pd: RC_PD.indexOf(o.pd) >= 0 ? o.pd : RC_DEF.pd, jc: !!o.jc };
+    var fs = o.fs;
+    if (RC_FS.indexOf(fs) < 0 && RC_FS_OLD[String(fs)] != null) fs = RC_FS_OLD[String(fs)];
+    if (RC_LH.indexOf(lh) < 0 && RC_LH_OLD_V[String(lh)] != null) lh = RC_LH_OLD_V[String(lh)];
+    var ff = parseInt(o.ff, 10);
+    if (!(ff >= 0 && ff < RC_FF_CSS.length)) ff = RC_DEF.ff;
+    return { fs: RC_FS.indexOf(fs) >= 0 ? fs : RC_DEF.fs, lh: lh,
+             pd: RC_PD.indexOf(o.pd) >= 0 ? o.pd : RC_DEF.pd, jc: !!o.jc, ff: ff };
   }
   function saveReadCfg(o) { try { localStorage.setItem('yzReadCfg', JSON.stringify(o)); } catch (e) { } }
+  /* 最近一次算出来的正文实际字号/行距。挂在 YZAppBooks 上而不是 window 上，
+     免得又多一个全局变量（check-globals 会拦）。 */
+  var _readActual = null;
+
+  /* 内核有没有在偷偷放大字号？放一个 16px 和一个 32px 的隐形块量高度：
+     正常比值 ≈2.0；被字体自动放大抹平后 ≈1.0（两档被拉成同一个数）。
+     只有检测到被抹平才启用 zoom 兜底，正常设备不受影响。 */
+  function fontBoostingOn() {
+    try {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:absolute;left:-9999px;top:0;width:200px;font-size:16px;line-height:20px';
+      d.textContent = '字号探针 Ag';
+      document.body.appendChild(d);
+      var h16 = d.getBoundingClientRect().height;
+      d.style.fontSize = '32px'; d.style.lineHeight = '40px';
+      var h32 = d.getBoundingClientRect().height;
+      document.body.removeChild(d);
+      if (!h16 || !h32) return false;
+      return (h32 / h16) < 1.5;
+    } catch (e) { return false; }
+  }
+  /* 段落级写字号：容器继承被打断时，只改容器等于没改 */
+  function paintTextSize(body, cssPx, isZoomed) {
+    try {
+      var kids = body.querySelectorAll('p,h1,h2,h3,li,blockquote');
+      for (var k = 0; k < kids.length; k++) {
+        var el = kids[k];
+        var isH = /^H[123]$/.test(el.tagName);
+        el.style.setProperty('font-size', (isH ? Math.round(cssPx * 1.06 * 10) / 10 : cssPx) + 'px', 'important');
+      }
+    } catch (e) { }
+  }
   function applyReadCfg() {
     var body = document.getElementById('yzbkBody');
     if (!body) return;
     var c = readCfg();
-    /* 基准取「设置页」的两项：字号 = html 的 font-size（小/标准/大 → 15/16/18px），
+    /* 基准取设置页的两项：字号 = html 的 font-size（小/标准/大 → 15/16/18px），
        行距 = --lh（紧/中/松 → 1.6/1.9/2.2）。
        以前这里直接写 inline line-height:1.95，把设置页行距整个盖掉 —— 用户在设置里
-       调行距，进阅读器毫无变化，这就是「行距开关没用」的根因。
+       调行距，进阅读器毫无变化，这就是行距开关没用的根因。
        现在阅读器三档是相对基准的系数，两处设置相乘，改哪一头都能看到变化。 */
     var root = document.documentElement;
+    /* ① 关掉字体自动放大（Text Autosizer）。Android WebView 上它会把 15/16/18px
+       按 clusterWidth/screenWidth 乘成一个统一值，表现就是「字号怎么调都一样」。
+       只写 100% 在这个内核里不够，必须 none。 */
+    try {
+      root.style.setProperty('-webkit-text-size-adjust', 'none', 'important');
+      root.style.setProperty('text-size-adjust', 'none', 'important');
+      if (document.body) document.body.style.setProperty('-webkit-text-size-adjust', 'none', 'important');
+    } catch (e) { }
     var basePx = parseFloat((window.getComputedStyle ? getComputedStyle(root).fontSize : '') || '') || 16;
     var baseLh = parseFloat((window.getComputedStyle ? getComputedStyle(root).getPropertyValue('--lh') : '') || '') || 1.9;
-    body.style.fontSize = (basePx * c.fs).toFixed(1) + 'px';
-    body.style.lineHeight = (baseLh * c.lh).toFixed(2);
-    body.style.paddingLeft = c.pd + 'px';
-    body.style.paddingRight = c.pd + 'px';
-    body.style.textAlign = c.jc ? 'justify' : '';
+    var px = Math.round(basePx * c.fs * 10) / 10;
+    var lh = Math.round(baseLh * c.lh * 100) / 100;
+    /* ② inline !important：样式表里有 .yzbox .bk-body{font-size:1rem}，
+       普通 inline 之外的覆盖都可能把它顶回来，这里一次性写死。 */
+    /* 先探一下内核有没有在放大字号：被抹平的话，写多少 px 都会被它乘回去 */
+    var boost = fontBoostingOn();
+    var zoom = boost ? Math.round(px / 16 * 1000) / 1000 : 0;
+    var cssPx = boost ? 16 : px;             /* boost 时把「原尺寸」交给 zoom 去放大 */
+    var padCss = boost && zoom ? Math.round(c.pd / zoom * 10) / 10 : c.pd;
+    try {
+      body.style.setProperty('font-size', cssPx + 'px', 'important');
+      body.style.setProperty('line-height', String(lh), 'important');
+      body.style.setProperty('padding-left', padCss + 'px', 'important');
+      body.style.setProperty('padding-right', padCss + 'px', 'important');
+      body.style.setProperty('text-align', c.jc ? 'justify' : 'start', 'important');
+      body.style.setProperty('-webkit-text-size-adjust', 'none', 'important');
+      if (boost) body.style.setProperty('zoom', String(zoom), 'important');
+      else body.style.removeProperty('zoom');
+      if (c.ff) body.style.setProperty('font-family', RC_FF_CSS[c.ff], 'important');
+      else body.style.removeProperty('font-family');
+    } catch (e) {
+      body.style.fontSize = cssPx + 'px';
+      body.style.lineHeight = String(lh);
+    }
+    paintTextSize(body, cssPx, boost);
+    /* ③ 把算出来的实际值留一份：Aa 面板显示它，诊断报告也读它 —— 
+       「调了没反应」从此有数字可查，不用再靠猜。 */
+    var compPx = '';
+    try { compPx = getComputedStyle(body).fontSize; } catch (e) { }
+    _readActual = { px: px, lh: lh, base: basePx, fs: c.fs, lhK: c.lh,
+                    ff: c.ff, boost: boost, zoom: zoom, computed: compPx };
     var p = document.getElementById('yzbkAAPanel');
     if (!p) return;
     var isText = !cur || cur.type === 'epub' || cur.type === 'txt' || cur.type === 'md';
+    var _tc0 = ttsCfgGet();
     var th = readTheme(), br = bright();
     /* 主题与亮度对所有格式都有；字号行距只对文字版有意义 */
     var html = '<div class="row"><span>配色</span>'
@@ -2011,15 +2133,33 @@
     }
     p.innerHTML = html + '<div class="row"><span>字号</span>'
         + '<button class="bk-btn" type="button" data-a="fs-">A−</button>'
-        + '<button class="bk-btn" type="button" data-a="fs+">A＋</button></div>'
+        + '<button class="bk-btn" type="button" data-a="fs+">A＋</button>'
+        + '<i class="aa-val" id="yzbkFsVal">' + px + 'px' + (boost ? ' · 已绕过系统放大' : '') + '</i></div>'
         + '<div class="row"><span>行距</span>'
         + RC_LH.map(function (v, i) { return '<button class="bk-btn' + (c.lh === v ? ' on' : '') + '" type="button" data-a="lh' + i + '">' + ['紧', '中', '松'][i] + '</button>'; }).join('')
+        + '<i class="aa-val" id="yzbkLhVal">' + lh.toFixed(2) + '</i>'
+        + '</div>'
+        + '<div class="row"><span>字体</span>'
+        + RC_FF_NAME.map(function (m, i) {
+            return '<button class="bk-btn' + (c.ff === i ? ' on' : '') + '" type="button" data-a="ff' + i + '">' + m + '</button>';
+          }).join('')
         + '</div>'
         + '<div class="row"><span>边距</span>'
         + RC_PD.map(function (v, i) { return '<button class="bk-btn' + (c.pd === v ? ' on' : '') + '" type="button" data-a="pd' + i + '">' + ['窄', '中', '宽'][i] + '</button>'; }).join('')
         + '</div>'
         + '<div class="row"><span>两端对齐</span>'
         + '<button class="bk-btn' + (c.jc ? ' on' : '') + '" type="button" data-a="jc">' + (c.jc ? '已开' : '关闭') + '</button>'
+        + '</div>'
+        /* 朗读设置放在排版面板里：用户在同一个地方调完字号行距，顺手就能调朗读 */
+        + '<div class="row"><span>朗读语速</span>'
+        + [0.7, 0.85, 1, 1.2, 1.5].map(function (v) {
+            return '<button class="bk-btn' + (Math.abs(_tc0.rate - v) < 0.001 ? ' on' : '') + '" type="button" data-a="tts-r-' + v + '">' + v + '×</button>';
+          }).join('')
+        + '</div>'
+        + '<div class="row"><span>朗读时长</span>'
+        + [0, 15, 30, 60].map(function (v) {
+            return '<button class="bk-btn' + (_tc0.minutes === v ? ' on' : '') + '" type="button" data-a="tts-m-' + v + '">' + (v ? v + ' 分' : '不限') + '</button>';
+          }).join('')
         + '</div>'
 
   }
@@ -2028,9 +2168,22 @@
     if (a.indexOf('th-') === 0) { setReadTheme(a.slice(3)); return; }
     if (a === 'fs-') { var i = RC_FS.indexOf(c.fs); c.fs = RC_FS[Math.max(0, i - 1)]; }
     else if (a === 'fs+') { var j = RC_FS.indexOf(c.fs); c.fs = RC_FS[Math.min(RC_FS.length - 1, j + 1)]; }
+    else if (a.indexOf('ff') === 0) { c.ff = parseInt(a.slice(2), 10) || 0; }
     else if (a.indexOf('lh') === 0) { c.lh = RC_LH[parseInt(a.slice(2), 10)] || RC_DEF.lh; }
     else if (a.indexOf('pd') === 0) { c.pd = RC_PD[parseInt(a.slice(2), 10)] || RC_DEF.pd; }
     else if (a === 'jc') { c.jc = !c.jc; }
+    else if (a.indexOf('tts-r-') === 0) {
+      ttsCfgSet({ rate: parseFloat(a.slice(6)) });
+      /* 正在读就立刻换成新语速重读这一段，否则要等下一段（短文本只有一段＝永远等不到） */
+      if (ttsJob) { try { clearTimeout(ttsJob.timer); } catch (e) { } ttsJob.pos = Math.max(0, ttsJob.pos - 1); ttsPlayNext(); }
+      saveReadCfg(c); applyReadCfg(); return;
+    }
+    else if (a.indexOf('tts-m-') === 0) {
+      var mm = parseInt(a.slice(6), 10) || 0;
+      ttsCfgSet({ minutes: mm });
+      if (ttsJob) ttsJob.deadline = mm > 0 ? Date.now() + mm * 60000 : 0;
+      saveReadCfg(c); applyReadCfg(); return;
+    }
     saveReadCfg(c); applyReadCfg();
   }
 
@@ -2077,12 +2230,12 @@
      这是所有阅读器的通行做法：读的时候一屏都是字，要用时点一下就有。 */
   var chromeTimer = 0;
   /* 顶栏/底栏与系统状态栏一起进出：点一下，三样一起回来；再点或静止几秒，三样一起收。
-     上一次只切了 App 自己的工具栏，系统状态栏藏了就再没回来——所以「点也打不开」。 */
+     上一次只切了 App 自己的工具栏，系统状态栏藏了就再没回来——所以点也打不开。 */
   function immersive(on) {
     try { var A = app(); if (A && A.setImmersive) A.setImmersive(!!on); } catch (e) { }
   }
   /* 工具栏：点屏幕中间出来、再点一下收进；不再定时自动消失。
-     定时消失会让人「想调个字号，手还没到按钮它就缩回去了」——iBooks 一类的做法
+     定时消失会让人想调个字号，手还没到按钮它就缩回去了——iBooks 一类的做法
      是只有用户主动收才收。ms 参数保留只为兼容调用点。 */
   function showChrome(ms) {
     var el = document.getElementById('yzbk');
@@ -2157,7 +2310,7 @@
     var t = ev.target;
     if (t && t.closest && t.closest('a,button,input,select,textarea,.bk-toc,.bk-menu,.bk-sheet,.bk-aa,.bk-word,.bk-txt a')) return;
     /* 连续滚动档不适合双指缩放（放大和上下滚动打架），但总得能看大字：
-       双击某一页 → 切到「整页」并停在那页，那里可以捏合放大。 */
+       双击某一页 → 切到整页并停在那页，那里可以捏合放大。 */
     if (cur && cur.type === 'pdf' && el.classList.contains('fit-scroll')) {
       var pg = t.closest && t.closest('.bk-pg');
       if (pg) {
@@ -2166,13 +2319,13 @@
           _lastPgTap = { el: null, t: 0 };
           setPdfMode('page');
           goto(parseInt(pg.getAttribute('data-p'), 10) || 0);
-          toast('已切到「整页」，双指可放大');
+          toast('已切到整页，双指可放大');
           return;
         }
         _lastPgTap = { el: pg, t: now };
       }
     }
-    /* 面板开着时，点正文什么都不做：面板只能手动关（点面板上的「收起」或再点同一按钮）。
+    /* 面板开着时，点正文什么都不做：面板只能手动关（点面板上的收起或再点同一按钮）。
        以前点正文会顺手把面板和工具栏一起收掉，正在调字号时特别容易误触。 */
     /* 面板开着 → 这一下用来关面板（相当于点遮罩），不翻页、不收工具栏 */
     if (closeTopPanel()) return;
@@ -2187,10 +2340,10 @@
      通用阅读器接了词典后弹的是《现代汉语词典》；我们弹的是这个库里的
      术语卡、概念、人物、事件——这些词本来就是这本书的主题词，比通用词典准得多。 */
   function normW(x) {
-    return String(x || '').replace(/[\s\u3000·・.,，。:：;；!！?？'"“”‘’《》<>()（）\[\]【】\-—_、/]/g, '');
+    return String(x || '').replace(/[\s\u3000·・.,，。:：;；!！?？'"“”‘’《》<>()（）\[\]\-—_、/]/g, '');
   }
-  /* 匹配打分：相等最准，其次是「选中的句子包含条目名」，
-     最后才是「条目名包含选中的字」——后者必须有，否则选中「马克思」对不上「卡尔·马克思」。 */
+  /* 匹配打分：相等最准，其次是选中的句子包含条目名，
+     最后才是条目名包含选中的字——后者必须有，否则选中马克思对不上卡尔·马克思。 */
   function matchScore(nm, t) {
     if (!nm || !t) return 0;
     if (nm === t) return 4;
@@ -2205,7 +2358,7 @@
       var nm = normW(nameOf(o));
       var sc = matchScore(nm, t);
       if (!sc) continue;
-      /* 同分取更短的（「马克思」应命中「卡尔·马克思」而不是更长的派生词条） */
+      /* 同分取更短的（马克思应命中卡尔·马克思而不是更长的派生词条） */
       if (sc > bs || (sc === bs && best && nm.length < normW(nameOf(best)).length)) { bs = sc; best = o; }
     }
     return best ? { item: best, score: bs } : null;
@@ -2304,7 +2457,7 @@
   }
   var __wordTimer = 0;
 
-  /* PDF 手势：只在「整页」档启用。
+  /* PDF 手势：只在整页档启用。
      适宽档是要上下滚动读字的，接管手指会和滚动打架——所以那一档不绑。 */
   function bindPdfGestures() {
     var st = document.getElementById('bkStage');
@@ -2321,7 +2474,7 @@
     var isPage = box.classList.contains('fit-page');
     var isWidth = box.classList.contains('fit-width');
     /* 连续滚动模式放大和上下滚动会打架，不挂手势；整页与适宽都能双指放大。
-       以前这里写死只认 fit-page，于是「适宽」怎么捏都没反应。 */
+       以前这里写死只认 fit-page，于是适宽怎么捏都没反应。 */
     if (!isPage && !isWidth) return;
     zoom = window.YZZoom.attach(st, {
       max: 3,
@@ -2332,13 +2485,13 @@
   }
 
   /* 从原生读一次书目列表。以前只有渲染书架时才填 _list，
-     于是「没进过书架就直接打开一本书」（冷启动深链、快捷方式）会查不到 meta，被弹回书架。 */
+     于是没进过书架就直接打开一本书（冷启动深链、快捷方式）会查不到 meta，被弹回书架。 */
   /* 站内自带正文：书库里 url 指向包里 books/*.txt 的条目（原著、导读、讲堂整理稿等）。
-     这些书不需要「导入」——文件本来就打在安装包里，直接 fetch 就能读。
-     以前它们只出现在「只有书壳」里，点开还要走另一套简易阅读器，
-     很多人因此以为这些书「没有原文」。现在它们进「有原文」，走同一个阅读器。 */
+     这些书不需要导入——文件本来就打在安装包里，直接 fetch 就能读。
+     以前它们只出现在只有书壳里，点开还要走另一套简易阅读器，
+     很多人因此以为这些书没有原文。现在它们进有原文，走同一个阅读器。 */
   var ST_RE = /^(books|data|assets)\/.+\.(txt|md)$/i;
-  /* 章节标题识别：与 books.js 的 splitChapters 同一套规则，只认「短行」 */
+  /* 章节标题识别：与 books.js 的 splitChapters 同一套规则，只认短行 */
   var CH_RE = /^(?:第\s*[〇零一二三四五六七八九十百千0-9]+\s*[章节篇部卷讲]|[〇零一二三四五六七八九十]{1,3}\s*[、.．]|[0-9]{1,3}\s*[、.．)）]|序\s*[言章]|前\s*言|引\s*言|导\s*言|结\s*语|后\s*记|附\s*录|尾\s*声)/;
   function stationBooks() {
     var R = [];
@@ -2361,9 +2514,9 @@
     return _list;
   }
 
-  /* 按 id 找「这本书的元信息」：先找 App 桥返回的导入书，再找站内自带正文。
-     以前只查 App 桥那一份，于是书架里「站内自带 · 装了就能读」那组点下去找不到 meta，
-     open() 直接调 shelf() 重绘书架 —— 用户看到的就是「点了没反应」。 */
+  /* 按 id 找这本书的元信息：先找 App 桥返回的导入书，再找站内自带正文。
+     以前只查 App 桥那一份，于是书架里站内自带 · 装了就能读那组点下去找不到 meta，
+     open() 直接调 shelf() 重绘书架 —— 用户看到的就是点了没反应。 */
   function findMeta(id) {
     if (!_list || !_list.length) refreshList();
     var i;
@@ -2391,8 +2544,8 @@
     readerShell().classList.add('open');
     try { document.body.classList.add('yzbk-open'); } catch (e) { }
     document.getElementById('yzbkTitle').textContent = cur.title;
-    /* 记一次「打开」时间：只要打开过就算读过（继续阅读 / 最近 标签靠它排序）。
-       以前只有滚动或翻页才写进度，于是「打开看了两眼就退出」的书在书架里查不到。 */
+    /* 记一次打开时间：只要打开过就算读过（继续阅读 / 最近 标签靠它排序）。
+       以前只有滚动或翻页才写进度，于是打开看了两眼就退出的书在书架里查不到。 */
     try { var _p0 = posGet(id) || {}; posSet(id, _p0); } catch (e) { }
 
     var act = document.getElementById('yzbkAct');
@@ -2448,7 +2601,7 @@
         }
       };
     }
-    /* 书架里把它们藏起来了，进阅读态要显式打开，否则「目录」消失 */
+    /* 书架里把它们藏起来了，进阅读态要显式打开，否则目录消失 */
     if (act) act.style.display = 'inline-block';
     var _bd = document.getElementById('yzbkBody');
     if (_bd) _bd.classList.add('pdfread');
@@ -2469,11 +2622,11 @@
     if (cur.type === 'pdf') {
       act.textContent = '页码';
       act.onclick = function () { jumpPage(); };
-      /* 三档，按「怎么翻」区分，而不是按缩放比例：
+      /* 三档，按怎么翻区分，而不是按缩放比例：
          · 连续（默认）—— 一页接一页竖着排，滑到底自动接下一页。看资料最常用。
          · 适宽 —— 一次只显示一页、宽度铺满，上下滑看这一页。
          · 整页 —— 一屏一页，双指放大、左右滑动翻页，用来看版面/图表。
-         以前只有后两档，所以「想一路往下滑着读」是做不到的。 */
+         以前只有后两档，所以想一路往下滑着读是做不到的。 */
       var fit = document.getElementById('yzbkFit');
       if (fit) {
         fit.style.display = 'inline-block';
@@ -2574,7 +2727,7 @@
 
   function renderPdf() {
     var A = app(), body = document.getElementById('yzbkBody');
-    /* 宽度按「屏幕宽度 × 2」要，App 侧渲染成同尺寸的 JPEG 文件；
+    /* 宽度按屏幕宽度 × 2要，App 侧渲染成同尺寸的 JPEG 文件；
        图片走同源 https 地址取（不是 base64 塞进 data URI），这样 WebView 能流式加载、
        能缓存、能降采样——不然一页 8MB 位图过桥，翻几页就 OOM。 */
     var w = Math.min(1400, Math.round((window.innerWidth || 390) * 2));
@@ -2603,7 +2756,7 @@
       var cost = Date.now() - t0;
       setFoot('第 ' + (cur.idx + 1) + ' / ' + (cur.count || '?') + ' 页 · ' + cost + ' ms');
       bindPdfGestures();          /* 图出来之后再绑，尺寸才对得上 */
-      /* 提前渲染下一页：只预取「紧邻的、还没渲染过的」那一页，并且 700ms 内只发一次。
+      /* 提前渲染下一页：只预取紧邻的、还没渲染过的那一页，并且 700ms 内只发一次。
          以前是每翻一页 400ms 后发一次请求，快速连翻时请求会在桥线程上排队，
          而单页渲染是同步的（几百毫秒），排到第三页就明显卡住。 */
       var _pf = cur.id + ':' + (cur.idx + 1);
@@ -2627,10 +2780,10 @@
   }
 
   /* 章节 HTML 的第二道净化（0.18.47）。
-     原生侧 Epub.clean() 已经剥了标签，但那是「正则减法」，一旦漏一种写法
+     原生侧 Epub.clean() 已经剥了标签，但那是正则减法，一旦漏一种写法
      （例如无引号的 onerror=、srcdoc）就会直接在同源页面里执行。
      这里再用 DOMParser 做一次白名单：DOMParser 生成的文档是惰性的
-     ——不执行脚本、不加载图片，所以「先解析再删」不会触发 payload。 */
+     ——不执行脚本、不加载图片，所以先解析再删不会触发 payload。 */
   function sanitizeChapter(html) {
     try {
       var doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
@@ -2662,7 +2815,7 @@
     updateProgress();
   }
 
-  /* 章节标题：TOC 优先，取不到就用「第 N 章」 */
+  /* 章节标题：TOC 优先，取不到就用第 N 章 */
   var _toc = {};
   function loadTocTitles() {
     if (!cur || cur.type !== 'epub') return;
@@ -2717,7 +2870,7 @@
   /* 关闭：分两层，和安卓的返回键一致
      · 正在读书 → 先回书架（你从书架点进来的，关书不该直接把你甩到别处）
      · 已经在书架 → 才真的关掉，并且回主页；同时把抽屉收掉，
-       否则从「个人中心」进来的用户会看到抽屉从书架底下露出来（之前就是这样）。 */
+       否则从个人中心进来的用户会看到抽屉从书架底下露出来（之前就是这样）。 */
   /* 关闭阅读器。默认回书架；如果这本书是从别的页面点进来的（讲堂条目、搜索结果），
      就回到那个页面——不然从讲堂点进去读了两段，一关直接落到首页，找不回原来那条。 */
   function closeReaderTo() {
@@ -2751,7 +2904,7 @@
     return false;
   }
   function isOpen() {
-    /* 书架或阅读器任一打开，都算「在书里」（App 侧返回键据此吞事件） */
+    /* 书架或阅读器任一打开，都算在书里（App 侧返回键据此吞事件） */
     var rd = document.getElementById('yzbk');
     if (rd && rd.classList.contains('open') && cur) return true;
     var sh = document.getElementById('yzshelf');
@@ -2770,6 +2923,8 @@
   window.YZAppBooks = {
     /* 供测试/调试创建阅读器容器（正常流程由 open() 懒创建） */
     readerShell: readerShell,
+    /* 正文实际字号/行距（诊断报告与「调了没反应」的取证都用它） */
+    readActual: function () { return _readActual; },
     /* 设置页改了字号/行距后，让正开着的阅读器立刻跟着变（否则要退出再进） */
     reapplyText: applyReadCfg,
     /* 段落级定位：摘录/标注/引文回跳统一走这里（不依赖文字匹配） */
@@ -2805,7 +2960,7 @@
       } catch (e) { toast('存摘录失败'); }
     },
     manage: toggleManage, sel: toggleSel, selAll: selAll, delSel: delSel,
-    /* 书架里的「🖼 相册」走「我的资料 → 相册」那一套（唯一入口），
+    /* 书架里的🖼 相册走我的资料 → 相册那一套（唯一入口），
        照片在那边能缩放、左右滑、删除、导出 */
     openAlbum: function () {
       try {

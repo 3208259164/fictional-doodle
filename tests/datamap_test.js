@@ -1,6 +1,6 @@
 /* 用户数据清单回归（2026-11-13）
    背景：用户数据散在 localStorage / IndexedDB / 原生文件三处，以前没有任何一处
-   能回答「我有哪些数据、存在哪、能不能带走」。datamap.js 把这份口径变成代码，
+   能回答我有哪些数据、存在哪、能不能带走。datamap.js 把这份口径变成代码，
    本测试锁住：清单自洽、前缀匹配生效、未登记键能被发现、诊断摘要可读。 */
 const fs = require('fs'), path = require('path');
 const { JSDOM, VirtualConsole } = require(__dirname + '/node_modules/jsdom');
@@ -17,7 +17,7 @@ const dom = new JSDOM('<!doctype html><meta charset="utf-8"><body></body>', {
     w.localStorage.setItem('yzq@packB@yzq_best_n1_hard', '{"best":1}');
     w.localStorage.setItem('yzq_last_packA', '1717000000000');
     w.localStorage.setItem('someUnknownKey', 'x');
-    /* 真实占用与原生目录：给出可测量的假实现，验证「量得到就说量到，量不到就说量不到」 */
+    /* 真实占用与原生目录：给出可测量的假实现，验证量得到就说量到，量不到就说量不到 */
     try {
       Object.defineProperty(w.navigator, 'storage', { value: { estimate: () => Promise.resolve({ usage: 12 * 1048576, quota: 200 * 1048576 }) }, configurable: true });
     } catch (e) {}
@@ -61,7 +61,7 @@ ok('摘要可读且含关键信息', /数据清单 v2/.test(sum) && /未登记�
 const f = D.find('yzq@packA@yzq_best_mao_basic');
 ok('按真实键能反查归属', !!f && f.k === 'yzq@*', f ? f.k : '-');
 
-/* 分区键必须被声明为「不随导出带走」—— 内容包进度属于包自身，不该混进用户备份 */
+/* 分区键必须被声明为不随导出带走—— 内容包进度属于包自身，不该混进用户备份 */
 ok('内容包进度标记为不可导出', pk && pk.export === false);
 ok('摘录标记为可导出', ex && ex.export === true);
 

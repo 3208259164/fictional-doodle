@@ -1,10 +1,10 @@
-/* 地图聚合「重复」审计（12 项）
-   用户反复报的现象：地图上「合并成计数圈的」和「圈里面的内容节点」会同时出现。
+/* 地图聚合重复审计（12 项）
+   用户反复报的现象：地图上合并成计数圈的和圈里面的内容节点会同时出现。
    一层层查下来其实是三件事，本测试逐个锁住：
      ① 节点层：被合并进计数圈的节点仍被单独画了点；
      ② 标签层：被合并的节点虽然不画点了，名字还照画 → 圈心附近堆一片人名；
      ③ 事件层：被合并进事件徽标的标点仍被单独画了点、单独登记了命中项
-        （于是「圈里写 3，点开只有 1 条」），事件徽标还会压在节点圈上。
+        （于是圈里写 3，点开只有 1 条），事件徽标还会压在节点圈上。
    判据用运行时探针 window._aggIds / _drawnIds / _aggDup / AGG / EVMARKS。 */
 const fs = require('fs'), path = require('path');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
@@ -41,7 +41,7 @@ function audit(w, tag) {
   const ns = w.ns || [], AGG = w.AGG || [], EV = w.EVMARKS || [];
   const dup = w._aggDup || [];
   console.log(`  · ${tag}：节点 ${ns.length} / 计数圈 ${AGG.length} / 合并进圈 ${Object.keys(w._aggIds || {}).length} / 单独绘制 ${(w._drawnIds || []).length}`);
-  ok(`${tag}：没有「圈里成员又被单独绘制」`, dup.length === 0, dup.slice(0, 5).join(','));
+  ok(`${tag}：没有圈里成员又被单独绘制`, dup.length === 0, dup.slice(0, 5).join(','));
   let far = 0;
   const byId = {}; ns.forEach(n => byId[n.d.id] = n);
   AGG.forEach(a => (a.ids || []).forEach(id => {
@@ -49,11 +49,11 @@ function audit(w, tag) {
     const p = w.S(n); if (Math.hypot(p.x - a.x, p.y - a.y) > 2.5) far++;
   }));
   ok(`${tag}：圈成员坐标与圈心一致（圈画在成员质心上）`, far === 0, far + ' 个偏离');
-  /* 允许「单个事件小点」落在节点圈里（不同内容，且锚死坐标不偏移）；
-     但不允许「事件数字徽标」叠在节点计数圈上——两个数字互相盖住就分不清了。 */
+  /* 允许单个事件小点落在节点圈里（不同内容，且锚死坐标不偏移）；
+     但不允许事件数字徽标叠在节点计数圈上——两个数字互相盖住就分不清了。 */
   let over = 0;
   AGG.forEach(a => EV.forEach(m => { if (m.kind === 'agg' && Math.hypot(m.x - a.x, m.y - a.y) < 3) over++; }));
-  ok(`${tag}：事件「数字」徽标不压在节点计数圈上`, over === 0, over + ' 处重叠');
+  ok(`${tag}：事件数字徽标不压在节点计数圈上`, over === 0, over + ' 处重叠');
   /* 点数字圈：应展开该处全部条目 */
   if (AGG.length) {
     const a0 = AGG.filter(a => a.n >= 3)[0] || AGG[0];
@@ -83,7 +83,7 @@ boot('world', w => {
     });
     ok('世界图谱：事件标点零屏幕偏移（缩放不会漂）', off === 0, off + ' 个偏移，最大 ' + offMax.toFixed(1) + 'px');
 
-    /* ⑤ 单个事件点：点一下直接出详情，不再套一层「只有一行的列表」 */
+    /* ⑤ 单个事件点：点一下直接出详情，不再套一层只有一行的列表 */
     const singles = (w.EVMARKS || []).filter(m => m.n === 1 && m.kind === 'event');
     ok('世界图谱：有单独的事件标点可点', singles.length > 0, singles.length + ' 个');
     const visPts = (w._drawnIds || []).map(id => w.ix[id]).filter(Boolean).map(o => w.S(o));

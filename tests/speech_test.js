@@ -103,8 +103,8 @@ function longText(n) {
     const { w } = newWin({});
     ok('① 无桥无合成 → available() 为 false', w.YZSPEECH.available() === false);
     const st = w.YZSPEECH.status();
-    // 0.18.26 起 status() 会区分「桥在但没接口」与「压根没拿到桥」两种情况，
-    // 两种文案都算「说清楚了为什么不支持」。
+    // 0.18.26 起 status() 会区分桥在但没接口与压根没拿到桥两种情况，
+    // 两种文案都算说清楚了为什么不支持。
     ok('① 无桥无合成 → status() 说明不支持', /不支持|没拿到 App 桥/.test(st), st);
     const r = w.YZSPEECH.speak('测试文字');
     ok('① 无桥无合成 → speak() 返回 false', r === false);
@@ -185,7 +185,7 @@ function longText(n) {
     });
     const { w } = newWin({ bridge });
     const st = w.YZSPEECH.status();
-    ok('⑤ 缺引擎 → status() 含「不可用」', /原生朗读不可用/.test(st), st);
+    ok('⑤ 缺引擎 → status() 含不可用', /原生朗读不可用/.test(st), st);
     const r = w.YZSPEECH.speak('这段文字');
     ok('⑤ 缺引擎 → speak() 返回 false', r === false);
     ok('⑤ 缺引擎 → 提示去系统设置安装',
@@ -200,7 +200,7 @@ function longText(n) {
     const bridge = mockBridge({ status: { ok: false, lang: 'zh-CN', engine: '', reason: '', inited: false, busy: false } });
     const { w } = newWin({ bridge });
     const st = w.YZSPEECH.status();
-    ok('⑥ 初始化中 → status() 说「正在初始化」', /正在初始化/.test(st), st);
+    ok('⑥ 初始化中 → status() 说正在初始化', /正在初始化/.test(st), st);
     const r = w.YZSPEECH.speak('初始化中的文字');
     ok('⑥ 初始化中仍把文字交给原生（不提前判死）', r === true && bridge._calls.speak.length === 1, bridge._calls.speak.length);
     w.YZSPEECH.stop();
@@ -249,9 +249,9 @@ function longText(n) {
     const bar = w.document.querySelector('#yzReader .reader-bar');
     const btn = bar && bar.querySelector('button[data-yztts]');
     ok('⑧ 阅读器工具条里挂上了朗读按钮', !!btn);
-    ok('⑧ 按钮文案是「🔊 朗读」', !!btn && /朗读/.test(btn.textContent), btn && btn.textContent);
+    ok('⑧ 按钮文案是🔊 朗读', !!btn && /朗读/.test(btn.textContent), btn && btn.textContent);
     /* 工具条原有 3 个按钮；2026-11-14 加了朗读设置 ⚙（语速/时长），所以是 4 个 —— 
-       断言改成「4 个且 ⚙ 在位」，而不是只数个数（数个数会在下次加按钮时又假红）。 */
+       断言改成4 个且 ⚙ 在位，而不是只数个数（数个数会在下次加按钮时又假红）。 */
     ok('⑧ 按钮没有破坏原有工具条（3 个原有 + 1 个朗读设置）',
       bar.querySelectorAll('button').length === 4 && !!bar.querySelector('button[data-yzttscfg]'),
       bar.querySelectorAll('button').length + ' 个');
@@ -262,7 +262,7 @@ function longText(n) {
     ok('⑧ 点按钮 → 读的是正文而不是按钮文字',
       bridge._calls.speak[0].t.indexOf('第一段') >= 0 && bridge._calls.speak[0].t.indexOf('第二段') > 0,
       JSON.stringify(bridge._calls.speak[0].t.slice(0, 30)));
-    ok('⑧ 朗读中按钮变「⏹ 停止」', /停止/.test(btn.textContent), btn.textContent);
+    ok('⑧ 朗读中按钮变⏹ 停止', /停止/.test(btn.textContent), btn.textContent);
     btn.dispatchEvent(new w.Event('click', { bubbles: true }));
     await sleep(40);
     ok('⑧ 再点 → 停止并复位文案', /朗读/.test(btn.textContent) && bridge._calls.stop >= 1, btn.textContent);
@@ -289,7 +289,7 @@ function longText(n) {
     await sleep(40);
     const said = bridge._calls.speak[0] ? bridge._calls.speak[0].t : '';
     ok('⑨ 详情页读到标题+正文', said.indexOf('共产党宣言') >= 0 && said.indexOf('幽灵') >= 0, JSON.stringify(said.slice(0, 24)));
-    ok('⑨ 详情页不把「我的笔记」正文读进去', said.indexOf('我的笔记') < 0, JSON.stringify(said.slice(-20)));
+    ok('⑨ 详情页不把我的笔记正文读进去', said.indexOf('我的笔记') < 0, JSON.stringify(said.slice(-20)));
     w.YZSPEECH.stop();
   }
 

@@ -1,6 +1,6 @@
 /* 导读背景材料（sections[].bg）渲染回归：13 项。
    验证：内置 bg 渲染成可折叠块、未补的篇不受影响、
-   空正文仍显示「还没写」、进度只统计用户自己填的。 */
+   空正文仍显示还没写、进度只统计用户自己填的。 */
 const fs=require('fs'),path=require('path'),{JSDOM}=require(__dirname + '/node_modules/jsdom');
 const SITE=(process.env.YZY_SITE || require('path').join(__dirname, '..', 'site'));
 let html=fs.readFileSync(path.join(SITE,'index.html'),'utf8');
@@ -28,14 +28,14 @@ waitData(()=>{
   const clone=(d.getElementById('contentArea')||d.body).cloneNode(true);
   clone.querySelectorAll('script').forEach(function(x){x.remove();});
   const txt=clone.innerHTML;
-  t(txt.indexOf('背景材料')>0,'导读页出现「背景材料」块');
+  t(txt.indexOf('背景材料')>0,'导读页出现背景材料块');
   t(txt.indexOf('1847 年 6 月，正义者同盟在伦敦改组')>0,'  → 第 1 节背景材料已渲染');
   t(txt.indexOf('1888 年英文版恩格斯加了注')>0,'  → 第 4 节（难点）背景材料已渲染');
   t(txt.indexOf('待你想清楚')>0,'写作提示改文案生效');
   t(txt.indexOf('（这一节你还没写）')>0,'空正文提示正确（不冒充已填）');
   const nBg=(txt.match(/📎 背景材料/g)||[]).length;
-  t(nBg===6,'6 个「📎 背景材料」块（实为 '+nBg+'）');
-  t(txt.indexOf('· 已填')<0,'没有把内置材料误标成「已填」');
+  t(nBg===6,'6 个📎 背景材料块（实为 '+nBg+'）');
+  t(txt.indexOf('· 已填')<0,'没有把内置材料误标成已填');
 
   // 未补背景的篇：不应出现 details，只有骨架
   /* 临时抽掉某一节的 bg，验证退化路径：该节只显示骨架与提示，不出现背景材料块 */

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* 学通 · 地名数据校验（data/places.js）
    目的：地名条目的 events[] 是从站内事件自动聚合来的。事件一旦改名或删除，
-   这条关联就静默失效（点进去找不到事件）。这个脚本把这类「悄悄断掉」报出来。
+   这条关联就静默失效（点进去找不到事件）。这个脚本把这类悄悄断掉报出来。
    检查项：
      1. 结构：id / name / type / brief 非空，lat/lng 为数字
      2. id 唯一
@@ -29,7 +29,7 @@ vm.createContext(sandbox);
 // 事件库由三个文件拼起来：knowledge.js 先建 SITE_EXTRA.events，
 // graph-extra.js 与 events-extra.js 往里补（顺序不能反，否则前者找不到 SITE_EXTRA）。
 // 只加载 knowledge.js 会得到 102 条，把 369 条扩容批和 181 条图谱相关事件全漏掉，
-// 结果是满屏「关联事件已找不到」的假提醒。
+// 结果是满屏关联事件已找不到的假提醒。
 load('data/knowledge.js', sandbox);
 load('data/graph-extra.js', sandbox);
 load('data/events-extra.js', sandbox);
@@ -53,7 +53,7 @@ places.forEach((p, i) => {
   if (!p || TYPES.indexOf(p.type) < 0) errs.push(tag + '：type 不在允许集合（' + (p && p.type) + '）');
   if (p && (typeof p.lat !== 'number' || typeof p.lng !== 'number')) errs.push(tag + '：lat/lng 不是数字');
   if (p && p.id) { if (ids.has(p.id)) errs.push(tag + '：id 重复'); ids.add(p.id); }
-  ((p && p.events) || []).forEach(nm => { if (!evSet.has(nm)) warns.push(tag + '：关联事件「' + nm + '」在事件库里已找不到'); });
+  ((p && p.events) || []).forEach(nm => { if (!evSet.has(nm)) warns.push(tag + '：关联事件' + nm + '在事件库里已找不到'); });
 });
 
 const withEv = places.filter(p => (p.events || []).length).length;

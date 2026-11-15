@@ -2,13 +2,13 @@
    学通 · 音视频库（media.js，0.18.26）
    ---------------------------------------------------------------------
    为什么有它：
-     书库「歌曲 31 条 / 影像 35 条」原来只有 1 条真能播（国际歌），其余全是 #。
+     书库歌曲 31 条 / 影像 35 条原来只有 1 条真能播（国际歌），其余全是 #。
      不能导入自己的音频视频，也没有分享。
 
    这一版的做法（与 Android 官方推荐一致）：
      ① 选文件：SAF（ACTION_OPEN_DOCUMENT，audio/* video/*，可多选）
      ② 立刻复制进应用私有目录 —— content:// 的读权限不持久，
-        直接引用会出现「今天能放、过几天打不开」
+        直接引用会出现今天能放、过几天打不开
      ③ 播放：App 内 <audio>/<video>，地址走同源 https 的 _media/ 路由
      ④ 分享 / 删除：分享经 ExportProvider 转 content:// 交给系统分享面板
 
@@ -100,7 +100,7 @@
   function refresh() {
     busy = false;
     var cur = window.yzCur ? window.yzCur() : null;
-    /* 只在「音视频」页时重绘，别打断用户正在看的别的页面 */
+    /* 只在音视频页时重绘，别打断用户正在看的别的页面 */
     try {
       var t = document.querySelector('#contentView .sub-title, #contentView .pname');
       if (t && window.openContent) {
@@ -139,7 +139,7 @@
   function remove(name) {
     var a = A();
     if (!a || typeof a.mediaRemove !== 'function') { toast('要在 App 内使用'); return; }
-    if (!window.confirm('删除「' + name + '」？\n只删 App 里这一份，手机原文件不受影响。')) return;
+    if (!window.confirm('删除' + name + '？\n只删 App 里这一份，手机原文件不受影响。')) return;
     try { a.mediaRemove(name); } catch (e) { }
     toast('已删除');
     openLib();

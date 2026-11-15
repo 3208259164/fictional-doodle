@@ -41,8 +41,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   {
     const { w, d, errs } = boot('#browse?q=%E7%9F%9B%E7%9B%BE&cat=%E5%8E%9F%E8%91%97&sort=new');
     await sleep(60);
-    ok(d.getElementById('search').value === '矛盾', '搜索框回填「矛盾」（实为 ' + d.getElementById('search').value + '）');
-    ok(w.S.cat === '原著', '分类恢复为「原著」（实为 ' + w.S.cat + '）');
+    ok(d.getElementById('search').value === '矛盾', '搜索框回填矛盾（实为 ' + d.getElementById('search').value + '）');
+    ok(w.S.cat === '原著', '分类恢复为原著（实为 ' + w.S.cat + '）');
     ok(d.getElementById('sortSel').value === 'new', '排序恢复为 new');
     ok(!d.getElementById('view-results').hidden, '处在结果页');
     ok(errs.length === 0, '无 JS 错误');
@@ -55,7 +55,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     w.homeCat('原著');
     await sleep(320);
     ok(w.location.hash.indexOf('cat=') > 0, 'URL 含 cat=（实为 ' + w.location.hash + '）');
-    ok(decodeURIComponent(w.location.hash).indexOf('原著') > 0, 'cat 值为「原著」');
+    ok(decodeURIComponent(w.location.hash).indexOf('原著') > 0, 'cat 值为原著');
   }
 
   console.log('\n[3] 搜索：URL 跟着变');
@@ -66,7 +66,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     w.render();
     await sleep(320);
     ok(w.location.hash.indexOf('q=') > 0, 'URL 含 q=（实为 ' + w.location.hash + '）');
-    ok(decodeURIComponent(w.location.hash).indexOf('实践论') > 0, 'q 值为「实践论」');
+    ok(decodeURIComponent(w.location.hash).indexOf('实践论') > 0, 'q 值为实践论');
   }
 
   console.log('\n[4] 回首页再进：状态保持（不被清空）');
@@ -80,7 +80,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(60);
     w.goResults();
     await sleep(320);
-    ok(w.S.cat === '导读', '分类仍为「导读」（实为 ' + w.S.cat + '）');
+    ok(w.S.cat === '导读', '分类仍为导读（实为 ' + w.S.cat + '）');
     ok(w.location.hash.indexOf('cat=') > 0, 'URL 仍带 cat=（实为 ' + w.location.hash + '）');
   }
 

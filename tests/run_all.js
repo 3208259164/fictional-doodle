@@ -119,7 +119,7 @@ const BAD = results.filter(r => !r.ok && !KNOWN.has(r.f)).length;
 const KNOWNBAD = results.filter(r => !r.ok && KNOWN.has(r.f)).length;
 
 const KF = results.filter(r => !r.ok && KNOWN.has(r.f)).reduce((s, r) => s + (r.fails || 0), 0);
-/* 「未声明断言数、按 1 计」的套件单独计数：
+/* 未声明断言数、按 1 计的套件单独计数：
    这些套件的断言数不可分辨（跑了≠验了几条），不能让它们混在 507 这个总数里显得更可信。 */
 const NOCNT = results.filter(r => r.ok && /未声明断言数/.test(r.note)).length;
 /* 注意行必须在合计行之前：门禁取输出最后一行解析断言数，合计必须留在最后。 */

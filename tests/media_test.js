@@ -118,7 +118,7 @@ const w = dom.window, d = w.document;
   }
 
   /* 6. 抽屉入口 */
-  ok('书架有音视频入口（抽屉已合并为「我的文件」）',
+  ok('书架有音视频入口（抽屉已合并为我的文件）',
      fs.readFileSync(BASE + 'assets/appbooks.js', 'utf8').indexOf('YZMedia.openLib()') > 0 &&
      fs.readFileSync(BASE + 'assets/app.js', 'utf8').indexOf("'我的文件'") > 0);
 

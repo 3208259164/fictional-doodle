@@ -1,6 +1,6 @@
-/* 世界/文革图谱「聚合圈与节点重复」回归（10 项）
+/* 世界/文革图谱聚合圈与节点重复回归（10 项）
    问题现象：地图模式下，同一地点的节点既画出了一个个小点，又叠了一个带数字的计数圈，
-            看起来「合并的和合并里面的内容同时出现」。
+            看起来合并的和合并里面的内容同时出现。
    根因：draw() 先画所有节点，再算聚合、再把计数圈叠加画上去，画节点时没有排除聚合成员。
    修法：聚合计算提前，节点循环里跳过已被合并的节点。
    本测试锁住：聚合集合可用、节点确实被排除、退出地图后不聚合、点聚合里的节点仍能打开。 */
@@ -30,10 +30,10 @@ function inline(h) { return h.replace(/<script[^>]*src="([^"]+)"[^>]*><\/script>
   ok('_aggIds 非空（确有同地节点）', Object.keys(w._aggIds || {}).length > 0);
   ok('AGG 计数圈已生成', Array.isArray(w.AGG) && w.AGG.length > 0, (w.AGG || []).length + ' 个圈');
 
-  /* 圈里的每个成员都必须在 _aggIds 里（否则会出现「圈 + 小点」重复） */
+  /* 圈里的每个成员都必须在 _aggIds 里（否则会出现圈 + 小点重复） */
   const all = (w.AGG || []).reduce((a, g) => a.concat(g.ids || []), []);
   const notMarked = all.filter(id => !w._aggIds[id]);
-  ok('AGG 里每个 id 都被标记为「不再单独画」', notMarked.length === 0, notMarked.slice(0, 5).join(',') || '全部标记');
+  ok('AGG 里每个 id 都被标记为不再单独画', notMarked.length === 0, notMarked.slice(0, 5).join(',') || '全部标记');
   ok('聚合圈至少含 2 个节点', (w.AGG || []).every(g => (g.ids || []).length >= 2));
 
   /* 聚合成员仍然可以点开（不是被彻底藏掉） */

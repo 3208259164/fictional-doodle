@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 书籍章节/元信息编辑 + 「有简介不进图谱」的人物 —— jsdom 实测 */
+/* 书籍章节/元信息编辑 + 有简介不进图谱的人物 —— jsdom 实测 */
 const fs = require('fs'), path = require('path');
 const { JSDOM } = require(__dirname + '/node_modules/jsdom');
 const SITE = (process.env.YZY_SITE || require('path').join(__dirname, '..', 'site'));
@@ -20,7 +20,7 @@ setTimeout(() => {
   try {
     w.YZY.setEditorEnabled(true);
 
-    // ① 找一本「无产阶级文化大革命概述·简论」
+    // ① 找一本无产阶级文化大革命概述·简论
     const idx = w.eval('RES.findIndex(function(x){return x.id==="wenge-gaishu-shuiluzhou"})');
     ok('目标书籍存在', idx >= 0, 'idx=' + idx);
     w.openItemDetail(idx);
@@ -58,7 +58,7 @@ setTimeout(() => {
     const pageHtml = w.document.body.innerHTML;
     ok('详情页出现新章节标题', pageHtml.indexOf('测试章') >= 0);
 
-    // ⑤ 「有简介但不进图谱」：往人物库加人，不建图谱节点
+    // ⑤ 有简介但不进图谱：往人物库加人，不建图谱节点
     const N = '测试·张三';
     const before = w.eval('allGraphNodes().filter(function(n){return n.name==="' + N + '"}).length');
     const r = w.YZY.addPerson({ name: N, group: 'comrades', years: '1900—1980', role: '测试身份', intro: '这是只进人物库、不进图谱的一份简介。' });

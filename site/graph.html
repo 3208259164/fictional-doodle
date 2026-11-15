@@ -71,7 +71,7 @@ body.light .rt-sug{background:#fff;color:#2a2320}
 .phead{display:flex;gap:13px;align-items:center;margin-bottom:10px}
 .pav{width:60px;height:60px;border-radius:50%;flex:none;overflow:hidden;border:2px solid rgba(245,197,24,.6);background:rgba(255,255,255,.06);display:grid;place-items:center;font-size:1.5rem;color:var(--accent);box-shadow:0 0 0 3px rgba(245,197,24,.10)}
 .pav img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
-/* ---------- 浅色 / 羊皮纸主题（跟随「设置 → 主题」） ---------- */
+/* ---------- 浅色 / 羊皮纸主题（跟随设置 → 主题） ---------- */
 body.light,body.sepia{color:#2a2320}
 body.light{background:radial-gradient(circle at 20% 0%,rgba(200,30,30,.10),transparent 45%),radial-gradient(circle at 90% 100%,rgba(245,197,24,.16),transparent 45%),linear-gradient(160deg,#fffdf8,#f5efe3 60%,#ece3d3)}
 body.sepia{background:radial-gradient(circle at 20% 0%,rgba(170,70,20,.12),transparent 45%),linear-gradient(160deg,#f8efdd,#efe0c4 60%,#e6d5b5)}
@@ -192,7 +192,7 @@ body.light #tr .foldbar button,body.sepia #tr .foldbar button{background:rgba(25
  #filters{margin-top:2px}#filters button{padding:7px 11px;font-size:.69rem;min-height:34px}
  #kinds{margin-top:2px}#kinds button{padding:6px 10px;font-size:.65rem;min-height:32px}
 }
-/* 关系工具（全高抽屉，与「列表」同款） / 数据导出 / 图谱管理 / 浮动提示 */
+/* 关系工具（全高抽屉，与列表同款） / 数据导出 / 图谱管理 / 浮动提示 */
 #relTool{position:fixed;top:0;left:0;bottom:0;width:min(380px,90vw);z-index:38;transform:translateX(-103%);transition:transform .28s ease,visibility 0s .28s;
   overflow-y:auto;padding:18px 16px 60px;background:linear-gradient(200deg,#241018,#120b10);border-right:1px solid var(--line);visibility:hidden}
 #relTool.open{transform:none;box-shadow:14px 0 40px rgba(0,0,0,.55);visibility:visible;transition:transform .28s ease,visibility 0s}
@@ -220,7 +220,7 @@ body.sepia #relTool select,body.sepia #relTool button{background:rgba(255,250,24
 body.light #relTool .rt-chain span,body.sepia #relTool .rt-chain span{background:rgba(0,0,0,.05)}
 body.light #relTool .rt-sec,body.sepia #relTool .rt-sec{border-top-color:rgba(0,0,0,.1)}
 /* ---- 图谱管理面板（右侧抽屉） ---- */
-/* 图谱管理：从「全高右抽屉」改成「半屏底部弹层」。
+/* 图谱管理：从全高右抽屉改成半屏底部弹层。
    为什么改：全高右抽屉在手机上几乎遮满画布，改设置时看不到图变成了什么样；
    半屏弹层上半屏仍是图，改一项能立刻看到效果。点遮罩（面板外的任何地方）收起来。 */
 /* 图谱管理：右侧半屏（宽度 50%），左边那半仍是图谱，点左侧空白即收起 */
@@ -292,7 +292,7 @@ body.sepia #focusBar{background:rgba(253,246,230,.94);border-color:rgba(120,90,4
 </style><script src="assets/store.js"></script><script src="assets/custom.js"></script><script src="assets/crash.js"></script><script src="assets/diag.js"></script>
 <link rel="stylesheet" href="assets/landscape.css"></head><body>
 <a class="skip" href="#lb">跳到节点列表</a>
-<canvas id="cv" role="img" aria-label="关系图谱画布：可拖动平移、滚轮缩放、点击节点查看详情；无法用鼠标时可改用左侧「📋 列表」按名称检索定位"></canvas>
+<canvas id="cv" role="img" aria-label="关系图谱画布：可拖动平移、滚轮缩放、点击节点查看详情；无法用鼠标时可改用左侧📋 列表按名称检索定位"></canvas>
 <div class="ui" id="tl"><h1>学通 · 关系图谱</h1><a class="back" href="index.html">← 返回学通</a>
  <div class="sub" id="tlSub">拖动平移 · 滚轮缩放 · 点节点高亮其关系网</div>
  <div class="legend" id="nodeLegend">
@@ -339,6 +339,7 @@ body.sepia #focusBar{background:rgba(253,246,230,.94);border-color:rgba(120,90,4
 <script src="data/graph-geo.js"></script>
 <script src="data/graph-geo-extra.js"></script>
 <script src="data/graph-world.js"></script>
+<script src="assets/graph-cross.js"></script>
 <script src="data/geo-china.js"></script>
 <script src="data/geo-world.js"></script>
 <script src="assets/cite.js"></script>
@@ -369,7 +370,7 @@ function color(n){
 function relKind(r){r=r||'';if(/批判|对立|分歧|开除|论战|叛徒|错误|敌人|反对|前身思潮/.test(r))return 'neg';if(/父子|伴侣|亲人|兄弟|夫妻/.test(r))return 'fam';return 'pos';}
 function relColor(r){var k=relKind(r);return k==='neg'?CL.neg:k==='fam'?CL.fam:CL.pos;}
 var KINDCLR=(GR&&GR.kinds)||{};
-/* 用户在「关系工具」里给这条线单独设过颜色 → 优先用它（0.17.56 之前漏读 e.color，
+/* 用户在关系工具里给这条线单独设过颜色 → 优先用它（0.17.56 之前漏读 e.color，
    所以 2D 图谱改色看着没反应；3D 版是读的） */
 function edgeColor(e){if(e&&typeof e.color==='string'&&e.color)return e.color;if(e&&e.k&&KINDCLR[e.k])return KINDCLR[e.k];return relColor(e?e.r:'');}
 function tyName(t){return t==='person'?'人物':t==='idea'?'思想':t==='event'?'事件':t==='work'?'著作':'组织';}
@@ -410,7 +411,7 @@ function yzPlace(){
                          if(g.key==='org')  g.ids=GR.nodes.filter(function(n){return n.type==='org';}).map(function(n){return n.id;}); });
   var gid={}, cen={}, k;
   if(mapMode==='china'){
-    /* 地方图谱（如文革图谱）：内置分组表不适用 → 按「类型 + 省份」合成，中心均布在一个环上（避免全挤在原点） */
+    /* 地方图谱（如文革图谱）：内置分组表不适用 → 按类型 + 省份合成，中心均布在一个环上（避免全挤在原点） */
     var keys=[], seen={}, byKey={}, G2=[];
     GR.nodes.forEach(function(n){ var kk=yzKey(n); if(!seen[kk]){seen[kk]=1;keys.push(kk);byKey[kk]={key:kk,label:(n.prov||'全国'),ids:[]};G2.push(byKey[kk]);} byKey[kk].ids.push(n.id); });
     var kn=keys.length||1;
@@ -434,8 +435,8 @@ function yzGeo(list){
   var arr=(list&&list.length)?list:ns;
   try{
     /* 落点优先级：①节点自带 geo（真实发生地）②节点 prov（省/市名）③全国中心。
-       同一「0.2° 网格」内的节点视为同城 → 归为一组，组内位置锚定真实经纬度；
-       彼此不重叠的「散开」由 S() 以固定的屏幕像素给出（见下），故缩放时不变形。 */
+       同一0.2° 网格内的节点视为同城 → 归为一组，组内位置锚定真实经纬度；
+       彼此不重叠的散开由 S() 以固定的屏幕像素给出（见下），故缩放时不变形。 */
     var byKey={};
     arr.forEach(function(o){ var d0=(o.d||{}); var base,key;
       if(d0.geo && d0.geo.length===2 && typeof d0.geo[0]==='number' && typeof d0.geo[1]==='number'){
@@ -449,14 +450,14 @@ function yzGeo(list){
 }
 window.yzPlace=yzPlace; window.yzGeo=yzGeo;
 /* 世界地图：人物 / 组织 / 思想 / 事件 / 逝世**统一同一半径**。
-   以前是 2.1 / 3.4 / 3.0 三种大小，同屏看过去大小不齐（用户反馈「节点之间外观不同」）。 */
+   以前是 2.1 / 3.4 / 3.0 三种大小，同屏看过去大小不齐（用户反馈节点之间外观不同）。 */
 var GEO_R={p:2.1,o:2.1,e:2.1,d:2.1};
 var GEO_R_CN={p:3.8,o:3.1,e:4.2,d:3.8};   /* 中国（文革）地图：节点更大一档 */
 var GEO_USE=GEO_R;
 function geoR(){ return (mapMode==='china')?GEO_R_CN:GEO_R; }
 /* 名称显示三态：all=能放下的都放（默认）｜auto=只显示度数高的（少了杂乱）｜off=不显示
    世界地图上名字永远放不全（实测视野内 84 个候选、屏幕只放得下十几个），
-   给个开关让用户自己选「要清楚」还是「要干净」。 */
+   给个开关让用户自己选要清楚还是要干净。 */
 /* 缩放档位缓存：把 k 量化成档（每 1.2 倍一档），同一档内标签名单保持稳定。
    为什么需要：标签是每帧按屏幕位置做碰撞取舍的，缩放时位置全变 → 名单跟着换（label popping）。
    现在同一档内优先保留上一帧已经显示的名字，位置微调不会把它们踢掉。 */
@@ -468,7 +469,7 @@ var LBL_GAP=(function(){try{var v=parseFloat(localStorage.getItem('graphLabelGap
 function _zq(){ return Math.round(Math.log(Math.max(view.k,0.01))/Math.log(1.2)); }
 function _lblSignature(){
   /* 注意：签名里**不放 selected**。点击节点如果触发缓存清空，其他标签就会整批重排——
-     那正是「点一下再缩放，名字全变」的来源。选中者走第二遍填空补进来即可。 */
+     那正是点一下再缩放，名字全变的来源。选中者走第二遍填空补进来即可。 */
   var gid=''; try{ gid=(window.YZY&&YZY.activeGraphId)?YZY.activeGraphId():''; }catch(e){}
   return [filter,LB_MODE,W+'x'+H,gid,viewMode,mapMode].join('|');
 }
@@ -484,14 +485,14 @@ function imgList(d){
   if(d.type!=='person')return [];
   var out=[];
   if(d.img)out.push(d.img);
-  /* 只请求「头像清单」里确实存在的文件（由 tools/gen_avatars.js 生成），
+  /* 只请求头像清单里确实存在的文件（由 tools/gen_avatars.js 生成），
      避免按 id 猜路径产生大量 404；清单里没有的人物＝确实没有照片，不请求。 */
   var F=window.AVATAR_FILES||{}, id=String(d.id||'');
   var p=F[id]||F[id.replace(/_/g,'')];
   if(p&&out.indexOf(p)<0)out.push(p);
   return out;
 }
-/* 头像改为「首帧绘制之后再渐进加载」：不让几十张图片请求与首次布局/绘制抢主线程与带宽 */
+/* 头像改为首帧绘制之后再渐进加载：不让几十张图片请求与首次布局/绘制抢主线程与带宽 */
 (function(){
   var queue=ns.filter(function(o){ return imgList(o.d).length; }), at=0;
   function loadOne(o){
@@ -518,8 +519,8 @@ function imgList(d){
 })();
 
 /* ---------- 分组聚簇布局：组内聚拢 + 组间分离 + 碰撞，清晰不糊 ----------
-   性能说明（0.17.36）：原先是 1100 次同步迭代、每轮都要「节点两两排斥 + 两两碰撞」，
-   124 个节点就是约 1700 万次距离计算，全部压在白屏里同步跑完 —— 这是「点开图谱要等一下」的主因。
+   性能说明（0.17.36）：原先是 1100 次同步迭代、每轮都要节点两两排斥 + 两两碰撞，
+   124 个节点就是约 1700 万次距离计算，全部压在白屏里同步跑完 —— 这是点开图谱要等一下的主因。
    现在：① 迭代降到 300 次（力导向早已收敛，视觉无差别）；② 算完把坐标存本机，
    同一图谱同一批节点再次进入直接复用，一分钱不花。节点一旦增减，签名变化，缓存自动作废。 */
 (function(){
@@ -551,14 +552,14 @@ for(var _pi=0;_pi<ns.length;_pi++){var _pn=ns[_pi];
 
 var view={x:0,y:0,k:1};
 function resize(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';}
-var mapOnly = !!(GR && GR.mapOnly);   /* 声明「只能用地图」的图谱（如世界图谱）→ 不提供关系网视图 */
+var mapOnly = !!(GR && GR.mapOnly);   /* 声明只能用地图的图谱（如世界图谱）→ 不提供关系网视图 */
 var viewMode = (mapMode==='none') ? 'net' : 'geo';   /* 有底图 → 默认地图（节点固定在地理位置）；无底图 → 关系网 */
 function WX(o){return (viewMode==='geo'&&typeof o.gx==='number')?o.gx:o.x;}
 function WY(o){return (viewMode==='geo'&&typeof o.gy==='number')?o.gy:o.y;}
 /* 屏幕坐标：**严格锚定（固定定点）**。
    地理视图下节点屏幕位置 = proj(geo) × view.k + view 平移，不叠加任何屏幕像素偏移，
    故缩放/平移时节点与底图严丝合缝、零漂移。同一落点的多个节点因此完全重合，
-   重叠改由「聚合徽标（计数圈）」表达（见 draw() 的 AGG 与 clusterList）。 */
+   重叠改由聚合徽标（计数圈）表达（见 draw() 的 AGG 与 clusterList）。 */
 function S(o){ return {x:WX(o)*view.k+view.x, y:WY(o)*view.k+view.y}; }
 /* ---- 地理视图：省级示意底图 + 按 prov 落点 ---- */
 var PROVC = { '北京':[116.4,39.9],'上海':[121.47,31.23],'武汉':[114.3,30.6],'成都':[104.07,30.67],'广州':[113.26,23.13],'全国':[104.5,35.5] };
@@ -660,19 +661,19 @@ function drawEvents(){
   E.forEach(function(e,idx){ var g=G[e.name]; if(!g||!g.geo)return;
     /* 时空模式下，标点也要跟着时间窗口走：窗口外的事件不在图上留痕 */
     var sp=spotYear(e.year);
-    /* 复合事件的 place 用「/」并列多个地点，与 geo 数组一一对应 → 逐点拆分，
+    /* 复合事件的 place 用/并列多个地点，与 geo 数组一一对应 → 逐点拆分，
        保证每个标点标注的确实是它自己真实发生的地点，绝不张冠李戴。 */
     var pls=String(g.place||'').split(/\s*[\/、]\s*/);
     g.geo.forEach(function(gg,jj){ var w=proj(gg[0],gg[1]);
       var pl=(pls.length===g.geo.length)?pls[jj]:g.place;
       pts.push({kind:'event',i:idx,lng:gg[0],lat:gg[1],x:w.x*view.k+view.x,y:w.y*view.k+view.y,nm:e.name,place:pl,sp:sp}); }); });
-  /* 人物「逝世 / 牺牲」标点（谁在哪里逝世） */
+  /* 人物逝世 / 牺牲标点（谁在哪里逝世） */
   var D=window.SITE_DEATH_GEO||{};
   Object.keys(D).forEach(function(id){ var d=D[id]; if(!d||!d.geo||!d.geo.length)return; var o=ix[id]; if(!o||!passesFilter(o))return;
     var w=proj(d.geo[0],d.geo[1]); pts.push({kind:'death',pid:id,lng:d.geo[0],lat:d.geo[1],x:w.x*view.k+view.x,y:w.y*view.k+view.y,nm:o.d.name,place:d.place,sp:spotYear(d.year)}); });
   /* 严格锚定（固定定点）：标点不叠加任何屏幕偏移。
-     此前按 place 做「固定像素向日葵」散开 → 缩放时会相对底图滑动（红/橙标点尤其明显）。 */
-  /* 「同一地点」聚合：**只按真实经纬度是否邻近**归并（0.05° 网格 ≈ 5km），不再按名字。
+     此前按 place 做固定像素向日葵散开 → 缩放时会相对底图滑动（红/橙标点尤其明显）。 */
+  /* 同一地点聚合：**只按真实经纬度是否邻近**归并（0.05° 网格 ≈ 5km），不再按名字。
      名字相同但实际相距很远的标点（复合事件的多地等）绝不合并。 */
   var bg={}, bgPlace={}; pts.forEach(function(p){
     var k=(typeof p.lng==='number'&&typeof p.lat==='number')?(Math.round(p.lng*20)+','+Math.round(p.lat*20)):('?'+(p.place||''));
@@ -681,40 +682,40 @@ function drawEvents(){
   var aggPts=[]; Object.keys(bg).forEach(function(k){ var a=bg[k]; if(a.length>1){ var nm2=bgPlace[k];
     var title=(nm2.length===1)?nm2[0]:(nm2.length<=3?nm2.join(' / '):(nm2.slice(0,2).join(' / ')+' 等'));
     aggPts.push({x:a[0].x,y:a[0].y,n:a.length,place:title,kind:a[0].kind,items:a}); } });
-  /* 给每个标点编号，供下面判断「是否已被合并进计数徽标」 */
-  /* 图谱里已有的「事件节点」名字：这些事件已经以节点形式画在图上，标点不再重复画 */
+  /* 给每个标点编号，供下面判断是否已被合并进计数徽标 */
+  /* 图谱里已有的事件节点名字：这些事件已经以节点形式画在图上，标点不再重复画 */
   var _evNodeNm={};
   for(var _en=0;_en<ns.length;_en++){ var _nd=ns[_en].d; if(_nd&&_nd.type==='event'&&_nd.name)_evNodeNm[_nd.name]=1; }
   pts.forEach(function(m,k){ m.__pid=k; });
   /* 被合并进计数徽标的标点：不再单独画点、不再单独出名字、不再单独登记命中项。
-     之前这三件事照做，结果是「计数圈 + 圈里的小点」同时出现，
-     而且点数字圈会先命中半径内 n=1 的单点，表现为「圈里写 3，点开只有 1 条」。 */
+     之前这三件事照做，结果是计数圈 + 圈里的小点同时出现，
+     而且点数字圈会先命中半径内 n=1 的单点，表现为圈里写 3，点开只有 1 条。 */
   var _inP={};
   aggPts.forEach(function(g){ g.items.forEach(function(m){ _inP[m.__pid]=1; }); });
   pts.forEach(function(m){ if(_inP[m.__pid])return; ctx.globalAlpha=m.sp;
     /* 与图谱里同名的事件节点重复：图谱那个节点已经画了这件事（连名字），
-       再画一个标点会让同一处出现两个名字，点开也变成两条（用户反馈的「显示两个名字」）。
-       注意：只对「事件」这样处理，逝世标点名字是人名，不能跳。 */
+       再画一个标点会让同一处出现两个名字，点开也变成两条（用户反馈的显示两个名字）。
+       注意：只对事件这样处理，逝世标点名字是人名，不能跳。 */
     if(m.kind==='event' && _evNodeNm[m.nm]) return;
     /* 标点严格锚在真实经纬度上：不做任何屏幕像素偏移（偏移会随缩放相对底图滑动） */
     var _mr=GEO_USE.e;   /* 事件/逝世标点：固定小点 */
     if(m.kind==='death'){ ctx.beginPath();ctx.arc(m.x,m.y,GEO_USE.d,0,6.2832);ctx.fillStyle='#d9534f';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.6)';ctx.stroke(); }
     else { ctx.beginPath();ctx.arc(m.x,m.y,_mr,0,6.2832);ctx.fillStyle='#e0913a';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.5)';ctx.stroke(); }
-    /* 逝世标点用「名字 †」：与他本人的节点同名但地点不同（生卒地 vs 活动地），
-       不加记号会像「一个名字在图上出现了两次」 */
+    /* 逝世标点用名字 †：与他本人的节点同名但地点不同（生卒地 vs 活动地），
+       不加记号会像一个名字在图上出现了两次 */
     /* 世界地图初始 fit 后 k 约 0.10：以前阈值 0.2 会让所有事件/逝世标点一个名字都不显示。
        现在门槛降到 0.10，能不能显示交给下面的防重叠（BG）按优先级取舍。 */
-    /* 点自己在画布外就不给名字：否则名字会「悬空」在没有点的位置 */
+    /* 点自己在画布外就不给名字：否则名字会悬空在没有点的位置 */
     if(view.k>=0.10 && m.x>-6 && m.x<W+6 && m.y>-6 && m.y<H+6){
       EVLBL.push({key:'e'+m.__pid,x:m.x,y:m.y+13,txt:(m.kind==='death'?(m.nm+' †'):m.nm),col:(m.kind==='death'?'#e2a3a3':CL.lbl),prio:(m.kind==='death'?6:5)}); }
     EVMARKS.push({x:m.x,y:m.y,n:1,kind:m.kind,i:m.i,pid:m.pid,nm:m.nm,place:m.place}); });
   ctx.globalAlpha=1;
-  /* 同地点标点完全重合 → 画「计数徽标」（同心、零偏移、严格固定），点击可展开列表 */
+  /* 同地点标点完全重合 → 画计数徽标（同心、零偏移、严格固定），点击可展开列表 */
   window.__evAggLen=AGG.length; window.__evAggR=(AGG[0]&&AGG[0].r)||0;   /* 诊断：画事件徽标时 AGG 是否已就绪 */
   aggPts.forEach(function(g){ var rr=GEO_USE.d+5;
-    /* 与「节点计数圈」同地点：并进那个圈，图上只留一个圈。
+    /* 与节点计数圈同地点：并进那个圈，图上只留一个圈。
        以前是固定往右上挪 15px（比两个半径和还小，等于没挪开），
-       后来改成按半径推开——但那是**屏幕像素**偏移，一缩放就相对底图滑动，所以又出现了「节点偏移」。
+       后来改成按半径推开——但那是**屏幕像素**偏移，一缩放就相对底图滑动，所以又出现了节点偏移。
        现在一律不挪：并进圈，点圈时把事件一起列出来。 */
     for(var _q2=0;_q2<AGG.length;_q2++){ var _A2=AGG[_q2];
       if((_A2.x-g.x)*(_A2.x-g.x)+(_A2.y-g.y)*(_A2.y-g.y) < _A2.r*_A2.r){
@@ -728,10 +729,10 @@ function drawEvents(){
   EVAGG=aggPts;
 }
 function hitEvent(mx,my){ for(var i=0;i<EVMARKS.length;i++){ var m=EVMARKS[i]; var r=(m.n>1?16:12); if((m.x-mx)*(m.x-mx)+(m.y-my)*(m.y-my)<r*r) return m; } return null; }
-/* 聚合徽标命中（节点簇）：同一落点完全重合 → 以「计数圈」为交互入口 */
+/* 聚合徽标命中（节点簇）：同一落点完全重合 → 以计数圈为交互入口 */
 function hitAgg(mx,my){ for(var i=0;i<AGG.length;i++){ var g=AGG[i]; if((g.x-mx)*(g.x-mx)+(g.y-my)*(g.y-my)<g.r*g.r) return g; } return null; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-/* 「同一地点」条目列表：节点严格锚定经纬度 → 同落点完全重合，故用列表展开 */
+/* 同一地点条目列表：节点严格锚定经纬度 → 同落点完全重合，故用列表展开 */
 function clusterList(title,sub,items,onPick){
   document.getElementById('pchip').textContent='同一地点';
   document.getElementById('pchip').className='chip';
@@ -756,13 +757,13 @@ function tapAgg(g){ if(!g)return;
   var _hasPerson=g.ids.some(function(id){ return ix[id]&&ix[id].d.type==='person'; });
   clusterList(_hasPerson?'同一地点':((g.rep&&g.rep.d&&g.rep.d.place)||'同一地点'), g.n+' 个节点', items, function(it){ select(it.id); });
 }
-/* 统一命中：同一屏幕点附近可能同时存在「节点聚合」「事件标点聚合」「单个事件/逝世标点」，
+/* 统一命中：同一屏幕点附近可能同时存在节点聚合事件标点聚合单个事件/逝世标点，
    旧版 hitEvent 优先于 hitAgg → 数字显示的是节点数，点开却只有 1 条事件。这里全部合并。 */
 function tapAt(mx, my) {
   var nodes = [], evs = [], seen = {}, i, j;
-  /* ① 先看有没有「肉眼可见的节点」正好被点到：有就直接打开它本身。
-     否则会被下面「同地点的聚合列表」抢走 —— 表现为点一条事件/一个人，弹出的却是这个城市的
-     三四条清单，还得再点一次（用户反馈「点开节点时也会显示两个」）。
+  /* ① 先看有没有肉眼可见的节点正好被点到：有就直接打开它本身。
+     否则会被下面同地点的聚合列表抢走 —— 表现为点一条事件/一个人，弹出的却是这个城市的
+     三四条清单，还得再点一次（用户反馈点开节点时也会显示两个）。
      只认真正画出来的节点（window._drawnIds）；被合并进计数圈的没画，不该被"点中"。 */
   var _vis = {};
   (window._drawnIds || []).forEach(function (id) { _vis[id] = 1; });
@@ -789,7 +790,7 @@ function tapAt(mx, my) {
     if (_m1.kind === 'event') { try { panelEvent(_m1.i); } catch (e) { } return true; }
     /* 事件聚合徽标：往下走，交给后面的列表 */
   }
-  /* 只取「最近的一个」节点簇：相邻地点在低缩放下屏幕距离很近，全收会把别处的人一起列出来 */
+  /* 只取最近的一个节点簇：相邻地点在低缩放下屏幕距离很近，全收会把别处的人一起列出来 */
   var bestG = null, bd = 1e18;
   for (i = 0; i < AGG.length; i++) {
     var g0 = AGG[i], rr0 = (g0.r || 9) + 4;
@@ -811,7 +812,7 @@ function tapAt(mx, my) {
     if (bestM.kind === 'agg') (bestM.items || []).forEach(function (p) { evs.push(p); });
     else evs.push(bestM);
   }
-  /* 这个圈里「并进来的事件标点」（同地点既有节点又有事件）：一并列出，点圈就能看到全部 */
+  /* 这个圈里并进来的事件标点（同地点既有节点又有事件）：一并列出，点圈就能看到全部 */
   if (bestG && bestG.evItems && bestG.evItems.length) bestG.evItems.forEach(function (p) {
     if (seen['e' + p.__pid]) return; seen['e' + p.__pid] = 1; evs.push(p);
   });
@@ -829,7 +830,7 @@ function tapAt(mx, my) {
     });
   });
   var place = '';
-  /* 标题必须用「最近的那个」徽标的地点，绝不能取数组第一个（否则永远显示 EVMARKS[0] 的伦敦） */
+  /* 标题必须用最近的那个徽标的地点，绝不能取数组第一个（否则永远显示 EVMARKS[0] 的伦敦） */
   if (bestM && bestM.place) place = bestM.place;
   if (!place && bestG && bestG.rep && bestG.rep.d) place = bestG.rep.d.place || bestG.rep.d.prov || '';
   if (!place && bestG) place = '同一地点';
@@ -839,7 +840,7 @@ function tapAt(mx, my) {
     if (p.kind === 'death' && p.pid) { try { select(p.pid); } catch (e) { } }
     else { try { panelEvent(p.i); } catch (e) { } }
   }
-  /* 只有一条内容：**直接打开**，不要再套一层「一条的列表」让人点第二下
+  /* 只有一条内容：**直接打开**，不要再套一层一条的列表让人点第二下
      （用户反馈：单独点一个事件标点，弹出的却和合并的一样，还得再点一次） */
   if (items.length === 1) { pick(items[0]); return true; }
   clusterList(place || '同一地点',
@@ -884,7 +885,7 @@ function highlightPath(chain){
     if(xs.length && viewMode !== 'geo') fitTo(xs);
   }catch(e){}
   draw(); saveViewState();
-  toast2('已高亮这条关系链（' + (chain.length - 1) + ' 步）· 点「← 取消高亮」或空白处即取消');
+  toast2('已高亮这条关系链（' + (chain.length - 1) + ' 步）· 点← 取消高亮或空白处即取消');
 }
 function commName(k){
   var best = null, bd = -1;
@@ -892,7 +893,7 @@ function commName(k){
   if(!best) return '社区' + (k + 1);
   var nm0 = String(best.d.name || '');
   if(nm0.length > 9) nm0 = nm0.slice(0, 9) + '…';
-  return nm0 ? ('以「' + nm0 + '」为中心的群') : ('社区' + (k + 1));
+  return nm0 ? ('以' + nm0 + '为中心的群') : ('社区' + (k + 1));
 }
 function _pyOf(nm){
   var str = String(nm || ''), full = '', abbr = '';
@@ -935,16 +936,16 @@ function commLegend(){ try{ var old = document.getElementById('commLegend'); if 
   tl.appendChild(lg); } catch (e) {} }
 function toggleBundle(){ bundleOn = !bundleOn; if (Object.keys(comm).length === 0) computeComm(); var b = document.getElementById('cb4'); if (b) b.classList.toggle('on', bundleOn); draw(); }
 /* ---- 时间维度：只有一个模型 —— 年份区间 [stA, stB] ----
-   2026-11-02 彻底重构：原来有「⏳ 时间轴（单年淡化）」和「🌌 时空（区间裁剪）」
-   两套东西，入口两个按钮、还有一段「开一个就关另一个」的互斥代码。
+   2026-11-02 彻底重构：原来有⏳ 时间轴（单年淡化）和🌌 时空（区间裁剪）
+   两套东西，入口两个按钮、还有一段开一个就关另一个的互斥代码。
    实际上它们表达的是同一个变量（时间），只是取了区间的不同用法：
      · 两端拉满            → 全部
-     · 左端拉到最左、右端右移 → 「截至某年」的累积读法
-     · 两端往中间收         → 「只看这一段」的窗口读法
+     · 左端拉到最左、右端右移 → 截至某年的累积读法
+     · 两端往中间收         → 只看这一段的窗口读法
    所以现在只保留一个区间控件（stbar 的起止两个滑块 + ▶ 播放），
    区间外的节点淡出到 12% 而不是整块消失（保留上下文，也避免播放时节点乱跳）。 */
 /* 取节点的年份区间：优先 y0/y1（文革图谱＝活动年份），没有就从 years 字符串解析
-   （主图谱 / 世界图谱的人物是「1818—1883」、事件是「1917」）。 */
+   （主图谱 / 世界图谱的人物是1818—1883、事件是1917）。 */
 function _yr(d){ d=d||{};
   if(typeof d.y0==='number') return {a:d.y0,b:(typeof d.y1==='number')?d.y1:d.y0};
   var m=String(d.years||'').match(/\d{4}/g);
@@ -968,18 +969,18 @@ function spotYear(str){
   return 1;
 }
 /* ================= 时空视图（时空 = 地理 × 年代） =================
-   时间轴只按一个年份调透明度（「截至某年」，节点始终留在图上），本质还是一张静态图。
-   时空视图改成「圈一段年代」：用起止两个年份圈一个窗口，窗口外的节点根本不画，
-   按「▶ 播放」让止年逐年推进，节点就一个一个冒出来、路线一段一段长出来 ——
-   这是历史制图里常用的「时间刷 / 时间序列」（ICA 历史事件制图规范），
+   时间轴只按一个年份调透明度（截至某年，节点始终留在图上），本质还是一张静态图。
+   时空视图改成圈一段年代：用起止两个年份圈一个窗口，窗口外的节点根本不画，
+   按▶ 播放让止年逐年推进，节点就一个一个冒出来、路线一段一段长出来 ——
+   这是历史制图里常用的时间刷 / 时间序列（ICA 历史事件制图规范），
    地理与年代两个维度同时在图上起作用，而不是退回成只有节点。
-   人物的年份区间取「生—卒」，于是播放时看到的就是一代人陆续登场、又陆续退场。 */
+   人物的年份区间取生—卒，于是播放时看到的就是一代人陆续登场、又陆续退场。 */
 var stOn=false, stA=null, stB=null, stTimer=null;
 function inWin(o){ if(!stOn) return true; var y=_yr(o&&o.d); if(!y) return true; return !(y.b<stA || y.a>stB); }
-/* 年份范围的取法：以「事件」为准。
+/* 年份范围的取法：以事件为准。
    若把人物生卒也算进去，范围会被拉得很离谱（旧民图谱 1785—1962、新民图谱 1879—2001：
    有人生于图谱年代之前、有人卒于图谱年代之后），滑块一大半行程是空的。
-   人物仍按自己的生卒进出画面，但不参与「这段历史有多长」的定义。 */
+   人物仍按自己的生卒进出画面，但不参与这段历史有多长的定义。 */
 function stYears(){ var ev=[], all=[];
   ns.forEach(function(o){ var y=_yr(o.d); if(!y) return; all.push(y.a,y.b); if(o.d&&o.d.type==='event') ev.push(y.a,y.b); });
   var src = ev.length ? ev : all;
@@ -987,7 +988,7 @@ function stYears(){ var ev=[], all=[];
 function stCount(){ var n=0; ns.forEach(function(o){ if(inWin(o)&&passesFilter(o)) n++; }); return n; }
 function toggleTime(){
   /* 已经在时空模式里：无论当前图谱有没有年份数据都先关掉。
-     旧版把「有没有年份」判断放在最前面，切到无年份的图谱后就再也关不掉了。 */
+     旧版把有没有年份判断放在最前面，切到无年份的图谱后就再也关不掉了。 */
   if(stOn){
     stOn=false;
     document.body.classList.remove('st-open');
@@ -1008,7 +1009,7 @@ function toggleTime(){
     if(stA===null||stB===null){ stA=Y.a; stB=Y.b; }
     stA=Math.max(Y.a,Math.min(stA,Y.b)); stB=Math.min(Y.b,Math.max(stB,Y.a));
     if(stB<stA) stB=stA;
-    /* 两个时间滑块同时开容易互相打架：时空模式下把「截至某年」的条收起来 */
+    /* 两个时间滑块同时开容易互相打架：时空模式下把截至某年的条收起来 */
     buildStBar(); clearSel();
   } else { stStop(); }
   var sb=document.getElementById('stbar'); if(sb) sb.style.display=stOn?'flex':'none';
@@ -1071,7 +1072,7 @@ function passesFilter(o){ var d=(o&&o.d)||{}; if(focusId&&!(_focusSet&&_focusSet
 function listShown(){return ns.filter(passesFilter);}
 function bounds(list){var l=list&&list.length?list:ns;var x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;l.forEach(function(o){var xx=WX(o),yy=WY(o);if(xx<x0)x0=xx;if(yy<y0)y0=yy;if(xx>x1)x1=xx;if(yy>y1)y1=yy;});return{cx:(x0+x1)/2,cy:(y0+y1)/2,w:x1-x0,h:y1-y0};}
 function fitTo(list){var b=bounds(list);var lo=(viewMode==='geo')?0.05:0.2;view.k=Math.max(lo,Math.min(Math.min((W-130)/(b.w||1),(H-140)/(b.h||1)),2.2));view.x=W/2-b.cx*view.k;view.y=H/2-b.cy*view.k;draw();}
-/* 世界地图：**允许缩放（滚轮/双指）与空处拖动平移**，但「节点不可拖动」——
+/* 世界地图：**允许缩放（滚轮/双指）与空处拖动平移**，但节点不可拖动——
    拖动若起始于节点则不平移（节点锁死不动），点选节点也不再让整幅图跟着移位。 */
 function geoLocked(){ return viewMode==='geo' && mapMode==='world'; }
 function geoBounds(){ if(mapMode==='world'){ var a=proj(-180,84),b=proj(180,-58); return{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,w:Math.abs(b.x-a.x),h:Math.abs(b.y-a.y)}; } var G=window.SITE_GEO;if(!G||!G.provinces)return null;var x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
@@ -1079,12 +1080,12 @@ function geoBounds(){ if(mapMode==='world'){ var a=proj(-180,84),b=proj(180,-58)
  if(x0>x1)return null;return{cx:(x0+x1)/2,cy:(y0+y1)/2,w:x1-x0,h:y1-y0};}
 function fitGeo(full){var b=geoBounds();if(!b){fitTo(ns);return;}
  var k=Math.max(0.05,Math.min((W-30)/(b.w||1),(H-150)/(b.h||1)));
- /* 地图不够放：把整张地图放大（允许左右平移）；「适应窗口」则给全图 */
+ /* 地图不够放：把整张地图放大（允许左右平移）；适应窗口则给全图 */
  if(mapMode==='world'){
    /* 世界地图：0.1 的比例是把 360 度经度硬塞进 390px 宽，地图只剩中间一条横带，
-      所有名字都被防重叠挤掉（用户反馈「很多节点没有名字」）。
+      所有名字都被防重叠挤掉（用户反馈很多节点没有名字）。
       默认视野放大到 0.16（能看到约 2/3 经度、名字出得来）；
-      点「⤢ 适应窗口」时仍给真正的全球视图。 */
+      点⤢ 适应窗口时仍给真正的全球视图。 */
    if(!full) k=Math.max(k,0.16);
  } else if(!full && !geoLocked()){
    /* 地图不够放就整体放大（可平移） */
@@ -1095,8 +1096,8 @@ function fitGeo(full){var b=geoBounds();if(!b){fitTo(ns);return;}
 function fitAll(){clearSel();if(viewMode==='geo')fitGeo(true);else fitTo(ns);}
 function centerDefault(){view.k=Math.max(0.85,Math.min(1.3,Math.min(W,H)/820));view.x=W/2;view.y=H/2;draw();}
 
-/* 标签取舍顺序只看「度数」。以前选中某人会把他的邻居抬到 1e4，
-   于是点一下节点，其他所有人的名字就被挤掉一批，再缩放又换一批 —— 用户看到的「名字不固定」。
+/* 标签取舍顺序只看度数。以前选中某人会把他的邻居抬到 1e4，
+   于是点一下节点，其他所有人的名字就被挤掉一批，再缩放又换一批 —— 用户看到的名字不固定。
    邻居的强调改由颜色表达（CL.lblRel），不再影响谁显示。 */
 function prio(o){if(o===selected)return 1e6;if(o===hover)return 5e5;return o.deg;}
 function makeGrid(cell){var m={};return{
@@ -1151,8 +1152,8 @@ function draw(){
   ctx.shadowBlur=0;ctx.setLineDash([]);
  }
  /* 聚合计算（提前算）：同一落点（≈0.05° 网格）的节点会合成一个计数圈。
-    提前算的目的是让下面的节点循环能跳过「已经被合并进圈里」的节点 ——
-    否则会出现「计数圈 + 圈里的小点」同时显示的重复（用户反馈的就是这个）。 */
+    提前算的目的是让下面的节点循环能跳过已经被合并进圈里的节点 ——
+    否则会出现计数圈 + 圈里的小点同时显示的重复（用户反馈的就是这个）。 */
  var _aggCl=[], _aggIds={};
  window._aggIds=_aggIds; window._aggCl=_aggCl;   /* 每次重绘都重新挂：非地图模式下应为空 */
  if(viewMode==='geo'){
@@ -1191,30 +1192,30 @@ function draw(){
   }
   else{var R2=(viewMode==='geo')?GEO_USE.o:R;   /* 地图上同样缩小 */o._R=R2;
    /* 形状也表达类型：◆事件 ■组织 ▲思想 ⬡概念 ●人物（色盲/灰度下同样可辨；
-      之前思想与人物同为圆点，只能靠颜色区分，容易看成「人物用了思想的颜色」） */
+      之前思想与人物同为圆点，只能靠颜色区分，容易看成人物用了思想的颜色） */
    ctx.beginPath();
    if(o.d.type==='event'){var _dr=R2*1.3;ctx.moveTo(p.x,p.y-_dr);ctx.lineTo(p.x+_dr,p.y);ctx.lineTo(p.x,p.y+_dr);ctx.lineTo(p.x-_dr,p.y);ctx.closePath();}
    else if(o.d.type==='org'){ctx.rect(p.x-R2*0.92,p.y-R2*0.92,R2*1.84,R2*1.84);}
    else{ctx.arc(p.x,p.y,R2,0,6.2832);}
    ctx.fillStyle=commOn?commColor(o):color(o.d);ctx.fill();
-   /* 地图上不描「被批判」红边：同一批人物里只有一部分带边，看着像两种外观（用户反馈）。
+   /* 地图上不描被批判红边：同一批人物里只有一部分带边，看着像两种外观（用户反馈）。
       这个身份在点开的面板里仍然写着，不会丢。 */
    if(o.d.crit&&viewMode!=='geo'){ctx.lineWidth=1.2;ctx.strokeStyle='rgba(255,139,139,.9)';ctx.stroke();}
    if(big){ctx.lineWidth=1.4;ctx.strokeStyle='rgba(245,197,24,.95)';ctx.stroke();}}
-  /* 中介枢纽（介数 Top）：右上角一枚小金点，说明「他是关系网的关键节点」 */
-  /* 诊断：记录每个节点这一次的「外观参数」，方便核对「同类节点长得不一样」的问题 */
+  /* 中介枢纽（介数 Top）：右上角一枚小金点，说明他是关系网的关键节点 */
+  /* 诊断：记录每个节点这一次的外观参数，方便核对同类节点长得不一样的问题 */
   (window._nodeStyle=window._nodeStyle||[]).push({id:o.d.id,ty:o.d.type,r:+(o._R||0).toFixed(2),a:+_alpha.toFixed(2),img:(o.imgOk&&o.img&&viewMode!=='geo')?1:0,big:big?1:0});
   if(_bcTop&&_bcTop[o.d.id]){var _rr=(o._R||6);ctx.globalAlpha=related?1:(DIM*0.75);ctx.beginPath();ctx.fillStyle='#e0aa46';ctx.arc(p.x+_rr*0.82,p.y-_rr*0.82,3.1,0,6.2832);ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.stroke();}
  }
  ctx.globalAlpha=1;
- /* 聚合徽标（节点）：同一落点（_gN≥2）节点完全重合 → 同心「计数圈」；零偏移、严格固定；
+ /* 聚合徽标（节点）：同一落点（_gN≥2）节点完全重合 → 同心计数圈；零偏移、严格固定；
     点击可展开该地点的全部条目（见 hitAgg/clusterList）。 */
- /* 聚合徽标（节点）：**屏幕聚合** —— 屏幕距离 < 22px 的节点合成一个「计数圈」。
+ /* 聚合徽标（节点）：**屏幕聚合** —— 屏幕距离 < 22px 的节点合成一个计数圈。
     节点本身严格锚定 proj(geo) 不动；徽标置于簇质心（= 固定地理点均值×k+平移，
     随缩放线性变化 → 不跳变、不相对底图滑动）。点击展开该处条目（tapAgg/clusterList）。 */
  AGG=[];
  if(viewMode==='geo'){
-  /* 只按「真实经纬度是否为同一落点(≈0.05° 网格)」归并：相隔较远的「地方」在任何缩放下都不会
+  /* 只按真实经纬度是否为同一落点(≈0.05° 网格)归并：相隔较远的地方在任何缩放下都不会
      被错并成一团（旧版按屏幕距离<22px 链式合并，低缩放时会把几十个地点并成一个计数圈）。 */
   _aggCl.forEach(function(g2){ var pp={x:g2.sx/g2.n,y:g2.sy/g2.n};
    var sel2=!!(selected&&g2.ids.indexOf(selected.d.id)>=0), rr=(GEO_USE.p||3)+6;
@@ -1226,27 +1227,27 @@ function draw(){
  }
  drawEvents();
  /* 选中项若处在聚合簇中：在簇旁标注其名字 */
- /* 选中项如果被并进了某个计数圈：不再在圈上方另标一个名字（那样就和圈下方的那行名字叠成「上下两个」），
+ /* 选中项如果被并进了某个计数圈：不再在圈上方另标一个名字（那样就和圈下方的那行名字叠成上下两个），
     改为在下面圈名那一行优先显示它的名字。 */
- /* 圈内成员不再各出名字后，若圈够大就标一个「代表名 等N位」，否则合并后整片地图一个人名都没有 */
+ /* 圈内成员不再各出名字后，若圈够大就标一个代表名 等N位，否则合并后整片地图一个人名都没有 */
  function getAggKey(g){ return (g.rep&&g.rep.d&&g.rep.d.id)||('x'+Math.round(g.x)+Math.round(g.y))||(g.ids&&g.ids[0])||'?'; }
- for(var _ag2=0;_ag2<AGG.length;_ag2++){ var _G4=AGG[_ag2]; if(_G4.n<2)continue;   /* n=2 也要有名，否则图上只剩一个「2」 */
-   if(_G4.x<-24||_G4.x>W+24||_G4.y<-24||_G4.y>H+24)continue;                    /* 圈在视野外就别标名，否则名字会「悬空」 */
+ for(var _ag2=0;_ag2<AGG.length;_ag2++){ var _G4=AGG[_ag2]; if(_G4.n<2)continue;   /* n=2 也要有名，否则图上只剩一个2 */
+   if(_G4.x<-24||_G4.x>W+24||_G4.y<-24||_G4.y>H+24)continue;                    /* 圈在视野外就别标名，否则名字会悬空 */
    var _rn='';
    if(selected&&_G4.ids.indexOf(selected.d.id)>=0) _rn=selected.d.name;          /* 选中的人优先显示 */
    if(!_rn) _rn=(_G4.rep&&_G4.rep.d&&_G4.rep.d.name)?_G4.rep.d.name:'';
    if(!_rn)continue;
    var _evn=(_G4.evItems&&_G4.evItems.length)||0;
-   /* 位置一律固定在圈的正下方：以前给过「上/右/左」备选，结果同一个名字每次重绘可能换到另一侧，
-      看起来就是「名字乱偏移」。现在宁可少显示一个名字，也不让位置变。 */
+   /* 位置一律固定在圈的正下方：以前给过上/右/左备选，结果同一个名字每次重绘可能换到另一侧，
+      看起来就是名字乱偏移。现在宁可少显示一个名字，也不让位置变。 */
    EVLBL.push({x:_G4.x,y:_G4.y+_G4.r+9,
      agg:1,small:1,key:'a'+(getAggKey(_G4)),txt:_rn+(_evn?('·'+_evn+'事件'):''),col:CL.lbl,prio:99}); }
  /* 名称标签：统一防重叠（逝世/事件标点优先，其余按等级） */
  var BG=makeGrid(46); for(var _g0=0;_g0<GEOBOX.length;_g0++)BG.push(GEOBOX[_g0]);   /* 省份名先占位（空间哈希） */
  if(!hideText){
   /* ---- 同址去重（0.17.31）----
-     同一经纬度上可能同时有「事件节点」和「事件标点/聚合标题」，两者各画一个标签，
-     屏幕上就出现「一个位置上下两个名字」。规则：节点标签优先，标点标签让位不画。 */
+     同一经纬度上可能同时有事件节点和事件标点/聚合标题，两者各画一个标签，
+     屏幕上就出现一个位置上下两个名字。规则：节点标签优先，标点标签让位不画。 */
   (function(){
     var _nodeXY=[];
     for(var _i=0;_i<ns.length;_i++){ var _o=ns[_i];
@@ -1263,14 +1264,14 @@ function draw(){
         return true;
       });
     }
-    /* 同一地点的多个「标点/聚合」标签合并成一个：以前两个不同名的事件落在同一城市，
-       会各画一个名字（上下叠着），界面上就像「一个节点两个名字」。
-       现在只留优先级最高的那个，后面加「等 N 项」，点开仍是完整清单。 */
+    /* 同一地点的多个标点/聚合标签合并成一个：以前两个不同名的事件落在同一城市，
+       会各画一个名字（上下叠着），界面上就像一个节点两个名字。
+       现在只留优先级最高的那个，后面加等 N 项，点开仍是完整清单。 */
     (function(){
       var out=[], used={};
       for(var _a=0;_a<EVLBL.length;_a++){
         if(used[_a])continue;
-        /* 计数圈名不参与合并：三个圈挨得近时，合并会把另外两个圈的名字吞掉（「等3项」），
+        /* 计数圈名不参与合并：三个圈挨得近时，合并会把另外两个圈的名字吞掉（等3项），
            结果是那两个圈只剩数字。各自独立，由防重叠决定显示哪个。 */
         if(EVLBL[_a].agg){ out.push(EVLBL[_a]); used[_a]=1; continue; }
         var grp=[EVLBL[_a]]; used[_a]=1;
@@ -1290,14 +1291,14 @@ function draw(){
   var LB=[];
   for(var _d0=0;_d0<EVLBL.length;_d0++){var _m=EVLBL[_d0];LB.push({p:9e5+(_m.prio||0),x:_m.x,y:_m.y,t:_m.txt,c:_m.col,a:1,bold:false,small:!!_m.small,key:_m.key||('e'+_m.txt)});}
   for(var _c1=0;_c1<ns.length;_c1++){var _oc=ns[_c1];if(!passesFilter(_oc)||!showLabel(_oc))continue;
-   /* 已合并进计数圈的节点：不再单独出名字（否则圈心附近堆一片人名，看着像「圈和里面的节点同时出现」），
+   /* 已合并进计数圈的节点：不再单独出名字（否则圈心附近堆一片人名，看着像圈和里面的节点同时出现），
       选中/悬停时仍然显示，方便确认是谁 */
    if(_aggIds[_oc.d.id]&&_oc!==selected&&_oc!==hover)continue;var _pl=S(_oc);if(_pl.x<-90||_pl.x>W+90||_pl.y<-90||_pl.y>H+90)continue;   /* 与节点绘制同口径：点画了才可能有名字 */var _bl=(_oc===hover||_oc===selected);
    LB.push({p:prio(_oc),x:_pl.x,y:_pl.y-(_oc._R||6)-6,t:_oc.d.name,bold:_bl,a:spot(_oc),c:_bl?CL.lblHi:(selected&&nb[_oc.d.id]?CL.lblRel:CL.lbl),key:'n'+_oc.d.id});}
   LB.sort(function(A,B){return B.p-A.p;});
   ctx.textAlign='center';ctx.textBaseline='alphabetic';
   /* ---- 缩放档位缓存（label popping 治理）----
-     同一缩放档内：按「上一帧的绘制顺序」先画上次已经显示的名字（位置微调不会把它们踢掉），
+     同一缩放档内：按上一帧的绘制顺序先画上次已经显示的名字（位置微调不会把它们踢掉），
      其余名字只能填剩下的空位。只有跨档才重新洗牌。
      签名（筛选 / 名称模式 / 画布尺寸 / 图谱）一变，缓存整体作废；点击节点不触发作废。 */
   var _zqNow=_zq(), _sigNow=_lblSignature();
@@ -1378,7 +1379,7 @@ function cycleLabelMode(){
 }
 function applyFilter(f){filter=f;if(selected)clearSel();Array.prototype.slice.call(document.querySelectorAll('#filters button')).forEach(function(b){b.classList.toggle('on',b.dataset.f===f);});if(viewMode==='geo')fitGeo();else fitTo(listShown());syncHash();}
 Array.prototype.slice.call(document.querySelectorAll('#filters button')).forEach(function(b){b.onclick=function(){applyFilter(b.dataset.f);};});
-/* ---- 文革图谱：关系线类型「图例 + 过滤」（仅当图谱声明 kinds 时启用） ---- */
+/* ---- 文革图谱：关系线类型图例 + 过滤（仅当图谱声明 kinds 时启用） ---- */
 (function(){try{
  if(!GR.kinds)return;
  window.__kf={};
@@ -1515,9 +1516,9 @@ var MG_TOOLS=[
  {id:'dtb', t:'⬇ 数据'},
  {id:'rankb', t:'📊 排名'}
 ];
-/* 顶部区域：图例与操作提示可在「管理」里关掉，只留标题与「返回」 */
+/* 顶部区域：图例与操作提示可在管理里关掉，只留标题与返回 */
 var MG_TOP=[{id:'nodeLegend',t:'🎨 节点图例'},{id:'edgeLegend',t:'🔗 关系线图例'},{id:'tlSub',t:'📌 操作提示'}];
-/* 默认值：节点图例 / 关系线图例显示，「操作提示」（tlSub 那一行小字）默认隐藏。
+/* 默认值：节点图例 / 关系线图例显示，操作提示（tlSub 那一行小字）默认隐藏。
    用户没关过也没开过时按这里的默认走；显式点过开关后以 MG.top 为准。 */
 function mgTopHidden(id){
   if (MG.top && typeof MG.top[id] === 'boolean') return MG.top[id];
@@ -1526,14 +1527,14 @@ function mgTopHidden(id){
 function mgApplyTop(){ MG_TOP.forEach(function(t){ var e=document.getElementById(t.id); if(e) e.style.display=mgTopHidden(t.id)?'none':''; }); }
 function toggleMgrTop(id){
   MG.top=MG.top||{};
-  MG.top[id] = !mgTopHidden(id);   /* 原写法是「隐藏?true:false」，等于永远写回原值，点了没反应 */
+  MG.top[id] = !mgTopHidden(id);   /* 原写法是隐藏?true:false，等于永远写回原值，点了没反应 */
   mgSave(); mgApplyTop(); renderMgr();
 }
 var MG_TYPES=[{k:'person',t:'👤 人物'},{k:'idea',t:'💡 思想'},{k:'org',t:'🏛 组织'},{k:'event',t:'📅 事件'},{k:'crit',t:'⚠ 被批判 / 对立'}];
 function mgKinds(){ try{ return (GR&&GR.kinds)?Object.keys(GR.kinds):[]; }catch(e){ return []; } }
 function mgRelList(){ var ks=mgKinds(); if(ks.length) return ks.map(function(k){ return {k:k,t:k}; });
   return [{k:'kind:pos',t:'同志·协作'},{k:'kind:neg',t:'批判·对立'},{k:'kind:fam',t:'亲属·伴侣'}]; }
-var MG_DEFAULT_OFF={cb2:1,cb4:1,dtb:1,rankb:1};   /* 社区 / 束线 / 数据 / 排名：默认不显示，需要时去「⚙ 管理」里打开 */
+var MG_DEFAULT_OFF={cb2:1,cb4:1,dtb:1,rankb:1};   /* 社区 / 束线 / 数据 / 排名：默认不显示，需要时去⚙ 管理里打开 */
 function mgToolHidden(id){ if(MG.tools[id]===true) return true; if(MG.tools[id]===false) return false; return !!MG_DEFAULT_OFF[id]; }
 function mgNodeHidden(k){ return MG.nodes[k]===false; }
 function mgRelHidden(k){ return MG.rels[k]===false; }
@@ -1581,7 +1582,7 @@ function renderMgr(){
     var hiddenR=mgRelList().filter(function(x){return mgRelHidden(x.k);}).length;
     st.textContent='工具 '+onT+' / '+MG_TOOLS.length+'　节点类型 '+onN+' / '+MG_TYPES.length+(hiddenR?('　已隐藏关系 '+hiddenR+' 类'):''); }
 }
-/* 主页入口开关：只控制「首页我的主页里列不列这个图谱」，与当前页显示无关 */
+/* 主页入口开关：只控制首页我的主页里列不列这个图谱，与当前页显示无关 */
 function toggleHomeGraph(id){
   try{
     var on=(!YZY.homeGraphOn || YZY.homeGraphOn(id));
@@ -1638,7 +1639,7 @@ function openRelTool() {
     var cand = GR.nodes.filter(function (n) { return n.type === 'person' && (!A || n.id !== A.value); })[0];
     if (cand) B.value = cand.id;
   }
-  /* 把当前选中的 id 同步到「可输入」的输入框里 */
+  /* 把当前选中的 id 同步到可输入的输入框里 */
   try {
     var aq = document.getElementById('rtAq'), bq = document.getElementById('rtBq');
     if (aq && A && A.value) aq.value = (P[A.value] || {}).name || '';
@@ -1680,8 +1681,8 @@ function relCand(q) {
     if (!hit) {
       try {
         var py = _pyOf(n.name);
-        /* 用「包含」而不是「开头」：中文名里常有「·」「·」与外国名前缀，
-           如「卡尔·马克思」的首字母串是 k·mks，按开头匹配会让 mks 搜不到他。 */
+        /* 用包含而不是开头：中文名里常有··与外国名前缀，
+           如卡尔·马克思的首字母串是 k·mks，按开头匹配会让 mks 搜不到他。 */
         hit = (py.full && py.full.indexOf(key) >= 0) || (py.abbr && py.abbr.indexOf(key) >= 0);
       } catch (e) { }
     }
@@ -1822,7 +1823,7 @@ function openDataMenu(ev) {
 }
 var _dmEsc = false;
 function _datasetName() { try { var s = document.getElementById('graphSel'); return s && s.selectedOptions && s.selectedOptions[0] ? s.selectedOptions[0].textContent : '图谱'; } catch (e) { return '图谱'; } }
-/* ---------- 导入图谱（全局：不依赖「自助编辑」，与导出成对） ---------- */
+/* ---------- 导入图谱（全局：不依赖自助编辑，与导出成对） ---------- */
 function yzImportGraph() {
   var m = document.getElementById('dataMenu'); if (m) m.classList.remove('open');
   var inp = document.createElement('input');
@@ -1837,7 +1838,7 @@ function yzImportGraph() {
       if (!window.YZY || !YZY.importGraph) { toast2('当前版本不支持导入图谱'); return; }
       var res = YZY.importGraph(obj);
       if (!res || res.ok === false) { toast2('导入失败：' + ((res && res.msg) || '未知错误')); return; }
-      toast2('已导入「' + res.name + '」：' + res.nodes + ' 个节点 / ' + res.links + ' 条关系');
+      toast2('已导入' + res.name + '：' + res.nodes + ' 个节点 / ' + res.links + ' 条关系');
       if (res.saved === false) { try { alert('⚠ 本机存储可能已满，导入的图谱刷新后可能不保留。'); } catch (e) {} }
       setTimeout(function () {
         var qs = location.search.replace(/[?&]g=[^&]*/, '').replace(/^[?&]/, '');
@@ -1891,7 +1892,7 @@ function exportData(kind) {
       var o = {
         name: _datasetName(), source: '学通', date: stamp,
         nodes: nodes.map(function (n) {
-          /* 完整字段导出：导出的 JSON 可直接用「🗂 图谱 → 📥 导入图谱」还原 */
+          /* 完整字段导出：导出的 JSON 可直接用🗂 图谱 → 📥 导入图谱还原 */
           var o = { id: n.id, name: n.name, type: n.type, years: n.years || '', role: n.role || '' };
           if (n.desc) o.desc = n.desc;
           if (typeof n.img === 'string' && n.img) o.img = n.img;
@@ -2042,7 +2043,7 @@ function renderRank(){
 }
 function rankPick(id){ try{ focusN(id); }catch(e){} toggleRank(false); }
 
-/* ---- 「添加到主页」：与首页「我的好友」共用同一份数据（localStorage: homeFriends） ---- */
+/* ---- 添加到主页：与首页我的好友共用同一份数据（localStorage: homeFriends） ---- */
 function yzHomeList(){ try{ var a=JSON.parse(localStorage.getItem('homeFriends')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
 function yzHomeIn(k){ return yzHomeList().some(function(x){ return x && x.k === k; }); }
 function yzHomeToggle(id){
@@ -2057,7 +2058,7 @@ function yzHomeToggle(id){
   panel(id);
   toast2(i>=0 ? '已从主页移出' : '已添加到主页');
 }
-/* ---- 2D 深链：把「聚焦 / 范围 / 筛选 / 年份 / 选中」写进地址栏，复制链接即可还原 ----
+/* ---- 2D 深链：把聚焦 / 范围 / 筛选 / 年份 / 选中写进地址栏，复制链接即可还原 ----
    格式：#<选中节点id>?focus=<聚焦id>&depth=<1-3>&f=<筛选>&y=<年份>&v=geo */
 function encodeHash(){
   var base = selected ? encodeURIComponent(selected.d.id) : '', q = [];
@@ -2077,8 +2078,8 @@ function syncHash(){
 }
 /* ---------- 深链跨图谱兜底（0.18.46） ----------
    深链只写 graph.html#id 时（分享卡、年表、旧链接、问一问引用），图谱页会按
-   「上次看的那张图」打开。节点若属于别的图谱，旧逻辑什么也不做 —— 用户看到的就是
-   「点开没有找到」。这里在五张内置图谱里找一次，找到就带着深链切过去。 */
+   上次看的那张图打开。节点若属于别的图谱，旧逻辑什么也不做 —— 用户看到的就是
+   点开没有找到。这里在五张内置图谱里找一次，找到就带着深链切过去。 */
 function dsOfNodeId(id){
   var order = ['main','old','new','wenge','world'];
   for (var i = 0; i < order.length; i++){
@@ -2142,7 +2143,7 @@ function restoreViewState(){
   try{
     if(location.hash) return;                       /* 深链优先 */
     /* 从图谱选择器切过来（?g=xxx）时一律重新适配视野：
-       旧逻辑会套用同一张图谱上次存下的缩放/平移，看起来就像「一打开就偏到地图左边」。 */
+       旧逻辑会套用同一张图谱上次存下的缩放/平移，看起来就像一打开就偏到地图左边。 */
     if(/[?&]g=/.test(location.search)) return;
     var sv=JSON.parse(localStorage.getItem('graphView')||'null'); if(!sv) return;
     var s=document.getElementById('graphSel'); var cur=s?s.value:'';
@@ -2168,7 +2169,7 @@ function showInNet(id) {
   toast2('已在关系网中定位：' + nm(id));
 }
 
-/* 事件节点若在「史料 → 重大事件」里有同名条目，就给出直达入口。
+/* 事件节点若在史料 → 重大事件里有同名条目，就给出直达入口。
    （SITE_EXTRA 在 data/knowledge.js 里，本页已加载；世界图谱的 19 个同名事件
      文本已由 tools/link_world_events.js 与史料统一，避免两处各写一遍。） */
 function exEventIdx(nm){
@@ -2176,7 +2177,7 @@ function exEventIdx(nm){
   for(var i=0;i<E.length;i++){ if(E[i] && E[i].name===nm) return i; }
   return -1;
 }
-/* 从图谱节点详情直接去改这条内容：人物跳首页人物详情（那里有「✏️」可改生卒年/身份/介绍） */
+/* 从图谱节点详情直接去改这条内容：人物跳首页人物详情（那里有✏️可改生卒年/身份/介绍） */
 function editSelNode(){
   try{
     if(!selected||!selected.d){ toast2('请先点选一个节点'); return; }
@@ -2186,7 +2187,7 @@ function editSelNode(){
       return;
     }
     if(n.type==='idea'||n.type==='org'||n.type==='event'){
-      toast2('思想 / 组织 / 事件请在「史料」对应栏目里修改');
+      toast2('思想 / 组织 / 事件请在史料对应栏目里修改');
       return;
     }
     toast2('该节点暂不支持直接修改');
@@ -2247,7 +2248,7 @@ function panel(id){var n=P[id];if(!n)return;
  var cm=CMAP[n.name];
  document.getElementById('prelic').innerHTML=cm?('<div class="sub2">革命史料 · 简介</div><div style="font-size:.83rem;line-height:1.95;opacity:.9">'+esc2(cm.intro||'')+'</div>'+(cm.works?('<div style="font-size:.75rem;opacity:.72;margin-top:6px">代表作：'+esc2(cm.works)+'</div>'):'')):'';
  var pts=n.points||[];
- /* 事件类节点：把「背景」与「影响 · 意义」也显示出来（数据在 data/graph-world.js） */
+ /* 事件类节点：把背景与影响 · 意义也显示出来（数据在 data/graph-world.js） */
  var _bg=n.bg?'<div class="sub2">背景</div><div style="font-size:.84rem;line-height:1.95;opacity:.9">'+esc2(n.bg)+'</div>':'';
  var _imp=n.impact?'<div class="sub2">影响 · 意义</div><div style="font-size:.84rem;line-height:1.95;opacity:.9">'+esc2(n.impact)+'</div>':'';
  document.getElementById('ppts').innerHTML=_bg+(pts.length?'<div class="sub2">要点</div><ul class="pts">'+pts.map(function(x){return '<li>'+esc2(x)+'</li>';}).join('')+'</ul>':'')+_imp;
@@ -2289,7 +2290,7 @@ function panel(id){var n=P[id];if(!n)return;
 function closePanel(){var _p=document.getElementById('panel');if(_p)_p.classList.remove('open');document.body.classList.remove('p-open');}
 /* ---- 统一浮层管理：互斥 / Esc / 点空白 / 焦点可达 ---- */
 function yzCloseDrawers(except){
-  /* 右侧「图谱管理」与右侧详情面板同侧：打开它时收起详情，避免完全重叠；左侧抽屉不影响详情 */
+  /* 右侧图谱管理与右侧详情面板同侧：打开它时收起详情，避免完全重叠；左侧抽屉不影响详情 */
   if(except==='mgPanel'){ try{ var _p=document.getElementById('panel'); if(_p&&_p.classList.contains('open')) clearSel(); }catch(e){} }
   try{ if(except!=='listPanel') toggleList(false); }catch(e){}
   try{ if(except!=='mgPanel') closeMgr(); }catch(e){}
@@ -2395,9 +2396,9 @@ parseHashInit();
  <button class="x" onclick="closeMgr()">▾ 收起</button>
  <div class="mgh0">⚙ 图谱管理</div>
  <p class="mg-note">决定这张图谱上显示哪些工具、节点与关系。设置只存在本机，随时可改。<br>默认只留常用的（适应窗口 / 地图 / 清屏 / 关系线 / 列表 / 关系工具 / 导出数据）；社区、时间轴、束线默认关闭，点一下即可打开。</p>
- <div class="mg-sec"><div class="mg-h">顶部显示<span class="mg-sub">关掉后页面顶部只留标题和「返回」</span></div><div id="mgTop" class="mg-grid"></div></div>
+ <div class="mg-sec"><div class="mg-h">顶部显示<span class="mg-sub">关掉后页面顶部只留标题和返回</span></div><div id="mgTop" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">工具按钮<span class="mg-sub">关掉就从底部去掉</span></div><div id="mgTools" class="mg-grid"></div></div>
- <div class="mg-sec"><div class="mg-h">主页入口<span class="mg-sub">首页「我的主页」里列哪些图谱；关掉就不在首页出现（默认全部开启）</span></div><div id="mgHome" class="mg-grid"></div></div>
+ <div class="mg-sec"><div class="mg-h">主页入口<span class="mg-sub">首页我的主页里列哪些图谱；关掉就不在首页出现（默认全部开启）</span></div><div id="mgHome" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">节点<span class="mg-sub">关掉则该类不再显示（其关系线一起隐藏）</span></div><div id="mgNodes" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">关系<span class="mg-sub">关掉则不画该类关系线</span></div><div id="mgRels" class="mg-grid"></div></div>
  <div class="mg-sec"><div class="mg-h">标签密度<span class="mg-sub">手机上名字挤成一团就调宽松；嫌名字太少就调紧凑</span></div><div id="mgPad" class="mg-grid"></div></div>
@@ -2424,7 +2425,7 @@ parseHashInit();
 
 <script id="yzLandscapeFold">
 /* 极矮横屏（20:9 手机横屏约 260px 高）：右上一整列工具条足以压住画布中央，
-   进来先折起来，点「⚙ 面板」再展开。竖屏与平板不受影响。 */
+   进来先折起来，点⚙ 面板再展开。竖屏与平板不受影响。 */
 (function () {
   try {
     if (!matchMedia('(max-height:330px) and (min-width:520px)').matches) return;

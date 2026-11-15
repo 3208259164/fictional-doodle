@@ -16,7 +16,7 @@
 }
 /* 深色：跟随 App 里的主题设置（html.dark），不再只听系统。
    取色与主站 style.css 完全一致（深红底 + 金色强调 + 米白字），
-   否则会出现「问一问是冷黑、主站是深红」的违和。 */
+   否则会出现问一问是冷黑、主站是深红的违和。 */
 html.dark{
   --bg:#2b0505; --fg:#f2e8d8; --sub:#c8ab90; --line:rgba(255,255,255,.18);
   --accent:#f5c518; --card:rgba(255,255,255,.08); --ev:rgba(255,255,255,.05);
@@ -110,7 +110,7 @@ form{
   flex:none;display:flex;gap:8px;padding:10px 12px;
   border-top:1px solid var(--line);
   /* 页面背景是渐变，底部条若用实色 var(--bg) 就会变成一条色块（用户反馈的
-     「输入框那块颜色不一致」）。与顶栏同一做法：继承 + fixed。 */
+     输入框那块颜色不一致）。与顶栏同一做法：继承 + fixed。 */
   background:inherit;background-attachment:fixed;
 }
 #q{
@@ -248,7 +248,7 @@ details.ev-fact summary{color:var(--sub)}
     if (b) ask(b.getAttribute('data-q'));
   });
 
-  /* ---------- 最近问答（只存本机，最多 30 条，可清空；随「导出我的数据」一起走） ---------- */
+  /* ---------- 最近问答（只存本机，最多 30 条，可清空；随导出我的数据一起走） ---------- */
   var HIST_KEY = 'askHistory';
   function histLoad(){
     try { var a = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); return Array.isArray(a) ? a : []; }
@@ -293,7 +293,7 @@ details.ev-fact summary{color:var(--sub)}
 
   /* 系统提示（导入/导出/清空的结果反馈）。
      ★ 0.17.2 修：模块管理中 9 处调用了 addSystem()，但本页从未定义过，
-       导致「问一问」里导入/导出/清空完成后没有任何提示，且抛 ReferenceError。 */
+       导致问一问里导入/导出/清空完成后没有任何提示，且抛 ReferenceError。 */
   function addSystem(text){
     try{
       var d = document.createElement('div');
@@ -347,7 +347,7 @@ details.ev-fact summary{color:var(--sub)}
     }
     if (res.evidence && res.evidence.length){
       /* 证据分两类：关系依据（kind 缺省或 edge）与条目信息（fact）。
-         以前混在一起，且一律标「可核对」——但「贺龙 类型 人物」这种不是依据，
+         以前混在一起，且一律标可核对——但贺龙 类型 人物这种不是依据，
          关系边上也常常没有出处。现在分开显示，并按实际标注情况说实话。 */
       var evE = res.evidence.filter(function(e){ return e.kind !== 'fact'; });
       var evF = res.evidence.filter(function(e){ return e.kind === 'fact'; });
@@ -384,9 +384,9 @@ details.ev-fact summary{color:var(--sub)}
   }
 
   /* ---------- 引文溯源（0.18.54） ----------
-     粘贴一段话 → 在本机 28 本全文里找出处。研究者最常干的事是「这句话到底出自哪」，
-     而不是「给我讲讲什么叫剩余价值」，所以把它放在问答流程最前面。
-     触发条件：归一化后 ≥12 字、结尾不是问号、且不含「什么/怎么/如何…」这类问句词。 */
+     粘贴一段话 → 在本机 28 本全文里找出处。研究者最常干的事是这句话到底出自哪，
+     而不是给我讲讲什么叫剩余价值，所以把它放在问答流程最前面。
+     触发条件：归一化后 ≥12 字、结尾不是问号、且不含什么/怎么/如何…这类问句词。 */
   function _normC(s){
     return String(s == null ? '' : s).replace(/[\s\u3000]+/g, '')
       .replace(/[，。、；：！？…—－·"'“”‘’（）()《》〈〉【】\[\],.;:!?"'`~\-_/\\|]/g, '').toLowerCase();
@@ -467,7 +467,7 @@ details.ev-fact summary{color:var(--sub)}
   }
 
 
-  /* ---------- 讲堂出处（问一问对「讲堂」只给依据，不编答案） ----------
+  /* ---------- 讲堂出处（问一问对讲堂只给依据，不编答案） ----------
      data/jtfull.js 是全文索引（27 篇 / 1500+ 段 / 约 370KB），首次提问才加载。 */
   var _jt = null, _jtLoading = false, _jtQ = [];
   function loadJT(cb) {
@@ -493,7 +493,7 @@ details.ev-fact summary{color:var(--sub)}
   function addNetHits(text){
     var list = window.NET_BASICS || [];
     if (!list.length) return;
-    /* 分词：去掉"是什么/怎么/如何"这类问句虚词，命中用「任一关键词」而不是「全部满足」——
+    /* 分词：去掉"是什么/怎么/如何"这类问句虚词，命中用任一关键词而不是全部满足——
        否则问"DNS 是什么"会因为词条里没有"是什么"三个字而全军覆没。 */
     var STOP = ['是什么', '什么', '怎么', '怎样', '如何', '为什么', '的', '了', '吗', '呢', '啊', '和', '与', '及', '是', '我', '请问'];
     var ts = String(text || '').toLowerCase().split(/[\s,，、;；|?？!！。：:（）()]+/).filter(function (x) {
@@ -687,7 +687,7 @@ details.ev-fact summary{color:var(--sub)}
 })();
 </script>
 
-<!-- 站内正文阅读浮层：点「原文 N 段」就在这里读，不跳页、不开新窗口。
+<!-- 站内正文阅读浮层：点原文 N 段就在这里读，不跳页、不开新窗口。
      以前是 location.href='index.html?read=…'，等于把对话页整页换掉；
      深色系统下新页还没渲染出正文时是一片黑，看着像卡死。 -->
 <div id="askRd" class="askrd" role="dialog" aria-modal="true" aria-label="原文">

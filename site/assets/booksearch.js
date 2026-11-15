@@ -6,11 +6,11 @@
        publisher/pubyear/fmt/src/url/alias）
      · window.SITE_CONTENT.quotes —— 经典引文 → 反查出自哪本书
 
-   为什么单独成文件：qa-engine.js 是「图谱推理」，这里是「书库检索」，
+   为什么单独成文件：qa-engine.js 是图谱推理，这里是书库检索，
    两套数据两套算法，混在一起会让图谱引擎的体积和职责都失控。
 
    对外：window.YZBOOK = { tryAnswer, search, stats, get }
-     tryAnswer(q) 返回 null 表示「这不是书库问题」，交回图谱引擎。
+     tryAnswer(q) 返回 null 表示这不是书库问题，交回图谱引擎。
    ===================================================================== */
 (function () {
   'use strict';
@@ -21,7 +21,7 @@
       .replace(/[\s,，、。.！!？?：:；;（）()\[\]\-—_·…~]/g, '')
       .toLowerCase();
   }
-  /* 书名主体：去掉「（1至4卷）」这类补充 */
+  /* 书名主体：去掉（1至4卷）这类补充 */
   function core(t) {
     return String(t || '').replace(/[（(][^）)]*[）)]/g, '').replace(/[《》〈〉]/g, '').trim();
   }
@@ -167,16 +167,16 @@
     return res;
   }
 
-  /* ---------- 「有哪些书 / 推荐几本」 ---------- */
+  /* ---------- 有哪些书 / 推荐几本 ---------- */
   function answerList(q, qn) {
     var idx = load();
 
-    /* 3.0 「推荐 / 入门 / 书单」→ 用站点自带的分阶段书单（与导读书单同源） */
+    /* 3.0 推荐 / 入门 / 书单→ 用站点自带的分阶段书单（与导读书单同源） */
     if (/推荐|入门|书单|读什么|怎么读|先读/.test(q)) {
       var RL = (window.SITE_CONTENT && window.SITE_CONTENT.readlist) || [];
       if (RL.length) {
         var res0 = { ok: true, intent: 'booklist', answer: '', notes: [], evidence: [], books: [] };
-        var lines = ['按阅读阶段推荐（与站点「阅读清单」同源）：'];
+        var lines = ['按阅读阶段推荐（与站点阅读清单同源）：'];
         RL.forEach(function (stage) {
           lines.push('');
           lines.push(stage.stage || '');
@@ -211,7 +211,7 @@
 
     if (wantCat) {
       var list = idx.filter(function (it) { return it.r.cat === wantCat; }).slice(0, 10);
-      res.answer = '书库「' + wantCat + '」共 ' + cats[wantCat] + ' 条，先列前 ' + list.length + ' 条：\n' +
+      res.answer = '书库' + wantCat + '共 ' + cats[wantCat] + ' 条，先列前 ' + list.length + ' 条：\n' +
         list.map(function (it, i) { return (i + 1) + '. ' + bookLine(it.r); }).join('\n');
       list.forEach(function (it) { res.books.push(toBook(it.r)); });
       return res;
@@ -219,7 +219,7 @@
 
     res.answer = '书库共 ' + idx.length + ' 条，按类别分：\n' +
       catName.map(function (c) { return '· ' + c + ' ' + cats[c] + ' 条'; }).join('\n') +
-      '\n问「有哪些原著」「推荐入门读物」这样的问题，可以直接列出来。';
+      '\n问有哪些原著推荐入门读物这样的问题，可以直接列出来。';
     res.notes.push('要查看全部，在首页搜索框输入书名或作者。');
     return res;
   }
@@ -228,7 +228,7 @@
   function answerQuote(qt) {
     var res = { ok: true, intent: 'quote', answer: '', notes: [], evidence: [], books: [] };
     var srcName = String(qt.s || '').replace(/[《》]/g, '');
-    res.answer = '「' + qt.t + '」\n—— ' + (qt.a || '') + '《' + srcName + '》';
+    res.answer = '' + qt.t + '\n—— ' + (qt.a || '') + '《' + srcName + '》';
     var hits = matchBooks(norm(srcName));
     if (hits.length) {
       res.books.push(toBook(hits[0].r, [hits[0].r.cat, hits[0].r.author].filter(Boolean).join(' · ')));
@@ -257,8 +257,8 @@
       /* 全名精确命中的优先，其余视为相关 */
       var exact = hits.filter(function (h) { return h.score > h.r.title.length; });
       if (exact.length === 1) return answerOne(exact[0].r, q);
-      /* ★ 0.18.61：多本只是「书名里含这几个字」时，若问句主干是一个 ≥4 字的实体名
-         （如「文化大革命是什么」之于《河南省无产阶级文化大革命资料汇编》），
+      /* ★ 0.18.61：多本只是书名里含这几个字时，若问句主干是一个 ≥4 字的实体名
+         （如文化大革命是什么之于《河南省无产阶级文化大革命资料汇编》），
          说明问的不是书，交回图谱引擎答实体条目。 */
       var _ent = '';
       try { if (window.YZQA && window.YZQA.hasEntity) _ent = window.YZQA.hasEntity(q, 4); } catch (e) {}
@@ -266,19 +266,19 @@
       return answerMany(hits, q);
     }
 
-    /* 3. 泛问「有哪些书」 */
+    /* 3. 泛问有哪些书 */
     if (/(有哪些|有什么|推荐|列一下|书单).{0,8}(书|著作|原著|文献|读物)/.test(q) ||
         /(原著|导读|词典).{0,4}(有哪些|有什么|清单|推荐)/.test(q) ||
         /读书|读什么|入门读物/.test(q)) {
       /* ★ 0.18.61：问句里点明了具体的人/实体时，书库不该抢答。
-         「毛泽东有哪些著作」原先被这里接走，答的是「书库共 459 条按类别分」，
+         毛泽东有哪些著作原先被这里接走，答的是书库共 459 条按类别分，
          完全没回答毛泽东有哪些著作。让回图谱引擎去列这个人的 works。 */
       var _named = '';
       try { if (window.YZQA && window.YZQA.hasEntity) _named = window.YZQA.hasEntity(q, 3); } catch (e) {}
       if (!_named) return answerList(q, qn);
     }
 
-    /* 4. 问「某本书」但书名没对上 —— 不接管，交回图谱引擎 */
+    /* 4. 问某本书但书名没对上 —— 不接管，交回图谱引擎 */
     return null;
   }
 

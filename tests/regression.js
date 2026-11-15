@@ -8,7 +8,7 @@
      persist —— ★ 跨“重启/刷新”的持久化与幂等（本次新加，直击“编辑后不保存”）
      ui      —— ★ 清屏隐藏 / 按钮精简 / 总开关 / 引用列表
      site    —— ★F-Droid 合规：本地站点运行器 / 网盘 已移除
-     theme   —— ★ 主题「跟随系统」
+     theme   —— ★ 主题跟随系统
      bar     —— ★ 自助编辑工具栏位置与几何（不遮挡底部面板）
    依赖：jsdom（已随本目录安装）
    ===================================================================== */
@@ -55,7 +55,7 @@ function loadPage(file, url, seed, before) {
     beforeParse(w) {
       w.HTMLCanvasElement.prototype.getContext = function () { return fakeCtx(); };
       /* 0.18.21 起编辑台等 11 个模块改成懒加载（lazydata.js 里动态 createElement('script')），
-         jsdom 不会去下载，于是「开启自助编辑」后编辑器永远 boot 不起来 → 整页套件误判。
+         jsdom 不会去下载，于是开启自助编辑后编辑器永远 boot 不起来 → 整页套件误判。
          这里把动态脚本的 src 拦截下来，直接 eval 源码。 */
       try {
         const origCreate = w.document.createElement.bind(w.document);
@@ -95,7 +95,7 @@ function loadPage(file, url, seed, before) {
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 /* 等条件成立再继续：机器慢/负载高时，固定 sleep 会偶发不够（本地 163 项 vs 181 项那次就是它）。
-   判据是「该在的东西到了」，不是「过了多久」。 */
+   判据是该在的东西到了，不是过了多久。 */
 async function until(fn, ms, step) {
   const t0 = Date.now(), lim = ms || 10000;
   while (Date.now() - t0 < lim) { try { if (fn()) return true; } catch (e) {} await sleep(step || 50); }
@@ -175,21 +175,21 @@ async function suiteEditor() {
   clickText(wrap, '目录'); setv('zzyNewCat', '新民主主义时期'); clickText(wrap, '新增');
   R.ok((w.YZY.state().resources.catAdded || []).indexOf('新民主主义时期') >= 0, '新增目录已记录');
   clickText(wrap, '人物');
-  /* 「革命导师」为内置固定五位、不提供新增（见 editor.js pplTab）：先切到「革命同志」再测新增 */
+  /* 革命导师为内置固定五位、不提供新增（见 editor.js pplTab）：先切到革命同志再测新增 */
   const psel = wrap.querySelector('select');
   if (psel) { psel.value = 'comrades'; psel.dispatchEvent(new w.Event('change')); }
   clickText(wrap, '新增人物');
   R.ok(!!d.getElementById('zzyNewP_name'), '新增人物表单出现');
   setv('zzyNewP_name', '测试人物ABC'); setv('zzyNewP_intro', '测试人物介绍');
-  /* 精确点「添加」（资源表单里也有「添加」，取最后一个＝刚打开的这张表） */
+  /* 精确点添加（资源表单里也有添加，取最后一个＝刚打开的这张表） */
   {
     const btns = [...wrap.querySelectorAll('button')].filter(b => (b.textContent || '').trim() === '添加');
     if (btns.length) btns[btns.length - 1].click();
-    else R.ok(false, '找不到「添加」按钮');
+    else R.ok(false, '找不到添加按钮');
   }
   R.ok(Object.keys(w.YZY.state().people.added).length >= 1, '新增人物写入覆盖层');
   const b1 = [...wrap.querySelectorAll('button')].find(b => b.textContent.includes('修改介绍'));
-  R.ok(!!b1, '「修改介绍」按钮存在');
+  R.ok(!!b1, '修改介绍按钮存在');
   if (b1) {
     b1.click(); R.ok(!!d.getElementById('zzyPplForm_intro'), '人物表单出现');
     setv('zzyPplForm_intro', '测试介绍XYZ'); clickText(wrap, '保存修改');
@@ -197,10 +197,10 @@ async function suiteEditor() {
   }
   R.ok(w.YZY.setAvatar('leaders|测试人物A', 'data:image/png;base64,iVBORw0KGgo=').ok, 'setAvatar 接受白名单 dataURL');
   R.ok(!w.YZY.setAvatar('leaders|x', 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=').ok, 'setAvatar 拒绝非白名单/超限');
-  /* 新增人物表单的下拉里本来就没有「革命导师」（内置固定五位）→ 拒绝逻辑要直接测 API */
+  /* 新增人物表单的下拉里本来就没有革命导师（内置固定五位）→ 拒绝逻辑要直接测 API */
   {
     const _rej = w.YZY.addPerson({ name: '测试人物A', group: 'leaders' });
-    R.ok(_rej && _rej.ok === false, '「革命导师」API 拒绝新增');
+    R.ok(_rej && _rej.ok === false, '革命导师API 拒绝新增');
     R.ok(w.YZY.state().people.added.length === 1, '拒绝后仍为 1 条');
   }
 
@@ -270,8 +270,8 @@ async function suiteGraph() {
   R.section('用 Pointer 走完编辑流程');
   w.YZY.newGraph('T5'); w.__ge.rebuild(false, true); await sleep(60);
   layer.dispatchEvent(pev('pointerdown', 200, 200)); layer.dispatchEvent(pev('pointerup', 200, 200)); await sleep(40);
-  R.ok(!!d.getElementById('ge_name'), '点空白弹出「新建节点」（含引用入口）');
-  R.ok(!!d.getElementById('ge_refpick'), '表单里有「引用已有节点」入口（不是原生 select）');
+  R.ok(!!d.getElementById('ge_name'), '点空白弹出新建节点（含引用入口）');
+  R.ok(!!d.getElementById('ge_refpick'), '表单里有引用已有节点入口（不是原生 select）');
   d.getElementById('ge_name').value = '甲';
   btnByText('创建节点').click(); await sleep(80);
   R.ok(w.YZY.graphData().nodes.length === 1, '节点甲已创建');
@@ -336,10 +336,10 @@ async function suitePage() {
   R.ok(typeof w.toggleSelfEdit === 'function' && typeof w.syncSelfEditSwitch === 'function', '自助编辑开关函数存在');
   R.section('设置页');
   const sv = d.getElementById('settingsView');
-  R.ok(!!d.getElementById('themeSeg'), '设置页有「主题」分组（自助编辑开关已移到史料页）');
-  R.ok(sv.innerHTML.indexOf('导出我的数据') < 0, '设置页已不含「导出我的数据」（在账号页）');
-  R.ok(sv.innerHTML.indexOf('导出我的数据') < 0 && sv.innerHTML.indexOf('清除本机数据') < 0, '设置页「数据」组已移走');
-  R.ok(!/自 助 编 辑/.test(sv.innerHTML), '设置页不再有「自助编辑」分组（开关已移到史料页）');
+  R.ok(!!d.getElementById('themeSeg'), '设置页有主题分组（自助编辑开关已移到史料页）');
+  R.ok(sv.innerHTML.indexOf('导出我的数据') < 0, '设置页已不含导出我的数据（在账号页）');
+  R.ok(sv.innerHTML.indexOf('导出我的数据') < 0 && sv.innerHTML.indexOf('清除本机数据') < 0, '设置页数据组已移走');
+  R.ok(!/自 助 编 辑/.test(sv.innerHTML), '设置页不再有自助编辑分组（开关已移到史料页）');
   R.section('账号页');
   w.openAccountView(); const av = d.getElementById('accountView');
   R.ok(d.getElementById('drawerTitle').textContent.indexOf('账号') >= 0, '标题=账号');
@@ -348,7 +348,7 @@ async function suitePage() {
   R.ok(av.querySelectorAll('.acct-item').length >= 7, '账号页条目用 acct-item 风格（' + av.querySelectorAll('.acct-item').length + ' 条）');
   R.section('开关联动');
   w.YZY.setEditorEnabled(true); w.syncSelfEditSwitch();
-  /* 开关已从「设置页 editSw」挪到「个人中心 seState」（renderPc 里渲染） */
+  /* 开关已从设置页 editSw挪到个人中心 seState（renderPc 里渲染） */
   R.ok(w.selfEditOn() === true, '开关状态函数 selfEditOn 与 YZY 一致（已开启）');
   w.toggleSelfEdit(); R.ok(w.YZY.editorEnabled() === false && w.selfEditOn() === false, 'toggleSelfEdit 关闭并同步状态');
   w.toggleSelfEdit(); R.ok(w.YZY.editorEnabled() === true, '再切换回开启');
@@ -357,7 +357,7 @@ async function suitePage() {
   await until(() => typeof w.__yzEditorBoot === 'function', 8000);
   w.__yzEditorBoot();
   w.openSelfEdit(); const wrap = d.getElementById('zzyWrap');
-  R.ok(!!wrap && wrap.classList.contains('open'), '设置里「打开编辑器」能打开面板');
+  R.ok(!!wrap && wrap.classList.contains('open'), '设置里打开编辑器能打开面板');
   R.ok(String(wrap.getAttribute('style') || '').indexOf('inset') < 0, '编辑器面板未使用 inset 简写（旧内核兼容）');
   w.openSettings(); R.ok(d.getElementById('drawerTitle').textContent.indexOf('设置') >= 0, '抽屉标题=设置（与 setTopbar 同步）');
   return R.done(errors);
@@ -433,12 +433,12 @@ async function suiteUI() {
   R.note('工具栏按钮：' + JSON.stringify(labels));
   R.ok(labels.length === 3, '工具栏只剩 3 个按钮（' + labels.length + '）');
   R.ok(!labels.some(t => /适应窗口|放大|缩小/.test(t)), '不再有 适应窗口/放大/缩小（页面本身已有 / 捏合缩放）');
-  R.ok(!labels.some(t => /新建图谱|重命名|删除图谱|返回主图谱/.test(t)), '新建/重命名/删除/返回 已收进「🗂 图谱」弹窗');
+  R.ok(!labels.some(t => /新建图谱|重命名|删除图谱|返回主图谱/.test(t)), '新建/重命名/删除/返回 已收进🗂 图谱弹窗');
   R.section('★ 图谱弹窗（切换+新建+重命名+删除 合一）');
   w.__ge.openGraphSheet(); await sleep(30);
-  R.ok(!!d.getElementById('ge_graph_list'), '「图谱」弹窗打开且有列表');
+  R.ok(!!d.getElementById('ge_graph_list'), '图谱弹窗打开且有列表');
   R.ok(d.querySelectorAll('#ge_graph_list [data-gid]').length >= 1, '列表里有可切换的图谱行');
-  R.ok(!!d.getElementById('ge_new_graph'), '弹窗内有「新建图谱」');
+  R.ok(!!d.getElementById('ge_new_graph'), '弹窗内有新建图谱');
   R.ok(!d.getElementById('ge_rename_graph') && !d.getElementById('ge_del_graph'), '主图谱下不显示 重命名/删除（内置不可改）');
   [...d.querySelectorAll('#geDlg button')].find(b => b.textContent === '关闭').click();
   const g = w.YZY.newGraph('UI测试谱'); w.__ge.rebuild(true, true); await sleep(60);
@@ -448,7 +448,7 @@ async function suiteUI() {
 
   R.section('★ 引用节点：可搜索列表 + 能引用内置主图谱');
   const groups = w.__ge.refCandidates();
-  R.ok(groups.length >= 1 && /内置主图谱/.test(groups[0].label), '候选里有「内置主图谱」（' + (groups[0] ? groups[0].label : '无') + '）');
+  R.ok(groups.length >= 1 && /内置主图谱/.test(groups[0].label), '候选里有内置主图谱（' + (groups[0] ? groups[0].label : '无') + '）');
   R.ok((groups[0] ? groups[0].items.length : 0) >= 90, '内置主图谱可引用节点 >=90 个（' + (groups[0] ? groups[0].items.length : 0) + '）');
   R.ok(!groups.some(gr => gr.items.some(it => (w.YZY.graphData().nodes || []).some(n => n.id === it.id))), '候选已排除本图谱已有节点（避免重复）');
   w.__ge.pickerSheet({ title: '引用已有节点', groups: groups, allowNone: true, noneText: '— 不引用，新建 —' });
@@ -482,7 +482,7 @@ async function suiteUI() {
   const F = loadPage('index.html', 'https://local.test/index.html');   // 不注入任何存储 = 全新用户
   await sleep(900);
   R.ok(F.w.YZY.editorEnabled() === false, '主站首次打开：自助编辑默认关闭');
-  /* 开关本体在「史料页」的 qqquick 行（seState），不在设置页。
+  /* 开关本体在史料页的 qqquick 行（seState），不在设置页。
      这里直接断言状态函数（DOM 位置会随页面结构调整，别让测试绑死在某个 id 上）。 */
   R.ok(F.w.selfEditOn() === false, '默认关闭（selfEditOn=false）');
   R.ok(!F.d.getElementById('zzyBtn'), '主站首次打开不挂载 ✏️ 按钮');
@@ -502,23 +502,23 @@ async function suiteUI() {
   return R.done([...errors, ...OFF.errors]);
 }
 
-/* ========== 套件 6：F-Droid 合规 ——「本地站点运行器 / 网盘」已彻底移除 ========== */
+/* ========== 套件 6：F-Droid 合规 ——本地站点运行器 / 网盘已彻底移除 ========== */
 async function suiteSite() {
   const R = mkRunner('site');
   const F = loadPage('index.html', 'https://local.test/index.html');
   await sleep(900);
   const { w, d } = F;
 
-  R.section('★ 已移除「本地站点运行器」（入口 / 模块 / 桥方法）');
-  R.ok(!d.querySelector('[data-cat="本地站点"]'), '首页无「本地站点」目录卡片');
-  R.ok(!d.querySelector('[data-cat="我的文档"]'), '也无旧的「我的文档」入口');
+  R.section('★ 已移除本地站点运行器（入口 / 模块 / 桥方法）');
+  R.ok(!d.querySelector('[data-cat="本地站点"]'), '首页无本地站点目录卡片');
+  R.ok(!d.querySelector('[data-cat="我的文档"]'), '也无旧的我的文档入口');
   ['openSites','siteImportZip','siteOpen','siteFiles','siteViewFile','siteRename','siteDel','siteClearAll'].forEach(n => {
     R.ok(typeof w[n] !== 'function', 'window.' + n + ' 已移除');
   });
   R.ok(!w.__sites, '不再暴露 __sites 模块');
-  R.ok(!(w.PLUGINS || []).some(p => p && p.id === 'sites'), '插件列表里不再有「本地站点运行器」');
+  R.ok(!(w.PLUGINS || []).some(p => p && p.id === 'sites'), '插件列表里不再有本地站点运行器');
 
-  R.section('★ 已移除「网盘」补充来源');
+  R.section('★ 已移除网盘补充来源');
   R.ok(typeof w.netdisksHTML !== 'function' && typeof w.firstNetdiskFor !== 'function' && typeof w.netdisksFor !== 'function',
        '网盘相关函数已移除');
 
@@ -526,7 +526,7 @@ async function suiteSite() {
   const appjs = fs.readFileSync(BASE + 'assets/app.js', 'utf8');
   R.ok(!/openSites|netdisksHTML|firstNetdiskFor|netdisksFor|siteClear/.test(appjs), 'app.js 无残留引用');
   const sw = fs.readFileSync(BASE + 'sw.js', 'utf8');
-  R.ok(!/serveLocalSite|openSitesDb|yzy_sites/.test(sw), 'sw.js 无「本地站点」虚拟托管');
+  R.ok(!/serveLocalSite|openSitesDb|yzy_sites/.test(sw), 'sw.js 无本地站点虚拟托管');
   R.ok(!fs.existsSync(BASE + 'assets/sites.js'), 'assets/sites.js 已删除');
   R.ok(!fs.existsSync(BASE + 'data/netdisks.js'), 'data/netdisks.js 已删除');
   return R.done(F.errors);
@@ -541,21 +541,21 @@ async function suiteTheme() {
   await sleep(900);
   R.ok(A.w.localStorage.getItem('theme') === 'auto', '首次打开：theme=auto');
   const btnAuto = A.d.querySelector('#themeSeg button[data-th="auto"]');
-  R.ok(!!btnAuto, '设置里出现「跟随系统」按钮');
-  R.ok(btnAuto && btnAuto.classList.contains('active'), '「跟随系统」处于选中态');
+  R.ok(!!btnAuto, '设置里出现跟随系统按钮');
+  R.ok(btnAuto && btnAuto.classList.contains('active'), '跟随系统处于选中态');
   R.ok(A.d.querySelector('meta[name="theme-color"]').getAttribute('content') === '#2b0505', '系统为深色时 theme-color 为深色');
 
-  R.section('★ 显式选择「浅色」：老用户的选择被尊重');
+  R.section('★ 显式选择浅色：老用户的选择被尊重');
   const B = loadPage('index.html', 'https://local.test/index.html', null,
     "try{localStorage.setItem('theme','light')}catch(e){}");
   await sleep(900);
   R.ok(B.d.body.classList.contains('light'), 'body.light 已应用');
-  R.ok(B.d.querySelector('#themeSeg button[data-th="light"]').classList.contains('active'), '「浅色」按钮选中');
+  R.ok(B.d.querySelector('#themeSeg button[data-th="light"]').classList.contains('active'), '浅色按钮选中');
   R.ok(B.d.querySelector('meta[name="theme-color"]').getAttribute('content') === '#f5e9e2', 'theme-color 同步为浅色');
 
   R.section('切换');
   B.w.setTheme('sepia'); await sleep(30);
-  R.ok(!B.d.body.classList.contains('sepia') && !B.d.querySelector('#themeSeg button[data-th="sepia"]'), '「护眼」已移除（setTheme(sepia) 不再生效）');
+  R.ok(!B.d.body.classList.contains('sepia') && !B.d.querySelector('#themeSeg button[data-th="sepia"]'), '护眼已移除（setTheme(sepia) 不再生效）');
   B.w.setTheme('auto'); await sleep(30);
   R.ok(B.w.localStorage.getItem('theme') === 'auto', 'setTheme(auto) 已持久化');
   R.ok(B.d.querySelector('#themeSeg button[data-th="auto"]').classList.contains('active'), '切回 auto 后按钮态正确');

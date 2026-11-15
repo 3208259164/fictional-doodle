@@ -1,5 +1,5 @@
 /* 答疑文档批量导入回归（12 项）
-   为什么做：答疑原来只能一条条点「＋ 新增」，而且新增的条目都被塞进第一个分组（「怎么读」），
+   为什么做：答疑原来只能一条条点＋ 新增，而且新增的条目都被塞进第一个分组（怎么读），
             没法从 TXT / MD 里成批搬进来，也没法指定分组。
    本测试锁住：文档解析（# 分组 / Q: / A: / 问：/ 答：）、分组归属、同名跳过与覆盖、
             新增条目确实进了指定分组、以及弹窗能打开。 */
@@ -43,12 +43,12 @@ setTimeout(() => {
   /* ② 中文标点与多行答案 */
   const doc2 = '问：什么是实践？\n答：人能动地改造世界的物质活动。\n它首先是生产活动。\n问：什么是认识？\n答：人脑对客观世界的反映。';
   const r2 = P(doc2);
-  ok('认「问：」「答：」', r2.list.length === 2, r2.list.length + ' 条');
+  ok('认问：答：', r2.list.length === 2, r2.list.length + ' 条');
   ok('答案支持续行', /首先是生产活动/.test(r2.list[0].a), r2.list[0].a);
 
-  /* ③ 没有分组时归入「导入」 */
+  /* ③ 没有分组时归入导入 */
   const r3 = P('Q: 孤零零的一问\nA: 孤零零的一答');
-  ok('无分组时 group 为空（导入时归入「导入」）', r3.list.length === 1 && !r3.list[0].group, JSON.stringify(r3.list[0].group));
+  ok('无分组时 group 为空（导入时归入导入）', r3.list.length === 1 && !r3.list[0].group, JSON.stringify(r3.list[0].group));
 
   /* ④ 坏行不硬凑 */
   const r4 = P('随便一行没有标记\nQ: 正常问题\nA: 正常答案');
@@ -64,11 +64,11 @@ setTimeout(() => {
   ok('导入后条目总数 +3', after === before + 3, before + ' → ' + after);
 
   const gp = (w.SITE_ANSWERS.groups || []).filter(g => g.name === '哲学与认识')[0];
-  ok('新条目确实进了「哲学与认识」组',
+  ok('新条目确实进了哲学与认识组',
     !!gp && (gp.items || []).some(x => x.q === '什么是唯物辩证法？'),
     gp ? (gp.items || []).length + ' 条' : '找不到该组');
   const gpe = (w.SITE_ANSWERS.groups || []).filter(g => g.name === '政治经济学')[0];
-  ok('另一条进了「政治经济学」组', !!gpe && (gpe.items || []).some(x => x.q === '什么是剩余价值？'));
+  ok('另一条进了政治经济学组', !!gpe && (gpe.items || []).some(x => x.q === '什么是剩余价值？'));
 
   /* ⑥ 同名跳过 */
   const res2 = w.YZY.importAnswers([{ q: '什么是唯物辩证法？', a: '重复的' }], {});
@@ -86,7 +86,7 @@ setTimeout(() => {
 
   /* ⑨ 依据行：不再被当成答案续行 */
   const r5 = P('Q: 什么是阶级\nA: 一个集团占有另一个集团的劳动\n依据：列宁《伟大的创举》');
-  ok('「依据：」解析为 basis 而不是粘进答案',
+  ok('依据：解析为 basis 而不是粘进答案',
     r5.list.length === 1 && (r5.list[0].basis || []).length === 1 && !/依据/.test(r5.list[0].a),
     JSON.stringify({ a: r5.list[0].a, basis: r5.list[0].basis }));
 

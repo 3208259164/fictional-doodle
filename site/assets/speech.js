@@ -8,7 +8,7 @@
         完全离线，中文引擎由系统提供（缺引擎时明确提示去系统设置装）。
      ② 没有壳（电脑浏览器 / 其它 WebView）→ 退回 window.speechSynthesis。
 
-   挂载：本文件不改 app.js / index.html —— 自己在 DOM 上等「正文阅读区域」
+   挂载：本文件不改 app.js / index.html —— 自己在 DOM 上等正文阅读区域
    出现（MutationObserver + 低频补扫），往合适位置插一个 🔊 朗读按钮：
      · 本机书籍内置阅读器：#yzReader 的 .reader-bar（读 .reader-body）
      · 资源详情页正文：#contentView article 里的 .ops（读标题 + 正文段落）
@@ -16,7 +16,7 @@
 
    对外接口（window.YZSPEECH）：
      available()            有没有可用的朗读通道（原生桥优先，其次 speechSynthesis）
-     status()               一句中文描述，给「设置 → 诊断」用
+     status()               一句中文描述，给设置 → 诊断用
      diagnose()             结构化诊断 { mode, ok, reason, status, … }
      speak(text, rate)      朗读一段文字（内部按 3800 字符切段）
      stop()                 停止朗读并复位按钮
@@ -31,7 +31,7 @@
 
   var MAX_CHUNK = 3800;      /* 系统引擎单次上限约 4000 字符，留余量 */
   var POLL_MS = 300;         /* 原生分支轮询 ttsBusy 的间隔 */
-  var IDLE_TICKS = 2;        /* 连续几次「不忙」才算这一段读完了（避开启动瞬间的抖动） */
+  var IDLE_TICKS = 2;        /* 连续几次不忙才算这一段读完了（避开启动瞬间的抖动） */
   var SCAN_MS = 1200;        /* 低频补扫（MutationObserver 之外兜底） */
   var BTN_ATTR = 'data-yztts';
   var EMPTY_TIP = '本机没有可用的中文语音引擎，请到系统设置安装';
@@ -44,18 +44,25 @@
   var rateNow = 1.0;
   /* 朗读偏好（2026-11-14）：语速 + 定时截止。
      语速走系统 TTS 的 setSpeechRate（0.5~2.0，1.0 为常速）；定时不另起计时器——
-     分段朗读本来就在轮询「这一段读完了没」，每段开始前看一眼 deadline 就够，
+     分段朗读本来就在轮询这一段读完了没，每段开始前看一眼 deadline 就够，
      而且切后台时轮询暂停、回来继续，不会像 setTimeout 那样被冻结后一次性触发。 */
   var RATE_STEPS = [0.7, 0.85, 1.0, 1.2, 1.5];
   var DUR_STEPS = [0, 15, 30, 60];
   var CFG_KEY = 'yzTtsCfg';
   var deadline = 0;
-  var leftTimer = null;      /* 只为把「还剩几分几秒」刷到按钮上，10 秒一次 */
+  var leftTimer = null;      /* 把还剩几分几秒刷到按钮上，10 秒一次 */
+  var tickTimer = null;      /* 每秒检查一次是否到点 —— 关键：短文本整篇一次发送时，
+                                只在每段开始前检查会漏（读 20 分钟只查了开头一次） */
   function startLeft() {
     if (leftTimer) return;
     leftTimer = setInterval(function () { try { refresh(); } catch (e) {} }, 10000);
+    if (tickTimer) { try { clearInterval(tickTimer); } catch (e) {} }
+    tickTimer = setInterval(function () { try { timeUp(); } catch (e) {} }, 1000);
   }
-  function stopLeft() { if (leftTimer) { try { clearInterval(leftTimer); } catch (e) {} leftTimer = null; } }
+  function stopLeft() {
+    if (leftTimer) { try { clearInterval(leftTimer); } catch (e) {} leftTimer = null; }
+    if (tickTimer) { try { clearInterval(tickTimer); } catch (e) {} tickTimer = null; }
+  }
   function loadCfg() {
     try {
       var o = JSON.parse(localStorage.getItem('yzTtsCfg') || '{}') || {};
@@ -178,7 +185,7 @@
       if (!vs.length) return '浏览器语音合成可用 · 语音列表尚未就绪（首次朗读时会加载）';
       return '浏览器语音合成 · 共 ' + vs.length + ' 个语音，中文 ' + zh + ' 个' + (zh ? '' : '（可能读不出中文）');
     }
-    /* 把「断在哪一层」说清楚：以前笼统一句「本机不支持」，看着像功能被删了 */
+    /* 把断在哪一层说清楚：以前笼统一句本机不支持，看着像功能被删了 */
     var hasApp = false;
     try { hasApp = !!window.AndroidApp; } catch (e) { }
     if (hasApp) return 'App 桥在，但里面没有语音接口（ttsStatus 不是函数）——请更新到最新版本';
@@ -427,11 +434,22 @@
       + '<div style="margin-top:6px;font-size:.74rem;opacity:.66">语速</div><div>' + r + '</div>'
       + '<div style="margin-top:4px;font-size:.74rem;opacity:.66">时长（到点自动停）</div><div>' + m + '</div>'
       + left
-      + '<div style="margin-top:6px;font-size:.7rem;opacity:.5;line-height:1.5">语速改动从下一段生效；时长改动立刻生效。</div>';
+      + '<div style="margin-top:6px;font-size:.7rem;opacity:.5;line-height:1.5">正在朗读时改语速会立刻重读当前这一段；改时长从此刻起重新计时。</div>';
   }
   function paintCfg() {
     var p = document.getElementById('yzTtsPanel');
     if (p) p.innerHTML = cfgHTML();
+  }
+  /* 改语速时如果正在读，立刻用新语速重读当前这一段。
+     否则要等下一段才生效，而短文本只有一段 —— 用户点了 1.5× 却毫无反应。 */
+  function reSpeakNow() {
+    if (!speaking) return;
+    var rest = chunks.slice(Math.max(0, chunkIdx - 1)).join('\n');
+    if (!rest) return;
+    var keep = deadline;
+    speak(rest, cfg.rate);
+    deadline = keep;                 /* 不重新计时：定时是本次朗读的总时长 */
+    if (!keep) stopLeft();
   }
   function openCfg(anchor) {
     closeCfg();
@@ -453,7 +471,11 @@
       var t = ev.target;
       if (!t || !t.getAttribute) return;
       var rv = t.getAttribute('data-yzr'), mv = t.getAttribute('data-yzm');
-      if (rv !== null) { cfg.rate = normRate(rv); rateNow = cfg.rate; saveCfg(); paintCfg(); return; }
+      if (rv !== null) {
+        cfg.rate = normRate(rv); rateNow = cfg.rate; saveCfg(); paintCfg();
+        reSpeakNow();                /* 正在读就立刻换语速重读这一段 */
+        return;
+      }
       if (mv !== null) {
         cfg.minutes = parseInt(mv, 10) || 0;
         saveCfg();
@@ -521,7 +543,7 @@
   }
 
   /* ---------------- 取正文 ---------------- */
-  /* 老 WebView / jsdom 没有 innerText，退化成「逐块拼」，块与块之间补换行，
+  /* 老 WebView / jsdom 没有 innerText，退化成逐块拼，块与块之间补换行，
      否则 <p>a</p><p>b</p> 会被粘成 "ab"，朗读时断句全乱。 */
   function textOf(el) {
     if (!el) return '';
@@ -598,7 +620,7 @@
       var btn = mount(h.key, h.host, h.getText);
       if (btn) { alive[h.key] = 1; if (!btn.parentNode || !document.body.contains(btn)) { try { h.host.appendChild(btn); } catch (e) {} } }
     }
-    /* 挂载点没了 / 换页了 → 停，避免「按钮没了声音还在响」 */
+    /* 挂载点没了 / 换页了 → 停，避免按钮没了声音还在响 */
     if (speaking && ownerKey && !document.querySelector('button[' + BTN_ATTR + '="' + ownerKey + '"]')) {
       finish();
     }

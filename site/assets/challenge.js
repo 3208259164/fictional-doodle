@@ -1,8 +1,8 @@
-/* 学通 · 内容包（自 0.17.37 起由「闯关」更名）
+/* 学通 · 内容包（自 0.17.37 起由闯关更名）
    ------------------------------------------------------------------
-   定位：这是一个「可扩展内容」机制，不是游戏。用户自己做一个 HTML 页面
+   定位：这是一个可扩展内容机制，不是游戏。用户自己做一个 HTML 页面
    （课件、测验、时间轴推演、地图沙盘、任何交互页面），导入 App 里全屏运行。
-   软件只提供三件事：包库管理、沙箱容器、以及「打开书库条目 / 记一条统计 / 退出」三个桥。
+   软件只提供三件事：包库管理、沙箱容器、以及打开书库条目 / 记一条统计 / 退出三个桥。
    ------------------------------------------------------------------
    本文件只做四件事：
      1. 包库管理（IndexedDB yzy_packs：导入 / 列出 / 删除）
@@ -161,7 +161,7 @@
   }
 
   /* 包现在与 App 同源（要自己存档），因此必须拦住明显越权的东西。
-     不追求百分百（做不到），只把「一眼就知道要干坏事」的挑出来让用户确认。 */
+     不追求百分百（做不到），只把一眼就知道要干坏事的挑出来让用户确认。 */
   var RISK = [
     { re: /parent\s*\.\s*document|top\s*\.\s*document|window\s*\.\s*top\s*\.\s*document/i, why: '试图读写 App 页面（parent/top.document）' },
     { re: /top\s*\.\s*location|window\s*\.\s*top\s*\.\s*location|parent\s*\.\s*location\s*=/i, why: '试图把 App 跳转到别的页面' },
@@ -185,7 +185,7 @@
       var meta = parseMeta(html);
       var loose = false;                 /* 宽松模式：没有 yz-pack 也照样能跑 */
       if (!meta) {
-        /* 用户要求：不强制校验「是本软件的包」。
+        /* 用户要求：不强制校验是本软件的包。
            任意 HTML 都能导入，App 当它是一个黑盒网页来跑。
            有 meta 时才有节点数、版本、进度摘要这些额外信息。 */
         loose = true;
@@ -210,7 +210,7 @@
       var risks = scanRisks(html);
       var msg = '导入《' + (meta.packTitle || meta.packId) + '》？\n\n' +
         (loose
-          ? '这是一个普通网页（没有关卡包元数据），会以「整页运行」的方式装进来。\n'
+          ? '这是一个普通网页（没有关卡包元数据），会以整页运行的方式装进来。\n'
           : '包含 ' + meta.nodes.length + ' 个关卡：' + meta.nodes.slice(0, 5).map(function (n) { return n.title; }).join('、') +
             (meta.nodes.length > 5 ? ' 等' : '') + '\n') +
         '版本 ' + (meta.version || '—') + '\n\n' +
@@ -248,7 +248,7 @@
         e.innerHTML = '<div class="e1">🎮</div>' +
           '<div class="e2">还没有导入任何内容包</div>' +
           '<div class="e3">内容包就是一个 <b>.html</b> 文件——自制课件、学习卡片、测验、' +
-          '地图推演都行。点右上角「＋ 导入包」选一个，它会在 App 里全屏运行。<br>' +
+          '地图推演都行。点右上角＋ 导入包选一个，它会在 App 里全屏运行。<br>' +
           '<span style="opacity:.7">界面、题目、进度全由包自己提供，软件只负责把它跑起来；' +
           '包没有联网能力（App 本身就没有网络权限）。</span></div>';
         document.body.appendChild(e);
@@ -521,10 +521,10 @@
       }
 
       if (m.t === 'yz:ready') {
-        /* 包自报「起来了」——立刻撤掉载入遮罩，比死等 900ms 更准 */
+        /* 包自报起来了——立刻撤掉载入遮罩，比死等 900ms 更准 */
         $('loading').classList.add('off');
       } else if (m.t === 'yz:win') {
-        /* 包内已自己存档；这里只记一次「打开过」，供列表显示最近时间 */
+        /* 包内已自己存档；这里只记一次打开过，供列表显示最近时间 */
         try { localStorage.setItem('yzq_last_' + (m.packId || ''), String(Date.now())); } catch (err) {}
       } else if (m.t === 'yz:exit') {
         closePlayer();

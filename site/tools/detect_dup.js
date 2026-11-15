@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /* 学通 · 重复内容检测
    ---------------------------------------------------------------------
-   audit_code.js 查的是「函数有没有调用、id 有没有重复、CSS 类有没有引用」，
-   不查「同一件事是不是被写了两遍」。这个脚本补上：
+   audit_code.js 查的是函数有没有调用、id 有没有重复、CSS 类有没有引用，
+   不查同一件事是不是被写了两遍。这个脚本补上：
      1. 实体跨库同名（人物/组织/概念/学派/地名/会议）
      2. 名称高度相似（包含关系且长度接近）
      3. 书库同名书（含去掉括号后缀后同名）
@@ -77,8 +77,8 @@ const dupBooks = Object.keys(bmap).filter(k => bmap[k].length > 1);
 
 /* ---------- 4. 事件重复 ---------- */
 /* 注意：events-extra.js 末尾会把自己的内容 push 进 SITE_EXTRA.events，
-   所以「SITE_EXTRA.events + SITE_EVENTS_EXTRA」相加会把扩容批算两遍
-   （第一版就这样得出「375 组同名」的假结论）。这里按 name+year 去重。 */
+   所以SITE_EXTRA.events + SITE_EVENTS_EXTRA相加会把扩容批算两遍
+   （第一版就这样得出375 组同名的假结论）。这里按 name+year 去重。 */
 const evs = [];
 const evSeen = new Set();
 const addEv = (e, src) => {
@@ -99,7 +99,7 @@ evs.forEach(({ e, src }) => {
 });
 const dupEvName = Object.keys(evName).filter(k => evName[k].length > 1);
 const dupEvKey = Object.keys(evKey).filter(k => evKey[k].length > 1);
-/* 同一年份、名称互相包含（如「俄国1905年革命 / 俄国第一次革命」这类抓不到，只抓包含型） */
+/* 同一年份、名称互相包含（如俄国1905年革命 / 俄国第一次革命这类抓不到，只抓包含型） */
 const evNames = Array.from(new Set(evs.map(x => x.e && x.e.name).filter(Boolean)));
 const evSimilar = [];
 for (let i = 0; i < evNames.length; i++) {
@@ -128,23 +128,23 @@ const dupFn = Object.keys(fnDefs).filter(k => fnDefs[k].length > 1);
 const line = (t) => console.log(t);
 line('实体总数 ' + ent.length + '（' + names.length + ' 个不同名称）｜ 书库 ' + books.length + ' ｜ 事件 ' + evs.length);
 line('');
-line('【1】跨库同名 ' + sameName.length + ' 组');
+line('1跨库同名 ' + sameName.length + ' 组');
 sameName.slice(0, 25).forEach(k => line('  ' + k + '  ← ' + byName[k].map(x => x.kind + '(' + x.src + ')').join(' / ')));
 if (sameName.length > 25) line('  …另有 ' + (sameName.length - 25) + ' 组');
 line('');
-line('【2】名称高度相似（包含且长度接近）' + similar.length + ' 组');
+line('2名称高度相似（包含且长度接近）' + similar.length + ' 组');
 similar.slice(0, 20).forEach(([a, b]) => line('  ' + a + '  ≈  ' + b));
 if (similar.length > 20) line('  …另有 ' + (similar.length - 20) + ' 组');
 line('');
-line('【3】书库同名（去括号后比较）' + dupBooks.length + ' 组');
+line('3书库同名（去括号后比较）' + dupBooks.length + ' 组');
 dupBooks.forEach(k => line('  ' + bmap[k].map(b => b.title + ' [' + b.id + ']').join('  /  ')));
 line('');
-line('【4】事件重复：完全同名 ' + dupEvName.length + ' 组，年份+名称同键 ' + dupEvKey.length + ' 组');
+line('4事件重复：完全同名 ' + dupEvName.length + ' 组，年份+名称同键 ' + dupEvKey.length + ' 组');
 dupEvName.slice(0, 10).forEach(k => line('  同名 ' + k + ' ← ' + evName[k].join('+')));
 dupEvKey.slice(0, 10).forEach(k => { if (!evName[k.split('|')[1]]) line('  同年同键 ' + k + ' ← ' + evKey[k].join('+')); });
 line('  名称包含型 ' + evSimilar.length + ' 组');
 evSimilar.slice(0, 15).forEach(([a, b]) => line('    ' + a + '  ≈  ' + b));
 if (evSimilar.length > 15) line('    …另有 ' + (evSimilar.length - 15) + ' 组');
 line('');
-line('【5】重复实现的辅助函数 ' + dupFn.length + ' 个');
+line('5重复实现的辅助函数 ' + dupFn.length + ' 个');
 dupFn.forEach(k => line('  ' + k + '：' + fnDefs[k].join(', ')));

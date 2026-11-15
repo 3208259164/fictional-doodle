@@ -1,5 +1,5 @@
-/* 上一轮几项改动的「真点了才算数」复验（16 项）
-   用户的要求：「重查一下之前是否执行，或者真正能够使用，是否存在 bug」。
+/* 上一轮几项改动的真点了才算数复验（16 项）
+   用户的要求：重查一下之前是否执行，或者真正能够使用，是否存在 bug。
    所以这里不走内部 API 断言，而是**真的点到按钮上**，再看页面有没有变。
    覆盖：给人物加书后能否显示、★ 推荐是否只出现一次、术语卡能否改、
         答疑页面上的导入/导出按钮是否真在、点开是否真弹层。 */
@@ -32,12 +32,12 @@ waitData(() => {
     w.openFigure(p.id);
     const box = () => d.getElementById('contentView');
     const txt0 = box() ? box().textContent : '';
-    ok('打开图谱人物页后出现「本站收录」', /本站收录/.test(txt0), p.name);
-    ok('「本站收录」有可挂载的容器 #yzPrsBody 或说明文字', !!d.getElementById('yzPrsBody') || /暂未收录/.test(txt0));
+    ok('打开图谱人物页后出现本站收录', /本站收录/.test(txt0), p.name);
+    ok('本站收录有可挂载的容器 #yzPrsBody 或说明文字', !!d.getElementById('yzPrsBody') || /暂未收录/.test(txt0));
 
-    /* 真的点「＋ 加书」按钮 */
+    /* 真的点＋ 加书按钮 */
     const addBtn = Array.from(d.querySelectorAll('[data-act="openAddRelated"]'))[0];
-    ok('人物页上有「＋ 加书」按钮', !!addBtn);
+    ok('人物页上有＋ 加书按钮', !!addBtn);
     if (addBtn) addBtn.click();
     ok('点了之后弹出加书面板', !!d.getElementById('addRelBox'));
 
@@ -48,29 +48,29 @@ waitData(() => {
     const relBefore = w.personResources(p.name).map(x => x.title);
     if (firstBook) firstBook.click();
     const relAfter = w.personResources(p.name).map(x => x.title);
-    ok('点一本书之后「本站收录」里真的多了这本书',
+    ok('点一本书之后本站收录里真的多了这本书',
       relAfter.indexOf(bookTitle) >= 0 && relBefore.length + 1 === relAfter.length,
       relBefore.length + ' → ' + relAfter.length);
 
-    /* 点「完成」→ 回到人物页 → 书名必须出现在页面上 */
+    /* 点完成→ 回到人物页 → 书名必须出现在页面上 */
     const done = d.querySelector('#addRelBox [data-ar="cancel"]');
     if (done) done.click();
-    ok('点「完成」后面板关闭', !d.getElementById('addRelBox'));
+    ok('点完成后面板关闭', !d.getElementById('addRelBox'));
     const txt1 = box() ? box().textContent : '';
     ok('★ 这就是之前那个 bug：加完书页面上能看到它', txt1.indexOf(bookTitle) >= 0, bookTitle);
 
     /* ② ★ 推荐只出现一次 */
     const marks = (txt1.match(/★ 推荐/g) || []).length;
-    ok('「★ 推荐」在人物页只出现一次（原来每本书各一条）', marks <= 1, marks + ' 次');
+    ok('★ 推荐在人物页只出现一次（原来每本书各一条）', marks <= 1, marks + ' 次');
 
-    /* ③ 术语卡：点「✏️ 改」→ 真的能改 */
+    /* ③ 术语卡：点✏️ 改→ 真的能改 */
     const gl = w.SITE_GLOSSARY || [];
     ok('术语卡数据存在', gl.length > 0, gl.length + ' 张');
     if (gl.length) {
       const t0 = gl[0];
       w.YZStudy.termEdit(t0.id);
       const form = d.getElementById('tfTerm');
-      ok('点「✏️ 改」弹出编辑表单', !!form);
+      ok('点✏️ 改弹出编辑表单', !!form);
       if (form) {
         form.value = (t0.term || '') + '（改）';
         const dic = d.getElementById('tfDic'); if (dic) dic.value = '复验用的定义';
@@ -89,8 +89,8 @@ waitData(() => {
     ok('答疑页渲染出来了', /答疑|术语卡/.test(box().textContent));
     const imp = Array.from(d.querySelectorAll('button')).filter(b => /从文档导入/.test(b.textContent))[0];
     const exp = Array.from(d.querySelectorAll('button')).filter(b => /📤 导出/.test(b.textContent))[0];
-    ok('答疑页上有「📥 从文档导入」按钮', !!imp);
-    ok('答疑页上有「📤 导出」按钮', !!exp);
+    ok('答疑页上有📥 从文档导入按钮', !!imp);
+    ok('答疑页上有📤 导出按钮', !!exp);
     if (imp) { imp.click(); ok('导入按钮点了真弹层', !!d.getElementById('yzAnsImp')); const x = d.getElementById('yzAnsImp'); if (x) x.remove(); }
     if (exp) { exp.click(); ok('导出按钮点了真弹层', !!d.getElementById('yzAnsExp')); }
 

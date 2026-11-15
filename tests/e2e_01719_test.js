@@ -59,9 +59,9 @@ setTimeout(async () => {
   ok('① 打开分类页后栈里有 1 条', st1 === 1, 'len=' + st1);
   try { w.openCatPage('歌曲'); } catch (e) { }
   const st2 = w.eval('_pageStack.length');
-  ok('① 点「歌曲」后是入栈（栈变 2 条），不是切到首页结果视图', st2 === 2, 'len=' + st2);
+  ok('① 点歌曲后是入栈（栈变 2 条），不是切到首页结果视图', st2 === 2, 'len=' + st2);
   ok('① 结果视图没有被拉起来（不再是 hash 跳转）', w.eval("document.getElementById('view-results').hidden === true"));
-  ok('① 当前页面标题是「歌曲」', w.eval("(_pageStack[_pageStack.length-1]||{}).title || ''").indexOf('歌曲') >= 0,
+  ok('① 当前页面标题是歌曲', w.eval("(_pageStack[_pageStack.length-1]||{}).title || ''").indexOf('歌曲') >= 0,
     w.eval("(_pageStack[_pageStack.length-1]||{}).title || ''"));
   ok('① 页面里列出了歌曲条目', (() => {
     const t = w.document.getElementById('contentView').textContent || '';
@@ -84,12 +84,12 @@ setTimeout(async () => {
   savedCalls = [];
   try { w.savePhoto(encodeURIComponent('images/leaders/marx.webp'), encodeURIComponent('马克思')); } catch (e) { errs.push('savePhoto ' + e.message); }
   await new Promise(r => setTimeout(r, 120));
-  ok('② 相册「下载」走 App 保存桥（不是 <a download>）', savedCalls.length === 1, JSON.stringify(savedCalls[0] || {}));
+  ok('② 相册下载走 App 保存桥（不是 <a download>）', savedCalls.length === 1, JSON.stringify(savedCalls[0] || {}));
   ok('② 文件名带 .webp 扩展名', savedCalls[0] && /\.webp$/.test(savedCalls[0].name), savedCalls[0] && savedCalls[0].name);
   ok('② mime 正确', savedCalls[0] && savedCalls[0].mime === 'image/webp', savedCalls[0] && savedCalls[0].mime);
 
   /* ---------- ③ 人物编辑：年表 / 相关推荐 / 头像 ---------- */
-  ok('③ parseChrono 解析「年｜事件」', (() => {
+  ok('③ parseChrono 解析年｜事件', (() => {
     const a = w.parseChrono('1918｜发表《庶民的胜利》\n1919｜领导五四运动');
     return a.length === 2 && a[0].y === '1918' && a[0].t.indexOf('庶民') >= 0;
   })());
@@ -120,7 +120,7 @@ setTimeout(async () => {
 
   /* 相关推荐 → 本站收录 */
   const prList = w.personResources('李大钊');
-  ok('③ 相关推荐的书进了「本站收录」', prList.some(x => x && x.title === '共产党宣言'), prList.length + ' 本');
+  ok('③ 相关推荐的书进了本站收录', prList.some(x => x && x.title === '共产党宣言'), prList.length + ' 本');
 
   /* 头像（dataURL 通过净化） */
   let r4 = null;
@@ -139,12 +139,12 @@ setTimeout(async () => {
   /* ---------- ④ 本站收录：收起与加书 ---------- */
   try { w.openAuthor('李大钊'); } catch (e) { }
   const prsBtn = w.document.querySelector('[data-act="prsToggleNext"]');
-  ok('④ 人物页有「收起」按钮', !!prsBtn);
-  ok('④ 有「＋ 加书」按钮', !!w.document.querySelector('[data-act="openAddRelated"]'));
+  ok('④ 人物页有收起按钮', !!prsBtn);
+  ok('④ 有＋ 加书按钮', !!w.document.querySelector('[data-act="openAddRelated"]'));
   const body = w.document.getElementById('yzPrsBody');
   ok('④ 收录区有内容', !!body && body.querySelectorAll('.lcard').length > 0, body ? body.querySelectorAll('.lcard').length + ' 条' : '');
   if (prsBtn) { try { w.eval('prsToggleNext(null, document.querySelector(\'[data-act="prsToggleNext"]\'))'); } catch (e) { } }
-  ok('④ 点收起后按钮变成「展开」', prsBtn && /展开/.test(prsBtn.textContent || ''), prsBtn && prsBtn.textContent);
+  ok('④ 点收起后按钮变成展开', prsBtn && /展开/.test(prsBtn.textContent || ''), prsBtn && prsBtn.textContent);
   ok('④ 收起后只显示前 3 条', (() => {
     const b = w.document.getElementById('yzPrsBody'); if (!b) return false;
     const rows = b.querySelectorAll('.lcard'); let shown = 0;
@@ -157,7 +157,7 @@ setTimeout(async () => {
   /* 加书弹层 */
   try { w.openAddRelated('李大钊'); } catch (e) { errs.push('openAddRelated ' + e.message); }
   const arBox = w.document.getElementById('addRelBox');
-  ok('④ 「＋ 加书」能打开选择弹层', !!arBox);
+  ok('④ ＋ 加书能打开选择弹层', !!arBox);
   ok('④ 弹层里有书目候选（可打字筛选）', !!arBox && arBox.querySelectorAll('[data-add]').length > 3,
     arBox ? arBox.querySelectorAll('[data-add]').length + ' 条' : '');
   ok('④ 弹层有筛选输入框', !!arBox && !!arBox.querySelector('#arQ'));
@@ -171,7 +171,7 @@ setTimeout(async () => {
   } catch (e) { errs.push('editResource ' + e.message); }
   ok('⑤ 书籍能保存相关推荐', r5 && r5.ok !== false);
   ok('⑤ 相关推荐写回资源条目', w.eval('(RES[0].related||[]).indexOf("资本论")>=0'));
-  ok('⑤ 书籍详情页渲染「相关推荐」', (() => {
+  ok('⑤ 书籍详情页渲染相关推荐', (() => {
     try { w.openItemDetail(0); const t = w.document.getElementById('contentView').textContent; return /相关推荐/.test(t); } catch (e) { return false; }
   })());
 
